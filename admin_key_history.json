@@ -1,0 +1,93 @@
+[
+  {
+    "license_key": "SN-LIF-0000-9999-B269-7632BC",
+    "client_name": "Customer_VIP",
+    "plan": "LIFETIME",
+    "duration_days": 0,
+    "created_at": "2026-09-10 21:55:40",
+    "expires_at": "LIFETIME",
+    "expiry_timestamp": 0,
+    "bound_hwid": "ANY",
+    "raw_payload": "SN:LIF:0000:9999:B269",
+    "signature": "7632BC",
+    "status": "ACTIVE"
+  },
+  {
+    "license_key": "SN-VIP-0000-9999-6F2B-D59360",
+    "client_name": "SN_Admin_Master",
+    "plan": "VIP_LIFETIME",
+    "duration_days": 0,
+    "created_at": "2026-09-10 21:43:12",
+    "expires_at": "LIFETIME",
+    "expiry_timestamp": 0,
+    "bound_hwid": "ANY",
+    "raw_payload": "SN:VIP:0000:9999:6F2B",
+    "signature": "D59360",
+    "status": "ACTIVE"
+  },
+  {
+    "license_key": "SN-VIP-0000-9999-39C9-701787",
+    "client_name": "Bona_Lifetime",
+    "plan": "VIP_LIFETIME",
+    "duration_days": 0,
+    "created_at": "2026-09-10 21:42:49",
+    "expires_at": "LIFETIME",
+    "expiry_timestamp": 0,
+    "bound_hwid": "ANY",
+    "raw_payload": "SN:VIP:0000:9999:39C9",
+    "signature": "701787",
+    "status": "ACTIVE"
+  },
+  {
+    "license_key": "SN-VIP-5100-9999-73B2-8C1DE2",
+    "client_name": "Sokha_Test",
+    "plan": "VIP_1M",
+    "duration_days": 30,
+    "created_at": "2026-09-10 21:42:49",
+    "expires_at": "2026-10-10",
+    "expiry_timestamp": 1791676799,
+    "bound_hwid": "ANY",
+    "raw_payload": "SN:VIP:5100:9999:73B2",
+    "signature": "8C1DE2",
+    "status": "ACTIVE"
+  },
+  {
+    "license_key": "SN-VIP-57DD-D552-67A8-2382",
+    "client_name": "VIP_Subscriber_2",
+    "plan": "VIP_1M",
+    "duration_days": 30,
+    "created_at": "2026-09-08 20:35:24",
+    "expires_at": "2026-10-08",
+    "expiry_timestamp": 1791466524,
+    "bound_hwid": "ANY",
+    "raw_payload": "VIP_Subscriber_2|VIP_1M|30|1791466524|*|57DDD552",
+    "signature": "67A8238255D18B87",
+    "status": "ACTIVE"
+  },
+  {
+    "license_key": "SN-VIP-272B-342E-9526-1C8B",
+    "client_name": "VIP_Subscriber_1",
+    "plan": "VIP_1Y",
+    "duration_days": 365,
+    "created_at": "2026-09-08 20:35:24",
+    "expires_at": "2027-09-08",
+    "expiry_timestamp": 1820410524,
+    "bound_hwid": "ANY",
+    "raw_payload": "VIP_Subscriber_1|VIP_1Y|365|1820410524|*|272B342E",
+    "signature": "95261C8BF63A6016",
+    "status": "ACTIVE"
+  },
+  {
+    "license_key": "SN-LIF-E936-4F3B-3E87-6FA4",
+    "client_name": "Admin_Master",
+    "plan": "LIFETIME_VIP",
+    "duration_days": 0,
+    "created_at": "2026-09-08 20:35:24",
+    "expires_at": "LIFETIME",
+    "expiry_timestamp": 0,
+    "bound_hwid": "ANY",
+    "raw_payload": "Admin_Master|LIFETIME_VIP|0|0|*|E9364F3B",
+    "signature": "3E876FA41BB78014",
+    "status": "ACTIVE"
+  }
+]

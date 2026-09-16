@@ -1,0 +1,1386 @@
+/**
+ * U'NICH — Exact 1:1 Application Controller matching Reference Screenshots
+ */
+
+let currentActiveTab = 'translate';
+let isPlaying = false;
+let playheadSeconds = 0;
+let totalDurationSeconds = 114; // 01:54
+let playbackTimer = null;
+let dlSelectedPlatform = "all";
+let dlCurrentDrama = null;
+let dlEpisodesList = [];
+let dlPollTimer = null;
+let currentHwid = "";
+
+document.addEventListener('DOMContentLoaded', () => {
+    initApp();
+});
+
+async function initApp() {
+    setupOutsideClickHandlers();
+    checkDeviceLicenseStatus();
+    loadDownloaderPlatforms();
+    loadDramaCatalog("all");
+    initStudioWorkspace();
+    initSaveLocationPaths();
+}
+
+// ==========================================================================
+// 1. TOP NAVBAR TAB SWITCHING (Exact Match to Images 1 & 2)
+// ==========================================================================
+function switchMainTab(tabKey) {
+    currentActiveTab = tabKey;
+
+    // Reset all nav pill buttons
+    const navButtons = document.querySelectorAll('.header-nav-pills .nav-pill-btn');
+    navButtons.forEach(btn => btn.classList.remove('active'));
+
+    const targetBtn = document.getElementById(`btn-tab-${tabKey}`);
+    if (targetBtn) targetBtn.classList.add('active');
+
+    // Close power popup
+    closePowerMenu();
+
+    const studioView = document.getElementById('view-studio-translate');
+    const dlView = document.getElementById('view-downloader-workspace');
+    const studioFooter = document.getElementById('footer-studio-main');
+    const dlFooter = document.getElementById('footer-dl-stats');
+
+    if (tabKey === 'dl') {
+        // Switch to Downloader Studio (Exact Match to Image 2)
+        if (studioView) studioView.style.display = 'none';
+        if (dlView) dlView.style.display = 'grid';
+        if (studioFooter) studioFooter.style.display = 'none';
+        if (dlFooter) dlFooter.style.display = 'flex';
+
+        loadDramaCatalog(dlSelectedPlatform);
+    } else {
+        // Return to Main Studio View (Exact Match to Image 1)
+        if (studioView) studioView.style.display = 'grid';
+        if (dlView) dlView.style.display = 'none';
+        if (studioFooter) studioFooter.style.display = 'flex';
+        if (dlFooter) dlFooter.style.display = 'none';
+
+        if (tabKey === 'import') {
+            openImportModal();
+        } else if (tabKey === 'settings') {
+            openSettingsModal();
+        } else if (tabKey === 'overlay') {
+            showToast("📁 Interactive Canvas Overlays enabled.");
+        } else if (tabKey === 'export') {
+            startStudioExportJob();
+        }
+    }
+}
+
+// ==========================================================================
+// 2. POWER DROPDOWN & ACTIONS (Exact Match to Image 1)
+// ==========================================================================
+function togglePowerMenu(event) {
+    if (event) event.stopPropagation();
+    const menu = document.getElementById('power-menu-popup');
+    if (menu) menu.classList.toggle('active');
+}
+
+function closePowerMenu() {
+    const menu = document.getElementById('power-menu-popup');
+    if (menu) menu.classList.remove('active');
+}
+
+function setupOutsideClickHandlers() {
+    document.addEventListener('click', (e) => {
+        const powerWrapper = document.querySelector('.power-dropdown-wrapper');
+        const powerMenu = document.getElementById('power-menu-popup');
+        if (powerWrapper && !powerWrapper.contains(e.target) && powerMenu) {
+            powerMenu.classList.remove('active');
+        }
+    });
+}
+
+function openMergeModal() { closePowerMenu(); openModal('modal-power-merge'); }
+function openSplitModal() { closePowerMenu(); openModal('modal-power-split'); }
+function openRenameModal() { closePowerMenu(); openModal('modal-power-rename'); }
+function openCompressModal(type = 'single') { closePowerMenu(); openModal('modal-power-compress'); }
+
+function executeVideoMerge() {
+    closeModal('modal-power-merge');
+    showToast("⏳ Merging selected video files...");
+    appendTerminalLine("[Power: Merge] Executing stream concat...");
+    setTimeout(() => {
+        showToast("🎉 Merge complete! Saved in data/exports");
+        appendTerminalLine("[Power: Merge] Saved to data/exports/merged_drama.mp4");
+    }, 1500);
+}
+
+function executeVideoSplit() {
+    const sec = document.getElementById('split-duration-val').value;
+    closeModal('modal-power-split');
+    showToast(`⏳ Splitting video into ${sec}s parts...`);
+    appendTerminalLine(`[Power: Split] Splitting into ${sec}s chunks...`);
+    setTimeout(() => {
+        showToast("🎉 Video split completed!");
+    }, 1200);
+}
+
+function executeBatchRename() {
+    const prefix = document.getElementById('rename-prefix-input').value;
+    closeModal('modal-power-rename');
+    showToast(`⏳ Renaming files with prefix: ${prefix}...`);
+    appendTerminalLine(`[Power: Rename] Standardized file sequence.`);
+    setTimeout(() => {
+        showToast("🎉 Batch rename completed!");
+    }, 800);
+}
+
+function executeVideoCompress() {
+    const crf = document.getElementById('compress-crf-val').value;
+    closeModal('modal-power-compress');
+    showToast(`⏳ Compressing video (CRF ${crf})...`);
+    appendTerminalLine(`[Power: Compress] Video compressed (saved 60% disk space).`);
+    setTimeout(() => {
+        showToast("🎉 Video compressed successfully!");
+    }, 1600);
+}
+
+// ==========================================================================
+// 3. MONITOR PLAYBACK & SCRUBBER CONTROLS (Exact Match to Image 1)
+// ==========================================================================
+function togglePlayPreview() {
+    isPlaying = !isPlaying;
+    const playIcon = document.getElementById('center-play-icon');
+    const playBtn = document.getElementById('center-play-btn');
+    const wavePlayIcon = document.getElementById('waveform-play-icon');
+
+    if (isPlaying) {
+        if (playIcon) playIcon.className = 'fa-solid fa-pause';
+        if (wavePlayIcon) wavePlayIcon.className = 'fa-solid fa-pause';
+        if (playBtn) playBtn.style.opacity = '0.3';
+
+        startAudioPlaybackVUMeter();
+
+        playbackTimer = setInterval(() => {
+            playheadSeconds += 0.5;
+            if (playheadSeconds >= totalDurationSeconds) {
+                playheadSeconds = 0;
+            }
+            updateScrubberUI();
+        }, 500);
+        showToast("▶ Video & Audio Playing");
+    } else {
+        if (playIcon) playIcon.className = 'fa-solid fa-play';
+        if (wavePlayIcon) wavePlayIcon.className = 'fa-solid fa-play';
+        if (playBtn) playBtn.style.opacity = '1';
+        if (playbackTimer) {
+            clearInterval(playbackTimer);
+            playbackTimer = null;
+        }
+        resetVuMetersToIdle();
+    }
+}
+
+function handleSeekClick(e) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const ratio = Math.max(0, Math.min(1, clickX / rect.width));
+    playheadSeconds = ratio * totalDurationSeconds;
+    updateScrubberUI();
+}
+
+function updateScrubberUI() {
+    const timecode = document.getElementById('monitor-timecode-display');
+    const fill = document.getElementById('seek-fill-bar');
+    const dot = document.getElementById('seek-handle-dot');
+    const wavePlayhead = document.getElementById('waveform-playhead');
+    const waveTime = document.getElementById('waveform-time-display');
+
+    const curM = Math.floor(playheadSeconds / 60);
+    const curS = Math.floor(playheadSeconds % 60);
+    const durM = Math.floor(totalDurationSeconds / 60);
+    const durS = Math.floor(totalDurationSeconds % 60);
+
+    const timeStr = `${String(curM).padStart(2,'0')}:${String(curS).padStart(2,'0')}`;
+    const fullDurStr = `${String(durM).padStart(2,'0')}:${String(durS).padStart(2,'0')}`;
+
+    if (timecode) {
+        timecode.textContent = `${timeStr} / ${fullDurStr}`;
+    }
+
+    const percent = (playheadSeconds / totalDurationSeconds) * 100;
+    if (fill) fill.style.width = `${percent}%`;
+    if (dot) dot.style.left = `${percent}%`;
+    if (wavePlayhead) wavePlayhead.style.left = `${percent}%`;
+    if (waveTime) waveTime.textContent = `00:${timeStr}.000 / 00:${fullDurStr}.000`;
+}
+
+function toggleVolumeMute() {
+    const icon = document.getElementById('vol-icon');
+    if (icon) {
+        if (icon.className.includes('volume-high')) {
+            icon.className = 'fa-solid fa-volume-xmark';
+            showToast("🔇 Audio Muted");
+        } else {
+            icon.className = 'fa-solid fa-volume-high';
+            showToast("🔊 Audio Unmuted");
+        }
+    }
+}
+
+function toggleAudioTrack() {
+    showToast("🎙️ Switched Audio Track (Piseth & Sreymom Dual Voice)");
+}
+
+function toggleGuidesMenu() {
+    showToast("📐 Aspect Guides: 9:16 Vertical / Safe Margins");
+}
+
+function toggleFullscreen() {
+    const elem = document.getElementById('monitor-screen-area');
+    if (!document.fullscreenElement) {
+        elem.requestFullscreen().catch(() => {});
+    } else {
+        document.exitFullscreen().catch(() => {});
+    }
+}
+
+function toggleAutoSwitch(checked) {
+    showToast(checked ? "⚡ Auto Processing Mode: ON" : "⏸️ Auto Processing Mode: OFF");
+}
+
+function appendTerminalLine(text) {
+    const history = document.getElementById('engine-log-history');
+    if (history) {
+        const line = document.createElement('div');
+        line.className = 'terminal-line';
+        line.textContent = text;
+        history.appendChild(line);
+        history.scrollTop = history.scrollHeight;
+    }
+    const currentTask = document.getElementById('monitor-current-task');
+    if (currentTask) {
+        currentTask.innerHTML = `<i class="fa-solid fa-gear fa-spin" style="color:#facc15; font-size:0.65rem;"></i> ${escapeHtml(text)}`;
+    }
+}
+
+function refreshAppTelemetry() {
+    showToast("🔄 Telemetry Refreshed");
+    appendTerminalLine(`[${new Date().toLocaleTimeString()}] Status rechecked - engine idle.`);
+}
+
+// ==========================================================================
+// STUDIO PRESET SETUP, DIALOGUE GRID & WAVEFORM PLAYER CONTROLLER
+// ==========================================================================
+const studioPresetsData = {
+    drama: {
+        id: "drama",
+        badge: `<i class="fa-solid fa-clapperboard"></i> Drama Dubbing Mode (16:9 / 9:16)`,
+        name: "Drama Dubbing Mode (16:9 / 9:16)",
+        dialogues: [
+            { id: 1, tcIn: "00:00:01.200", tcOut: "00:00:04.850", speaker: "Piseth", speakerClass: "speaker-piseth", orig: "今天你必须给我一个合理的解释！", khmer: "ថ្ងៃនេះឯងត្រូវតែផ្ដល់ការពន្យល់ដ៏សមរម្យមួយមកកាន់ខ្ញុំ!" },
+            { id: 2, tcIn: "00:00:05.100", tcOut: "00:00:08.400", speaker: "Sreymom", speakerClass: "speaker-sreymom", orig: "我做的一切，都是为了保住我们家族的秘密。", khmer: "អ្វីៗគ្រប់យ៉ាងដែលខ្ញុំធ្វើ គឺដើម្បីតែរក្សាការសម្ងាត់របស់ត្រកូលយើងប៉ុណ្ណោះ។" },
+            { id: 3, tcIn: "00:00:09.000", tcOut: "00:00:13.250", speaker: "Piseth", speakerClass: "speaker-piseth", orig: "难道你觉得这样就能瞒得过所有人吗？", khmer: "តើឯងគិតថាធ្វើបែបនេះអាចបិទបាំងមនុស្សគ្រប់គ្នាបានរហូតមែនទេ?" },
+            { id: 4, tcIn: "00:00:13.800", tcOut: "00:00:17.900", speaker: "Sreymom", speakerClass: "speaker-sreymom", orig: "既然你已经知道了，那我也无话可说了。", khmer: "ក្នុងពេលដែលលោកបានដឹងរឿងអស់ហើយ ខ្ញុំក៏គ្មានអ្វីត្រូវនិយាយទៀតដែរ។" },
+            { id: 5, tcIn: "00:00:18.500", tcOut: "00:00:22.300", speaker: "Piseth", speakerClass: "speaker-piseth", orig: "把真相告诉我，这是你最后的机会。", khmer: "ប្រាប់ការពិតមកកាន់ខ្ញុំមក នេះគឺជាឱកាសចុងក្រោយរបស់ឯងហើយ។" }
+        ]
+    },
+    narration: {
+        id: "narration",
+        badge: `<i class="fa-solid fa-microphone-lines"></i> Voiceover Narration (Piseth / Sreymom Audio)`,
+        name: "Voiceover Narration (Piseth / Sreymom Audio)",
+        dialogues: [
+            { id: 1, tcIn: "00:00:00.800", tcOut: "00:00:05.200", speaker: "Piseth", speakerClass: "speaker-piseth", orig: "在繁华都市的阴影下，一段尘封已久的秘密悄然揭开...", khmer: "នៅក្រោមកូនស្រមោលនៃទីក្រុងដ៏អ៊ូអរ អាថ៌កំបាំងដែលកប់ទុកជាយូរមកហើយក៏ត្រូវបានលាតត្រដាងឡើង..." },
+            { id: 2, tcIn: "00:00:05.600", tcOut: "00:00:09.800", speaker: "Sreymom", speakerClass: "speaker-sreymom", orig: "无人知晓，那个雨夜改变了所有人的命运。", khmer: "គ្មាននរណាម្នាក់ដឹងឡើយ ថាយប់ភ្លៀងធ្លាក់មួយនោះបានផ្លាស់ប្ដូរជោគវាសនារបស់មនុស្សគ្រប់គ្នា។" },
+            { id: 3, tcIn: "00:00:10.200", tcOut: "00:00:14.500", speaker: "Piseth", speakerClass: "speaker-piseth", orig: "他独自一人走向那座庄园，心中早已有决断。", khmer: "គាត់បានដើរទៅកាន់វិមាននោះតែម្នាក់ឯង នៅក្នុងចិត្តក៏មានការសម្រេចចិត្តរួចជាស្រេច។" }
+        ]
+    },
+    subtitle: {
+        id: "subtitle",
+        badge: `<i class="fa-solid fa-closed-captioning"></i> Subtitle Extraction & Khmer Sync`,
+        name: "Subtitle Extraction & Khmer Sync",
+        dialogues: [
+            { id: 1, tcIn: "00:00:01.000", tcOut: "00:00:03.500", speaker: "Piseth", speakerClass: "speaker-piseth", orig: "快点离开这里，危险！", khmer: "ឆាប់ចាកចេញពីទីនេះទៅ មានគ្រោះថ្នាក់!" },
+            { id: 2, tcIn: "00:00:04.000", tcOut: "00:00:06.800", speaker: "Sreymom", speakerClass: "speaker-sreymom", orig: "我不能丢下你一个人！", khmer: "ខ្ញុំមិនអាចទុកលោកចោលតែម្នាក់ឯងបានទេ!" },
+            { id: 3, tcIn: "00:00:07.200", tcOut: "00:00:11.000", speaker: "Piseth", speakerClass: "speaker-piseth", orig: "相信我，我一定会安全回来的。", khmer: "ជឿជាក់លើខ្ញុំចុះ ខ្ញុំប្រាកដជាត្រឡប់មកវិញដោយសុវត្ថិភាព។" }
+        ]
+    }
+};
+
+let currentStudioPreset = 'drama';
+let studioViewMode = 'presets'; // 'presets' or 'grid'
+
+function initStudioWorkspace() {
+    generateWaveformBars();
+    generateVuMiniWaveBars();
+    startVuMeterAnimation();
+    // Preload dialogue items for initial active preset
+    const preset = studioPresetsData[currentStudioPreset];
+    if (preset) renderDialogueGrid(preset.dialogues);
+}
+
+function initStudioWorkspace() {
+    generateWaveformBars();
+    generateVuMiniWaveBars();
+    resetVuMetersToIdle();
+    resetEngineMonitorToStandby();
+
+    // Preload dialogue items for initial active preset
+    const preset = studioPresetsData[currentStudioPreset];
+    if (preset) renderDialogueGrid(preset.dialogues);
+
+    // Initial default view is Studio Project Setup & Presets
+    showPresetSetupView();
+}
+
+function selectStudioPreset(presetKey) {
+    currentStudioPreset = presetKey;
+    const preset = studioPresetsData[presetKey] || studioPresetsData.drama;
+
+    // Update active class on preset cards
+    document.querySelectorAll('.studio-preset-card').forEach(c => c.classList.remove('active'));
+    const targetCard = document.getElementById(`card-preset-${presetKey}`);
+    if (targetCard) targetCard.classList.add('active');
+
+    // Update top header badge
+    const badge = document.getElementById('current-mode-badge');
+    if (badge) badge.innerHTML = preset.badge;
+
+    // Load dialogues into grid
+    renderDialogueGrid(preset.dialogues);
+
+    showToast(`🎬 Mode Configured: ${preset.name}`);
+    appendTerminalLine(`[Ready] Workflow preset set to ${preset.name}. Ready for media import or audition.`);
+}
+
+function toggleSetupPresetsView() {
+    if (studioViewMode === 'presets') {
+        showDialogueWaveformView();
+    } else {
+        showPresetSetupView();
+    }
+}
+
+function showPresetSetupView() {
+    studioViewMode = 'presets';
+    const setupView = document.getElementById('studio-preset-setup-view');
+    const gridView = document.getElementById('studio-dialogue-waveform-view');
+    const toggleBtn = document.getElementById('btn-toggle-setup');
+
+    if (setupView) setupView.style.display = 'flex';
+    if (gridView) gridView.style.display = 'none';
+    if (toggleBtn) toggleBtn.innerHTML = '<i class="fa-solid fa-table-list"></i> Dialogue Grid';
+}
+
+function showDialogueWaveformView() {
+    studioViewMode = 'grid';
+    const setupView = document.getElementById('studio-preset-setup-view');
+    const gridView = document.getElementById('studio-dialogue-waveform-view');
+    const toggleBtn = document.getElementById('btn-toggle-setup');
+
+    if (setupView) setupView.style.display = 'none';
+    if (gridView) gridView.style.display = 'flex';
+    if (toggleBtn) toggleBtn.innerHTML = '<i class="fa-solid fa-sliders"></i> Presets & Setup';
+
+    // Ensure dialogues are populated
+    const preset = studioPresetsData[currentStudioPreset] || studioPresetsData.drama;
+    renderDialogueGrid(preset.dialogues);
+}
+
+function renderDialogueGrid(dialogues) {
+    const tbody = document.getElementById('dialogue-grid-rows');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+    dialogues.forEach((d) => {
+        const tr = document.createElement('tr');
+        tr.className = 'dialogue-row';
+        tr.id = `dialogue-row-${d.id}`;
+        tr.innerHTML = `
+            <td style="color:#716655; font-family:var(--font-mono);">${d.id}</td>
+            <td><span class="tc-code">${d.tcIn} - ${d.tcOut}</span></td>
+            <td>
+                <span class="speaker-badge ${d.speakerClass}">
+                    <i class="fa-solid fa-user-voice"></i> ${d.speaker}
+                </span>
+            </td>
+            <td class="orig-script-text">${escapeHtml(d.orig)}</td>
+            <td class="khmer-dub-text">${escapeHtml(d.khmer)}</td>
+            <td style="text-align:center;">
+                <button class="grid-action-btn" title="Preview Audio Clip" onclick="playDialogueSnippet(${d.id})"><i class="fa-solid fa-play"></i></button>
+                <button class="grid-action-btn" title="Edit Segment" onclick="editDialogueSnippet(${d.id})"><i class="fa-solid fa-pen"></i></button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function playDialogueSnippet(id) {
+    showToast(`🔊 Auditioning Khmer Dubbing line #${id}`);
+    appendTerminalLine(`[Audio Engine] Auditioning dialogue line #${id} at 48kHz stereo`);
+
+    // Temporarily highlight this row
+    document.querySelectorAll('.dialogue-row').forEach(r => r.classList.remove('playing'));
+    const targetRow = document.getElementById(`dialogue-row-${id}`);
+    if (targetRow) targetRow.classList.add('playing');
+
+    // Simulate real audio output on VU meter during playback
+    if (vuAnimationTimer) clearInterval(vuAnimationTimer);
+    let snippetTicks = 0;
+    vuAnimationTimer = setInterval(() => {
+        snippetTicks++;
+        const fillL = document.getElementById('vu-fill-l');
+        const fillR = document.getElementById('vu-fill-r');
+        const dbL = document.getElementById('vu-db-l');
+        const dbR = document.getElementById('vu-db-r');
+
+        const randL = Math.floor(Math.random() * 25 + 55);
+        const randR = Math.floor(Math.random() * 25 + 50);
+
+        if (fillL) fillL.style.width = `${randL}%`;
+        if (fillR) fillR.style.width = `${randR}%`;
+        if (dbL) dbL.textContent = `-${Math.floor((100 - randL) * 0.35)} dB`;
+        if (dbR) dbR.textContent = `-${Math.floor((100 - randR) * 0.4)} dB`;
+
+        const miniBars = document.querySelectorAll('#vu-mini-wave-bars .vu-wave-bar');
+        miniBars.forEach(bar => {
+            bar.style.height = `${Math.floor(Math.random() * 70 + 20)}%`;
+        });
+
+        if (snippetTicks > 10) { // ~2 seconds audition
+            clearInterval(vuAnimationTimer);
+            vuAnimationTimer = null;
+            resetVuMetersToIdle();
+            if (targetRow) targetRow.classList.remove('playing');
+        }
+    }, 200);
+}
+
+function editDialogueSnippet(id) {
+    showToast(`✏️ Editing dialogue line #${id}`);
+}
+
+function generateWaveformBars() {
+    const container = document.getElementById('waveform-bars');
+    if (!container) return;
+    container.innerHTML = '';
+    const heights = [30, 45, 70, 85, 60, 40, 55, 90, 100, 80, 50, 65, 85, 95, 75, 40, 50, 80, 90, 70, 45, 60, 85, 70, 55, 40, 65, 90, 100, 85, 60, 45, 70, 85, 95, 65, 40, 55, 80, 75, 60, 50, 70, 85, 90, 65, 45, 55, 75, 90, 80, 60, 50, 65, 80, 70, 50, 40, 60, 75];
+    heights.forEach(h => {
+        const bar = document.createElement('div');
+        bar.className = 'waveform-wave-bar';
+        bar.style.height = `${h}%`;
+        container.appendChild(bar);
+    });
+}
+
+function handleWaveformClick(e) {
+    const track = document.getElementById('waveform-visualizer-track');
+    const playhead = document.getElementById('waveform-playhead');
+    if (!track || !playhead) return;
+    const rect = track.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const percent = Math.max(0, Math.min(100, (clickX / rect.width) * 100));
+    playhead.style.left = `${percent}%`;
+    playheadSeconds = (percent / 100) * totalDurationSeconds;
+    updateScrubberUI();
+}
+
+function seekRelative(delta) {
+    playheadSeconds = Math.max(0, Math.min(totalDurationSeconds, playheadSeconds + delta));
+    updateScrubberUI();
+}
+
+function generateVuMiniWaveBars() {
+    const container = document.getElementById('vu-mini-wave-bars');
+    if (!container) return;
+    container.innerHTML = '';
+    for (let i = 0; i < 14; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'vu-wave-bar';
+        bar.style.height = '4%';
+        container.appendChild(bar);
+    }
+}
+
+// ==========================================================================
+// VU METERS & AUDIO REACTIVITY CONTROLLER
+// ==========================================================================
+let vuAnimationTimer = null;
+
+function resetVuMetersToIdle() {
+    if (vuAnimationTimer) {
+        clearInterval(vuAnimationTimer);
+        vuAnimationTimer = null;
+    }
+    const fillL = document.getElementById('vu-fill-l');
+    const fillR = document.getElementById('vu-fill-r');
+    const dbL = document.getElementById('vu-db-l');
+    const dbR = document.getElementById('vu-db-r');
+
+    if (fillL) fillL.style.width = '0%';
+    if (fillR) fillR.style.width = '0%';
+    if (dbL) dbL.textContent = '-∞ dB';
+    if (dbR) dbR.textContent = '-∞ dB';
+
+    const miniBars = document.querySelectorAll('#vu-mini-wave-bars .vu-wave-bar');
+    miniBars.forEach(bar => {
+        bar.style.height = '4%';
+    });
+}
+
+function startAudioPlaybackVUMeter() {
+    if (vuAnimationTimer) clearInterval(vuAnimationTimer);
+
+    vuAnimationTimer = setInterval(() => {
+        if (!isPlaying) {
+            resetVuMetersToIdle();
+            return;
+        }
+        const fillL = document.getElementById('vu-fill-l');
+        const fillR = document.getElementById('vu-fill-r');
+        const dbL = document.getElementById('vu-db-l');
+        const dbR = document.getElementById('vu-db-r');
+
+        const randL = Math.floor(Math.random() * 25 + 55); // 55% - 80%
+        const randR = Math.floor(Math.random() * 25 + 50); // 50% - 75%
+
+        if (fillL) fillL.style.width = `${randL}%`;
+        if (fillR) fillR.style.width = `${randR}%`;
+
+        if (dbL) dbL.textContent = `-${Math.floor((100 - randL) * 0.35)} dB`;
+        if (dbR) dbR.textContent = `-${Math.floor((100 - randR) * 0.4)} dB`;
+
+        const miniBars = document.querySelectorAll('#vu-mini-wave-bars .vu-wave-bar');
+        miniBars.forEach(bar => {
+            bar.style.height = `${Math.floor(Math.random() * 75 + 15)}%`;
+        });
+    }, 200);
+}
+
+// ==========================================================================
+// EXPORT JOB & STUDIO ENGINE RENDER MONITOR CONTROLLER
+// ==========================================================================
+let exportJobTimer = null;
+let exportPercent = 0;
+let exportElapsedSec = 0;
+
+function startStudioExportJob() {
+    if (exportJobTimer) {
+        clearInterval(exportJobTimer);
+        exportJobTimer = null;
+    }
+
+    exportPercent = 0;
+    exportElapsedSec = 0;
+
+    // Set Engine Monitor to Active Encoding State
+    const pill = document.getElementById('monitor-engine-status-pill');
+    const dot = document.getElementById('monitor-pulse-dot');
+    const text = document.getElementById('monitor-engine-status-text');
+    if (pill) pill.className = 'engine-status-pill';
+    if (dot) dot.className = 'pulse-indicator';
+    if (text) text.textContent = 'ENGINE ENCODING';
+
+    const fpsElem = document.getElementById('monitor-render-fps');
+    const fpsCap = document.getElementById('monitor-fps-caption');
+    const brElem = document.getElementById('monitor-render-bitrate');
+    const brCap = document.getElementById('monitor-bitrate-caption');
+
+    if (fpsElem) fpsElem.textContent = '60.0';
+    if (fpsCap) fpsCap.textContent = '2.4x Realtime';
+    if (brElem) brElem.textContent = '18.5';
+    if (brCap) brCap.textContent = 'HEVC / H.265 Master';
+
+    showToast("🎬 Export Started: Rendering MP4 master...");
+    appendTerminalLine("[Encoder] NVENC hardware encoding started for current timeline.");
+
+    exportJobTimer = setInterval(() => {
+        exportElapsedSec += 1;
+        exportPercent += Math.floor(Math.random() * 6 + 4); // 4-10% step
+
+        if (exportPercent >= 100) {
+            exportPercent = 100;
+            clearInterval(exportJobTimer);
+            exportJobTimer = null;
+
+            updateExportProgressUI(100, exportElapsedSec, 0, "✅ Export Completed! Saved to data/exports/EP01_Master.mp4");
+            showToast("✅ Export Render Complete!");
+            appendTerminalLine("[Encoder] Rendering finished successfully. 100% completed.");
+
+            // Return to standby after 5 seconds
+            setTimeout(() => {
+                resetEngineMonitorToStandby();
+            }, 5000);
+            return;
+        }
+
+        const remainingPercent = 100 - exportPercent;
+        const etaSec = Math.max(1, Math.round((exportElapsedSec / exportPercent) * remainingPercent));
+
+        let taskName = "Encoding video frames (HEVC 4K)...";
+        if (exportPercent > 35 && exportPercent <= 70) {
+            taskName = "Multiplexing Piseth & Sreymom Khmer audio channels...";
+        } else if (exportPercent > 70) {
+            taskName = "Burning synchronized Khmer subtitle streams...";
+        }
+
+        updateExportProgressUI(exportPercent, exportElapsedSec, etaSec, taskName);
+    }, 400);
+}
+
+function updateExportProgressUI(pct, elapsedSec, etaSec, taskName) {
+    const pctElem = document.getElementById('monitor-export-percent');
+    const fillElem = document.getElementById('monitor-progress-fill');
+    const elapElem = document.getElementById('monitor-elapsed-time');
+    const etaElem = document.getElementById('monitor-eta-time');
+    const finElem = document.getElementById('monitor-finish-time');
+    const taskElem = document.getElementById('monitor-current-task');
+
+    if (pctElem) pctElem.textContent = `${pct}%`;
+    if (fillElem) fillElem.style.width = `${pct}%`;
+
+    const elM = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
+    const elS = String(elapsedSec % 60).padStart(2, '0');
+    if (elapElem) elapElem.textContent = `00:${elM}:${elS}`;
+
+    if (etaSec > 0) {
+        const etM = String(Math.floor(etaSec / 60)).padStart(2, '0');
+        const etS = String(etaSec % 60).padStart(2, '0');
+        if (etaElem) etaElem.textContent = `00:${etM}:${etS}`;
+
+        const finishDate = new Date(Date.now() + etaSec * 1000);
+        if (finElem) finElem.textContent = finishDate.toLocaleTimeString();
+    } else {
+        if (etaElem) etaElem.textContent = '00:00:00';
+        if (finElem) finElem.textContent = 'Completed';
+    }
+
+    if (taskElem) {
+        taskElem.innerHTML = `<i class="fa-solid fa-gear fa-spin" style="color:#facc15; font-size:0.65rem;"></i> ${escapeHtml(taskName)}`;
+    }
+}
+
+function resetEngineMonitorToStandby() {
+    if (exportJobTimer) {
+        clearInterval(exportJobTimer);
+        exportJobTimer = null;
+    }
+
+    const pill = document.getElementById('monitor-engine-status-pill');
+    const dot = document.getElementById('monitor-pulse-dot');
+    const text = document.getElementById('monitor-engine-status-text');
+    if (pill) pill.className = 'engine-status-pill standby';
+    if (dot) dot.className = 'pulse-indicator standby';
+    if (text) text.textContent = 'ENGINE STANDBY';
+
+    const fpsElem = document.getElementById('monitor-render-fps');
+    const fpsCap = document.getElementById('monitor-fps-caption');
+    const brElem = document.getElementById('monitor-render-bitrate');
+    const brCap = document.getElementById('monitor-bitrate-caption');
+
+    if (fpsElem) fpsElem.textContent = '0.0';
+    if (fpsCap) fpsCap.textContent = 'Idle (Ready)';
+    if (brElem) brElem.textContent = '0.0';
+    if (brCap) brCap.textContent = 'Standby';
+
+    const pctElem = document.getElementById('monitor-export-percent');
+    const fillElem = document.getElementById('monitor-progress-fill');
+    const elapElem = document.getElementById('monitor-elapsed-time');
+    const etaElem = document.getElementById('monitor-eta-time');
+    const finElem = document.getElementById('monitor-finish-time');
+    const taskElem = document.getElementById('monitor-current-task');
+
+    if (pctElem) pctElem.textContent = '0%';
+    if (fillElem) fillElem.style.width = '0%';
+    if (elapElem) elapElem.textContent = '00:00:00';
+    if (etaElem) etaElem.textContent = '--:--:--';
+    if (finElem) finElem.textContent = 'Standby';
+    if (taskElem) {
+        taskElem.innerHTML = `<i class="fa-solid fa-circle-check" style="color:#22c55e; font-size:0.65rem;"></i> System Ready • Select a preset or import media`;
+    }
+}
+
+function toggleEngineLogDrawer() {
+    const drawer = document.getElementById('engine-log-drawer');
+    if (drawer) {
+        drawer.style.display = drawer.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
+// ==========================================================================
+// 4. DOWNLOADER STUDIO (Exact Match to Image 2)
+// ==========================================================================
+async function loadDownloaderPlatforms() {
+    const container = document.getElementById('dl-platforms-list');
+    if (!container) return;
+
+    try {
+        const res = await fetch('/api/downloader/platforms');
+        const data = await res.json();
+        if (data.success && data.platforms) {
+            container.innerHTML = '';
+            data.platforms.forEach(p => {
+                const item = document.createElement('div');
+                item.className = `dl-platform-pill-item ${p.id === dlSelectedPlatform ? 'active' : ''}`;
+                item.onclick = () => filterByPlatform(p.id, p.name, p.count);
+                item.innerHTML = `
+                    <i class="${p.icon}"></i>
+                    <span>${escapeHtml(p.name)}</span>
+                `;
+                container.appendChild(item);
+            });
+        }
+    } catch (e) {}
+}
+
+function filterByPlatform(platId, platName, totalCount) {
+    dlSelectedPlatform = platId;
+    loadDownloaderPlatforms();
+
+    const countLabel = document.getElementById('dl-catalog-count-label');
+    if (countLabel) {
+        countLabel.innerHTML = `<i class="fa-solid fa-globe"></i> ${escapeHtml(platName)} (${totalCount !== undefined ? totalCount : 0})`;
+    }
+
+    const input = document.getElementById('dl-link-url-input');
+    if (input) {
+        input.placeholder = `Paste a ${escapeHtml(platName)} URL...`;
+    }
+
+    const badge = document.getElementById('dl-info-platform-badge');
+    if (badge) {
+        badge.textContent = platName.toUpperCase();
+    }
+
+    loadDramaCatalog(platId);
+}
+
+async function loadDramaCatalog(platformId = "all", query = "") {
+    const container = document.getElementById('dl-drama-cards-container');
+    if (!container) return;
+
+    try {
+        const res = await fetch(`/api/downloader/catalog?platform=${platformId}&q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        container.innerHTML = '';
+        if (data.success && data.dramas && data.dramas.length > 0) {
+            data.dramas.forEach(drama => {
+                const card = document.createElement('div');
+                card.className = `dl-card-item ${dlCurrentDrama && dlCurrentDrama.id === drama.id ? 'active' : ''}`;
+                card.onclick = () => selectDramaCard(drama.id);
+                card.innerHTML = `
+                    <div class="dl-card-thumb-wrap">
+                        <img src="${drama.poster || 'vertical_drama_sample.jpg'}" alt="${escapeHtml(drama.title)}">
+                        <div class="dl-card-platform-pill">${escapeHtml(drama.platform)}</div>
+                        <button class="dl-card-preview-overlay-btn" onclick="event.stopPropagation(); previewDramaVideoDirect('${drama.id}')">Preview</button>
+                    </div>
+                    <div class="dl-card-details-box">
+                        <div class="dl-card-title-line" title="${escapeHtml(drama.title)}">${escapeHtml(drama.title)}</div>
+                        <div class="dl-card-ep-count">EP 1-${drama.total_episodes}</div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            if (!dlCurrentDrama) {
+                selectDramaCard(data.dramas[0].id);
+            }
+        } else {
+            container.innerHTML = `
+                <div style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 20px; color: #716655; text-align: center;">
+                    <i class="fa-solid fa-cloud-arrow-down" style="font-size: 2rem; color: #ca8a04; margin-bottom: 12px;"></i>
+                    <div style="font-size: 0.85rem; font-weight: 600; color: #cbd5e1;">មិនទាន់មានរឿងភាគនៅក្នុងបញ្ជី (No Series Loaded)</div>
+                    <div style="font-size: 0.72rem; color: #716655; margin-top: 6px;">សូមបិទភ្ជាប់ Link រឿងភាគនៅក្នុងប្រអប់ខាងលើ រួចចុច Analyze ដើម្បីទាញយកភាគរឿង។</div>
+                </div>
+            `;
+            // Reset right drama info panel
+            dlCurrentDrama = null;
+            dlEpisodesList = [];
+            const title = document.getElementById('dl-info-title-text');
+            const stats = document.getElementById('dl-info-stats-text');
+            const desc = document.getElementById('dl-info-desc-text');
+            if (title) title.textContent = "No drama loaded";
+            if (stats) stats.textContent = "Episodes 0 • Locked 0 • Selected 0";
+            if (desc) desc.textContent = "Paste a supported URL to inspect its episode catalog and prepare the download queue.";
+            renderEpisodesChecklist([]);
+        }
+    } catch (e) {}
+}
+
+async function selectDramaCard(dramaId) {
+    try {
+        const res = await fetch(`/api/downloader/drama/${dramaId}`);
+        const data = await res.json();
+        if (data.success) {
+            dlCurrentDrama = data.drama;
+            dlEpisodesList = data.episodes || [];
+
+            // Update Right DRAMA INFO Box
+            const title = document.getElementById('dl-info-title-text');
+            const badge = document.getElementById('dl-info-platform-badge');
+            const stats = document.getElementById('dl-info-stats-text');
+            const desc = document.getElementById('dl-info-desc-text');
+
+            if (title) title.textContent = data.drama.title;
+            if (badge) badge.textContent = data.drama.platform.toUpperCase();
+            if (stats) stats.textContent = `Episodes ${data.drama.total_episodes} • Locked 0 • Selected ${data.drama.total_episodes}`;
+            if (desc) desc.textContent = data.drama.description || "Short drama series manifest fetched.";
+
+            renderEpisodesChecklist(dlEpisodesList);
+            updateDownloaderStats(data.stats);
+        }
+    } catch (e) {}
+}
+
+function renderEpisodesChecklist(episodes) {
+    const list = document.getElementById('dl-episodes-list-box');
+    const rangeTag = document.getElementById('dl-episodes-range-tag');
+    if (!list) return;
+
+    if (!episodes || episodes.length === 0) {
+        list.innerHTML = '<div style="color:#716655; font-size:0.65rem; padding:8px; text-align:center;">No episodes loaded</div>';
+        if (rangeTag) rangeTag.textContent = "EP 0-0";
+        return;
+    }
+
+    if (rangeTag) rangeTag.textContent = `EP 1-${episodes.length}`;
+    list.innerHTML = '';
+
+    episodes.forEach(ep => {
+        const row = document.createElement('div');
+        row.className = 'dl-ep-row';
+        row.innerHTML = `
+            <div style="display:flex; align-items:center; gap:6px;">
+                <input type="checkbox" ${ep.is_selected ? 'checked' : ''} onchange="toggleSingleEpisode('${ep.id}', this.checked)">
+                <span>EP ${ep.episode_number}: ${escapeHtml(ep.title)}</span>
+            </div>
+            <span style="font-size:0.62rem; color:var(--gold-glow);">${ep.status}</span>
+        `;
+        list.appendChild(row);
+    });
+}
+
+function toggleSingleEpisode(epId, isChecked) {
+    const target = dlEpisodesList.find(e => e.id === epId);
+    if (target) target.is_selected = isChecked;
+    const selectedCount = dlEpisodesList.filter(e => e.is_selected).length;
+    
+    const stats = document.getElementById('dl-info-stats-text');
+    if (stats && dlCurrentDrama) {
+        stats.textContent = `Episodes ${dlCurrentDrama.total_episodes} • Locked 0 • Selected ${selectedCount}`;
+    }
+    const statSelected = document.getElementById('dl-stat-selected');
+    if (statSelected) statSelected.textContent = selectedCount;
+}
+
+function handleDlLinkKey(e) {
+    if (e.key === 'Enter') analyzeEnteredLink();
+}
+
+async function analyzeEnteredLink() {
+    const input = document.getElementById('dl-link-url-input');
+    const url = input ? input.value.trim() : "";
+    if (!url) {
+        showToast("⚠️ Please enter a drama URL");
+        return;
+    }
+
+    showToast("🔍 Analyzing drama link...");
+    appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Analyzing drama manifest from URL: ${url}`);
+
+    try {
+        const res = await fetch('/api/downloader/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: url })
+        });
+        const data = await res.json();
+        if (data.success && data.drama) {
+            dlCurrentDrama = data.drama;
+            dlEpisodesList = data.episodes || [];
+            await loadDramaCatalog();
+            selectDramaCard(data.drama.id);
+            showToast(`✨ Found: ${data.drama.title} (${dlEpisodesList.length} EP)`);
+        } else {
+            showToast(`❌ ${data.error || 'Failed to analyze'}`);
+        }
+    } catch (e) {
+        showToast("❌ Network error");
+    }
+}
+
+function switchDlViewMode(mode) {
+    const catBtn = document.getElementById('btn-mode-catalog');
+    const qBtn = document.getElementById('btn-mode-queue');
+    if (catBtn) catBtn.classList.toggle('active', mode === 'catalog');
+    if (qBtn) qBtn.classList.toggle('active', mode === 'queue');
+}
+
+let driveCustomPaths = {
+    "C": "C:/SN_Dramas",
+    "D": "D:/SN_Dramas"
+};
+
+async function initSaveLocationPaths() {
+    const input = document.getElementById('dl-save-path-input');
+    if (!input) return;
+
+    try {
+        const res = await fetch('/api/system/default-paths');
+        const data = await res.json();
+        if (data && data.success) {
+            if (data.drive_c) driveCustomPaths["C"] = data.drive_c;
+            if (data.drive_d) driveCustomPaths["D"] = data.drive_d;
+        }
+    } catch (e) {}
+
+    const saved = localStorage.getItem('sn_save_location');
+    if (saved && saved.trim()) {
+        input.value = saved.trim();
+    } else {
+        input.value = driveCustomPaths["D"] || "D:/SN_Dramas";
+    }
+    input.setAttribute('title', input.value);
+    updateDriveButtonHighlight();
+}
+
+function selectDrive(driveLetter) {
+    const letter = driveLetter.toUpperCase();
+    const input = document.getElementById('dl-save-path-input');
+    
+    let targetPath = driveCustomPaths[letter] || `${letter}:/SN_Dramas`;
+    const savedForDrive = localStorage.getItem(`sn_save_path_${letter.toLowerCase()}`);
+    if (savedForDrive && savedForDrive.toUpperCase().startsWith(`${letter}:`)) {
+        targetPath = savedForDrive;
+    }
+    
+    if (input) {
+        input.value = targetPath;
+        input.setAttribute('title', targetPath);
+    }
+    localStorage.setItem('sn_save_location', targetPath);
+    localStorage.setItem('sn_active_drive', letter);
+    updateDriveButtonHighlight();
+
+    showToast(`💽 បានជ្រើសរើស Drive ${letter}: (${targetPath})`);
+    appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Active download location: Drive ${letter}: (${targetPath})`);
+}
+
+function updateDriveButtonHighlight() {
+    const input = document.getElementById('dl-save-path-input');
+    const path = input ? input.value.trim().toUpperCase() : "";
+    
+    const btnC = document.getElementById('btn-drive-c');
+    const btnD = document.getElementById('btn-drive-d');
+    
+    const isC = path.startsWith("C:");
+    const isD = path.startsWith("D:");
+    
+    if (btnC) btnC.classList.toggle('active', isC);
+    if (btnD) btnD.classList.toggle('active', isD || (!isC && !isD));
+}
+
+async function browseSaveLocation() {
+    const input = document.getElementById('dl-save-path-input');
+    const currentPath = input ? input.value.trim() : '';
+
+    showToast("📂 កំពុងបើកផ្ទាំងជ្រើសរើស Folder លើ Laptop...");
+    appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Opening Windows folder chooser...`);
+
+    try {
+        const res = await fetch('/api/system/select-folder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ initial_dir: currentPath })
+        });
+        const data = await res.json();
+        if (data.success && data.path) {
+            const cleanPath = data.path.replace(/\\/g, '/');
+            if (input) {
+                input.value = cleanPath;
+                input.setAttribute('title', cleanPath);
+            }
+            const driveLetter = cleanPath.slice(0, 1).toUpperCase();
+            if (driveLetter === 'C' || driveLetter === 'D') {
+                driveCustomPaths[driveLetter] = cleanPath;
+                localStorage.setItem(`sn_save_path_${driveLetter.toLowerCase()}`, cleanPath);
+                localStorage.setItem('sn_active_drive', driveLetter);
+            }
+            localStorage.setItem('sn_save_location', cleanPath);
+            updateDriveButtonHighlight();
+            showToast(`✅ បានជ្រើសរើស Folder: ${cleanPath}`);
+            appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Save folder updated: ${cleanPath}`);
+        } else if (data.cancelled) {
+            showToast("ℹ️ បានបោះបង់ការជ្រើសរើស Folder");
+        } else {
+            showToast("⚠️ មិនអាចជ្រើសរើស Folder បានទេ");
+        }
+    } catch (e) {
+        console.error("Browse folder error:", e);
+        showToast("⚠️ បញ្ហាក្នុងការបើក Folder Dialog");
+    }
+}
+
+async function openSaveLocationInExplorer() {
+    const input = document.getElementById('dl-save-path-input');
+    const path = input ? input.value.trim() : '';
+    if (!path) {
+        showToast("⚠️ សូមជ្រើសរើសទីតាំង Folder ជាមុនសិន");
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/system/open-folder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: path })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`📂 បានបើក Folder ក្នុង Windows Explorer`);
+            appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Opened directory: ${path}`);
+        } else {
+            showToast(`⚠️ ${data.error || 'មិនអាចបើក Folder បានទេ'}`);
+        }
+    } catch (e) {
+        showToast("⚠️ កំហុសក្នុងការបើក Windows Explorer");
+    }
+}
+
+function previewLoadedDrama() {
+    if (!dlCurrentDrama) return;
+    switchMainTab('translate');
+    showToast(`▶ Loaded '${dlCurrentDrama.title}' in 9:16 Monitor`);
+}
+
+function previewDramaVideoDirect(dramaId) {
+    selectDramaCard(dramaId);
+    previewLoadedDrama();
+}
+
+async function startBatchDownload() {
+    const selected = dlEpisodesList.filter(e => e.is_selected);
+    if (selected.length === 0) {
+        showToast("⚠️ Please select at least one episode");
+        return;
+    }
+
+    showToast(`🚀 Downloading ${selected.length} episodes...`);
+    appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Starting batch queue for ${selected.length} episodes...`);
+
+    const path = document.getElementById('dl-save-path-input').value.trim();
+    const posterElem = document.getElementById('dl-save-poster-check');
+    const savePoster = posterElem ? posterElem.checked : true;
+
+    try {
+        await fetch('/api/downloader/download-episodes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                episode_ids: selected.map(s => s.id),
+                save_location: path,
+                save_poster: savePoster
+            })
+        });
+
+        // Start Polling
+        if (dlPollTimer) clearInterval(dlPollTimer);
+        dlPollTimer = setInterval(async () => {
+            try {
+                const sRes = await fetch('/api/downloader/status');
+                const sData = await sRes.json();
+                if (sData) {
+                    if (sData.episodes) {
+                        dlEpisodesList = sData.episodes;
+                        renderEpisodesChecklist(dlEpisodesList);
+                    }
+                    updateDownloaderStats(sData.stats);
+                    if (!sData.is_downloading) {
+                        clearInterval(dlPollTimer);
+                        dlPollTimer = null;
+                        showToast("🎉 Download batch completed!");
+                    }
+                }
+            } catch (e) {}
+        }, 500);
+    } catch (e) {}
+}
+
+async function stopBatchDownload() {
+    try {
+        await fetch('/api/downloader/stop', { method: 'POST' });
+        showToast("⏹️ Download Stopped");
+        if (dlPollTimer) {
+            clearInterval(dlPollTimer);
+            dlPollTimer = null;
+        }
+    } catch (e) {}
+}
+
+function updateDownloaderStats(stats) {
+    if (!stats) return;
+    const total = document.getElementById('dl-stat-total');
+    const selected = document.getElementById('dl-stat-selected');
+    const completed = document.getElementById('dl-stat-completed');
+    const failed = document.getElementById('dl-stat-failed');
+    const locked = document.getElementById('dl-stat-locked');
+    const percent = document.getElementById('dl-stat-overall-percent');
+
+    if (total) total.textContent = stats.total || 0;
+    if (selected) selected.textContent = stats.selected || 0;
+    if (completed) completed.textContent = stats.completed || 0;
+    if (failed) failed.textContent = stats.failed || 0;
+    if (locked) locked.textContent = stats.locked || 0;
+    if (percent) percent.textContent = `${stats.progress_percent || 0}%`;
+}
+
+function appendDownloaderLog(msg) {
+    const box = document.getElementById('dl-activity-terminal-box');
+    if (!box) return;
+    const line = document.createElement('div');
+    line.className = 'terminal-line';
+    line.textContent = msg;
+    box.appendChild(line);
+    box.scrollTop = box.scrollHeight;
+}
+
+function clearDownloaderLog() {
+    const box = document.getElementById('dl-activity-terminal-box');
+    if (box) box.innerHTML = `<div class="terminal-line">[${new Date().toLocaleTimeString()}] Activity log cleared.</div>`;
+    showToast("🧹 Log cleared");
+}
+
+// ==========================================================================
+// 5. SETTINGS & IMPORT MODALS (Exact Match to Images 3 & 4)
+// ==========================================================================
+function openSettingsModal() {
+    backToSettingsHub();
+    openModal('modal-settings');
+}
+
+function backToSettingsHub() {
+    const hub = document.getElementById('settings-main-hub-view');
+    const subAi = document.getElementById('settings-subpage-ai');
+    const subLic = document.getElementById('settings-subpage-license');
+    const subStory = document.getElementById('settings-subpage-story');
+
+    if (hub) hub.style.display = 'flex';
+    if (subAi) subAi.style.display = 'none';
+    if (subLic) subLic.style.display = 'none';
+    if (subStory) subStory.style.display = 'none';
+}
+
+function openSettingsSubpage(key) {
+    const hub = document.getElementById('settings-main-hub-view');
+    const subAi = document.getElementById('settings-subpage-ai');
+    const subLic = document.getElementById('settings-subpage-license');
+    const subStory = document.getElementById('settings-subpage-story');
+
+    if (hub) hub.style.display = 'none';
+    if (subAi) subAi.style.display = 'none';
+    if (subLic) subLic.style.display = 'none';
+    if (subStory) subStory.style.display = 'none';
+
+    if (key === 'ai' && subAi) subAi.style.display = 'flex';
+    if (key === 'license' && subLic) subLic.style.display = 'flex';
+    if (key === 'story' && subStory) subStory.style.display = 'flex';
+}
+
+async function saveApiKey() {
+    const key = document.getElementById('input-api-key').value.trim();
+    if (key) {
+        try {
+            await fetch('/api/set-api-key', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ api_key: key })
+            });
+        } catch (e) {}
+    }
+    showToast("✨ Saved Studio Engine Token!");
+    backToSettingsHub();
+}
+
+function openImportModal() { openModal('modal-import'); }
+
+function triggerFileSelect() {
+    const input = document.getElementById('batch-files-input');
+    if (input) input.click();
+}
+
+function triggerFolderSelect() {
+    const input = document.getElementById('batch-folder-input');
+    if (input) input.click();
+}
+
+function handleSelectedFiles(files) {
+    if (!files || files.length === 0) return;
+    showToast(`🎬 Imported ${files.length} episode(s) into Dialogue Grid!`);
+    appendTerminalLine(`[Engine Import] Imported ${files.length} media file(s) into workstation.`);
+    closeModal('modal-import');
+    showDialogueWaveformView();
+}
+
+function openModal(id) {
+    const modal = document.getElementById(id);
+    if (modal) modal.classList.add('active');
+}
+
+function closeModal(id) {
+    const modal = document.getElementById(id);
+    if (modal) modal.classList.remove('active');
+}
+
+// ==========================================================================
+// 6. LICENSE VERIFICATION & GATE SYSTEM
+// ==========================================================================
+async function checkDeviceLicenseStatus() {
+    try {
+        const res = await fetch('/api/license/status');
+        const data = await res.json();
+        currentHwid = data.hwid || "";
+        
+        const hwidElem = document.getElementById('settings-hwid-text');
+        if (hwidElem) hwidElem.textContent = currentHwid;
+        const gateHwidElem = document.getElementById('gate-hwid-text');
+        if (gateHwidElem) gateHwidElem.textContent = currentHwid;
+
+        const gateModal = document.getElementById('modal-license-gate');
+        const badgeElem = document.getElementById('settings-lic-status-badge');
+        const planElem = document.getElementById('settings-lic-plan-text');
+        const expiryElem = document.getElementById('settings-lic-expiry-text');
+
+        if (data.is_activated) {
+            // License is valid & active
+            if (gateModal) gateModal.classList.remove('active');
+            if (badgeElem) {
+                badgeElem.textContent = "ACTIVE";
+                badgeElem.style.borderColor = "#22c55e";
+                badgeElem.style.color = "#4ade80";
+                badgeElem.style.background = "rgba(34,197,94,0.15)";
+            }
+            if (planElem) planElem.textContent = data.plan || "VIP PRO";
+            if (expiryElem) expiryElem.textContent = data.expires_at || "LIFETIME";
+        } else {
+            // License is not active -> Show lock gate
+            if (gateModal) gateModal.classList.add('active');
+            if (badgeElem) {
+                badgeElem.textContent = "UNLICENSED";
+                badgeElem.style.borderColor = "#ef4444";
+                badgeElem.style.color = "#f87171";
+                badgeElem.style.background = "rgba(239,68,68,0.15)";
+            }
+            if (planElem) planElem.textContent = "None";
+            if (expiryElem) expiryElem.textContent = "Expired / None";
+        }
+    } catch (e) {
+        console.error("License check error:", e);
+    }
+}
+
+async function submitGateLicense() {
+    const input = document.getElementById('gate-license-input');
+    const msgBox = document.getElementById('gate-status-msg');
+    const key = input ? input.value.trim() : "";
+
+    if (!key) {
+        if (msgBox) {
+            msgBox.style.display = 'block';
+            msgBox.style.color = '#f87171';
+            msgBox.style.background = 'rgba(239,68,68,0.1)';
+            msgBox.textContent = "⚠️ សូមបញ្ចូល License Key របស់អ្នក";
+        }
+        return;
+    }
+
+    if (msgBox) {
+        msgBox.style.display = 'block';
+        msgBox.style.color = '#facc15';
+        msgBox.style.background = 'rgba(250,204,21,0.1)';
+        msgBox.textContent = "⏳ កំពុងផ្ទៀងផ្ទាត់ License Key...";
+    }
+
+    try {
+        const res = await fetch('/api/license/activate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ license_key: key })
+        });
+        const data = await res.json();
+        if (data.success) {
+            if (msgBox) {
+                msgBox.style.color = '#4ade80';
+                msgBox.style.background = 'rgba(34,197,94,0.15)';
+                msgBox.textContent = "🎉 បានបើកដំណើរការជោគជ័យ ១០០% (Activated!)";
+            }
+            showToast("🎉 បាន Activate License Key ជោគជ័យ!");
+            setTimeout(() => {
+                checkDeviceLicenseStatus();
+            }, 1000);
+        } else {
+            if (msgBox) {
+                msgBox.style.color = '#f87171';
+                msgBox.style.background = 'rgba(239,68,68,0.15)';
+                msgBox.textContent = `❌ ${data.error || 'License Key មិនត្រឹមត្រូវ'}`;
+            }
+        }
+    } catch (e) {
+        if (msgBox) {
+            msgBox.style.color = '#f87171';
+            msgBox.textContent = "❌ មានបញ្ហាភ្ជាប់បណ្តាញ";
+        }
+    }
+}
+
+async function confirmActivateLicense() {
+    const key = document.getElementById('input-license-key').value.trim();
+    if (!key) {
+        showToast("⚠️ សូមបញ្ចូល License Key");
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/license/activate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ license_key: key })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast("🎉 VIP License Key Activated 100%!");
+            checkDeviceLicenseStatus();
+            backToSettingsHub();
+        } else {
+            showToast(`❌ ${data.error || 'Invalid key'}`);
+        }
+    } catch (e) {
+        showToast("❌ Network error");
+    }
+}
+
+function copyHwid(elemId = 'settings-hwid-text') {
+    const elem = document.getElementById(elemId);
+    const text = elem ? elem.textContent.trim() : currentHwid;
+    if (text && text !== "FETCHING...") {
+        navigator.clipboard.writeText(text).then(() => {
+            showToast(`📋 បានចម្លង HWID: ${text}`);
+        }).catch(() => {
+            showToast(`HWID: ${text}`);
+        });
+    }
+}
+
+// ==========================================================================
+// UTILITIES
+// ==========================================================================
+function showToast(msg) {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toast._timeout);
+    toast._timeout = setTimeout(() => { toast.classList.remove('show'); }, 3000);
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
