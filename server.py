@@ -8,6 +8,8 @@ import json
 import shutil
 import asyncio
 import subprocess
+import threading
+import uuid
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
@@ -815,13 +817,168 @@ def power_compress_endpoint():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+# ==========================================================================
+# 1-Click Automated Video Dubbing & Status Polling
+# ==========================================================================
+video_auto_tasks: Dict[str, Dict[str, Any]] = {}
+
+@app.route("/api/projects/auto-dub-video", methods=["POST"])
+def auto_dub_video_endpoint():
+    """
+    1-Click Automated Video Dubbing (Chinese/Multilingual Video -> Khmer Speech & Video).
+    Accepts video file upload or local filepath.
+    """
+    mode = request.form.get("drama_mode", "drama_dubbing")
+    source_lang = request.form.get("source_lang", "auto")
+    voice_override = request.form.get("voice_override", "auto")
+    aspect_ratio = request.form.get("aspect_ratio", "16:9")
+    burn_subtitles = request.form.get("burn_subtitles", "true").lower() == "true"
+    
+    saved_video_path = None
+    original_filename = "drama_video.mp4"
+
+    if "file" in request.files and request.files["file"].filename:
+        file = request.files["file"]
+        original_filename = file.filename
+        upload_dir = Path("data/uploads")
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        unique_name = f"{int(time.time())}_{Path(original_filename).name}"
+        dest = upload_dir / unique_name
+        file.save(str(dest))
+        saved_video_path = str(dest)
+    elif request.is_json:
+        data = request.get_json(force=True) or {}
+        saved_video_path = data.get("filepath")
+        if saved_video_path:
+            original_filename = Path(saved_video_path).name
+            mode = data.get("drama_mode", mode)
+            source_lang = data.get("source_lang", source_lang)
+            voice_override = data.get("voice_override", voice_override)
+            aspect_ratio = data.get("aspect_ratio", aspect_ratio)
+            burn_subtitles = data.get("burn_subtitles", burn_subtitles)
+
+    if not saved_video_path or not Path(saved_video_path).exists():
+        return jsonify({"success": False, "error": "No valid video file uploaded or provided."}), 400
+
+    task_id = str(uuid.uuid4())[:8]
+    video_auto_tasks[task_id] = {
+        "task_id": task_id,
+        "filename": original_filename,
+        "status": "processing",
+        "progress": 5,
+        "step_km": "កំពុងរៀបចំប្រព័ន្ធកែច្នៃ...",
+        "step_en": "Initializing pipeline...",
+        "project": None,
+        "error": None
+    }
+
+    def _worker(t_id: str, v_path: str, m: str, sl: str, vo: str, ar: str, bs: bool):
+        def _prog_cb(pct: int, km: str, en: str):
+            if t_id in video_auto_tasks:
+                video_auto_tasks[t_id]["progress"] = pct
+                video_auto_tasks[t_id]["step_km"] = km
+                video_auto_tasks[t_id]["step_en"] = en
+
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                res_proj = loop.run_until_complete(pm.process_video_pipeline(
+                    video_path=v_path,
+                    title=f"Dubbed_{Path(v_path).stem}",
+                    mode=m,
+                    source_lang=sl,
+                    voice_override=vo,
+                    aspect_ratio=ar,
+                    burn_subtitles=bs,
+                    progress_callback=_prog_cb
+                ))
+            finally:
+                loop.close()
+
+            if t_id in video_auto_tasks:
+                video_auto_tasks[t_id]["status"] = "completed"
+                video_auto_tasks[t_id]["progress"] = 100
+                video_auto_tasks[t_id]["step_km"] = "រួចរាល់ ១០០% (ជោគជ័យ!)"
+                video_auto_tasks[t_id]["step_en"] = "Completed successfully!"
+                video_auto_tasks[t_id]["project"] = res_proj
+        except Exception as e:
+            print(f"Auto dubbing worker error: {e}")
+            if t_id in video_auto_tasks:
+                video_auto_tasks[t_id]["status"] = "failed"
+                video_auto_tasks[t_id]["error"] = str(e)
+                video_auto_tasks[t_id]["step_km"] = f"មានបញ្ហា: {str(e)}"
+                video_auto_tasks[t_id]["step_en"] = f"Error: {str(e)}"
+
+    threading.Thread(
+        target=_worker,
+        args=(task_id, saved_video_path, mode, source_lang, voice_override, aspect_ratio, burn_subtitles),
+        daemon=True
+    ).start()
+
+    return jsonify({
+        "success": True,
+        "task_id": task_id,
+        "message": "Video translation task started successfully."
+    })
+
+
+@app.route("/api/projects/auto-dub-status/<task_id>", methods=["GET"])
+def auto_dub_status_endpoint(task_id):
+    task = video_auto_tasks.get(task_id)
+    if not task:
+        return jsonify({"success": False, "error": "Task not found"}), 404
+
+    resp = {
+        "success": True,
+        "task_id": task["task_id"],
+        "filename": task.get("filename"),
+        "status": task.get("status"),
+        "progress": task.get("progress", 0),
+        "step_km": task.get("step_km", ""),
+        "step_en": task.get("step_en", ""),
+        "error": task.get("error")
+    }
+    if task.get("status") == "completed" and task.get("project"):
+        proj = task["project"]
+        resp["project"] = proj
+        out_vid = proj.get("output_video_file") or ""
+        out_aud = proj.get("mixed_audio_file") or ""
+        resp["video_url"] = f"/media/{out_vid.replace(chr(92), '/')}" if out_vid else ""
+        resp["mixed_audio_url"] = f"/media/{out_aud.replace(chr(92), '/')}" if out_aud else ""
+
+    return jsonify(resp)
+
+
+@app.route("/api/projects/open-folder", methods=["POST"])
+def open_project_folder_endpoint():
+    data = request.get_json(force=True) or {}
+    target_path = data.get("path")
+    if not target_path:
+        target_path = str(Path("data/exports").resolve())
+    else:
+        p = Path(target_path)
+        if p.is_file():
+            target_path = str(p.parent.resolve())
+        else:
+            target_path = str(p.resolve())
+
+    if sys.platform == "win32":
+        try:
+            os.startfile(target_path)
+            return jsonify({"success": True, "opened_path": target_path})
+        except Exception as e:
+            return jsonify({"success": False, "error": str(e)}), 500
+    return jsonify({"success": True, "opened_path": target_path})
+
+
 @app.route("/media/<path:filename>")
 def serve_media(filename):
     file_path = Path(filename)
     if not file_path.exists():
         return jsonify({"error": "Media file not found"}), 404
         
-    return send_file(str(file_path.resolve()))
+    return send_file(str(file_path.resolve()), conditional=True)
 
 
 if __name__ == "__main__":

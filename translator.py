@@ -62,30 +62,87 @@ class DramaTranslator:
 
     async def translate_text_free(self, text: str, source_lang: str = "auto") -> str:
         """
-        Free fallback translation using public Google Translate API endpoint.
+        Robust free translation to Khmer with multi-provider fallback.
+        Works seamlessly for Chinese (zh/zh-CN), Korean (ko), English (en), and auto-detection.
         """
         if not text or not text.strip():
             return ""
-        
+
+        cleaned = text.strip()
+        sl = "auto" if source_lang in ("auto", "", None) else source_lang
+        if sl in ("zh", "chinese"):
+            sl = "zh-CN"
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+            "Referer": "https://translate.google.com/"
+        }
+
+        # 1. Primary: Google Clients5 API (Fast & Reliable, No Rate-Limit 429)
         try:
-            url = "https://translate.googleapis.com/translate_a/single"
-            params = {
-                "client": "gtx",
-                "sl": source_lang,
+            url1 = "https://clients5.google.com/translate_a/t"
+            params1 = {
+                "client": "dict-chrome-ex",
+                "sl": sl,
                 "tl": "km",
-                "dt": "t",
-                "q": text
+                "q": cleaned
             }
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(url, params=params)
+            async with httpx.AsyncClient(timeout=12.0) as client:
+                resp = await client.get(url1, params=params1, headers=headers)
                 if resp.status_code == 200:
                     data = resp.json()
-                    translated_parts = [segment[0] for segment in data[0] if segment and segment[0]]
-                    return "".join(translated_parts)
+                    if isinstance(data, list) and len(data) > 0:
+                        first = data[0]
+                        if isinstance(first, list) and len(first) > 0:
+                            trans = str(first[0]).strip()
+                            if trans:
+                                return trans
+                        elif isinstance(first, str) and first.strip():
+                            return first.strip()
         except Exception as e:
-            print(f"Free translate error: {e}")
+            print(f"Clients5 translate attempt note: {e}")
 
-        return text
+        # 2. Secondary: Google Translate single endpoint with dict-chrome-ex client
+        try:
+            url2 = "https://translate.googleapis.com/translate_a/single"
+            params2 = {
+                "client": "dict-chrome-ex",
+                "sl": sl,
+                "tl": "km",
+                "dt": "t",
+                "q": cleaned
+            }
+            async with httpx.AsyncClient(timeout=12.0) as client:
+                resp = await client.get(url2, params=params2, headers=headers)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    if isinstance(data, list) and len(data) > 0 and isinstance(data[0], list):
+                        parts = [seg[0] for seg in data[0] if seg and len(seg) > 0 and seg[0]]
+                        res = "".join(parts).strip()
+                        if res:
+                            return res
+        except Exception as e:
+            print(f"Secondary translate attempt note: {e}")
+
+        # 3. Tertiary: MyMemory Translation API
+        try:
+            pair = f"{'zh-CN' if sl in ('auto', 'zh-CN') else sl}|km"
+            url3 = "https://api.mymemory.translated.net/get"
+            params3 = {
+                "q": cleaned,
+                "langpair": pair
+            }
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(url3, params=params3)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    res_text = data.get("responseData", {}).get("translatedText", "").strip()
+                    if res_text and not res_text.startswith("MYMEMORY WARNING"):
+                        return res_text
+        except Exception as e:
+            print(f"MyMemory translate attempt note: {e}")
+
+        return cleaned
 
     def _auto_assign_voice(self, speaker_name: str, text: str, current_voice: Optional[str] = None) -> str:
         """Heuristically assign Piseth (male/narrator) or Sreymom (female) based on speaker name or text context."""

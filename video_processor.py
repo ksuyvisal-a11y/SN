@@ -134,6 +134,17 @@ def render_dubbed_video(
         ]
         subprocess.run(fallback_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
+    # Always ensure a copy exists in data/exports for easy user access!
+    try:
+        import shutil
+        exports_dir = Path("data/exports")
+        exports_dir.mkdir(parents=True, exist_ok=True)
+        stem = Path(original_video_path).stem
+        export_copy = exports_dir / f"Dubbed_{stem}.mp4"
+        shutil.copy2(str(out_p), str(export_copy))
+    except Exception as e:
+        print(f"Export copy note: {e}")
+
     return str(out_p)
 
 

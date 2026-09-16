@@ -363,6 +363,13 @@ button, input, select, textarea {
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.85);
 }
 
+#main-video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+}
+
 /* Big Glowing Circular Gold Play Button (Exact Match to Image 2 Shape in User Gold) */
 .monitor-center-play-button {
     width: 56px;

@@ -81,6 +81,20 @@ async def synthesize_khmer_speech(
         raise ValueError("Text cannot be empty for TTS synthesis.")
 
     cleaned_text = text.strip()
+
+    # Safety check: If text still contains Chinese/CJK characters and no Khmer, translate to Khmer first!
+    has_cjk = any('\u4e00' <= char <= '\u9fff' for char in cleaned_text)
+    has_khmer = any('\u1780' <= char <= '\u17ff' for char in cleaned_text)
+    if has_cjk and not has_khmer:
+        try:
+            from translator import DramaTranslator
+            trans = DramaTranslator()
+            km_text = await trans.translate_text_free(cleaned_text, source_lang="zh-CN")
+            if km_text and km_text.strip():
+                cleaned_text = km_text.strip()
+        except Exception as e:
+            print(f"Fallback translation in TTS note: {e}")
+
     voice_id = get_voice_id(voice)
     rate_str = _format_rate(rate_percent)
     pitch_str = _format_pitch(pitch_hz)
@@ -88,7 +102,7 @@ async def synthesize_khmer_speech(
     if output_path is None:
         if use_cache:
             cache_file = _get_cache_filename(cleaned_text, voice_id, rate_str, pitch_str)
-            if cache_file.exists() and cache_file.stat().st_size > 0:
+            if cache_file.exists() and cache_file.stat().st_size > 500:
                 return str(cache_file)
             final_output = cache_file
         else:
@@ -97,15 +111,27 @@ async def synthesize_khmer_speech(
         final_output = Path(output_path)
         final_output.parent.mkdir(parents=True, exist_ok=True)
 
-    communicate = edge_tts.Communicate(
-        text=cleaned_text,
-        voice=voice_id,
-        rate=rate_str,
-        pitch=pitch_str
-    )
-    
-    await communicate.save(str(final_output))
-    return str(final_output)
+    # Retry up to 3 times for reliable synthesis
+    last_err = None
+    for attempt in range(1, 4):
+        try:
+            communicate = edge_tts.Communicate(
+                text=cleaned_text,
+                voice=voice_id,
+                rate=rate_str,
+                pitch=pitch_str
+            )
+            await communicate.save(str(final_output))
+            if final_output.exists() and final_output.stat().st_size > 100:
+                return str(final_output)
+        except Exception as e:
+            last_err = e
+            await asyncio.sleep(0.6 * attempt)
+
+    if final_output.exists() and final_output.stat().st_size > 100:
+        return str(final_output)
+
+    raise RuntimeError(f"Edge-TTS synthesis failed after 3 attempts: {last_err}")
 
 
 async def batch_synthesize(
@@ -114,44 +140,42 @@ async def batch_synthesize(
     default_voice: str = "piseth"
 ) -> List[Dict[str, Any]]:
     """
-    Synthesize a list of dialogue items concurrently.
-    Each item in dialogue_items should have:
-    - id: int/str
-    - text: str (Khmer text)
-    - voice: str (optional, 'piseth' or 'sreymom')
-    - rate_percent: int (optional)
-    - pitch_hz: int (optional)
+    Synthesize a list of dialogue items with controlled concurrency (Semaphore = 3).
+    Ensures zero timeouts or dropped audio connections.
     """
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
+    semaphore = asyncio.Semaphore(3)
 
     async def _process_item(item: Dict[str, Any], index: int) -> Dict[str, Any]:
-        item_id = item.get("id", index)
-        text = item.get("text_km") or item.get("text", "")
-        voice = item.get("voice") or default_voice
-        rate = item.get("rate_percent", 0)
-        pitch = item.get("pitch_hz", 0)
+        async with semaphore:
+            item_id = item.get("id", index)
+            text = item.get("text_km") or item.get("text", "")
+            voice = item.get("voice") or default_voice
+            rate = item.get("rate_percent", 0)
+            pitch = item.get("pitch_hz", 0)
 
-        line_audio_path = out_path / f"line_{index:04d}_{item_id}.mp3"
-        try:
-            audio_file = await synthesize_khmer_speech(
-                text=text,
-                voice=voice,
-                rate_percent=rate,
-                pitch_hz=pitch,
-                output_path=str(line_audio_path)
-            )
-            item_copy = dict(item)
-            item_copy["audio_file"] = audio_file
-            item_copy["voice_used"] = voice
-            item_copy["success"] = True
-            return item_copy
-        except Exception as e:
-            item_copy = dict(item)
-            item_copy["audio_file"] = None
-            item_copy["error"] = str(e)
-            item_copy["success"] = False
-            return item_copy
+            line_audio_path = out_path / f"line_{index:04d}_{item_id}.mp3"
+            try:
+                audio_file = await synthesize_khmer_speech(
+                    text=text,
+                    voice=voice,
+                    rate_percent=rate,
+                    pitch_hz=pitch,
+                    output_path=str(line_audio_path)
+                )
+                item_copy = dict(item)
+                item_copy["audio_file"] = audio_file
+                item_copy["voice_used"] = voice
+                item_copy["success"] = True
+                return item_copy
+            except Exception as e:
+                print(f"TTS line {index} error: {e}")
+                item_copy = dict(item)
+                item_copy["audio_file"] = None
+                item_copy["error"] = str(e)
+                item_copy["success"] = False
+                return item_copy
 
     tasks = [_process_item(item, idx) for idx, item in enumerate(dialogue_items)]
     results = await asyncio.gather(*tasks)

@@ -51,6 +51,33 @@ async def main():
         parser.print_help()
         return
 
+    if args.video:
+        video_p = Path(args.video)
+        if not video_p.exists():
+            print(f"❌ រកមិនឃើញឯកសារវីដេអូ: {args.video}")
+            return
+
+        def cli_progress(pct: int, msg_km: str, msg_en: str):
+            print(f"[{pct}%] {msg_km}")
+
+        print(f"\n🎬 កំពុងដំណើរការបកប្រែវីដេអូ: {video_p.name}")
+        project = await pm.process_video_pipeline(
+            video_path=str(video_p),
+            title=f"Dubbed_{video_p.stem}",
+            mode=args.mode,
+            source_lang=args.source,
+            voice_override=args.voice,
+            burn_subtitles=not args.no_burn,
+            progress_callback=cli_progress
+        )
+
+        print("\n========================================================")
+        print(f"🎉 បកប្រែ និងបញ្ចូលសំឡេងខ្មែរជោគជ័យ ១០០%!")
+        print(f"📁 វីដេអូសម្រេច: {project['output_video_file']}")
+        print(f"🎙️ សំឡេងខ្មែរ: {project.get('mixed_audio_file')}")
+        print("========================================================\n")
+        return
+
 
 if __name__ == "__main__":
     asyncio.run(main())
