@@ -17,44 +17,48 @@
              TOP NAVBAR
              ==================================================================== -->
         <header class="unich-header-bar">
-            <!-- Left Brand & Toggle Switch -->
+            <!-- Left Toggle Switch (Matching Image 2) -->
             <div class="header-brand-group">
-                <div class="brand-logo-wrap">
-                    <img src="logo.png" alt="SN Logo" class="brand-logo-img">
-                    <span>SN TOOL</span>
-                </div>
-                <label class="brand-toggle-switch">
+                <label class="brand-toggle-switch" title="SN TOOL Auto / AI Mode">
                     <input type="checkbox" id="brand-main-switch" checked onchange="toggleAutoSwitch(this.checked)">
                     <span class="switch-track"></span>
                 </label>
             </div>
 
-            <!-- Center/Right Action Pill Buttons -->
+            <!-- Center Action Pill Buttons (Exact Match to Image 2 Order) -->
             <nav class="header-nav-pills">
-                <button class="nav-pill-btn" id="btn-tab-import" onclick="openImportModal()">
+                <button class="nav-pill-btn" id="btn-tab-import" onclick="openImportModal()" title="Import Video or Folder">
                     <i class="fa-solid fa-inbox icon-import"></i>
                     <span>Import</span>
                 </button>
-                <button class="nav-pill-btn active" id="btn-tab-translate" onclick="switchMainTab('translate')">
+                <button class="nav-pill-btn active" id="btn-tab-translate" onclick="switchMainTab('translate')" title="Translation & Dubbing Studio">
                     <i class="fa-solid fa-globe icon-translate"></i>
                     <span>Translate</span>
                 </button>
-                <button class="nav-pill-btn" id="btn-tab-overlay" onclick="switchMainTab('overlay')">
+                <button class="nav-pill-btn" id="btn-tab-recap" onclick="switchMainTab('recap')" title="AI Viral Movie Recap Engine">
+                    <i class="fa-solid fa-clapperboard icon-recap"></i>
+                    <span>Recap</span>
+                </button>
+                <button class="nav-pill-btn" id="btn-tab-overlay" onclick="switchMainTab('overlay')" title="Overlay & Watermark Tools">
                     <i class="fa-solid fa-folder icon-overlay"></i>
                     <span>Overlay</span>
                 </button>
-                <button class="nav-pill-btn" id="btn-tab-dl" onclick="switchMainTab('dl')">
+                <button class="nav-pill-btn" id="btn-tab-dl" onclick="switchMainTab('dl')" title="Drama Downloader Studio">
                     <i class="fa-solid fa-download icon-dl"></i>
                     <span>DL</span>
                 </button>
-                <button class="nav-pill-btn" id="btn-tab-export" onclick="switchMainTab('export')">
+                <button class="nav-pill-btn" id="btn-tab-dramamg" onclick="switchMainTab('dramamg')" title="Drama Manager & Batch Concat">
+                    <i class="fa-solid fa-film icon-dramamg"></i>
+                    <span>Drama MG</span>
+                </button>
+                <button class="nav-pill-btn" id="btn-tab-export" onclick="switchMainTab('export')" title="Render & Export Video">
                     <i class="fa-solid fa-box-archive icon-export"></i>
                     <span>Export</span>
                 </button>
                 
                 <!-- Power Dropdown -->
                 <div class="power-dropdown-wrapper">
-                    <button class="nav-pill-btn" id="btn-tab-power" onclick="togglePowerMenu(event)">
+                    <button class="nav-pill-btn" id="btn-tab-power" onclick="togglePowerMenu(event)" title="Power Processing Tools">
                         <i class="fa-solid fa-bolt icon-power"></i>
                         <span>Power</span>
                     </button>
@@ -73,22 +77,22 @@
                         </div>
                         <div class="power-item" onclick="openCompressModal('single')">
                             <i class="fa-solid fa-file-zipper" style="color:#a855f7;"></i>
-                            <span>Single Compress <small>(coming soon)</small></span>
+                            <span>Single Compress</span>
                         </div>
                         <div class="power-item" onclick="openCompressModal('multi')">
                             <i class="fa-solid fa-folder-tree" style="color:#eab308;"></i>
-                            <span>Multi Compress <small>(coming soon)</small></span>
+                            <span>Multi Compress</span>
                         </div>
                     </div>
                 </div>
 
-                <button class="nav-pill-btn" id="btn-tab-settings" onclick="openSettingsModal()">
+                <button class="nav-pill-btn" id="btn-tab-settings" onclick="openSettingsModal()" title="Studio Settings & License">
                     <i class="fa-solid fa-gear icon-settings"></i>
                     <span>Settings</span>
                 </button>
             </nav>
 
-            <!-- Window Header Controls -->
+            <!-- Window Header Controls in sleek rounded frame (Image 2 style) -->
             <div class="header-win-controls">
                 <button class="win-btn" title="Minimize">―</button>
                 <button class="win-btn" title="Maximize">▢</button>
@@ -143,30 +147,29 @@
 
                 <!-- Right Column: Workspace Setup & Dialogue Grid (Top) + Studio Engine & Render Monitor (Bottom) -->
                 <div class="studio-right-column">
-                    <!-- Top Box: Studio Workspace & Project Presets / Dialogue Grid -->
+                    <!-- Top Box: Studio Workspace (Exact Match to Image 2) -->
                     <div class="studio-sources-box" id="studio-sources-box">
-                        <!-- Top Header Bar -->
-                        <div class="sources-box-header">
-                            <div class="sources-header-left">
-                                <span class="sources-box-label">STUDIO WORKSTATION</span>
-                                <span class="preset-active-badge" id="current-mode-badge">
-                                    <i class="fa-solid fa-clapperboard"></i> Drama Dubbing Mode (16:9 / 9:16)
-                                </span>
+                        <!-- STATE 0: Exact Image 2 Clean Layout (Default View) -->
+                        <div class="studio-source-clean-view" id="studio-source-clean-view">
+                            <div class="clean-source-label">Translation source</div>
+                            <div class="clean-import-center-cta" onclick="openImportModal()">
+                                <div class="clean-plus-icon">+</div>
+                                <div class="clean-import-text">Import File / Folder</div>
                             </div>
-                            <div class="sources-header-actions">
-                                <button class="studio-action-pill-btn" id="btn-toggle-setup" onclick="toggleSetupPresetsView()">
-                                    <i class="fa-solid fa-sliders"></i> Presets & Setup
-                                </button>
-                                <button class="studio-action-pill-btn primary" onclick="openImportModal()">
-                                    <i class="fa-solid fa-plus"></i> Import Video / Folder
+                            <div class="clean-view-switch-tray">
+                                <button type="button" class="clean-tray-pill-btn" onclick="toggleSetupPresetsView()" title="Workflow Presets & Quick Setup">
+                                    <i class="fa-solid fa-sliders"></i> Presets
                                 </button>
                             </div>
                         </div>
 
-                        <!-- STATE 1: Studio Project Setup & Preset Cards -->
-                        <div class="studio-preset-setup-view" id="studio-preset-setup-view">
+                        <!-- STATE 1: Studio Project Setup & Preset Cards (Hidden by default, toggleable) -->
+                        <div class="studio-preset-setup-view" id="studio-preset-setup-view" style="display: none;">
                             <div class="preset-cards-hero">
-                                <div class="preset-hero-title">Studio Project Setup & Presets</div>
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <div class="preset-hero-title">Studio Project Setup & Presets</div>
+                                    <button class="clean-tray-pill-btn" onclick="showCleanSourceView()" style="font-size:0.68rem;">← Back to Clean View</button>
+                                </div>
                                 <div class="preset-hero-sub">Select a dubbing workflow preset or import media files to initialize Dialogue Grid</div>
                             </div>
 
@@ -235,8 +238,8 @@
                             </div>
                         </div>
 
-                        <!-- STATE 2: Dialogue Grid & Waveform Player (Displayed upon selection / import) -->
-                        <div class="studio-dialogue-waveform-view" id="studio-dialogue-waveform-view" style="display:none;">
+                        <!-- STATE 2: Dialogue Grid & Waveform Player (Hidden for clean uncluttered layout) -->
+                        <div class="studio-dialogue-waveform-view" id="studio-dialogue-waveform-view" style="display:none !important;">
                             <!-- Waveform Player Header -->
                             <div class="studio-waveform-player-card">
                                 <div class="waveform-player-top">

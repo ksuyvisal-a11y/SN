@@ -436,18 +436,8 @@ function showPresetSetupView() {
 }
 
 function showDialogueWaveformView() {
-    studioViewMode = 'grid';
-    const cleanView = document.getElementById('studio-source-clean-view');
-    const setupView = document.getElementById('studio-preset-setup-view');
-    const gridView = document.getElementById('studio-dialogue-waveform-view');
-
-    if (cleanView) cleanView.style.display = 'none';
-    if (setupView) setupView.style.display = 'none';
-    if (gridView) gridView.style.display = 'flex';
-
-    // Ensure dialogues are populated
-    const preset = studioPresetsData[currentStudioPreset] || studioPresetsData.drama;
-    renderDialogueGrid(preset.dialogues);
+    // Keep UI clean, modern, and uncluttered (User requested hiding the raw dialogue table)
+    showCleanSourceView();
 }
 
 function toggleSetupPresetsView() {
@@ -1327,8 +1317,8 @@ async function startAutoDubbingPipeline(file) {
     showToast(`🚀 កំពុង Upload និងចាប់ផ្តើមបកប្រែវីដេអូ: ${file.name}`);
     appendTerminalLine(`[Auto Dubbing] Uploading video ${file.name} (${(file.size / (1024*1024)).toFixed(1)} MB)...`);
     
-    // Switch to dialogue grid view
-    showDialogueWaveformView();
+    // Keep clean source view active (uncluttered layout)
+    showCleanSourceView();
     
     // Set Engine Monitor to Active Encoding State
     const pill = document.getElementById('monitor-engine-status-pill');
@@ -1405,10 +1395,11 @@ async function startAutoDubbingPipeline(file) {
                         updateScrubberUI();
                     }
 
-                    // Populate Dialogue Grid with real translated dialogues!
+                    // Store translated dialogues in memory for background playback, keeping UI clean
                     if (sData.project && sData.project.dialogues) {
-                        renderDialogueGrid(sData.project.dialogues);
+                        activeLoadedDialogues = sData.project.dialogues;
                     }
+                    showCleanSourceView();
 
                     // Show success action prompt with Open Folder & Download buttons
                     showDubbingSuccessNotification(sData);

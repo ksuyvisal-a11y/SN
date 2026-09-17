@@ -24,6 +24,31 @@ async function initApp() {
     loadDramaCatalog("all");
     initStudioWorkspace();
     initSaveLocationPaths();
+    setupDragAndDropSupport();
+}
+
+function setupDragAndDropSupport() {
+    ['dragenter', 'dragover'].forEach(eventName => {
+        window.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        window.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
+    });
+
+    window.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            handleSelectedFiles(e.dataTransfer.files);
+        }
+    }, false);
 }
 
 // ==========================================================================
@@ -70,7 +95,34 @@ function switchMainTab(tabKey) {
             showToast("📁 Interactive Canvas Overlays enabled.");
         } else if (tabKey === 'export') {
             startStudioExportJob();
+        } else if (tabKey === 'recap') {
+            showToast("🎬 AI Viral Movie Recap Engine ready.");
+        } else if (tabKey === 'dramamg') {
+            showToast("🎞️ Drama Manager & Episode Concat ready.");
         }
+    }
+}
+
+function showCleanSourceView() {
+    const cleanView = document.getElementById('studio-source-clean-view');
+    const presetView = document.getElementById('studio-preset-setup-view');
+    const gridView = document.getElementById('studio-dialogue-waveform-view');
+    if (cleanView) cleanView.style.display = 'flex';
+    if (presetView) presetView.style.display = 'none';
+    if (gridView) gridView.style.display = 'none';
+}
+
+function toggleSetupPresetsView() {
+    const cleanView = document.getElementById('studio-source-clean-view');
+    const presetView = document.getElementById('studio-preset-setup-view');
+    const gridView = document.getElementById('studio-dialogue-waveform-view');
+
+    if (presetView && presetView.style.display !== 'none') {
+        showCleanSourceView();
+    } else {
+        if (cleanView) cleanView.style.display = 'none';
+        if (presetView) presetView.style.display = 'flex';
+        if (gridView) gridView.style.display = 'none';
     }
 }
 
@@ -148,6 +200,7 @@ function executeVideoCompress() {
 // ==========================================================================
 function togglePlayPreview() {
     isPlaying = !isPlaying;
+    const mainVideo = document.getElementById('main-video');
     const playIcon = document.getElementById('center-play-icon');
     const playBtn = document.getElementById('center-play-btn');
     const wavePlayIcon = document.getElementById('waveform-play-icon');
@@ -155,22 +208,36 @@ function togglePlayPreview() {
     if (isPlaying) {
         if (playIcon) playIcon.className = 'fa-solid fa-pause';
         if (wavePlayIcon) wavePlayIcon.className = 'fa-solid fa-pause';
-        if (playBtn) playBtn.style.opacity = '0.3';
+        if (playBtn) playBtn.style.opacity = '0';
+
+        if (mainVideo && mainVideo.src) {
+            mainVideo.style.display = 'block';
+            mainVideo.play().catch(() => {});
+        }
 
         startAudioPlaybackVUMeter();
 
+        if (playbackTimer) clearInterval(playbackTimer);
         playbackTimer = setInterval(() => {
-            playheadSeconds += 0.5;
-            if (playheadSeconds >= totalDurationSeconds) {
-                playheadSeconds = 0;
+            if (mainVideo && mainVideo.src && !mainVideo.paused && !isNaN(mainVideo.duration)) {
+                playheadSeconds = mainVideo.currentTime;
+                totalDurationSeconds = mainVideo.duration;
+            } else {
+                playheadSeconds += 0.5;
+                if (playheadSeconds >= totalDurationSeconds) {
+                    playheadSeconds = 0;
+                }
             }
             updateScrubberUI();
-        }, 500);
+        }, 300);
         showToast("▶ Video & Audio Playing");
     } else {
         if (playIcon) playIcon.className = 'fa-solid fa-play';
         if (wavePlayIcon) wavePlayIcon.className = 'fa-solid fa-play';
         if (playBtn) playBtn.style.opacity = '1';
+        if (mainVideo && mainVideo.src) {
+            mainVideo.pause();
+        }
         if (playbackTimer) {
             clearInterval(playbackTimer);
             playbackTimer = null;
@@ -180,10 +247,14 @@ function togglePlayPreview() {
 }
 
 function handleSeekClick(e) {
+    const mainVideo = document.getElementById('main-video');
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const ratio = Math.max(0, Math.min(1, clickX / rect.width));
     playheadSeconds = ratio * totalDurationSeconds;
+    if (mainVideo && mainVideo.src && !isNaN(mainVideo.duration)) {
+        mainVideo.currentTime = playheadSeconds;
+    }
     updateScrubberUI();
 }
 
@@ -306,16 +377,7 @@ const studioPresetsData = {
 };
 
 let currentStudioPreset = 'drama';
-let studioViewMode = 'presets'; // 'presets' or 'grid'
-
-function initStudioWorkspace() {
-    generateWaveformBars();
-    generateVuMiniWaveBars();
-    startVuMeterAnimation();
-    // Preload dialogue items for initial active preset
-    const preset = studioPresetsData[currentStudioPreset];
-    if (preset) renderDialogueGrid(preset.dialogues);
-}
+let studioViewMode = 'clean'; // 'clean' (Image 2 default), 'presets', or 'grid'
 
 function initStudioWorkspace() {
     generateWaveformBars();
@@ -327,8 +389,8 @@ function initStudioWorkspace() {
     const preset = studioPresetsData[currentStudioPreset];
     if (preset) renderDialogueGrid(preset.dialogues);
 
-    // Initial default view is Studio Project Setup & Presets
-    showPresetSetupView();
+    // Initial default view is Clean Image 2 View
+    showCleanSourceView();
 }
 
 function selectStudioPreset(presetKey) {
@@ -351,107 +413,166 @@ function selectStudioPreset(presetKey) {
     appendTerminalLine(`[Ready] Workflow preset set to ${preset.name}. Ready for media import or audition.`);
 }
 
-function toggleSetupPresetsView() {
-    if (studioViewMode === 'presets') {
-        showDialogueWaveformView();
-    } else {
-        showPresetSetupView();
-    }
+function showCleanSourceView() {
+    studioViewMode = 'clean';
+    const cleanView = document.getElementById('studio-source-clean-view');
+    const setupView = document.getElementById('studio-preset-setup-view');
+    const gridView = document.getElementById('studio-dialogue-waveform-view');
+
+    if (cleanView) cleanView.style.display = 'flex';
+    if (setupView) setupView.style.display = 'none';
+    if (gridView) gridView.style.display = 'none';
 }
 
 function showPresetSetupView() {
     studioViewMode = 'presets';
+    const cleanView = document.getElementById('studio-source-clean-view');
     const setupView = document.getElementById('studio-preset-setup-view');
     const gridView = document.getElementById('studio-dialogue-waveform-view');
-    const toggleBtn = document.getElementById('btn-toggle-setup');
 
+    if (cleanView) cleanView.style.display = 'none';
     if (setupView) setupView.style.display = 'flex';
     if (gridView) gridView.style.display = 'none';
-    if (toggleBtn) toggleBtn.innerHTML = '<i class="fa-solid fa-table-list"></i> Dialogue Grid';
 }
 
 function showDialogueWaveformView() {
-    studioViewMode = 'grid';
-    const setupView = document.getElementById('studio-preset-setup-view');
-    const gridView = document.getElementById('studio-dialogue-waveform-view');
-    const toggleBtn = document.getElementById('btn-toggle-setup');
+    // Keep UI clean, modern, and uncluttered (User requested hiding the raw dialogue table)
+    showCleanSourceView();
+}
 
-    if (setupView) setupView.style.display = 'none';
-    if (gridView) gridView.style.display = 'flex';
-    if (toggleBtn) toggleBtn.innerHTML = '<i class="fa-solid fa-sliders"></i> Presets & Setup';
+function toggleSetupPresetsView() {
+    if (studioViewMode === 'clean') {
+        showPresetSetupView();
+    } else if (studioViewMode === 'presets') {
+        showCleanSourceView();
+    } else {
+        showCleanSourceView();
+    }
+}
 
-    // Ensure dialogues are populated
-    const preset = studioPresetsData[currentStudioPreset] || studioPresetsData.drama;
-    renderDialogueGrid(preset.dialogues);
+let activeLoadedDialogues = [];
+let activeDialogueAudioPlayer = null;
+
+function formatSecondsToTimecode(sec) {
+    if (sec === undefined || sec === null || isNaN(sec)) return "00:00:00.000";
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    const ms = Math.floor((sec % 1) * 1000);
+    return `00:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
 }
 
 function renderDialogueGrid(dialogues) {
     const tbody = document.getElementById('dialogue-grid-rows');
     if (!tbody) return;
 
+    activeLoadedDialogues = dialogues || [];
     tbody.innerHTML = '';
-    dialogues.forEach((d) => {
+    activeLoadedDialogues.forEach((d, idx) => {
         const tr = document.createElement('tr');
+        const rowId = d.id || (idx + 1);
         tr.className = 'dialogue-row';
-        tr.id = `dialogue-row-${d.id}`;
+        tr.id = `dialogue-row-${rowId}`;
+
+        const tcInStr = d.tcIn || formatSecondsToTimecode(d.start);
+        const tcOutStr = d.tcOut || formatSecondsToTimecode(d.end);
+
+        const vKey = (d.voice || d.voice_used || "piseth").toLowerCase();
+        const isSreyMom = vKey.includes("sreymom") || vKey.includes("female") || vKey.includes("ស្រី");
+        const speakerClass = isSreyMom ? "speaker-sreymom" : "speaker-piseth";
+        const defaultSpeaker = isSreyMom ? "ស្រីមុំ (Sreymom)" : "ពិសិដ្ឋ (Piseth)";
+        const speakerName = d.speaker || defaultSpeaker;
+
+        const origText = d.orig || d.text_original || d.text || "";
+        const khmerText = d.khmer || d.text_km || origText;
+
         tr.innerHTML = `
-            <td style="color:#716655; font-family:var(--font-mono);">${d.id}</td>
-            <td><span class="tc-code">${d.tcIn} - ${d.tcOut}</span></td>
+            <td style="color:#716655; font-family:var(--font-mono);">${rowId}</td>
+            <td><span class="tc-code">${tcInStr} - ${tcOutStr}</span></td>
             <td>
-                <span class="speaker-badge ${d.speakerClass}">
-                    <i class="fa-solid fa-user-voice"></i> ${d.speaker}
+                <span class="speaker-badge ${speakerClass}">
+                    <i class="fa-solid fa-user-voice"></i> ${escapeHtml(speakerName)}
                 </span>
             </td>
-            <td class="orig-script-text">${escapeHtml(d.orig)}</td>
-            <td class="khmer-dub-text">${escapeHtml(d.khmer)}</td>
+            <td class="orig-script-text">${escapeHtml(origText)}</td>
+            <td class="khmer-dub-text">${escapeHtml(khmerText)}</td>
             <td style="text-align:center;">
-                <button class="grid-action-btn" title="Preview Audio Clip" onclick="playDialogueSnippet(${d.id})"><i class="fa-solid fa-play"></i></button>
-                <button class="grid-action-btn" title="Edit Segment" onclick="editDialogueSnippet(${d.id})"><i class="fa-solid fa-pen"></i></button>
+                <button class="grid-action-btn" title="ចាក់សំឡេងខ្មែរ (Play Khmer Speech)" onclick="playDialogueSnippet(${rowId})"><i class="fa-solid fa-play"></i></button>
+                <button class="grid-action-btn" title="កែសម្រួល (Edit Line)" onclick="editDialogueSnippet(${rowId})"><i class="fa-solid fa-pen"></i></button>
             </td>
         `;
         tbody.appendChild(tr);
     });
 }
 
-function playDialogueSnippet(id) {
-    showToast(`🔊 Auditioning Khmer Dubbing line #${id}`);
-    appendTerminalLine(`[Audio Engine] Auditioning dialogue line #${id} at 48kHz stereo`);
-
-    // Temporarily highlight this row
-    document.querySelectorAll('.dialogue-row').forEach(r => r.classList.remove('playing'));
+async function playDialogueSnippet(id) {
+    const item = activeLoadedDialogues.find(d => String(d.id) === String(id));
     const targetRow = document.getElementById(`dialogue-row-${id}`);
+    document.querySelectorAll('.dialogue-row').forEach(r => r.classList.remove('playing'));
     if (targetRow) targetRow.classList.add('playing');
 
-    // Simulate real audio output on VU meter during playback
-    if (vuAnimationTimer) clearInterval(vuAnimationTimer);
-    let snippetTicks = 0;
-    vuAnimationTimer = setInterval(() => {
-        snippetTicks++;
-        const fillL = document.getElementById('vu-fill-l');
-        const fillR = document.getElementById('vu-fill-r');
-        const dbL = document.getElementById('vu-db-l');
-        const dbR = document.getElementById('vu-db-r');
+    showToast(`🔊 កំពុងចាក់សំឡេងខ្មែរបន្ទាត់ #${id}`);
+    appendTerminalLine(`[Audio Engine] Auditioning line #${id} (${item ? (item.voice || 'piseth') : 'audio'})`);
 
-        const randL = Math.floor(Math.random() * 25 + 55);
-        const randR = Math.floor(Math.random() * 25 + 50);
+    if (activeDialogueAudioPlayer) {
+        try { activeDialogueAudioPlayer.pause(); } catch(e) {}
+        activeDialogueAudioPlayer = null;
+    }
 
-        if (fillL) fillL.style.width = `${randL}%`;
-        if (fillR) fillR.style.width = `${randR}%`;
-        if (dbL) dbL.textContent = `-${Math.floor((100 - randL) * 0.35)} dB`;
-        if (dbR) dbR.textContent = `-${Math.floor((100 - randR) * 0.4)} dB`;
+    startAudioPlaybackVUMeter();
 
-        const miniBars = document.querySelectorAll('#vu-mini-wave-bars .vu-wave-bar');
-        miniBars.forEach(bar => {
-            bar.style.height = `${Math.floor(Math.random() * 70 + 20)}%`;
-        });
+    let audioUrl = null;
+    if (item && item.audio_file) {
+        audioUrl = `/media/${item.audio_file.replace(/\\/g, '/')}`;
+    }
 
-        if (snippetTicks > 10) { // ~2 seconds audition
-            clearInterval(vuAnimationTimer);
-            vuAnimationTimer = null;
+    if (audioUrl) {
+        activeDialogueAudioPlayer = new Audio(audioUrl);
+        activeDialogueAudioPlayer.onended = () => {
             resetVuMetersToIdle();
             if (targetRow) targetRow.classList.remove('playing');
+        };
+        activeDialogueAudioPlayer.onerror = () => {
+            resetVuMetersToIdle();
+            if (targetRow) targetRow.classList.remove('playing');
+        };
+        try {
+            await activeDialogueAudioPlayer.play();
+            return;
+        } catch(e) {
+            console.warn("Direct play note:", e);
         }
-    }, 200);
+    }
+
+    // Fallback on-the-fly synthesize preview if not yet cached
+    if (item && (item.text_km || item.khmer)) {
+        try {
+            const resp = await fetch('/api/voices/preview', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    text: item.text_km || item.khmer,
+                    voice: item.voice || (item.speaker && item.speaker.includes('sreymom') ? 'sreymom' : 'piseth')
+                })
+            });
+            const data = await resp.json();
+            if (data.success && data.audio_url) {
+                activeDialogueAudioPlayer = new Audio(data.audio_url);
+                activeDialogueAudioPlayer.onended = () => {
+                    resetVuMetersToIdle();
+                    if (targetRow) targetRow.classList.remove('playing');
+                };
+                activeDialogueAudioPlayer.play();
+                return;
+            }
+        } catch (e) {
+            console.warn("Preview error:", e);
+        }
+    }
+
+    setTimeout(() => {
+        resetVuMetersToIdle();
+        if (targetRow) targetRow.classList.remove('playing');
+    }, 2000);
 }
 
 function editDialogueSnippet(id) {
@@ -563,67 +684,23 @@ let exportPercent = 0;
 let exportElapsedSec = 0;
 
 function startStudioExportJob() {
-    if (exportJobTimer) {
-        clearInterval(exportJobTimer);
-        exportJobTimer = null;
+    if (currentDubbedProject && currentDubbedProject.output_video_file) {
+        openExportFolderDirect(currentDubbedProject.output_video_file);
+        showToast("📂 បានបើកទីតាំង Folder វីដេអូដែល Render រួចរាល់!");
+        const mainVideo = document.getElementById('main-video');
+        if (mainVideo && mainVideo.src) {
+            const a = document.createElement('a');
+            a.href = mainVideo.src;
+            a.download = `Dubbed_${currentDubbedProject.title || 'drama'}.mp4`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }
+        return;
     }
 
-    exportPercent = 0;
-    exportElapsedSec = 0;
-
-    // Set Engine Monitor to Active Encoding State
-    const pill = document.getElementById('monitor-engine-status-pill');
-    const dot = document.getElementById('monitor-pulse-dot');
-    const text = document.getElementById('monitor-engine-status-text');
-    if (pill) pill.className = 'engine-status-pill';
-    if (dot) dot.className = 'pulse-indicator';
-    if (text) text.textContent = 'ENGINE ENCODING';
-
-    const fpsElem = document.getElementById('monitor-render-fps');
-    const fpsCap = document.getElementById('monitor-fps-caption');
-    const brElem = document.getElementById('monitor-render-bitrate');
-    const brCap = document.getElementById('monitor-bitrate-caption');
-
-    if (fpsElem) fpsElem.textContent = '60.0';
-    if (fpsCap) fpsCap.textContent = '2.4x Realtime';
-    if (brElem) brElem.textContent = '18.5';
-    if (brCap) brCap.textContent = 'HEVC / H.265 Master';
-
-    showToast("🎬 Export Started: Rendering MP4 master...");
-    appendTerminalLine("[Encoder] NVENC hardware encoding started for current timeline.");
-
-    exportJobTimer = setInterval(() => {
-        exportElapsedSec += 1;
-        exportPercent += Math.floor(Math.random() * 6 + 4); // 4-10% step
-
-        if (exportPercent >= 100) {
-            exportPercent = 100;
-            clearInterval(exportJobTimer);
-            exportJobTimer = null;
-
-            updateExportProgressUI(100, exportElapsedSec, 0, "✅ Export Completed! Saved to data/exports/EP01_Master.mp4");
-            showToast("✅ Export Render Complete!");
-            appendTerminalLine("[Encoder] Rendering finished successfully. 100% completed.");
-
-            // Return to standby after 5 seconds
-            setTimeout(() => {
-                resetEngineMonitorToStandby();
-            }, 5000);
-            return;
-        }
-
-        const remainingPercent = 100 - exportPercent;
-        const etaSec = Math.max(1, Math.round((exportElapsedSec / exportPercent) * remainingPercent));
-
-        let taskName = "Encoding video frames (HEVC 4K)...";
-        if (exportPercent > 35 && exportPercent <= 70) {
-            taskName = "Multiplexing Piseth & Sreymom Khmer audio channels...";
-        } else if (exportPercent > 70) {
-            taskName = "Burning synchronized Khmer subtitle streams...";
-        }
-
-        updateExportProgressUI(exportPercent, exportElapsedSec, etaSec, taskName);
-    }, 400);
+    openExportFolderDirect();
+    showToast("📂 បានបើក Folder Exports ក្នុង Windows Explorer");
 }
 
 function updateExportProgressUI(pct, elapsedSec, etaSec, taskName) {
@@ -1211,12 +1288,235 @@ function triggerFolderSelect() {
     if (input) input.click();
 }
 
+let activeDubbingTaskId = null;
+let activeDubbingPollTimer = null;
+let currentDubbedProject = null;
+
 function handleSelectedFiles(files) {
     if (!files || files.length === 0) return;
-    showToast(`🎬 Imported ${files.length} episode(s) into Dialogue Grid!`);
-    appendTerminalLine(`[Engine Import] Imported ${files.length} media file(s) into workstation.`);
     closeModal('modal-import');
-    showDialogueWaveformView();
+
+    const fileList = Array.from(files).filter(f => {
+        const n = (f.name || '').toLowerCase();
+        return n.endsWith('.mp4') || n.endsWith('.mkv') || n.endsWith('.mov') || n.endsWith('.avi') || n.endsWith('.webm') || (f.type && f.type.startsWith('video/'));
+    });
+
+    if (fileList.length === 0) {
+        showToast("⚠️ សូមជ្រើសរើសឯកសារជាប្រភេទវីដេអូ (MP4, MKV, MOV...)");
+        return;
+    }
+
+    if (fileList.length === 1) {
+        startAutoDubbingPipeline(fileList[0]);
+    } else {
+        startBatchFilesUpload(fileList);
+    }
+}
+
+async function startAutoDubbingPipeline(file) {
+    showToast(`🚀 កំពុង Upload និងចាប់ផ្តើមបកប្រែវីដេអូ: ${file.name}`);
+    appendTerminalLine(`[Auto Dubbing] Uploading video ${file.name} (${(file.size / (1024*1024)).toFixed(1)} MB)...`);
+    
+    // Keep clean source view active (uncluttered layout)
+    showCleanSourceView();
+    
+    // Set Engine Monitor to Active Encoding State
+    const pill = document.getElementById('monitor-engine-status-pill');
+    const dot = document.getElementById('monitor-pulse-dot');
+    const text = document.getElementById('monitor-engine-status-text');
+    if (pill) pill.className = 'engine-status-pill';
+    if (dot) dot.className = 'pulse-indicator';
+    if (text) text.textContent = 'AI DUBBING IN PROGRESS';
+
+    updateExportProgressUI(5, 0, 90, "១/៦ កំពុង Upload វីដេអូទៅកាន់ម៉ាស៊ីន Studio...");
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("drama_mode", currentStudioPreset === "narration" ? "movie_recap" : "drama_dubbing");
+    formData.append("source_lang", "auto");
+    formData.append("voice_override", "auto");
+    formData.append("aspect_ratio", "16:9");
+    formData.append("burn_subtitles", "true");
+
+    try {
+        const res = await fetch("/api/projects/auto-dub-video", {
+            method: "POST",
+            body: formData
+        });
+        const data = await res.json();
+        if (!data.success || !data.task_id) {
+            showToast(`❌ បរាជ័យ: ${data.error || "មិនអាចចាប់ផ្តើមបានទេ"}`);
+            appendTerminalLine(`[Error] Failed to start pipeline: ${data.error || 'Server error'}`);
+            resetEngineMonitorToStandby();
+            return;
+        }
+
+        activeDubbingTaskId = data.task_id;
+        let elapsed = 0;
+        appendTerminalLine(`[Task ID: ${activeDubbingTaskId}] Dubbing engine dispatched in background.`);
+
+        if (activeDubbingPollTimer) clearInterval(activeDubbingPollTimer);
+        activeDubbingPollTimer = setInterval(async () => {
+            elapsed += 1;
+            try {
+                const sRes = await fetch(`/api/projects/auto-dub-status/${activeDubbingTaskId}`);
+                const sData = await sRes.json();
+                if (!sData.success) return;
+
+                const pct = sData.progress || 10;
+                const stepKm = sData.step_km || "កំពុងដំណើរការ...";
+                const rem = 100 - pct;
+                const eta = Math.max(1, Math.round((elapsed / Math.max(1, pct)) * rem));
+
+                updateExportProgressUI(pct, elapsed, eta, stepKm);
+                
+                // Update bottom footer
+                const footerProg = document.getElementById('footer-studio-progress');
+                if (footerProg) footerProg.style.width = `${pct}%`;
+                const footerText = document.querySelector('#footer-studio-main div:first-child');
+                if (footerText) footerText.textContent = `Status: ${stepKm} (${pct}%)`;
+
+                if (sData.status === "completed") {
+                    clearInterval(activeDubbingPollTimer);
+                    activeDubbingPollTimer = null;
+                    currentDubbedProject = sData.project;
+
+                    updateExportProgressUI(100, elapsed, 0, "🎉 រួចរាល់ ១០០%! វីដេអូសម្រេចបានរក្សាទុក!");
+                    showToast("🎉 បកប្រែ និងបញ្ចូលសំឡេងខ្មែរជោគជ័យ ១០០%!");
+                    appendTerminalLine(`[Success] Video dubbed successfully! Master: ${sData.project.output_video_file}`);
+
+                    // Load dubbed video into player
+                    const mainVideo = document.getElementById('main-video');
+                    if (mainVideo && sData.video_url) {
+                        mainVideo.src = sData.video_url;
+                        mainVideo.style.display = 'block';
+                        mainVideo.load();
+                        totalDurationSeconds = sData.project.duration || 60;
+                        updateScrubberUI();
+                    }
+
+                    // Store translated dialogues in memory for background playback, keeping UI clean
+                    if (sData.project && sData.project.dialogues) {
+                        activeLoadedDialogues = sData.project.dialogues;
+                    }
+                    showCleanSourceView();
+
+                    // Show success action prompt with Open Folder & Download buttons
+                    showDubbingSuccessNotification(sData);
+
+                } else if (sData.status === "failed") {
+                    clearInterval(activeDubbingPollTimer);
+                    activeDubbingPollTimer = null;
+                    showToast(`❌ កំហុស: ${sData.error || 'ដំណើរការបរាជ័យ'}`);
+                    appendTerminalLine(`[Failed] Dubbing error: ${sData.error}`);
+                    resetEngineMonitorToStandby();
+                }
+            } catch (err) {
+                console.warn("Poll error:", err);
+            }
+        }, 1000);
+
+    } catch (e) {
+        showToast("❌ កំហុសក្នុងការ Upload វីដេអូ");
+        appendTerminalLine(`[Error] Network upload failed: ${e.message}`);
+        resetEngineMonitorToStandby();
+    }
+}
+
+async function startBatchFilesUpload(files) {
+    showToast(`📂 កំពុង Upload វីដេអូចំនួន ${files.length} ភាគ...`);
+    appendTerminalLine(`[Batch Upload] Uploading ${files.length} video files for auto-dubbing...`);
+
+    const formData = new FormData();
+    for (let i = 0; i < files.length; i++) {
+        formData.append("files", files[i]);
+    }
+    formData.append("voice_mode", "auto");
+    formData.append("drama_mode", "drama_dubbing");
+    formData.append("aspect_ratio", "16:9");
+    formData.append("burn_subtitles", "true");
+
+    try {
+        const res = await fetch("/api/batch/upload", {
+            method: "POST",
+            body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`🚀 បានដាក់ចូលក្នុង Queue ចំនួន ${data.added_count} ភាគ!`);
+            appendTerminalLine(`[Batch] ${data.added_count} episodes queued for automated processing.`);
+            switchMainTab('dl');
+            switchDlViewMode('queue');
+        } else {
+            showToast(`❌ ${data.error || 'បរាជ័យ'}`);
+        }
+    } catch (e) {
+        showToast("❌ កំហុសបណ្តាញ");
+    }
+}
+
+function showDubbingSuccessNotification(data) {
+    const existing = document.getElementById('dubbing-success-banner');
+    if (existing) existing.remove();
+
+    const banner = document.createElement('div');
+    banner.id = 'dubbing-success-banner';
+    banner.style.cssText = `
+        position: fixed;
+        bottom: 45px;
+        right: 20px;
+        background: linear-gradient(135deg, #18150c 0%, #0d0b06 100%);
+        border: 1px solid rgba(250, 204, 21, 0.4);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 20px rgba(250, 204, 21, 0.2);
+        border-radius: 12px;
+        padding: 16px 20px;
+        z-index: 99999;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-width: 320px;
+        animation: fadeIn 0.3s ease;
+    `;
+
+    banner.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-weight:700; color:#facc15; font-size:0.9rem; display:flex; align-items:center; gap:8px;">
+                <i class="fa-solid fa-circle-check" style="color:#22c55e;"></i> បកប្រែជាសំឡេងខ្មែរជោគជ័យ!
+            </div>
+            <button onclick="this.parentElement.parentElement.remove()" style="background:transparent; border:none; color:#716655; font-size:0.85rem; cursor:pointer;">✕</button>
+        </div>
+        <div style="font-size:0.75rem; color:#cbd5e1;">
+            វីដេអូបាន Render រួចរាល់ជាមួយសំឡេងខ្មែរ ពិសិដ្ឋ & ស្រីមុំ និងបានរក្សាទុកក្នុង Folder Exports!
+        </div>
+        <div style="display:flex; gap:8px; margin-top:4px;">
+            <button onclick="openExportFolderDirect()" style="flex:1; background:rgba(250,204,21,0.15); border:1px solid #facc15; color:#facc15; border-radius:6px; padding:6px 12px; font-size:0.75rem; font-weight:600; cursor:pointer;">
+                <i class="fa-solid fa-folder-open"></i> បើក Folder វីដេអូ
+            </button>
+            <a href="${data.video_url}" download style="flex:1; text-align:center; background:#facc15; color:#000; border-radius:6px; padding:6px 12px; font-size:0.75rem; font-weight:700; text-decoration:none; display:inline-block;">
+                <i class="fa-solid fa-download"></i> ទាញយក MP4
+            </a>
+        </div>
+    `;
+
+    document.body.appendChild(banner);
+}
+
+async function openExportFolderDirect(targetPath) {
+    try {
+        const res = await fetch('/api/projects/open-folder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: targetPath || '' })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast("📂 បានបើក Folder Exports ក្នុង Windows Explorer");
+        } else {
+            showToast(`⚠️ ${data.error || 'មិនអាចបើក Folder បានទេ'}`);
+        }
+    } catch (e) {
+        showToast("⚠️ កំហុសក្នុងការបើក Folder");
+    }
 }
 
 function openModal(id) {
