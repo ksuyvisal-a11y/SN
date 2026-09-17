@@ -25,7 +25,7 @@ EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
 class BatchDubbingManager:
     def __init__(self):
         self.pm = ProjectManager()
-        self.stt = SpeechToTextEngine(model_size="tiny")
+        self.stt = SpeechToTextEngine(model_size="base")
         self.translator = DramaTranslator()
         self.queue: List[Dict[str, Any]] = []
         self.is_processing = False
@@ -170,14 +170,15 @@ class BatchDubbingManager:
         voices_dir.mkdir(parents=True, exist_ok=True)
         synthesized_items = await batch_synthesize(translated_dialogues, output_dir=str(voices_dir))
 
-        # Mix Audio with BGM Ducking
+        # Mix Audio with BGM Ducking (Zero Chinese Vocal Bleed)
         mixed_audio = item_dir / "dubbed_mixed.mp3"
         mix_dubbed_audio(
             original_audio_path=bgm_track,
             dialogue_items=synthesized_items,
             output_mixed_path=str(mixed_audio),
             total_duration_sec=duration,
-            ducking_volume_factor=0.25
+            ducking_volume_factor=0.08,
+            dubbing_mode="smart_bgm"
         )
 
         # Final Render MP4 to Exports Directory

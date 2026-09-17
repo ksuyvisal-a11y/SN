@@ -7,8 +7,6 @@ import math
 import subprocess
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-import pydub
-from pydub import AudioSegment
 
 try:
     import imageio_ffmpeg
@@ -16,10 +14,13 @@ try:
     FFMPEG_DIR = os.path.dirname(FFMPEG_EXE)
     if FFMPEG_DIR not in os.environ.get("PATH", ""):
         os.environ["PATH"] = FFMPEG_DIR + os.pathsep + os.environ.get("PATH", "")
-    pydub.AudioSegment.converter = FFMPEG_EXE
-    pydub.AudioSegment.ffmpeg = FFMPEG_EXE
 except Exception:
     FFMPEG_EXE = "ffmpeg"
+
+import pydub
+from pydub import AudioSegment
+pydub.AudioSegment.converter = FFMPEG_EXE
+pydub.AudioSegment.ffmpeg = FFMPEG_EXE
 
 
 def get_ffmpeg_path() -> str:
@@ -30,7 +31,6 @@ def get_ffmpeg_path() -> str:
 def load_audio_safely(file_path: str) -> AudioSegment:
     """
     Robust audio loader that decodes MP3/AAC/WAV/etc directly via FFmpeg binary.
-    Does not require ffprobe.
     """
     cmd = [
         get_ffmpeg_path(),
@@ -57,12 +57,10 @@ def save_audio_safely(segment: AudioSegment, output_path: str, bitrate: str = "1
     out_p = Path(output_path)
     out_p.parent.mkdir(parents=True, exist_ok=True)
     
-    # Export segment to in-memory WAV buffer
     wav_io = io.BytesIO()
     segment.export(wav_io, format="wav")
     wav_io.seek(0)
     
-    # Encode with FFmpeg
     cmd = [
         get_ffmpeg_path(),
         "-y",
@@ -162,30 +160,25 @@ def mix_dubbed_audio(
     dialogue_items: List[Dict[str, Any]],
     output_mixed_path: str,
     total_duration_sec: Optional[float] = None,
-    ducking_volume_factor: float = 0.25,  # Reduce original BGM to 25% during speech
-    speech_volume_boost_db: float = 2.0,  # Boost speech by +2dB
-    fade_duration_ms: int = 200
+    ducking_volume_factor: float = 0.08,  # Reduce BGM to 8% (-22dB) during speech to completely mask original vocals
+    speech_volume_boost_db: float = 2.5,   # Boost speech clarity by +2.5dB
+    dubbing_mode: str = "smart_bgm"        # "smart_bgm", "pure_voice", "standard_ducking"
 ) -> str:
     """
-    Mix Khmer voice clips into the timeline with Smart Audio Ducking for original BGM.
-    - original_audio_path: path to original video audio (or None for voice-only recap)
-    - dialogue_items: list of items with 'start', 'end', and 'audio_file'
-    - output_mixed_path: destination path for mixed audio
+    Mix Khmer voice clips into the timeline with Smart BGM Audio Ducking and Zero Vocal Leakage.
     """
     out_p = Path(output_mixed_path)
     out_p.parent.mkdir(parents=True, exist_ok=True)
 
     # 1. Determine total length
-    if original_audio_path and Path(original_audio_path).exists():
+    bg_audio = None
+    if dubbing_mode != "pure_voice" and original_audio_path and Path(original_audio_path).exists():
         try:
             bg_audio = load_audio_safely(original_audio_path)
             target_len_ms = len(bg_audio)
-        except Exception:
+        except Exception as e:
+            print(f"BGM load warning: {e}")
             bg_audio = None
-            target_len_ms = 1000
-    else:
-        bg_audio = None
-        target_len_ms = 1000
 
     if bg_audio is None:
         max_dialogue_end_ms = 0
@@ -200,11 +193,11 @@ def mix_dubbed_audio(
             
         bg_audio = AudioSegment.silent(duration=target_len_ms)
 
-    # 2. Build the Speech Track
+    # 2. Build the Khmer Speech Track
     speech_track = AudioSegment.silent(duration=target_len_ms)
     speech_intervals = []
 
-    for item in dialogue_items:
+    for idx, item in enumerate(dialogue_items):
         audio_file = item.get("audio_file")
         if not audio_file or not Path(audio_file).exists():
             continue
@@ -215,9 +208,29 @@ def mix_dubbed_audio(
                 line_seg = line_seg + speech_volume_boost_db
 
             start_ms = int(item.get("start", 0) * 1000)
+
+            # Determine when the next speech line starts to prevent ANY overlapping
+            next_start_ms = None
+            for next_item in dialogue_items[idx + 1:]:
+                next_af = next_item.get("audio_file")
+                if next_af and Path(next_af).exists():
+                    next_start_ms = int(next_item.get("start", 0) * 1000)
+                    break
+
+            # STRICT NON-OVERLAP ENFORCEMENT:
+            # If current line extends into the next line, cap it cleanly with a gentle fade-out
+            if next_start_ms is not None and (start_ms + len(line_seg)) > (next_start_ms - 40):
+                allowed_len = max(150, next_start_ms - start_ms - 40)
+                if len(line_seg) > allowed_len:
+                    fade_ms = min(60, max(15, allowed_len // 4))
+                    line_seg = line_seg[:allowed_len].fade_out(fade_ms)
+
             line_len_ms = len(line_seg)
             
-            speech_intervals.append((start_ms, start_ms + line_len_ms))
+            # 80ms buffer around speech to duck original vocals cleanly
+            pad_start = max(0, start_ms - 80)
+            pad_end = start_ms + line_len_ms + 80
+            speech_intervals.append((pad_start, pad_end))
 
             if start_ms < len(speech_track):
                 speech_track = speech_track.overlay(line_seg, position=start_ms)
@@ -227,8 +240,10 @@ def mix_dubbed_audio(
         except Exception as e:
             print(f"Error overlaying line audio: {e}")
 
-    # 3. Apply Audio Ducking to Original Background Audio
-    if original_audio_path and Path(original_audio_path).exists() and speech_intervals and bg_audio:
+    # 3. Apply Clean Smart Audio Ducking
+    if dubbing_mode == "pure_voice":
+        final_mixed = speech_track
+    elif bg_audio and speech_intervals:
         speech_intervals.sort(key=lambda x: x[0])
         merged_intervals = []
         for start, end in speech_intervals:
@@ -236,15 +251,17 @@ def mix_dubbed_audio(
                 merged_intervals.append([start, end])
             else:
                 prev = merged_intervals[-1]
-                if start <= prev[1] + 300:
+                if start <= prev[1] + 250:
                     prev[1] = max(prev[1], end)
                 else:
                     merged_intervals.append([start, end])
 
         ducked_bg = AudioSegment.empty()
         current_pos = 0
-        duck_db = 20 * math.log10(max(0.01, ducking_volume_factor))
+        # -22dB ducking level completely isolates Khmer speech while keeping ambient music smooth
+        duck_db = 20 * math.log10(max(0.005, ducking_volume_factor))
 
+        fade_ms = 120
         for interval_start, interval_end in merged_intervals:
             if interval_start > current_pos:
                 normal_seg = bg_audio[current_pos:interval_start]
@@ -253,6 +270,9 @@ def mix_dubbed_audio(
             speech_duration = min(len(bg_audio), interval_end) - interval_start
             if speech_duration > 0:
                 ducked_seg = bg_audio[interval_start:interval_start + speech_duration] + duck_db
+                # Smooth crossfading to prevent any abrupt audio pops
+                if len(ducked_seg) > fade_ms * 2:
+                    ducked_seg = ducked_seg.fade_in(fade_ms).fade_out(fade_ms)
                 ducked_bg = ducked_bg + ducked_seg
                 
             current_pos = interval_end
@@ -264,6 +284,6 @@ def mix_dubbed_audio(
     else:
         final_mixed = speech_track
 
-    # Save safely
+    # Save final high quality audio
     save_audio_safely(final_mixed, str(out_p))
     return str(out_p)

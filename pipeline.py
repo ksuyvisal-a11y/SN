@@ -163,7 +163,7 @@ SAMPLE_DRAMAS = {
 class ProjectManager:
     def __init__(self):
         self.translator = DramaTranslator()
-        self.stt_engine = SpeechToTextEngine(model_size="tiny")
+        self.stt_engine = SpeechToTextEngine(model_size="base")
 
     def get_project_file(self, project_id: str) -> Path:
         return DATA_DIR / f"{project_id}.json"
@@ -315,7 +315,14 @@ class ProjectManager:
         )
         project["dialogues"] = processed_dialogues
 
-        # Prefer isolated BGM if separated, otherwise original audio
+        # Automatically separate vocals if not already done
+        if not project.get("isolated_bgm_file") and project.get("original_audio_file"):
+            try:
+                bgm_path, voc_path = separate_vocals_and_bgm(project["original_audio_file"], output_dir=str(proj_dir))
+                project["isolated_bgm_file"] = bgm_path
+            except Exception as e:
+                print(f"Auto separation note: {e}")
+
         bgm_track = project.get("isolated_bgm_file") or project.get("original_audio_file")
         mixed_audio_path = proj_dir / "mixed_dubbed_audio.mp3"
 
@@ -324,7 +331,8 @@ class ProjectManager:
             dialogue_items=processed_dialogues,
             output_mixed_path=str(mixed_audio_path),
             total_duration_sec=project.get("duration", 0),
-            ducking_volume_factor=float(project.get("ducking_factor", 0.25))
+            ducking_volume_factor=float(project.get("ducking_factor", 0.08)),
+            dubbing_mode="smart_bgm"
         )
 
         project["mixed_audio_file"] = str(mixed_audio_path)
@@ -409,7 +417,7 @@ class ProjectManager:
         proj_dir.mkdir(parents=True, exist_ok=True)
 
         # 1. Copy Video & Extract Audio
-        update_prog(15, "១/៦ កំពុងទាញយកសំឡេងពីវីដេអូ...", "Extracting audio from video...")
+        update_prog(12, "១/៧ កំពុងទាញយកសំឡេងពីវីដេអូ...", "Extracting audio from video...")
         import shutil
         dest_video = proj_dir / f"source_media{src_file.suffix.lower()}"
         if src_file.resolve() != dest_video.resolve():
@@ -426,8 +434,18 @@ class ProjectManager:
         project["burn_subtitles"] = burn_subtitles
         self.save_project(project)
 
-        # 2. Speech-to-Text (Auto Transcribe)
-        update_prog(35, "២/៦ AI កំពុងស្តាប់ និងចាប់សំឡេងចិន (Faster-Whisper)...", "Transcribing speech...")
+        # 2. Vocal Separation (Isolate BGM, Eliminate Chinese Vocals)
+        update_prog(28, "២/៧ កំពុងច្រោះសំឡេងចិនដើមចេញពីភ្លេង (Vocal Isolation)...", "Separating Chinese vocals from BGM...")
+        try:
+            bgm_file, voc_file = separate_vocals_and_bgm(str(audio_dest), output_dir=str(proj_dir))
+            project["isolated_bgm_file"] = bgm_file
+        except Exception as e:
+            print(f"Vocal separation warning: {e}")
+            project["isolated_bgm_file"] = str(audio_dest)
+        self.save_project(project)
+
+        # 3. Speech-to-Text (Auto Transcribe via Faster-Whisper Base Model)
+        update_prog(45, "៣/៧ AI កំពុងស្តាប់ និងចាប់សំឡេងចិនតាមតួអង្គ (Faster-Whisper)...", "Transcribing speech...")
         try:
             dialogues = self.stt_engine.transcribe_audio(
                 audio_path=str(audio_dest),
@@ -437,23 +455,11 @@ class ProjectManager:
             print(f"STT Exception: {e}")
             dialogues = []
 
-        if not dialogues:
-            # Fallback dialogue if audio had low volume
-            dur = project.get("duration") or 5.0
-            dialogues = [{
-                "id": 1,
-                "start": 0.5,
-                "end": max(2.5, dur - 0.5),
-                "speaker": "តួអង្គ",
-                "text": "你好",
-                "text_original": "你好"
-            }]
-
         project["dialogues"] = dialogues
         self.save_project(project)
 
-        # 3. Translate to Khmer Drama Dialogue
-        update_prog(55, "៣/៦ AI កំពុងបកប្រែជាភាសាខ្មែរ (រឿងភាគ)...", "Translating script to natural Khmer...")
+        # 4. Translate to Khmer Drama Dialogue with Character Roles
+        update_prog(62, "៤/៧ AI កំពុងបកប្រែជាភាសាខ្មែរតាមតួអង្គ (រឿងភាគ)...", "Translating script to natural Khmer...")
         v_override = None if voice_override in (None, "", "auto") else voice_override
         translated = await self.translator.translate_dialogues(
             dialogues=dialogues,
@@ -464,30 +470,32 @@ class ProjectManager:
         project["dialogues"] = translated
         self.save_project(project)
 
-        # 4. Neural Khmer Voice Synthesis (Piseth & Sreymom)
-        update_prog(75, "៤/៦ កំពុងបញ្ចូលសំឡេងខ្មែរ ពិសិដ្ឋ & ស្រីមុំ...", "Synthesizing Khmer neural speech...")
+        # 5. Neural Khmer Voice Synthesis (Piseth & Sreymom Multi-Pitch)
+        update_prog(76, "៥/៧ កំពុងបញ្ចូលសំឡេងខ្មែរ ពិសិដ្ឋ & ស្រីមុំ...", "Synthesizing Khmer neural speech...")
         voice_out_dir = proj_dir / "voices"
         voice_out_dir.mkdir(parents=True, exist_ok=True)
         synthesized = await batch_synthesize(translated, output_dir=str(voice_out_dir))
         project["dialogues"] = synthesized
         self.save_project(project)
 
-        # 5. Audio Ducking & Mixing
-        update_prog(85, "៥/៦ កំពុងសម្រួលសំឡេង BGM & សំឡេងខ្មែរ (Audio Ducking)...", "Mixing dubbed audio with background ducking...")
+        # 6. Audio Ducking & Clean BGM Mixing (Zero Vocal Leakage)
+        update_prog(88, "៦/៧ កំពុងសម្រួលសំឡេង BGM & សំឡេងខ្មែរ (Zero Vocal Leakage)...", "Mixing dubbed audio with clean BGM...")
         mixed_audio = proj_dir / "mixed_dubbed_audio.mp3"
+        bgm_track = project.get("isolated_bgm_file") or str(audio_dest)
         mix_dubbed_audio(
-            original_audio_path=str(audio_dest),
+            original_audio_path=bgm_track,
             dialogue_items=synthesized,
             output_mixed_path=str(mixed_audio),
             total_duration_sec=project.get("duration", 0),
-            ducking_volume_factor=float(project.get("ducking_factor", 0.25))
+            ducking_volume_factor=float(project.get("ducking_factor", 0.08)),
+            dubbing_mode="smart_bgm"
         )
         project["mixed_audio_file"] = str(mixed_audio)
         project["waveform"] = create_waveform_data(str(mixed_audio))
         self.save_project(project)
 
-        # 6. Render Final Video
-        update_prog(95, "៦/៦ កំពុង Render វីដេអូ MP4 ជាសំឡេងខ្មែរ...", "Rendering final dubbed video...")
+        # 7. Render Final Video
+        update_prog(95, "៧/៧ កំពុង Render វីដេអូ MP4 ជាសំឡេងខ្មែរ...", "Rendering final dubbed video...")
         rendered_project = self.render_project_video_final(
             project_id=proj_id,
             burn_subtitles=burn_subtitles,

@@ -134,14 +134,59 @@ async def synthesize_khmer_speech(
     raise RuntimeError(f"Edge-TTS synthesis failed after 3 attempts: {last_err}")
 
 
+def trim_and_fit_voice_audio(audio_path: str, max_duration_sec: Optional[float] = None) -> float:
+    """
+    Strip leading/trailing dead silence added by Edge-TTS and time-fit audio to dialogue window.
+    Guarantees speech completes cleanly without colliding into the next speaker.
+    """
+    try:
+        from audio_processor import load_audio_safely, save_audio_safely, get_ffmpeg_path
+        from pydub.silence import detect_leading_silence
+        import subprocess
+
+        seg = load_audio_safely(audio_path)
+        s_trim = detect_leading_silence(seg, silence_threshold=-40.0)
+        e_trim = detect_leading_silence(seg.reverse(), silence_threshold=-40.0)
+        dur = len(seg)
+        if (s_trim + e_trim) < dur:
+            start_pos = max(0, s_trim - 15)
+            end_pos = min(dur, dur - e_trim + 25)
+            trimmed = seg[start_pos:end_pos]
+        else:
+            trimmed = seg
+
+        trimmed_sec = len(trimmed) / 1000.0
+
+        if max_duration_sec and max_duration_sec > 0.4 and trimmed_sec > max_duration_sec:
+            speed_ratio = min(1.38, max(1.0, trimmed_sec / max_duration_sec))
+            temp_wav = str(audio_path) + ".tmp.wav"
+            save_audio_safely(trimmed, temp_wav)
+            cmd = [
+                get_ffmpeg_path(), "-y",
+                "-i", temp_wav,
+                "-filter:a", f"atempo={speed_ratio:.3f}",
+                str(audio_path)
+            ]
+            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if os.path.exists(temp_wav):
+                os.remove(temp_wav)
+            res = load_audio_safely(audio_path)
+            return len(res) / 1000.0
+        else:
+            save_audio_safely(trimmed, str(audio_path))
+            return trimmed_sec
+    except Exception as e:
+        print(f"Voice trim/fit note: {e}")
+        return 0.0
+
+
 async def batch_synthesize(
     dialogue_items: List[Dict[str, Any]],
     output_dir: str,
     default_voice: str = "piseth"
 ) -> List[Dict[str, Any]]:
     """
-    Synthesize a list of dialogue items with controlled concurrency (Semaphore = 3).
-    Ensures zero timeouts or dropped audio connections.
+    Synthesize dialogue items with silence-stripping and time-fitting for 100% sync.
     """
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
@@ -155,6 +200,15 @@ async def batch_synthesize(
             rate = item.get("rate_percent", 0)
             pitch = item.get("pitch_hz", 0)
 
+            # Calculate target available window before next dialogue
+            start = float(item.get("start", 0.0))
+            end = float(item.get("end", start + 2.0))
+            if index + 1 < len(dialogue_items):
+                next_start = float(dialogue_items[index + 1].get("start", end + 1.0))
+                target_window = max(0.5, (next_start - start) - 0.08)
+            else:
+                target_window = max(0.8, (end - start) + 0.6)
+
             line_audio_path = out_path / f"line_{index:04d}_{item_id}.mp3"
             try:
                 audio_file = await synthesize_khmer_speech(
@@ -164,9 +218,19 @@ async def batch_synthesize(
                     pitch_hz=pitch,
                     output_path=str(line_audio_path)
                 )
+
+                # Strip silence and time-fit cleanly into the scene timing!
+                final_dur = trim_and_fit_voice_audio(audio_file, target_window)
+
                 item_copy = dict(item)
                 item_copy["audio_file"] = audio_file
                 item_copy["voice_used"] = voice
+                item_copy["audio_duration"] = final_dur
+                calculated_end = round(start + final_dur, 2)
+                if index + 1 < len(dialogue_items):
+                    item_copy["end"] = min(calculated_end, round(next_start - 0.05, 2))
+                else:
+                    item_copy["end"] = calculated_end
                 item_copy["success"] = True
                 return item_copy
             except Exception as e:

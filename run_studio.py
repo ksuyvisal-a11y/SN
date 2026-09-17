@@ -1,5 +1,6 @@
 import sys
 import os
+import subprocess
 import webbrowser
 import threading
 import time
@@ -11,6 +12,21 @@ if sys.platform == "win32":
         sys.stderr.reconfigure(encoding="utf-8")
     except Exception:
         pass
+
+def free_port_8000():
+    """Kill any stale process occupying port 8000 before starting new server."""
+    if sys.platform == "win32":
+        try:
+            out = subprocess.check_output('netstat -ano | findstr :8000', shell=True).decode()
+            current_pid = os.getpid()
+            for line in out.strip().split('\n'):
+                parts = line.strip().split()
+                if len(parts) >= 5 and 'LISTENING' in line:
+                    pid = int(parts[-1])
+                    if pid != current_pid and pid > 0:
+                        subprocess.run(f'taskkill /F /PID {pid}', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
 
 from server import app
 
@@ -25,10 +41,10 @@ def open_browser():
     webbrowser.open(url)
 
 if __name__ == "__main__":
+    free_port_8000()
     os.makedirs("cache/audio_cache", exist_ok=True)
     os.makedirs("data/projects", exist_ok=True)
     os.makedirs("data/uploads", exist_ok=True)
     
     threading.Thread(target=open_browser, daemon=True).start()
     app.run(host="0.0.0.0", port=8000, debug=False)
-
