@@ -156,11 +156,29 @@
                     <div class="studio-sources-box" id="studio-sources-box">
                         <!-- STATE 0: Exact Image 2 Clean Layout (Default View) -->
                         <div class="studio-source-clean-view" id="studio-source-clean-view">
-                            <div class="clean-source-label">Translation source</div>
-                            <div class="clean-import-center-cta" onclick="openImportModal()">
+                            <div class="clean-source-label" id="clean-source-label">Translation source</div>
+                            
+                            <!-- Initial Empty State -->
+                            <div class="clean-import-center-cta" id="clean-import-prompt" onclick="openImportModal()">
                                 <div class="clean-plus-icon">+</div>
                                 <div class="clean-import-text">Import File / Folder</div>
                             </div>
+
+                            <!-- Staged Video Ready to Export State -->
+                            <div class="staged-video-ready-card" id="staged-video-card" style="display:none;">
+                                <div class="staged-card-badge"><i class="fa-solid fa-circle-check" style="color:#22c55e;"></i> VIDEO READY</div>
+                                <div class="staged-card-title" id="staged-file-title">Drama_Episode_01.mp4</div>
+                                <div class="staged-card-meta" id="staged-file-meta">Ready for 2-Voice AI Dubbing (Piseth & Sreymom)</div>
+                                <div class="staged-card-actions">
+                                    <button type="button" class="staged-export-primary-btn" onclick="startStudioExportJob()" title="Start 2-Voice AI Dubbing">
+                                        <i class="fa-solid fa-bolt"></i> ចុច Export ដើម្បីចាប់ផ្តើមបកប្រែ
+                                    </button>
+                                    <button type="button" class="staged-change-file-btn" onclick="openImportModal()" title="Change video">
+                                        <i class="fa-solid fa-arrows-rotate"></i> ប្តូរវីដេអូ
+                                    </button>
+                                </div>
+                            </div>
+
                             <div class="clean-view-switch-tray" style="display: none !important;">
                                 <button type="button" class="clean-tray-pill-btn" onclick="toggleSetupPresetsView()" title="Workflow Presets & Quick Setup" style="display: none !important;">
                                     <i class="fa-solid fa-sliders"></i> Presets

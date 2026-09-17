@@ -104,12 +104,23 @@ function switchMainTab(tabKey) {
 }
 
 function showCleanSourceView() {
+    studioViewMode = 'clean';
     const cleanView = document.getElementById('studio-source-clean-view');
     const presetView = document.getElementById('studio-preset-setup-view');
     const gridView = document.getElementById('studio-dialogue-waveform-view');
     if (cleanView) cleanView.style.display = 'flex';
     if (presetView) presetView.style.display = 'none';
     if (gridView) gridView.style.display = 'none';
+
+    const importPrompt = document.getElementById('clean-import-prompt');
+    const stagedCard = document.getElementById('staged-video-card');
+    if (stagedVideoFile || stagedBatchFiles) {
+        if (importPrompt) importPrompt.style.display = 'none';
+        if (stagedCard) stagedCard.style.display = 'flex';
+    } else {
+        if (importPrompt) importPrompt.style.display = 'flex';
+        if (stagedCard) stagedCard.style.display = 'none';
+    }
 }
 
 function toggleSetupPresetsView() {
@@ -498,6 +509,16 @@ function showCleanSourceView() {
     if (cleanView) cleanView.style.display = 'flex';
     if (setupView) setupView.style.display = 'none';
     if (gridView) gridView.style.display = 'none';
+
+    const importPrompt = document.getElementById('clean-import-prompt');
+    const stagedCard = document.getElementById('staged-video-card');
+    if (stagedVideoFile || stagedBatchFiles) {
+        if (importPrompt) importPrompt.style.display = 'none';
+        if (stagedCard) stagedCard.style.display = 'flex';
+    } else {
+        if (importPrompt) importPrompt.style.display = 'flex';
+        if (stagedCard) stagedCard.style.display = 'none';
+    }
 }
 
 function showPresetSetupView() {
@@ -760,6 +781,27 @@ let exportPercent = 0;
 let exportElapsedSec = 0;
 
 function startStudioExportJob() {
+    // 1. If user staged a single video, start AI dubbing upon clicking Export
+    if (stagedVideoFile) {
+        const fileToDub = stagedVideoFile;
+        stagedVideoFile = null;
+        const exportBtn = document.getElementById('btn-tab-export');
+        if (exportBtn) exportBtn.classList.remove('export-ready-pulse');
+        startAutoDubbingPipeline(fileToDub);
+        return;
+    }
+
+    // 2. If user staged batch videos, start batch dubbing upon clicking Export
+    if (stagedBatchFiles && stagedBatchFiles.length > 0) {
+        const filesToDub = stagedBatchFiles;
+        stagedBatchFiles = null;
+        const exportBtn = document.getElementById('btn-tab-export');
+        if (exportBtn) exportBtn.classList.remove('export-ready-pulse');
+        startBatchFilesUpload(filesToDub);
+        return;
+    }
+
+    // 3. If a dubbed video is already completed, open folder or download
     if (currentDubbedProject && currentDubbedProject.output_video_file) {
         openExportFolderDirect(currentDubbedProject.output_video_file);
         showToast("📂 បានបើកទីតាំង Folder វីដេអូដែល Render រួចរាល់!");
@@ -775,8 +817,9 @@ function startStudioExportJob() {
         return;
     }
 
-    openExportFolderDirect();
-    showToast("📂 បានបើក Folder Exports ក្នុង Windows Explorer");
+    // 4. If nothing is staged, guide the user to import first
+    showToast("⚠️ សូមដាក់វីដេអូចូលជាមុនសិន រួចចុច Export!");
+    openImportModal();
 }
 
 function updateExportProgressUI(pct, elapsedSec, etaSec, taskName) {
@@ -1368,6 +1411,89 @@ let activeDubbingTaskId = null;
 let activeDubbingPollTimer = null;
 let currentDubbedProject = null;
 
+let stagedVideoFile = null;
+let stagedBatchFiles = null;
+
+function setStagedVideo(file) {
+    stagedVideoFile = file;
+    stagedBatchFiles = null;
+
+    // Preview video immediately in left monitor
+    const mainVideo = document.getElementById('main-video');
+    if (mainVideo) {
+        try {
+            mainVideo.src = URL.createObjectURL(file);
+            mainVideo.style.display = 'block';
+            mainVideo.load();
+            mainVideo.onloadedmetadata = () => {
+                totalDurationSeconds = mainVideo.duration || 60;
+                updateScrubberUI();
+            };
+        } catch (e) {
+            console.warn("Blob preview error:", e);
+        }
+    }
+
+    // Update Clean Source View to Staged Ready State
+    const importPrompt = document.getElementById('clean-import-prompt');
+    const stagedCard = document.getElementById('staged-video-card');
+    const stagedTitle = document.getElementById('staged-file-title');
+    const stagedMeta = document.getElementById('staged-file-meta');
+
+    if (importPrompt) importPrompt.style.display = 'none';
+    if (stagedCard) stagedCard.style.display = 'flex';
+    if (stagedTitle) stagedTitle.textContent = file.name;
+    if (stagedMeta) stagedMeta.textContent = `${(file.size / (1024 * 1024)).toFixed(1)} MB • ត្រៀមបកប្រែជាសំឡេងខ្មែរ (ពិសិដ្ឋ & ស្រីមុំ)`;
+
+    // Highlight / Pulse top Export button
+    const exportBtn = document.getElementById('btn-tab-export');
+    if (exportBtn) exportBtn.classList.add('export-ready-pulse');
+
+    // Update Engine Monitor pill
+    const pill = document.getElementById('monitor-engine-status-pill');
+    const dot = document.getElementById('monitor-pulse-dot');
+    const text = document.getElementById('monitor-engine-status-text');
+    if (pill) pill.className = 'engine-status-pill standby';
+    if (dot) dot.className = 'pulse-indicator standby';
+    if (text) text.textContent = 'READY FOR EXPORT';
+
+    showToast("📁 បានផ្ទុកវីដេអូជោគជ័យ! សូមចុចប៊ូតុង \"Export\" ដើម្បីចាប់ផ្តើមបកប្រែ។");
+    appendTerminalLine(`[Ready] Video "${file.name}" staged. Click [Export] to begin AI Dubbing.`);
+}
+
+function setStagedBatchFiles(files) {
+    stagedBatchFiles = files;
+    stagedVideoFile = null;
+
+    const importPrompt = document.getElementById('clean-import-prompt');
+    const stagedCard = document.getElementById('staged-video-card');
+    const stagedTitle = document.getElementById('staged-file-title');
+    const stagedMeta = document.getElementById('staged-file-meta');
+
+    if (importPrompt) importPrompt.style.display = 'none';
+    if (stagedCard) stagedCard.style.display = 'flex';
+    if (stagedTitle) stagedTitle.textContent = `Batch: ${files.length} ភាគរឿងភាគ`;
+    if (stagedMeta) stagedMeta.textContent = `បានជ្រើសរើស ${files.length} វីដេអូ • សូមចុច "Export" ដើម្បីដំណើរការ Batch Dubbing`;
+
+    const exportBtn = document.getElementById('btn-tab-export');
+    if (exportBtn) exportBtn.classList.add('export-ready-pulse');
+
+    showToast(`📁 បានដាក់ ${files.length} ភាគរួចរាល់! សូមចុចប៊ូតុង "Export" ដើម្បីចាប់ផ្តើមបកប្រែ។`);
+    appendTerminalLine(`[Ready] ${files.length} episode files staged. Click [Export] to begin batch processing.`);
+}
+
+function clearStagedFiles() {
+    stagedVideoFile = null;
+    stagedBatchFiles = null;
+    const exportBtn = document.getElementById('btn-tab-export');
+    if (exportBtn) exportBtn.classList.remove('export-ready-pulse');
+
+    const importPrompt = document.getElementById('clean-import-prompt');
+    const stagedCard = document.getElementById('staged-video-card');
+    if (importPrompt) importPrompt.style.display = 'flex';
+    if (stagedCard) stagedCard.style.display = 'none';
+}
+
 function handleSelectedFiles(files) {
     if (!files || files.length === 0) return;
     closeModal('modal-import');
@@ -1383,9 +1509,9 @@ function handleSelectedFiles(files) {
     }
 
     if (fileList.length === 1) {
-        startAutoDubbingPipeline(fileList[0]);
+        setStagedVideo(fileList[0]);
     } else {
-        startBatchFilesUpload(fileList);
+        setStagedBatchFiles(fileList);
     }
 }
 
@@ -1456,6 +1582,7 @@ async function startAutoDubbingPipeline(file) {
                     clearInterval(activeDubbingPollTimer);
                     activeDubbingPollTimer = null;
                     currentDubbedProject = sData.project;
+                    clearStagedFiles();
 
                     updateExportProgressUI(100, elapsed, 0, "🎉 រួចរាល់ ១០០%! វីដេអូសម្រេចបានរក្សាទុក!");
                     showToast("🎉 បកប្រែ និងបញ្ចូលសំឡេងខ្មែរជោគជ័យ ១០០%!");
