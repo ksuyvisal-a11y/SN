@@ -103,40 +103,6 @@ function switchMainTab(tabKey) {
     }
 }
 
-function showCleanSourceView() {
-    studioViewMode = 'clean';
-    const cleanView = document.getElementById('studio-source-clean-view');
-    const presetView = document.getElementById('studio-preset-setup-view');
-    const gridView = document.getElementById('studio-dialogue-waveform-view');
-    if (cleanView) cleanView.style.display = 'flex';
-    if (presetView) presetView.style.display = 'none';
-    if (gridView) gridView.style.display = 'none';
-
-    const importPrompt = document.getElementById('clean-import-prompt');
-    const stagedCard = document.getElementById('staged-video-card');
-    if (stagedVideoFile || stagedBatchFiles) {
-        if (importPrompt) importPrompt.style.display = 'none';
-        if (stagedCard) stagedCard.style.display = 'flex';
-    } else {
-        if (importPrompt) importPrompt.style.display = 'flex';
-        if (stagedCard) stagedCard.style.display = 'none';
-    }
-}
-
-function toggleSetupPresetsView() {
-    const cleanView = document.getElementById('studio-source-clean-view');
-    const presetView = document.getElementById('studio-preset-setup-view');
-    const gridView = document.getElementById('studio-dialogue-waveform-view');
-
-    if (presetView && presetView.style.display !== 'none') {
-        showCleanSourceView();
-    } else {
-        if (cleanView) cleanView.style.display = 'none';
-        if (presetView) presetView.style.display = 'flex';
-        if (gridView) gridView.style.display = 'none';
-    }
-}
-
 // ==========================================================================
 // 2. POWER DROPDOWN & ACTIONS (Exact Match to Image 1)
 // ==========================================================================
@@ -2012,3 +1978,13 @@ function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
+
+// Window Scroll Lock: Ensure layout stays 100% stable and never scrolls vertically
+window.addEventListener('scroll', () => {
+    if (window.scrollY !== 0 || window.scrollX !== 0) {
+        window.scrollTo(0, 0);
+    }
+}, { passive: true });
+document.addEventListener('DOMContentLoaded', () => {
+    window.scrollTo(0, 0);
+});
