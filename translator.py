@@ -304,21 +304,41 @@ def enrich_khmer_drama_dialogue(km_text: str, zh_text: str = "", voice: str = "p
 
 class DramaTranslator:
     def __init__(self, gemini_api_key: Optional[str] = None):
-        self.api_key = gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
-        self.client = None
-        if self.api_key and GENAI_AVAILABLE:
-            try:
-                self.client = genai.Client(api_key=self.api_key)
-            except Exception as e:
-                print(f"Warning: Gemini client init error: {e}")
+        self.api_keys: List[str] = []
+        self.clients: List[Any] = []
+        self.current_key_idx = 0
+        raw_key = gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
+        if raw_key:
+            keys = [k.strip() for k in raw_key.replace(",", "\n").splitlines() if k.strip()]
+            self.set_api_keys(keys)
+        else:
+            self.api_key = ""
+            self.client = None
+
+    def set_api_keys(self, keys: List[str]):
+        clean_keys = [k.strip() for k in keys if k and k.strip()]
+        self.api_keys = clean_keys
+        self.api_key = clean_keys[0] if clean_keys else ""
+        self.clients = []
+        self.current_key_idx = 0
+        if GENAI_AVAILABLE and clean_keys:
+            for k in clean_keys:
+                try:
+                    c = genai.Client(api_key=k)
+                    self.clients.append(c)
+                except Exception as e:
+                    print(f"Gemini client setup error for key: {e}")
+        self.client = self.clients[0] if self.clients else None
 
     def set_api_key(self, api_key: str):
-        self.api_key = api_key
-        if self.api_key and GENAI_AVAILABLE:
-            try:
-                self.client = genai.Client(api_key=self.api_key)
-            except Exception as e:
-                print(f"Gemini client setup error: {e}")
+        self.set_api_keys([api_key] if api_key else [])
+
+    def get_client(self) -> Optional[Any]:
+        if not self.clients:
+            return None
+        c = self.clients[self.current_key_idx % len(self.clients)]
+        self.current_key_idx = (self.current_key_idx + 1) % len(self.clients)
+        return c
 
     def _pre_normalize_chinese(self, text: str) -> str:
         """Pre-normalize Chinese drama slang and idioms before machine translation."""
@@ -497,7 +517,7 @@ class DramaTranslator:
             return []
 
         # 1. Gemini AI Studio Translation if API Key is configured
-        if self.client and self.api_key:
+        if self.clients and self.api_keys:
             try:
                 chunk_size = 20
                 all_results = []
@@ -513,14 +533,32 @@ Assign 'voice' strictly to either 'piseth' or 'sreymom'. Keep rate_percent=0, pi
 Do NOT use short robotic translations. Expand lines into expressive drama dialogue.
 Return ONLY valid JSON array with keys: id, start, end, text_original, text_km, speaker, voice, rate_percent, pitch_hz."""
 
-                    response = self.client.models.generate_content(
-                        model='gemini-2.5-flash',
-                        contents=prompt,
-                        config=types.GenerateContentConfig(
-                            system_instruction=DRAMA_PROMPT_SYSTEM,
-                            response_mime_type="application/json"
+                    # Rotate through key pool
+                    active_client = self.get_client() or self.client
+                    response = None
+                    try:
+                        response = active_client.models.generate_content(
+                            model='gemini-2.5-flash',
+                            contents=prompt,
+                            config=types.GenerateContentConfig(
+                                system_instruction=DRAMA_PROMPT_SYSTEM,
+                                response_mime_type="application/json"
+                            )
                         )
-                    )
+                    except Exception as call_err:
+                        print(f"Gemini key error, retrying next key in pool: {call_err}")
+                        alt_client = self.get_client()
+                        if alt_client and alt_client != active_client:
+                            response = alt_client.models.generate_content(
+                                model='gemini-2.5-flash',
+                                contents=prompt,
+                                config=types.GenerateContentConfig(
+                                    system_instruction=DRAMA_PROMPT_SYSTEM,
+                                    response_mime_type="application/json"
+                                )
+                            )
+                        else:
+                            raise call_err
                     if response.text:
                         parsed = json.loads(response.text)
                         if isinstance(parsed, list):
