@@ -873,11 +873,13 @@ def auto_dub_video_endpoint():
     }
 
     def _worker(t_id: str, v_path: str, m: str, sl: str, vo: str, ar: str, bs: bool):
-        def _prog_cb(pct: int, km: str, en: str):
+        def _prog_cb(pct: int, km: str, en: str, dialogues: list = None):
             if t_id in video_auto_tasks:
                 video_auto_tasks[t_id]["progress"] = pct
                 video_auto_tasks[t_id]["step_km"] = km
                 video_auto_tasks[t_id]["step_en"] = en
+                if dialogues is not None:
+                    video_auto_tasks[t_id]["dialogues"] = dialogues
 
         try:
             loop = asyncio.new_event_loop()
@@ -902,6 +904,8 @@ def auto_dub_video_endpoint():
                 video_auto_tasks[t_id]["step_km"] = "រួចរាល់ ១០០% (ជោគជ័យ!)"
                 video_auto_tasks[t_id]["step_en"] = "Completed successfully!"
                 video_auto_tasks[t_id]["project"] = res_proj
+                if res_proj and res_proj.get("dialogues"):
+                    video_auto_tasks[t_id]["dialogues"] = res_proj.get("dialogues")
         except Exception as e:
             print(f"Auto dubbing worker error: {e}")
             if t_id in video_auto_tasks:
@@ -929,6 +933,10 @@ def auto_dub_status_endpoint(task_id):
     if not task:
         return jsonify({"success": False, "error": "Task not found"}), 404
 
+    dialogues = task.get("dialogues")
+    if not dialogues and task.get("project"):
+        dialogues = task["project"].get("dialogues")
+
     resp = {
         "success": True,
         "task_id": task["task_id"],
@@ -937,7 +945,8 @@ def auto_dub_status_endpoint(task_id):
         "progress": task.get("progress", 0),
         "step_km": task.get("step_km", ""),
         "step_en": task.get("step_en", ""),
-        "error": task.get("error")
+        "error": task.get("error"),
+        "dialogues": dialogues or []
     }
     if task.get("status") == "completed" and task.get("project"):
         proj = task["project"]

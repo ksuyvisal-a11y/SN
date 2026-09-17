@@ -305,111 +305,34 @@
                     </div>
 
                     <!-- Bottom Box: Studio Engine & Render Monitor (Standby / Ready State) -->
+                    <!-- Bottom Box: Studio Engine Live Terminal Output (Exact Match to User Image 2) -->
                     <div class="studio-engine-monitor-box" id="studio-terminal-box">
                         <div class="engine-monitor-top-bar">
                             <div class="engine-monitor-title-group">
-                                <i class="fa-solid fa-microchip" style="color:#facc15;"></i>
-                                <span class="engine-monitor-heading">Studio Engine & Render Monitor</span>
+                                <i class="fa-solid fa-terminal" style="color:#facc15;"></i>
+                                <span class="engine-monitor-heading">Studio Engine Live Output</span>
                                 <span class="engine-status-pill standby" id="monitor-engine-status-pill">
-                                    <span class="pulse-indicator standby" id="monitor-pulse-dot"></span> <span id="monitor-engine-status-text">ENGINE STANDBY</span>
+                                    <span class="pulse-indicator standby" id="monitor-pulse-dot"></span> <span id="monitor-engine-status-text">STANDBY</span>
                                 </span>
                             </div>
-                            <div class="engine-monitor-meta-stats" style="display: none !important;">
-                                <span class="meta-tag"><i class="fa-solid fa-bolt" style="color:#facc15;"></i> GPU: NVENC Ready</span>
-                                <span class="meta-tag"><i class="fa-solid fa-memory" style="color:#38bdf8;"></i> VRAM: 1.2 / 8.0 GB</span>
-                                <button class="engine-clear-btn" onclick="toggleEngineLogDrawer()" title="View Engine Diagnostics"><i class="fa-solid fa-terminal"></i> Log</button>
+                            <div class="terminal-top-right-group">
+                                <div class="terminal-progress-badge-wrap">
+                                    <span class="terminal-prog-lbl">Progress:</span>
+                                    <span class="terminal-prog-val" id="monitor-export-percent">0%</span>
+                                </div>
+                                <button type="button" class="terminal-clear-action-btn" onclick="clearLiveTerminal()" title="Clear Live Output">
+                                    <i class="fa-solid fa-trash-can"></i> Clear
+                                </button>
                             </div>
                         </div>
 
-                        <!-- 3 Instrument Columns: VU Waveform | Render FPS & Bitrate | Progress & ETA -->
-                        <div class="engine-monitor-instruments-grid">
-                            <!-- Column 1: 🎚️ កម្រិតសំឡេង Audio Waveform (Audio VU Meter & Live Waveform) -->
-                            <div class="instrument-card vu-meter-card">
-                                <div class="instrument-title-row">
-                                    <span class="instrument-title"><i class="fa-solid fa-sliders" style="color:#facc15;"></i> Audio Waveform Level</span>
-                                    <span class="instrument-sub">L / R (Stereo 48kHz)</span>
-                                </div>
-                                <div class="vu-meters-body">
-                                    <div class="vu-channel-row">
-                                        <span class="vu-channel-lbl">L</span>
-                                        <div class="vu-bar-track">
-                                            <div class="vu-bar-fill vu-left-fill" id="vu-fill-l" style="width: 0%;"></div>
-                                        </div>
-                                        <span class="vu-db-text" id="vu-db-l">-∞ dB</span>
-                                    </div>
-                                    <div class="vu-channel-row">
-                                        <span class="vu-channel-lbl">R</span>
-                                        <div class="vu-bar-track">
-                                            <div class="vu-bar-fill vu-right-fill" id="vu-fill-r" style="width: 0%;"></div>
-                                        </div>
-                                        <span class="vu-db-text" id="vu-db-r">-∞ dB</span>
-                                    </div>
-                                    <div class="vu-mini-wave-bars" id="vu-mini-wave-bars"></div>
-                                </div>
+                        <!-- Live Console Terminal Screen (Exact Match to User Image 2) -->
+                        <div class="studio-live-terminal-stream" id="studio-live-terminal-stream">
+                            <div class="term-stream-row term-init">
+                                <span class="term-ts">[Ready]</span>
+                                <span class="term-tag">[SN Studio]</span>
+                                <span class="term-msg">System initialized and ready. Import a video and click <strong style="color:#facc15;">Export</strong> to start dubbing.</span>
                             </div>
-
-                            <!-- Column 2: ⚡ ល្បឿន Render (FPS & Bitrate) -->
-                            <div class="instrument-card render-speed-card">
-                                <div class="instrument-title-row">
-                                    <span class="instrument-title"><i class="fa-solid fa-bolt-lightning" style="color:#facc15;"></i> Render Speed & Bitrate</span>
-                                    <span class="instrument-sub">Hardware Encoder</span>
-                                </div>
-                                <div class="speed-metrics-body">
-                                    <div class="metric-dual-box">
-                                        <div class="metric-cell">
-                                            <span class="metric-label">RENDER SPEED</span>
-                                            <div class="metric-val-wrap">
-                                                <span class="metric-val-num" id="monitor-render-fps">0.0</span>
-                                                <span class="metric-val-unit">FPS</span>
-                                            </div>
-                                            <span class="metric-caption" id="monitor-fps-caption">Idle (Ready)</span>
-                                        </div>
-                                        <div class="metric-cell">
-                                            <span class="metric-label">ENCODE BITRATE</span>
-                                            <div class="metric-val-wrap">
-                                                <span class="metric-val-num" id="monitor-render-bitrate">0.0</span>
-                                                <span class="metric-val-unit">Mbps</span>
-                                            </div>
-                                            <span class="metric-caption" id="monitor-bitrate-caption">Standby</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Column 3: ⏳ ភាគរយ និងពេលវេលាបញ្ចប់ Export (Progress & Completion Time / ETA) -->
-                            <div class="instrument-card export-progress-card">
-                                <div class="instrument-title-row">
-                                    <span class="instrument-title"><i class="fa-solid fa-clock-rotate-left" style="color:#facc15;"></i> Export & Sync Progress</span>
-                                    <span class="instrument-percent" id="monitor-export-percent">0%</span>
-                                </div>
-                                <div class="export-progress-body">
-                                    <div class="monitor-progress-track">
-                                        <div class="monitor-progress-fill" id="monitor-progress-fill" style="width: 0%;"></div>
-                                    </div>
-                                    <div class="monitor-time-meta-row">
-                                        <div class="time-meta-item">
-                                            <span class="time-label">Elapsed:</span>
-                                            <span class="time-val" id="monitor-elapsed-time">00:00:00</span>
-                                        </div>
-                                        <div class="time-meta-item">
-                                            <span class="time-label">ETA:</span>
-                                            <span class="time-val highlight" id="monitor-eta-time">--:--:--</span>
-                                        </div>
-                                        <div class="time-meta-item">
-                                            <span class="time-label">Est. Finish:</span>
-                                            <span class="time-val" id="monitor-finish-time">Standby</span>
-                                        </div>
-                                    </div>
-                                    <div class="monitor-current-task-text" id="monitor-current-task">
-                                        <i class="fa-solid fa-circle-check" style="color:#22c55e; font-size:0.65rem;"></i> System Ready • Select a preset or import media
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Collapsible Mini Diagnostic Ticker / Drawer -->
-                        <div class="engine-log-drawer" id="engine-log-drawer" style="display:none;">
-                            <div class="engine-log-history" id="engine-log-history"></div>
                         </div>
                     </div>
                 </div>

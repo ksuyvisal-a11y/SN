@@ -399,12 +399,20 @@ class ProjectManager:
         5. Smart Audio Ducking & BGM Mixing (85%)
         6. Render Final Master MP4 & Export (95%)
         """
-        def update_prog(pct: int, msg_km: str, msg_en: str):
+        def update_prog(pct: int, msg_km: str, msg_en: str, dialogues = None):
             if progress_callback:
                 try:
-                    progress_callback(pct, msg_km, msg_en)
+                    import inspect
+                    sig = inspect.signature(progress_callback)
+                    if len(sig.parameters) >= 4:
+                        progress_callback(pct, msg_km, msg_en, dialogues)
+                    else:
+                        progress_callback(pct, msg_km, msg_en)
                 except Exception:
-                    pass
+                    try:
+                        progress_callback(pct, msg_km, msg_en)
+                    except Exception:
+                        pass
 
         src_file = Path(video_path)
         if not src_file.exists():
@@ -469,6 +477,7 @@ class ProjectManager:
         )
         project["dialogues"] = translated
         self.save_project(project)
+        update_prog(68, "៤/៧ បកប្រែបានជោគជ័យ! កំពុងត្រៀមបញ្ចូលសំឡេងខ្មែរ...", "Translation completed! Preparing voice synthesis...", dialogues=translated)
 
         # 5. Neural Khmer Voice Synthesis (Piseth & Sreymom Multi-Pitch)
         update_prog(76, "៥/៧ កំពុងបញ្ចូលសំឡេងខ្មែរ ពិសិដ្ឋ & ស្រីមុំ...", "Synthesizing Khmer neural speech...")
