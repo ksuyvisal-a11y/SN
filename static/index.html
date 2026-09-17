@@ -113,37 +113,40 @@
                     <div class="monitor-screen-area" id="monitor-screen-area" onclick="togglePlayPreview(event)">
                         <video id="main-video" playsinline style="display:none;" onclick="togglePlayPreview(event)"></video>
                         
+                        <!-- Floating YouTube-style Back Button in Fullscreen -->
+                        <button type="button" class="fullscreen-back-btn" id="fullscreen-back-btn" onclick="exitFullscreenMode(event)" title="Exit Fullscreen / Back (Esc)">
+                            <i class="fa-solid fa-arrow-left"></i> <span>Back</span>
+                        </button>
+
                         <!-- Glowing Center Play Button -->
                         <div class="monitor-center-play-button" id="center-play-btn" onclick="togglePlayPreview(event)">
                             <i class="fa-solid fa-play" id="center-play-icon"></i>
                         </div>
                     </div>
 
-                    <!-- Bottom Scrubber & Transport -->
-                    <div class="monitor-bottom-controls">
+                    <!-- Bottom Scrubber & Transport (Exact Match to Image 2) -->
+                    <div class="monitor-bottom-controls" id="monitor-bottom-controls">
                         <div class="monitor-seek-bar-track" onclick="handleSeekClick(event)">
                             <div class="monitor-seek-bar-fill" id="seek-fill-bar"></div>
                             <div class="monitor-seek-bar-handle" id="seek-handle-dot"></div>
                         </div>
                         <div class="monitor-playback-meta-row">
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <button class="monitor-tool-icon-btn" id="bottom-play-btn" onclick="togglePlayPreview(event)" title="Play / Pause (Space)" style="color:#facc15; font-size:0.95rem; width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer;">
+                            <!-- Left: Cyan Monospace Timecode (e.g. 00:00 / 03:00) -->
+                            <div class="monitor-timecode-text" id="monitor-timecode-display">00:00 / 00:00</div>
+
+                            <!-- Right: Action Buttons ([▶] [🎵] [GUIDES ▾] [⛶]) -->
+                            <div class="monitor-actions-right-group">
+                                <button type="button" class="monitor-cyan-btn play-btn" id="bottom-play-btn" onclick="togglePlayPreview(event)" title="Play / Pause">
                                     <i class="fa-solid fa-play" id="bottom-play-icon"></i>
                                 </button>
-                                <div class="monitor-timecode-text" id="monitor-timecode-display">00:00 / 00:00</div>
-                            </div>
-                            <div class="monitor-small-actions">
-                                <button class="monitor-tool-icon-btn" onclick="toggleVolumeMute()" title="Volume">
-                                    <i class="fa-solid fa-volume-high" id="vol-icon"></i>
-                                </button>
-                                <button class="monitor-tool-icon-btn" onclick="toggleAudioTrack()" title="Audio Track">
+                                <button type="button" class="monitor-cyan-btn" onclick="toggleAudioTrack()" title="Audio Track (Piseth / Sreymom)">
                                     <i class="fa-solid fa-music"></i>
                                 </button>
-                                <button class="monitor-tool-icon-btn" onclick="toggleGuidesMenu()" title="Guides">
+                                <button type="button" class="monitor-cyan-btn guides-btn" onclick="toggleGuidesMenu()" title="Guides">
                                     <span>GUIDES ▾</span>
                                 </button>
-                                <button class="monitor-tool-icon-btn" onclick="toggleFullscreen()" title="Fullscreen">
-                                    <i class="fa-solid fa-expand"></i>
+                                <button type="button" class="monitor-cyan-btn fullscreen-btn" id="btn-fullscreen-toggle" onclick="toggleFullscreen()" title="Fullscreen">
+                                    <i class="fa-solid fa-expand" id="fullscreen-btn-icon"></i>
                                 </button>
                             </div>
                         </div>

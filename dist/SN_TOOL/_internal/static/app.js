@@ -273,32 +273,107 @@ function updateScrubberUI() {
 }
 
 function toggleVolumeMute() {
-    const icon = document.getElementById('vol-icon');
-    if (icon) {
-        if (icon.className.includes('volume-high')) {
-            icon.className = 'fa-solid fa-volume-xmark';
-            showToast("🔇 Audio Muted");
-        } else {
-            icon.className = 'fa-solid fa-volume-high';
-            showToast("🔊 Audio Unmuted");
-        }
+    const mainVideo = document.getElementById('main-video');
+    if (mainVideo) {
+        mainVideo.muted = !mainVideo.muted;
+        showToast(mainVideo.muted ? "🔇 Audio Muted" : "🔊 Audio Unmuted");
     }
 }
 
 function toggleAudioTrack() {
-    showToast("🎙️ Switched Audio Track (Piseth & Sreymom Dual Voice)");
+    showToast("🎙️ Audio Track: Dual Voice (Piseth & Sreymom)");
 }
 
 function toggleGuidesMenu() {
-    showToast("📐 Aspect Guides: 9:16 Vertical / Safe Margins");
+    showToast("📐 Aspect Guides: 9:16 Vertical / Safe Margins Active");
 }
 
 function toggleFullscreen() {
     const elem = document.getElementById('monitor-screen-area');
-    if (!document.fullscreenElement) {
-        elem.requestFullscreen().catch(() => {});
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        if (elem.requestFullscreen) {
+            elem.requestFullscreen().catch(() => {});
+        } else if (elem.webkitRequestFullscreen) {
+            elem.webkitRequestFullscreen();
+        }
     } else {
-        document.exitFullscreen().catch(() => {});
+        exitFullscreenMode();
+    }
+}
+
+function exitFullscreenMode(e) {
+    if (e && e.stopPropagation) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+        if (document.exitFullscreen) {
+            document.exitFullscreen().catch(() => {});
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        }
+    }
+}
+
+// Sync Fullscreen icon state with browser fullscreen changes
+document.addEventListener('fullscreenchange', handleFullscreenStateChange);
+document.addEventListener('webkitfullscreenchange', handleFullscreenStateChange);
+
+function handleFullscreenStateChange() {
+    const fsIcon = document.getElementById('fullscreen-btn-icon');
+    const fsBtn = document.getElementById('btn-fullscreen-toggle');
+    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    if (isFs) {
+        if (fsIcon) fsIcon.className = 'fa-solid fa-compress';
+        if (fsBtn) fsBtn.title = 'Exit Fullscreen / Back (Esc)';
+    } else {
+        if (fsIcon) fsIcon.className = 'fa-solid fa-expand';
+        if (fsBtn) fsBtn.title = 'Fullscreen';
+    }
+}
+
+function autoDetectVideoDuration(file, callback) {
+    if (!file) return;
+    try {
+        const objectUrl = URL.createObjectURL(file);
+        const probe = document.createElement('video');
+        probe.preload = 'metadata';
+        let resolved = false;
+
+        const onReady = () => {
+            if (!resolved && probe.duration && !isNaN(probe.duration) && isFinite(probe.duration) && probe.duration > 0) {
+                resolved = true;
+                const dur = probe.duration;
+                probe.src = '';
+                probe.remove();
+                if (callback) callback(dur);
+            }
+        };
+
+        probe.onloadedmetadata = onReady;
+        probe.ondurationchange = onReady;
+        probe.oncanplay = onReady;
+        probe.onloadeddata = onReady;
+        probe.onerror = () => {
+            if (!resolved) {
+                resolved = true;
+                probe.remove();
+            }
+        };
+
+        probe.src = objectUrl;
+        probe.load();
+
+        setTimeout(() => {
+            if (!resolved && probe.duration && !isNaN(probe.duration) && isFinite(probe.duration) && probe.duration > 0) {
+                resolved = true;
+                callback(probe.duration);
+                probe.src = '';
+                probe.remove();
+            }
+        }, 1500);
+    } catch (err) {
+        console.warn("Auto duration probe error:", err);
     }
 }
 
@@ -1450,17 +1525,46 @@ function setStagedVideo(file) {
     const mainVideo = document.getElementById('main-video');
     if (mainVideo) {
         try {
-            mainVideo.src = URL.createObjectURL(file);
+            const blobUrl = URL.createObjectURL(file);
+            mainVideo.src = blobUrl;
             mainVideo.style.display = 'block';
             mainVideo.load();
-            mainVideo.onloadedmetadata = () => {
-                totalDurationSeconds = mainVideo.duration || 60;
-                updateScrubberUI();
+            
+            const handleMeta = () => {
+                if (mainVideo.duration && !isNaN(mainVideo.duration) && isFinite(mainVideo.duration) && mainVideo.duration > 0) {
+                    totalDurationSeconds = mainVideo.duration;
+                    playheadSeconds = 0;
+                    updateScrubberUI();
+
+                    const durM = Math.floor(totalDurationSeconds / 60);
+                    const durS = Math.floor(totalDurationSeconds % 60);
+                    const durFormatted = `${String(durM).padStart(2,'0')}:${String(durS).padStart(2,'0')}`;
+                    const stagedMeta = document.getElementById('staged-file-meta');
+                    if (stagedMeta) stagedMeta.textContent = `${(file.size / (1024 * 1024)).toFixed(1)} MB • Duration: ${durFormatted} • ត្រៀមបកប្រែជាសំឡេងខ្មែរ`;
+                }
             };
+            mainVideo.onloadedmetadata = handleMeta;
+            mainVideo.ondurationchange = handleMeta;
+            mainVideo.oncanplay = handleMeta;
+            mainVideo.onloadeddata = handleMeta;
         } catch (e) {
             console.warn("Blob preview error:", e);
         }
     }
+
+    // Auto detect real video duration probe immediately
+    autoDetectVideoDuration(file, (dur) => {
+        totalDurationSeconds = dur;
+        playheadSeconds = 0;
+        updateScrubberUI();
+
+        const durM = Math.floor(dur / 60);
+        const durS = Math.floor(dur % 60);
+        const durFormatted = `${String(durM).padStart(2,'0')}:${String(durS).padStart(2,'0')}`;
+        const stagedMeta = document.getElementById('staged-file-meta');
+        if (stagedMeta) stagedMeta.textContent = `${(file.size / (1024 * 1024)).toFixed(1)} MB • Duration: ${durFormatted} • ត្រៀមបកប្រែជាសំឡេងខ្មែរ`;
+        appendLiveTerminalLine(`Media imported: "${file.name}" • Duration: ${durFormatted} (${dur.toFixed(1)}s)`, "[Video 1/1]", "info");
+    });
 
     // Update Clean Source View to Staged Ready State
     const importPrompt = document.getElementById('clean-import-prompt');
@@ -1485,6 +1589,7 @@ function setStagedVideo(file) {
     if (dot) dot.className = 'pulse-indicator standby';
     if (text) text.textContent = 'READY FOR EXPORT';
 
+    updateScrubberUI();
     showToast("📁 បានផ្ទុកវីដេអូជោគជ័យ! សូមចុចប៊ូតុង \"Export\" ដើម្បីចាប់ផ្តើមបកប្រែ។");
     appendTerminalLine(`[Ready] Video "${file.name}" staged. Click [Export] to begin AI Dubbing.`);
 }
@@ -1492,6 +1597,14 @@ function setStagedVideo(file) {
 function setStagedBatchFiles(files) {
     stagedBatchFiles = files;
     stagedVideoFile = null;
+
+    if (files && files.length > 0) {
+        autoDetectVideoDuration(files[0], (dur) => {
+            totalDurationSeconds = dur;
+            playheadSeconds = 0;
+            updateScrubberUI();
+        });
+    }
 
     const importPrompt = document.getElementById('clean-import-prompt');
     const stagedCard = document.getElementById('staged-video-card');
