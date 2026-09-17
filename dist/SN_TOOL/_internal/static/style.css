@@ -569,34 +569,9 @@ button, input, select, textarea {
     transition: all 0.15s ease;
 }
 
-.clean-view-switch-tray {
-    position: absolute;
-    bottom: 14px;
-    right: 18px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
+.clean-view-switch-tray,
 .clean-tray-pill-btn {
-    background: rgba(250, 204, 21, 0.08);
-    border: 1px solid rgba(250, 204, 21, 0.3);
-    border-radius: 6px;
-    color: #facc15;
-    font-size: 0.72rem;
-    font-weight: 600;
-    padding: 4px 10px;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    transition: 0.15s;
-}
-
-.clean-tray-pill-btn:hover {
-    background: rgba(250, 204, 21, 0.2);
-    border-color: #facc15;
-    box-shadow: 0 0 10px rgba(250, 204, 21, 0.3);
+    display: none !important;
 }
 
 .sources-box-header {
@@ -1163,32 +1138,9 @@ button, input, select, textarea {
     50% { opacity: 0.5; transform: scale(0.85); }
 }
 
-.engine-monitor-meta-stats {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.engine-monitor-meta-stats .meta-tag {
-    font-size: 0.65rem;
-    color: #94a3b8;
-    font-family: var(--font-mono);
-}
-
+.engine-monitor-meta-stats,
 .engine-clear-btn {
-    background: rgba(250, 204, 21, 0.1);
-    border: 1px solid rgba(250, 204, 21, 0.25);
-    color: #facc15;
-    border-radius: 4px;
-    padding: 2px 7px;
-    font-size: 0.65rem;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.engine-clear-btn:hover {
-    border-color: #facc15;
-    color: #fff;
+    display: none !important;
 }
 
 /* 3 Columns Instrument Grid */

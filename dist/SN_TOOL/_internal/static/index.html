@@ -156,8 +156,8 @@
                                 <div class="clean-plus-icon">+</div>
                                 <div class="clean-import-text">Import File / Folder</div>
                             </div>
-                            <div class="clean-view-switch-tray">
-                                <button type="button" class="clean-tray-pill-btn" onclick="toggleSetupPresetsView()" title="Workflow Presets & Quick Setup">
+                            <div class="clean-view-switch-tray" style="display: none !important;">
+                                <button type="button" class="clean-tray-pill-btn" onclick="toggleSetupPresetsView()" title="Workflow Presets & Quick Setup" style="display: none !important;">
                                     <i class="fa-solid fa-sliders"></i> Presets
                                 </button>
                             </div>
@@ -291,7 +291,7 @@
                                     <span class="pulse-indicator standby" id="monitor-pulse-dot"></span> <span id="monitor-engine-status-text">ENGINE STANDBY</span>
                                 </span>
                             </div>
-                            <div class="engine-monitor-meta-stats">
+                            <div class="engine-monitor-meta-stats" style="display: none !important;">
                                 <span class="meta-tag"><i class="fa-solid fa-bolt" style="color:#facc15;"></i> GPU: NVENC Ready</span>
                                 <span class="meta-tag"><i class="fa-solid fa-memory" style="color:#38bdf8;"></i> VRAM: 1.2 / 8.0 GB</span>
                                 <button class="engine-clear-btn" onclick="toggleEngineLogDrawer()" title="View Engine Diagnostics"><i class="fa-solid fa-terminal"></i> Log</button>
