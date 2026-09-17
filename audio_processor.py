@@ -16,6 +16,8 @@ try:
     FFMPEG_DIR = os.path.dirname(FFMPEG_EXE)
     if FFMPEG_DIR not in os.environ.get("PATH", ""):
         os.environ["PATH"] = FFMPEG_DIR + os.pathsep + os.environ.get("PATH", "")
+    pydub.AudioSegment.converter = FFMPEG_EXE
+    pydub.AudioSegment.ffmpeg = FFMPEG_EXE
 except Exception:
     FFMPEG_EXE = "ffmpeg"
 
