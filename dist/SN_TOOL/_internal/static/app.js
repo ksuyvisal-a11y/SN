@@ -198,17 +198,25 @@ function executeVideoCompress() {
 // ==========================================================================
 // 3. MONITOR PLAYBACK & SCRUBBER CONTROLS (Exact Match to Image 1)
 // ==========================================================================
-function togglePlayPreview() {
+function togglePlayPreview(e) {
+    if (e && e.stopPropagation) {
+        e.stopPropagation();
+    }
     isPlaying = !isPlaying;
     const mainVideo = document.getElementById('main-video');
     const playIcon = document.getElementById('center-play-icon');
     const playBtn = document.getElementById('center-play-btn');
+    const bottomPlayIcon = document.getElementById('bottom-play-icon');
     const wavePlayIcon = document.getElementById('waveform-play-icon');
 
     if (isPlaying) {
         if (playIcon) playIcon.className = 'fa-solid fa-pause';
+        if (bottomPlayIcon) bottomPlayIcon.className = 'fa-solid fa-pause';
         if (wavePlayIcon) wavePlayIcon.className = 'fa-solid fa-pause';
-        if (playBtn) playBtn.style.opacity = '0';
+        if (playBtn) {
+            playBtn.style.opacity = '0';
+            playBtn.style.pointerEvents = 'none';
+        }
 
         if (mainVideo && mainVideo.src) {
             mainVideo.style.display = 'block';
@@ -230,11 +238,14 @@ function togglePlayPreview() {
             }
             updateScrubberUI();
         }, 300);
-        showToast("▶ Video & Audio Playing");
     } else {
         if (playIcon) playIcon.className = 'fa-solid fa-play';
+        if (bottomPlayIcon) bottomPlayIcon.className = 'fa-solid fa-play';
         if (wavePlayIcon) wavePlayIcon.className = 'fa-solid fa-play';
-        if (playBtn) playBtn.style.opacity = '1';
+        if (playBtn) {
+            playBtn.style.opacity = '1';
+            playBtn.style.pointerEvents = 'auto';
+        }
         if (mainVideo && mainVideo.src) {
             mainVideo.pause();
         }
@@ -384,6 +395,71 @@ function initStudioWorkspace() {
     generateVuMiniWaveBars();
     resetVuMetersToIdle();
     resetEngineMonitorToStandby();
+
+    // Wire up video events & synchronization
+    const mainVideo = document.getElementById('main-video');
+    if (mainVideo) {
+        mainVideo.addEventListener('ended', () => {
+            isPlaying = false;
+            const playIcon = document.getElementById('center-play-icon');
+            const playBtn = document.getElementById('center-play-btn');
+            const bottomPlayIcon = document.getElementById('bottom-play-icon');
+            if (playIcon) playIcon.className = 'fa-solid fa-play';
+            if (bottomPlayIcon) bottomPlayIcon.className = 'fa-solid fa-play';
+            if (playBtn) {
+                playBtn.style.opacity = '1';
+                playBtn.style.pointerEvents = 'auto';
+            }
+            if (playbackTimer) {
+                clearInterval(playbackTimer);
+                playbackTimer = null;
+            }
+            resetVuMetersToIdle();
+        });
+
+        mainVideo.addEventListener('pause', () => {
+            if (isPlaying) {
+                isPlaying = false;
+                const playIcon = document.getElementById('center-play-icon');
+                const playBtn = document.getElementById('center-play-btn');
+                const bottomPlayIcon = document.getElementById('bottom-play-icon');
+                if (playIcon) playIcon.className = 'fa-solid fa-play';
+                if (bottomPlayIcon) bottomPlayIcon.className = 'fa-solid fa-play';
+                if (playBtn) {
+                    playBtn.style.opacity = '1';
+                    playBtn.style.pointerEvents = 'auto';
+                }
+                if (playbackTimer) {
+                    clearInterval(playbackTimer);
+                    playbackTimer = null;
+                }
+                resetVuMetersToIdle();
+            }
+        });
+
+        mainVideo.addEventListener('play', () => {
+            if (!isPlaying) {
+                isPlaying = true;
+                const playIcon = document.getElementById('center-play-icon');
+                const playBtn = document.getElementById('center-play-btn');
+                const bottomPlayIcon = document.getElementById('bottom-play-icon');
+                if (playIcon) playIcon.className = 'fa-solid fa-pause';
+                if (bottomPlayIcon) bottomPlayIcon.className = 'fa-solid fa-pause';
+                if (playBtn) {
+                    playBtn.style.opacity = '0';
+                    playBtn.style.pointerEvents = 'none';
+                }
+            }
+        });
+    }
+
+    // Spacebar to toggle Play/Pause
+    document.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+            e.preventDefault();
+            togglePlayPreview();
+        }
+    });
 
     // Preload dialogue items for initial active preset
     const preset = studioPresetsData[currentStudioPreset];

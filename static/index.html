@@ -110,11 +110,11 @@
             <div class="studio-layout-grid" id="view-studio-translate">
                 <!-- Left 9:16 Vertical Video Monitor -->
                 <div class="studio-left-monitor-card">
-                    <div class="monitor-screen-area" id="monitor-screen-area">
-                        <video id="main-video" playsinline style="display:none;"></video>
+                    <div class="monitor-screen-area" id="monitor-screen-area" onclick="togglePlayPreview(event)">
+                        <video id="main-video" playsinline style="display:none;" onclick="togglePlayPreview(event)"></video>
                         
                         <!-- Glowing Center Play Button -->
-                        <div class="monitor-center-play-button" id="center-play-btn" onclick="togglePlayPreview()">
+                        <div class="monitor-center-play-button" id="center-play-btn" onclick="togglePlayPreview(event)">
                             <i class="fa-solid fa-play" id="center-play-icon"></i>
                         </div>
                     </div>
@@ -126,7 +126,12 @@
                             <div class="monitor-seek-bar-handle" id="seek-handle-dot"></div>
                         </div>
                         <div class="monitor-playback-meta-row">
-                            <div class="monitor-timecode-text" id="monitor-timecode-display">00:00 / 00:00</div>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <button class="monitor-tool-icon-btn" id="bottom-play-btn" onclick="togglePlayPreview(event)" title="Play / Pause (Space)" style="color:#facc15; font-size:0.95rem; width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer;">
+                                    <i class="fa-solid fa-play" id="bottom-play-icon"></i>
+                                </button>
+                                <div class="monitor-timecode-text" id="monitor-timecode-display">00:00 / 00:00</div>
+                            </div>
                             <div class="monitor-small-actions">
                                 <button class="monitor-tool-icon-btn" onclick="toggleVolumeMute()" title="Volume">
                                     <i class="fa-solid fa-volume-high" id="vol-icon"></i>

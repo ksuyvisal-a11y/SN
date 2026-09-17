@@ -368,28 +368,34 @@ button, input, select, textarea {
     height: 100%;
     object-fit: contain;
     background: #000;
+    cursor: pointer;
 }
 
-/* Big Glowing Circular Gold Play Button (Exact Match to Image 2 Shape in User Gold) */
+/* Big Glowing Circular Gold Play Button (Centered Exactly in 9:16 Frame) */
 .monitor-center-play-button {
-    width: 56px;
-    height: 56px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 64px;
+    height: 64px;
     border-radius: 50%;
     background: linear-gradient(135deg, #facc15 0%, #d97706 100%);
     display: flex;
     align-items: center;
     justify-content: center;
     color: #0a0805;
-    font-size: 1.25rem;
+    font-size: 1.45rem;
     cursor: pointer;
-    box-shadow: 0 0 25px rgba(250, 204, 21, 0.75), 0 0 50px rgba(250, 204, 21, 0.35);
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-    z-index: 10;
+    box-shadow: 0 0 30px rgba(250, 204, 21, 0.85), 0 0 60px rgba(250, 204, 21, 0.45);
+    transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, box-shadow 0.18s ease;
+    z-index: 25;
+    pointer-events: auto;
 }
 
 .monitor-center-play-button:hover {
-    transform: scale(1.09);
-    box-shadow: 0 0 35px rgba(250, 204, 21, 0.95), 0 0 60px rgba(250, 204, 21, 0.5);
+    transform: translate(-50%, -50%) scale(1.12);
+    box-shadow: 0 0 42px rgba(250, 204, 21, 1), 0 0 75px rgba(250, 204, 21, 0.6);
 }
 
 .monitor-center-play-button i {
