@@ -55,10 +55,14 @@ def separate_vocals_and_bgm(
         # Fallback to direct copy if filter fails
         shutil.copy(str(in_p), str(bgm_output))
 
-    # Vocal isolation filter
+    # Vocal isolation filter: Extract center channel dialogue and suppress stereo BGM
+    # In movies, dialogues are panned center (L+R in-phase), while stereo BGM & SFX are on the sides.
+    # stereotools with slev=0.0 eliminates stereo sides while preserving dialogue at 16kHz mono.
     vocal_filter = (
-        "pan=stereo|c0=c0-c1|c1=c1-c0,"
-        "highpass=f=200,lowpass=f=3800"
+        "stereotools=mlev=1.6:slev=0.0:mpan=0.0,"
+        "highpass=f=80,lowpass=f=4500,"
+        "equalizer=f=1200:t=q:w=1.5:g=3,"
+        "equalizer=f=2500:t=q:w=1.5:g=2"
     )
     cmd_voc = [
         get_ffmpeg_path(),
@@ -66,10 +70,22 @@ def separate_vocals_and_bgm(
         "-i", str(in_p),
         "-af", vocal_filter,
         "-acodec", "pcm_s16le",
-        "-ar", "44100",
-        "-ac", "2",
+        "-ar", "16000",
+        "-ac", "1",
         str(vocals_output)
     ]
-    subprocess.run(cmd_voc, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc_voc = subprocess.run(cmd_voc, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if proc_voc.returncode != 0 or not vocals_output.exists() or vocals_output.stat().st_size < 1000:
+        cmd_fallback = [
+            get_ffmpeg_path(),
+            "-y",
+            "-i", str(in_p),
+            "-af", "highpass=f=80,lowpass=f=4500",
+            "-acodec", "pcm_s16le",
+            "-ar", "16000",
+            "-ac", "1",
+            str(vocals_output)
+        ]
+        subprocess.run(cmd_fallback, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     return str(bgm_output), str(vocals_output)

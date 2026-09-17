@@ -247,14 +247,17 @@ class ProjectManager:
         return project
 
     def auto_transcribe_project(self, project_id: str) -> Dict[str, Any]:
-        """Transcribe audio from project media file using AI Speech-to-Text."""
+        """Transcribe audio from project media file using AI Speech-to-Text on isolated vocals."""
         project = self.load_project(project_id)
         if not project or not project.get("original_audio_file"):
             raise ValueError("No audio file found to transcribe")
 
-        audio_path = project["original_audio_file"]
+        audio_path = project.get("isolated_vocals_file")
+        if not audio_path or not Path(audio_path).exists() or Path(audio_path).stat().st_size < 1000:
+            audio_path = project["original_audio_file"]
+
         dialogues = self.stt_engine.transcribe_audio(
-            audio_path=audio_path,
+            audio_path=str(audio_path),
             source_lang=project.get("source_lang", "auto")
         )
         project["dialogues"] = dialogues
@@ -270,6 +273,8 @@ class ProjectManager:
         proj_dir = Path(f"data/projects/{project_id}")
         bgm_path, voc_path = separate_vocals_and_bgm(project["original_audio_file"], output_dir=str(proj_dir))
         project["isolated_bgm_file"] = bgm_path
+        if voc_path and Path(voc_path).exists():
+            project["isolated_vocals_file"] = str(voc_path)
         self.save_project(project)
         return project
 
@@ -444,19 +449,23 @@ class ProjectManager:
 
         # 2. Vocal Separation (Isolate BGM, Eliminate Chinese Vocals)
         update_prog(28, "២/៧ កំពុងច្រោះសំឡេងចិនដើមចេញពីភ្លេង (Vocal Isolation)...", "Separating Chinese vocals from BGM...")
+        voc_file = None
         try:
             bgm_file, voc_file = separate_vocals_and_bgm(str(audio_dest), output_dir=str(proj_dir))
             project["isolated_bgm_file"] = bgm_file
+            if voc_file and Path(voc_file).exists():
+                project["isolated_vocals_file"] = str(voc_file)
         except Exception as e:
             print(f"Vocal separation warning: {e}")
             project["isolated_bgm_file"] = str(audio_dest)
         self.save_project(project)
 
-        # 3. Speech-to-Text (Auto Transcribe via Faster-Whisper Base Model)
+        # 3. Speech-to-Text (Auto Transcribe via Faster-Whisper on Clean Isolated Vocals)
         update_prog(45, "៣/៧ AI កំពុងស្តាប់ និងចាប់សំឡេងចិនតាមតួអង្គ (Faster-Whisper)...", "Transcribing speech...")
+        stt_target_audio = str(voc_file) if (voc_file and Path(voc_file).exists() and Path(voc_file).stat().st_size > 1000) else str(audio_dest)
         try:
             dialogues = self.stt_engine.transcribe_audio(
-                audio_path=str(audio_dest),
+                audio_path=stt_target_audio,
                 source_lang=source_lang
             )
         except Exception as e:

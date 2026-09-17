@@ -227,10 +227,11 @@ async def batch_synthesize(
                 item_copy["voice_used"] = voice
                 item_copy["audio_duration"] = final_dur
                 calculated_end = round(start + final_dur, 2)
+                orig_end = float(item.get("end", calculated_end))
                 if index + 1 < len(dialogue_items):
-                    item_copy["end"] = min(calculated_end, round(next_start - 0.05, 2))
+                    item_copy["end"] = min(max(calculated_end, orig_end), round(next_start - 0.05, 2))
                 else:
-                    item_copy["end"] = calculated_end
+                    item_copy["end"] = max(calculated_end, orig_end)
                 item_copy["success"] = True
                 return item_copy
             except Exception as e:
