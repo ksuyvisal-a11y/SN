@@ -468,7 +468,7 @@ def load_stored_story_config() -> dict:
             print(f"Error loading story config: {e}")
     return {
         "khmer_voice": "piseth",
-        "auto_multi_voice": False,
+        "auto_multi_voice": True,
         "source_lang": "auto",
         "whisper_model": "medium",
         "aspect_ratio": "9:16",
@@ -583,19 +583,12 @@ def check_keys_live_endpoint():
             if "RESOURCE_EXHAUSTED" in err_str or "429" in err_str:
                 status = "rate_limited"
                 message = "Rate Limited (429)"
-            elif "API_KEY_INVALID" in err_str or "400" in err_str:
+            elif any(token in err_str for token in ("401", "UNAUTHENTICATED", "API_KEY_INVALID", "400", "ACCESS_TOKEN")):
                 status = "invalid"
-                message = "Invalid API Key"
+                message = "Invalid Key (Need AIzaSy...)"
             else:
-                # Soft check - key format valid
-                if len(key) > 20:
-                    is_valid = True
-                    status = "active"
-                    message = "Ready"
-                    valid_count += 1
-                else:
-                    status = "non_standard"
-                    message = "Non-standard format"
+                status = "error"
+                message = "Auth Failed"
 
         results.append({
             "index": idx,

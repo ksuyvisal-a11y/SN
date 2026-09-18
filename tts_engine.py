@@ -65,6 +65,24 @@ def _get_cache_filename(text: str, voice_id: str, rate: str, pitch: str) -> Path
     return CACHE_DIR / f"{hash_str}.mp3"
 
 
+def calculate_optimal_tts_rate(text_km: str, target_window_sec: float) -> int:
+    """
+    Calculate the exact Edge-TTS speed rate percentage (+0% to +35%)
+    so that Khmer speech naturally completes within the character's speaking window.
+    Khmer average natural speech speed is ~5.6 characters per second.
+    """
+    if not text_km or target_window_sec <= 0.3:
+        return 0
+    clean = text_km.strip()
+    est_natural_sec = len(clean) / 5.6
+    if est_natural_sec <= target_window_sec:
+        return 0
+    factor = est_natural_sec / target_window_sec
+    needed_rate = int((factor - 1.0) * 100)
+    # Clamp between +5% and +35% (Edge-TTS sounds crystal clear and energetic up to +35%)
+    return min(35, max(5, needed_rate))
+
+
 async def synthesize_khmer_speech(
     text: str,
     voice: str = "piseth",
@@ -111,27 +129,32 @@ async def synthesize_khmer_speech(
         final_output = Path(output_path)
         final_output.parent.mkdir(parents=True, exist_ok=True)
 
-    # Retry up to 3 times for reliable synthesis
+    # Retry up to 4 times with exponential backoff and voice fallback
     last_err = None
-    for attempt in range(1, 4):
-        try:
-            communicate = edge_tts.Communicate(
-                text=cleaned_text,
-                voice=voice_id,
-                rate=rate_str,
-                pitch=pitch_str
-            )
-            await communicate.save(str(final_output))
-            if final_output.exists() and final_output.stat().st_size > 100:
-                return str(final_output)
-        except Exception as e:
-            last_err = e
-            await asyncio.sleep(0.6 * attempt)
+    target_voices = [voice_id]
+    alt_voice = VOICES["sreymom"]["id"] if voice_id == VOICES["piseth"]["id"] else VOICES["piseth"]["id"]
+    target_voices.append(alt_voice)
+
+    for v_candidate in target_voices:
+        for attempt in range(1, 3):
+            try:
+                communicate = edge_tts.Communicate(
+                    text=cleaned_text,
+                    voice=v_candidate,
+                    rate=rate_str,
+                    pitch=pitch_str
+                )
+                await communicate.save(str(final_output))
+                if final_output.exists() and final_output.stat().st_size > 100:
+                    return str(final_output)
+            except Exception as e:
+                last_err = e
+                await asyncio.sleep(0.5 * attempt)
 
     if final_output.exists() and final_output.stat().st_size > 100:
         return str(final_output)
 
-    raise RuntimeError(f"Edge-TTS synthesis failed after 3 attempts: {last_err}")
+    raise RuntimeError(f"Edge-TTS synthesis failed after retries: {last_err}")
 
 
 def trim_and_fit_voice_audio(audio_path: str, max_duration_sec: Optional[float] = None) -> float:
@@ -158,7 +181,7 @@ def trim_and_fit_voice_audio(audio_path: str, max_duration_sec: Optional[float] 
         trimmed_sec = len(trimmed) / 1000.0
 
         if max_duration_sec and max_duration_sec > 0.4 and trimmed_sec > max_duration_sec:
-            speed_ratio = min(1.38, max(1.0, trimmed_sec / max_duration_sec))
+            speed_ratio = min(1.52, max(1.0, trimmed_sec / max_duration_sec))
             temp_wav = str(audio_path) + ".tmp.wav"
             save_audio_safely(trimmed, temp_wav)
             cmd = [
@@ -200,21 +223,25 @@ async def batch_synthesize(
             rate = item.get("rate_percent", 0)
             pitch = item.get("pitch_hz", 0)
 
-            # Calculate target available window before next dialogue
+            # Calculate target available window before next dialogue (with natural breathing margin)
             start = float(item.get("start", 0.0))
             end = float(item.get("end", start + 2.0))
             if index + 1 < len(dialogue_items):
                 next_start = float(dialogue_items[index + 1].get("start", end + 1.0))
-                target_window = max(0.5, (next_start - start) - 0.08)
+                target_window = max(0.6, (next_start - start) + 0.15)
             else:
-                target_window = max(0.8, (end - start) + 0.6)
+                target_window = max(0.8, (end - start) + 0.8)
+
+            # Auto-calculate dynamic speed so Khmer speech finishes inside target window
+            calculated_rate = calculate_optimal_tts_rate(text, target_window)
+            effective_rate = rate if rate != 0 else calculated_rate
 
             line_audio_path = out_path / f"line_{index:04d}_{item_id}.mp3"
             try:
                 audio_file = await synthesize_khmer_speech(
                     text=text,
                     voice=voice,
-                    rate_percent=rate,
+                    rate_percent=effective_rate,
                     pitch_hz=pitch,
                     output_path=str(line_audio_path)
                 )

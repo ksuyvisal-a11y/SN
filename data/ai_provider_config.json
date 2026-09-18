@@ -1,12 +1,12 @@
 {
   "engine": "gemini_pool",
   "keys": [
-    "AQ.Ab8RN6J-TCt41KQL2A8F0r02ofaI2Mw19dO_l03SsPKkMqzbsg",
-    "AQ.Ab8RN6L4lne7sPZZ_q0c4Zm4QIEsAB0S4V6hP0PXaQRlKKoM4g",
-    "AQ.Ab8RN6IAs-tbaTv2hIA_Zd9ZW9YwrEB1TbRzFWYjLK8BymSV6g",
-    "AQ.Ab8RN6JGsWeVHz6gbu3XckQoWuHRbG5XDvCVU0PJ_W2bRBJmvg"
+    "AQ.Ab8RN6IBysG6pGL3sd3pt5sGPfDzBHgvs4ocz85XNgen36hW7A",
+    "AQ.Ab8RN6JPJg9uNbYhVqguPzrEcgifusUhBejidH_chmIgrYYZXg",
+    "AQ.Ab8RN6IYTVAfiPN08_e1QRDAeoRQLqX9MdI54w4dMiHb3ONuRw",
+    "AQ.Ab8RN6LSlMn5GZ12NmYxKv6_zsHbx6AAu4-X6a_qFNT_hwJ5GA"
   ],
-  "keys_raw": "AQ.Ab8RN6J-TCt41KQL2A8F0r02ofaI2Mw19dO_l03SsPKkMqzbsg\nAQ.Ab8RN6L4lne7sPZZ_q0c4Zm4QIEsAB0S4V6hP0PXaQRlKKoM4g\nAQ.Ab8RN6IAs-tbaTv2hIA_Zd9ZW9YwrEB1TbRzFWYjLK8BymSV6g\nAQ.Ab8RN6JGsWeVHz6gbu3XckQoWuHRbG5XDvCVU0PJ_W2bRBJmvg",
+  "keys_raw": "AQ.Ab8RN6IBysG6pGL3sd3pt5sGPfDzBHgvs4ocz85XNgen36hW7A\nAQ.Ab8RN6JPJg9uNbYhVqguPzrEcgifusUhBejidH_chmIgrYYZXg\nAQ.Ab8RN6IYTVAfiPN08_e1QRDAeoRQLqX9MdI54w4dMiHb3ONuRw\nAQ.Ab8RN6LSlMn5GZ12NmYxKv6_zsHbx6AAu4-X6a_qFNT_hwJ5GA",
   "model": "gemini-2.5-flash",
   "temperature": 0.3,
   "prompt_style": "You are a master Cambodian film dubbing scriptwriter and voice director specializing in Asian TV dramas. Translate dialogue lines into natural, emotional, authentic spoken Khmer film dubbing language (ពិសិដ្ឋ & ស្រីមុំ)."

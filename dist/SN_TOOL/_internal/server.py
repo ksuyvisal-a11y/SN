@@ -8,6 +8,8 @@ import json
 import shutil
 import asyncio
 import subprocess
+import threading
+import uuid
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
@@ -433,13 +435,213 @@ def open_export_folder():
     return jsonify({"success": True})
 
 
+AI_CONFIG_FILE = Path("data/ai_provider_config.json")
+STORY_CONFIG_FILE = Path("data/story_config.json")
+
+def load_stored_ai_config() -> dict:
+    if AI_CONFIG_FILE.exists():
+        try:
+            with open(AI_CONFIG_FILE, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+                keys = cfg.get("keys", [])
+                if keys:
+                    pm.translator.set_api_keys(keys)
+                    os.environ["GEMINI_API_KEY"] = "\n".join(keys)
+                return cfg
+        except Exception as e:
+            print(f"Error loading AI config: {e}")
+    return {
+        "engine": "gemini_pool",
+        "keys": [],
+        "keys_raw": "",
+        "model": "gemini-2.5-flash",
+        "temperature": 0.3,
+        "prompt_style": "drama_dubbing"
+    }
+
+def load_stored_story_config() -> dict:
+    if STORY_CONFIG_FILE.exists():
+        try:
+            with open(STORY_CONFIG_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Error loading story config: {e}")
+    return {
+        "khmer_voice": "piseth",
+        "auto_multi_voice": True,
+        "source_lang": "auto",
+        "whisper_model": "medium",
+        "aspect_ratio": "9:16",
+        "subtitle_mode": "burn",
+        "dubbing_mode": "smart_bgm",
+        "ducking_volume": "0.08",
+        "speech_boost_db": 2.5
+    }
+
+# Initial load on server start
+stored_ai_cfg = load_stored_ai_config()
+stored_story_cfg = load_stored_story_config()
+
+
 @app.route("/api/set-api-key", methods=["POST"])
 def set_gemini_api_key():
     data = request.get_json(force=True) or {}
-    key = data.get("api_key", "")
-    pm.translator.set_api_key(key)
-    os.environ["GEMINI_API_KEY"] = key
+    key = data.get("api_key", "").strip()
+    keys = [k.strip() for k in key.replace(",", "\n").splitlines() if k.strip()]
+    pm.translator.set_api_keys(keys)
+    os.environ["GEMINI_API_KEY"] = "\n".join(keys)
     return jsonify({"success": True, "message": "Cloud Engine Token updated successfully."})
+
+
+@app.route("/api/ai-config", methods=["GET"])
+def get_ai_config_endpoint():
+    cfg = load_stored_ai_config()
+    return jsonify({
+        "success": True,
+        "config": cfg,
+        "active_keys_count": len(cfg.get("keys", [])),
+        "keys_raw": cfg.get("keys_raw", "\n".join(cfg.get("keys", [])))
+    })
+
+
+@app.route("/api/set-ai-config", methods=["POST"])
+def set_ai_config_endpoint():
+    data = request.get_json(force=True) or {}
+    keys_raw = data.get("keys_raw", "")
+    keys = data.get("keys", [])
+    if not keys and keys_raw:
+        keys = [k.strip() for k in keys_raw.replace(",", "\n").splitlines() if k.strip()]
+    if not keys_raw and keys:
+        keys_raw = "\n".join(keys)
+
+    engine = data.get("engine", "gemini_pool")
+    model = data.get("model", "gemini-2.5-flash")
+    try:
+        temperature = float(data.get("temperature", 0.3))
+    except Exception:
+        temperature = 0.3
+    prompt_style = data.get("prompt_style", "drama_dubbing")
+
+    cfg = {
+        "engine": engine,
+        "keys": keys,
+        "keys_raw": keys_raw,
+        "model": model,
+        "temperature": temperature,
+        "prompt_style": prompt_style
+    }
+
+    AI_CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(AI_CONFIG_FILE, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, ensure_ascii=False, indent=2)
+
+    pm.translator.set_api_keys(keys)
+    if keys:
+        os.environ["GEMINI_API_KEY"] = "\n".join(keys)
+
+    return jsonify({
+        "success": True,
+        "message": f"បានរក្សាទុក Gemini API Keys ចំនួន {len(keys)} គ្រាប់ដោយជោគជ័យ!",
+        "config": cfg
+    })
+
+
+@app.route("/api/check-keys", methods=["POST"])
+def check_keys_live_endpoint():
+    data = request.get_json(force=True) or {}
+    keys_raw = data.get("keys_raw", "")
+    keys = data.get("keys", [])
+    if not keys and keys_raw:
+        keys = [k.strip() for k in keys_raw.replace(",", "\n").splitlines() if k.strip()]
+
+    if not keys:
+        return jsonify({"success": False, "error": "No API keys provided to check.", "total": 0, "valid": 0})
+
+    results = []
+    valid_count = 0
+
+    for idx, key in enumerate(keys, start=1):
+        masked = key[:6] + "..." + key[-4:] if len(key) > 10 else key
+        status = "unknown"
+        is_valid = False
+        message = ""
+
+        try:
+            from google import genai
+            client = genai.Client(api_key=key)
+            resp = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents="test",
+                config={"max_output_tokens": 2}
+            )
+            is_valid = True
+            status = "active"
+            message = "Live (200 OK)"
+            valid_count += 1
+        except Exception as err:
+            err_str = str(err)
+            if "RESOURCE_EXHAUSTED" in err_str or "429" in err_str:
+                status = "rate_limited"
+                message = "Rate Limited (429)"
+            elif any(token in err_str for token in ("401", "UNAUTHENTICATED", "API_KEY_INVALID", "400", "ACCESS_TOKEN")):
+                status = "invalid"
+                message = "Invalid Key (Need AIzaSy...)"
+            else:
+                status = "error"
+                message = "Auth Failed"
+
+        results.append({
+            "index": idx,
+            "key_masked": masked,
+            "status": status,
+            "valid": is_valid,
+            "message": message
+        })
+
+    return jsonify({
+        "success": True,
+        "total": len(keys),
+        "valid": valid_count,
+        "results": results
+    })
+
+
+@app.route("/api/story-config", methods=["GET"])
+def get_story_config_endpoint():
+    cfg = load_stored_story_config()
+    ai_cfg = load_stored_ai_config()
+    engine_name = ai_cfg.get("engine", "gemini_pool")
+    if engine_name == "free_ai":
+        provider_display = "Free AI (g4f)"
+    elif engine_name == "google_free":
+        provider_display = "Google Translate Built-in"
+    elif engine_name == "gemini_pro":
+        provider_display = "Gemini 2.5 Pro"
+    else:
+        provider_display = "Gemini API (Key Pool)"
+        
+    cfg["ai_provider_display"] = provider_display
+    return jsonify({
+        "success": True,
+        "config": cfg
+    })
+
+
+@app.route("/api/set-story-config", methods=["POST"])
+def set_story_config_endpoint():
+    data = request.get_json(force=True) or {}
+    cfg = load_stored_story_config()
+    cfg.update(data)
+
+    STORY_CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(STORY_CONFIG_FILE, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, ensure_ascii=False, indent=2)
+
+    return jsonify({
+        "success": True,
+        "message": "Story settings saved successfully!",
+        "config": cfg
+    })
 
 
 
@@ -815,13 +1017,177 @@ def power_compress_endpoint():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+# ==========================================================================
+# 1-Click Automated Video Dubbing & Status Polling
+# ==========================================================================
+video_auto_tasks: Dict[str, Dict[str, Any]] = {}
+
+@app.route("/api/projects/auto-dub-video", methods=["POST"])
+def auto_dub_video_endpoint():
+    """
+    1-Click Automated Video Dubbing (Chinese/Multilingual Video -> Khmer Speech & Video).
+    Accepts video file upload or local filepath.
+    """
+    mode = request.form.get("drama_mode", "drama_dubbing")
+    source_lang = request.form.get("source_lang", "auto")
+    voice_override = request.form.get("voice_override", "auto")
+    aspect_ratio = request.form.get("aspect_ratio", "16:9")
+    burn_subtitles = request.form.get("burn_subtitles", "true").lower() == "true"
+    
+    saved_video_path = None
+    original_filename = "drama_video.mp4"
+
+    if "file" in request.files and request.files["file"].filename:
+        file = request.files["file"]
+        original_filename = file.filename
+        upload_dir = Path("data/uploads")
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        unique_name = f"{int(time.time())}_{Path(original_filename).name}"
+        dest = upload_dir / unique_name
+        file.save(str(dest))
+        saved_video_path = str(dest)
+    elif request.is_json:
+        data = request.get_json(force=True) or {}
+        saved_video_path = data.get("filepath")
+        if saved_video_path:
+            original_filename = Path(saved_video_path).name
+            mode = data.get("drama_mode", mode)
+            source_lang = data.get("source_lang", source_lang)
+            voice_override = data.get("voice_override", voice_override)
+            aspect_ratio = data.get("aspect_ratio", aspect_ratio)
+            burn_subtitles = data.get("burn_subtitles", burn_subtitles)
+
+    if not saved_video_path or not Path(saved_video_path).exists():
+        return jsonify({"success": False, "error": "No valid video file uploaded or provided."}), 400
+
+    task_id = str(uuid.uuid4())[:8]
+    video_auto_tasks[task_id] = {
+        "task_id": task_id,
+        "filename": original_filename,
+        "status": "processing",
+        "progress": 5,
+        "step_km": "កំពុងរៀបចំប្រព័ន្ធកែច្នៃ...",
+        "step_en": "Initializing pipeline...",
+        "project": None,
+        "error": None
+    }
+
+    def _worker(t_id: str, v_path: str, m: str, sl: str, vo: str, ar: str, bs: bool):
+        def _prog_cb(pct: int, km: str, en: str, dialogues: list = None):
+            if t_id in video_auto_tasks:
+                video_auto_tasks[t_id]["progress"] = pct
+                video_auto_tasks[t_id]["step_km"] = km
+                video_auto_tasks[t_id]["step_en"] = en
+                if dialogues is not None:
+                    video_auto_tasks[t_id]["dialogues"] = dialogues
+
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                res_proj = loop.run_until_complete(pm.process_video_pipeline(
+                    video_path=v_path,
+                    title=f"Dubbed_{Path(v_path).stem}",
+                    mode=m,
+                    source_lang=sl,
+                    voice_override=vo,
+                    aspect_ratio=ar,
+                    burn_subtitles=bs,
+                    progress_callback=_prog_cb
+                ))
+            finally:
+                loop.close()
+
+            if t_id in video_auto_tasks:
+                video_auto_tasks[t_id]["status"] = "completed"
+                video_auto_tasks[t_id]["progress"] = 100
+                video_auto_tasks[t_id]["step_km"] = "រួចរាល់ ១០០% (ជោគជ័យ!)"
+                video_auto_tasks[t_id]["step_en"] = "Completed successfully!"
+                video_auto_tasks[t_id]["project"] = res_proj
+                if res_proj and res_proj.get("dialogues"):
+                    video_auto_tasks[t_id]["dialogues"] = res_proj.get("dialogues")
+        except Exception as e:
+            print(f"Auto dubbing worker error: {e}")
+            if t_id in video_auto_tasks:
+                video_auto_tasks[t_id]["status"] = "failed"
+                video_auto_tasks[t_id]["error"] = str(e)
+                video_auto_tasks[t_id]["step_km"] = f"មានបញ្ហា: {str(e)}"
+                video_auto_tasks[t_id]["step_en"] = f"Error: {str(e)}"
+
+    threading.Thread(
+        target=_worker,
+        args=(task_id, saved_video_path, mode, source_lang, voice_override, aspect_ratio, burn_subtitles),
+        daemon=True
+    ).start()
+
+    return jsonify({
+        "success": True,
+        "task_id": task_id,
+        "message": "Video translation task started successfully."
+    })
+
+
+@app.route("/api/projects/auto-dub-status/<task_id>", methods=["GET"])
+def auto_dub_status_endpoint(task_id):
+    task = video_auto_tasks.get(task_id)
+    if not task:
+        return jsonify({"success": False, "error": "Task not found"}), 404
+
+    dialogues = task.get("dialogues")
+    if not dialogues and task.get("project"):
+        dialogues = task["project"].get("dialogues")
+
+    resp = {
+        "success": True,
+        "task_id": task["task_id"],
+        "filename": task.get("filename"),
+        "status": task.get("status"),
+        "progress": task.get("progress", 0),
+        "step_km": task.get("step_km", ""),
+        "step_en": task.get("step_en", ""),
+        "error": task.get("error"),
+        "dialogues": dialogues or []
+    }
+    if task.get("status") == "completed" and task.get("project"):
+        proj = task["project"]
+        resp["project"] = proj
+        out_vid = proj.get("output_video_file") or ""
+        out_aud = proj.get("mixed_audio_file") or ""
+        resp["video_url"] = f"/media/{out_vid.replace(chr(92), '/')}" if out_vid else ""
+        resp["mixed_audio_url"] = f"/media/{out_aud.replace(chr(92), '/')}" if out_aud else ""
+
+    return jsonify(resp)
+
+
+@app.route("/api/projects/open-folder", methods=["POST"])
+def open_project_folder_endpoint():
+    data = request.get_json(force=True) or {}
+    target_path = data.get("path")
+    if not target_path:
+        target_path = str(Path("data/exports").resolve())
+    else:
+        p = Path(target_path)
+        if p.is_file():
+            target_path = str(p.parent.resolve())
+        else:
+            target_path = str(p.resolve())
+
+    if sys.platform == "win32":
+        try:
+            os.startfile(target_path)
+            return jsonify({"success": True, "opened_path": target_path})
+        except Exception as e:
+            return jsonify({"success": False, "error": str(e)}), 500
+    return jsonify({"success": True, "opened_path": target_path})
+
+
 @app.route("/media/<path:filename>")
 def serve_media(filename):
     file_path = Path(filename)
     if not file_path.exists():
         return jsonify({"error": "Media file not found"}), 404
         
-    return send_file(str(file_path.resolve()))
+    return send_file(str(file_path.resolve()), conditional=True)
 
 
 if __name__ == "__main__":

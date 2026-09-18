@@ -29,19 +29,19 @@ try:
 except ImportError:
     FASTER_WHISPER_AVAILABLE = False
 
-# Strict Drama First-Person Self-References & Direct Spouse Vocatives
-# NOTE: Third-person pronouns ("他", "她") and object nouns ("男人", "女人") are STRICTLY excluded
+# Strict Drama First-Person Self-References, Kinship Terms & Direct Vocatives
 FEMALE_VOCATIVES = [
     "老公", "相公", "夫君", "死鬼",
     "本宫", "臣妾", "奴婢", "小女子", "妾身", "本小姐",
-    "老娘", "妈妈我", "女兒我", "娘亲我",
+    "老娘", "妈妈我", "女兒我", "娘亲我", "妈咪", "阿姨", "婆婆",
+    "怀着孩子", "怀孕", "儿媳", "嫂嫂", "大嫂", "小姑子", "姐姐", "妹妹",
     "오빠", "언니"
 ]
 
 MALE_VOCATIVES = [
     "老婆", "娘子", "夫人", "爱妃", "媳妇",
     "本座", "本王", "朕", "老子", "为父", "为夫", "微臣",
-    "兄弟我", "爸爸我", "爹爹我",
+    "兄弟我", "爸爸我", "爹爹我", "儿子", "岳父", "岳母",
     "형"
 ]
 
@@ -213,35 +213,61 @@ class SpeechToTextEngine:
         if lang_code in ("zh", "chinese", "mandarin"):
             lang_code = "zh"
 
-        # Highly Sensitive VAD parameters tuned for Asian TV Dramas:
-        # threshold=0.32: captures quiet, whispered, and rapid speech lines
-        # min_speech_duration_ms=100: catches short exclamations ("站住!", "谁?", "走!", "救命!")
-        # speech_pad_ms=180: preserves the initial vowel/consonant when mouth first opens
-        # min_silence_duration_ms=350: ensures speech segments start and end exactly with dialogue
+        # CRITICAL UPGRADE: vad_filter=False prevents Silero VAD from deleting quiet/whispered drama lines
+        # word_timestamps=True provides exact word-level start/end timestamps for tight dialogue splitting
         segments_gen, info = model.transcribe(
             audio_path,
             language=lang_code,
             beam_size=beam_size,
-            vad_filter=True,
-            vad_parameters=dict(
-                threshold=0.32,
-                min_speech_duration_ms=100,
-                max_speech_duration_s=12.0,
-                min_silence_duration_ms=350,
-                speech_pad_ms=180
-            )
+            vad_filter=False,
+            word_timestamps=True,
+            condition_on_previous_text=False
         )
 
         raw_segments = []
         for segment in segments_gen:
-            text = segment.text.strip()
-            if not text:
+            if not segment.words:
+                text = segment.text.strip()
+                if text:
+                    raw_segments.append({
+                        "start": round(segment.start, 2),
+                        "end": round(segment.end, 2),
+                        "text": text
+                    })
                 continue
-            raw_segments.append({
-                "start": round(segment.start, 2),
-                "end": round(segment.end, 2),
-                "text": text
-            })
+
+            current_words = []
+            current_start = None
+
+            for i, w in enumerate(segment.words):
+                w_text = w.word.strip()
+                if not w_text:
+                    continue
+                if current_start is None:
+                    current_start = w.start
+                current_words.append(w)
+
+                is_last = (i == len(segment.words) - 1)
+                has_pause = False
+                if not is_last:
+                    next_w = segment.words[i + 1]
+                    if (next_w.start - w.end) >= 0.40:
+                        has_pause = True
+
+                has_punct = any(p in w_text for p in ["。", "！", "？", "!", "?", "；", ";", "…"])
+
+                if is_last or has_pause or (has_punct and len(current_words) >= 4):
+                    seg_text = "".join([cw.word for cw in current_words]).strip()
+                    seg_start = round(current_start, 2)
+                    seg_end = round(w.end, 2)
+                    if seg_text and seg_end > seg_start:
+                        raw_segments.append({
+                            "start": seg_start,
+                            "end": seg_end,
+                            "text": seg_text
+                        })
+                    current_words = []
+                    current_start = None
 
         if not raw_segments:
             return []
@@ -333,3 +359,4 @@ class SpeechToTextEngine:
             item["pitch_hz"] = 0
 
         return consolidated
+

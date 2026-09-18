@@ -217,12 +217,13 @@ def mix_dubbed_audio(
                     next_start_ms = int(next_item.get("start", 0) * 1000)
                     break
 
-            # STRICT NON-OVERLAP ENFORCEMENT:
-            # If current line extends into the next line, cap it cleanly with a gentle fade-out
-            if next_start_ms is not None and (start_ms + len(line_seg)) > (next_start_ms - 40):
-                allowed_len = max(150, next_start_ms - start_ms - 40)
+            # SMART SPEECH FIT:
+            # Allow natural dialogue flow. Only if speech significantly overshoots into the next line (> 250ms),
+            # apply a soft fade-out so words are not chopped abruptly mid-syllable.
+            if next_start_ms is not None and (start_ms + len(line_seg)) > (next_start_ms + 250):
+                allowed_len = max(200, (next_start_ms + 250) - start_ms)
                 if len(line_seg) > allowed_len:
-                    fade_ms = min(60, max(15, allowed_len // 4))
+                    fade_ms = min(120, max(25, allowed_len // 6))
                     line_seg = line_seg[:allowed_len].fade_out(fade_ms)
 
             line_len_ms = len(line_seg)
