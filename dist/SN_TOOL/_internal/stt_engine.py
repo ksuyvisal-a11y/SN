@@ -46,13 +46,38 @@ MALE_VOCATIVES = [
 ]
 
 
-def analyze_segment_acoustics(audio_path: str, start_s: float, end_s: float) -> Dict[str, Any]:
+def load_audio_samples_16k(audio_path: str) -> Tuple[Optional[np.ndarray], int]:
+    """Load audio file as 16kHz mono float32 numpy array once into memory for ultra-fast processing."""
+    if not NUMPY_AVAILABLE:
+        return None, 16000
+    try:
+        cmd = [
+            FFMPEG_EXE, '-i', str(audio_path),
+            '-vn', '-ac', '1', '-ar', '16000',
+            '-f', 'wav', '-'
+        ]
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=180)
+        with wave.open(io.BytesIO(proc.stdout), 'rb') as wf:
+            nframes = wf.getnframes()
+            if nframes == 0:
+                return None, 16000
+            raw = wf.readframes(nframes)
+            samples = np.frombuffer(raw, dtype=np.int16).astype(np.float32)
+            return samples, 16000
+    except Exception as e:
+        print(f"Fast audio load note: {e}")
+        return None, 16000
+
+
+def analyze_segment_acoustics_fast(
+    sig: np.ndarray,
+    sr: int = 16000
+) -> Dict[str, Any]:
     """
-    Multi-layered acoustic analysis of vocal segment:
-    1. YIN-based Fundamental Frequency (F0) tracking (75Hz - 450Hz range)
+    Fast, vectorized acoustic analysis of vocal segment from in-memory numpy array:
+    1. FFT / Autocorrelation Fundamental Frequency (F0) tracking
     2. Spectral Centroid calculation
-    3. Low-band (chest resonance 75-280Hz) vs Mid-High-band (vowel formants 300-3000Hz) Energy Ratio
-    Accurately classifies Male vs Female speech with zero reliance on 3rd-person pronouns.
+    3. Low-band (chest resonance 75-280Hz) vs Mid-High-band Energy Ratio
     """
     default_res = {
         "role": "unknown",
@@ -62,69 +87,35 @@ def analyze_segment_acoustics(audio_path: str, start_s: float, end_s: float) -> 
         "centroid": 0.0,
         "ratio": 1.0
     }
-    if not NUMPY_AVAILABLE:
-        return default_res
-
-    dur_s = end_s - start_s
-    if dur_s <= 0.15:
+    if sig is None or len(sig) < 800:
         return default_res
 
     try:
-        cmd = [
-            FFMPEG_EXE, '-ss', str(start_s), '-t', str(dur_s),
-            '-i', str(audio_path), '-vn', '-ac', '1', '-ar', '16000',
-            '-f', 'wav', '-'
-        ]
-        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=6)
-        with wave.open(io.BytesIO(proc.stdout), 'rb') as wf:
-            nframes = wf.getnframes()
-            if nframes < 600:
-                return default_res
-            raw = wf.readframes(nframes)
-            sig = np.frombuffer(raw, dtype=np.int16).astype(np.float32)
-
-        sr = 16000
-        min_f0 = 75
-        max_f0 = 450
-        min_lag = int(sr / max_f0)  # ~35 samples
-        max_lag = int(sr / min_f0)  # ~213 samples
         frame_len = 1024
         hop = 512
-        threshold = 0.20
-        f0s = []
+        min_lag = int(sr / 380)  # ~42 samples (380 Hz)
+        max_lag = int(sr / 75)   # ~213 samples (75 Hz)
+        pitches = []
 
-        # YIN Pitch Tracking across voiced frames
-        for i in range(0, len(sig) - frame_len - max_lag, hop):
+        # Vectorized autocorrelation pitch tracking across voiced frames
+        for i in range(0, len(sig) - frame_len, hop):
             fr = sig[i:i + frame_len]
             fr_norm = fr - np.mean(fr)
             energy = np.sum(fr_norm ** 2)
             if energy < 8e4:
                 continue
 
-            d = np.zeros(max_lag + 1)
-            for tau in range(1, max_lag + 1):
-                diff = fr_norm - (sig[i + tau : i + tau + frame_len] - np.mean(sig[i + tau : i + tau + frame_len]))
-                d[tau] = np.sum(diff ** 2)
+            corr = np.correlate(fr_norm, fr_norm, mode='full')
+            corr = corr[len(corr)//2:]
+            if len(corr) <= max_lag:
+                continue
 
-            d_prime = np.zeros(max_lag + 1)
-            d_prime[0] = 1.0
-            running_sum = 0.0
-            for tau in range(1, max_lag + 1):
-                running_sum += d[tau]
-                d_prime[tau] = d[tau] / (running_sum / tau) if running_sum > 0 else 1.0
+            peak_lag = min_lag + np.argmax(corr[min_lag:max_lag])
+            if corr[peak_lag] > 0.28 * corr[0]:
+                f0s = sr / peak_lag
+                pitches.append(f0s)
 
-            tau_choice = None
-            for tau in range(min_lag, max_lag):
-                if d_prime[tau] < threshold:
-                    while tau + 1 < max_lag and d_prime[tau + 1] < d_prime[tau]:
-                        tau += 1
-                    tau_choice = tau
-                    break
-
-            if tau_choice is not None:
-                f0s.append(sr / tau_choice)
-
-        med_f0 = float(np.median(f0s)) if f0s else 0.0
+        med_f0 = float(np.median(pitches)) if pitches else 0.0
 
         # Frequency Domain Analysis: Centroid and Harmonic Energy Ratio
         fft = np.abs(np.fft.rfft(sig))
@@ -137,15 +128,13 @@ def analyze_segment_acoustics(audio_path: str, start_s: float, end_s: float) -> 
         ratio_low_high = low_energy / high_energy
 
         # Multi-factor Classification
-        if med_f0 >= 168.0:
+        if med_f0 >= 165.0:
             role = "female"
         elif 0.0 < med_f0 <= 152.0:
             role = "male"
-        elif 152.0 < med_f0 < 168.0:
-            # Borderline zone: use spectral energy balance
+        elif 152.0 < med_f0 < 165.0:
             role = "male" if (ratio_low_high > 0.80 or centroid < 1900) else "female"
         else:
-            # Unvoiced/whispered: rely on frequency distribution
             if ratio_low_high >= 0.85 or centroid < 1900:
                 role = "male"
             elif ratio_low_high <= 0.62 or centroid >= 2100:
@@ -164,6 +153,37 @@ def analyze_segment_acoustics(audio_path: str, start_s: float, end_s: float) -> 
             "centroid": round(centroid, 1),
             "ratio": round(ratio_low_high, 2)
         }
+    except Exception:
+        return default_res
+
+
+def analyze_segment_acoustics(audio_path: str, start_s: float, end_s: float) -> Dict[str, Any]:
+    """Backwards-compatible wrapper returning acoustic analysis."""
+    default_res = {
+        "role": "unknown",
+        "voice": "piseth",
+        "speaker": "តួប្រុស (ពិសិដ្ឋ)",
+        "f0": 0.0,
+        "centroid": 0.0,
+        "ratio": 1.0
+    }
+    dur_s = end_s - start_s
+    if dur_s <= 0.15 or not NUMPY_AVAILABLE:
+        return default_res
+    try:
+        cmd = [
+            FFMPEG_EXE, '-ss', str(start_s), '-t', str(dur_s),
+            '-i', str(audio_path), '-vn', '-ac', '1', '-ar', '16000',
+            '-f', 'wav', '-'
+        ]
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=4)
+        with wave.open(io.BytesIO(proc.stdout), 'rb') as wf:
+            nframes = wf.getnframes()
+            if nframes < 600:
+                return default_res
+            raw = wf.readframes(nframes)
+            sig = np.frombuffer(raw, dtype=np.int16).astype(np.float32)
+        return analyze_segment_acoustics_fast(sig, 16000)
     except Exception:
         return default_res
 
@@ -196,7 +216,9 @@ class SpeechToTextEngine:
         self,
         audio_path: str,
         source_lang: str = "auto",
-        beam_size: int = 4
+        beam_size: int = 2,
+        voice_override: Optional[str] = None,
+        progress_callback = None
     ) -> List[Dict[str, Any]]:
         """
         Transcribe audio file into timed dialogue segments with millisecond lip-sync accuracy.
@@ -218,35 +240,80 @@ class SpeechToTextEngine:
         # min_speech_duration_ms=100: catches short exclamations ("站住!", "谁?", "走!", "救命!")
         # speech_pad_ms=180: preserves the initial vowel/consonant when mouth first opens
         # min_silence_duration_ms=350: ensures speech segments start and end exactly with dialogue
+        # Drama Contextual Initial Prompt to prime Whisper decoder on Chinese character names & idioms
+        initial_prompt = None
+        if lang_code in ("zh", None):
+            initial_prompt = "以下是中文现代都市短剧、总裁豪门、家庭争斗对话，包含人物李沐谦、林早早、沈曼琳、张昭，台词包含白痴、看你脸上写着白痴、龙胎、双胞胎、按摩店、怀孕、孩子、少爷、总裁。"
+
+        # condition_on_previous_text=False: CRITICAL to eliminate repetition/hallucination freezes
         segments_gen, info = model.transcribe(
             audio_path,
             language=lang_code,
-            beam_size=beam_size,
+            initial_prompt=initial_prompt,
+            beam_size=min(beam_size, 2),
+            best_of=1,
+            condition_on_previous_text=False,
+            compression_ratio_threshold=2.4,
+            no_speech_threshold=0.6,
+            word_timestamps=True,
             vad_filter=True,
             vad_parameters=dict(
-                threshold=0.32,
-                min_speech_duration_ms=100,
-                max_speech_duration_s=12.0,
-                min_silence_duration_ms=350,
-                speech_pad_ms=180
+                threshold=0.28,
+                min_speech_duration_ms=80,
+                max_speech_duration_s=10.0,
+                min_silence_duration_ms=250,
+                speech_pad_ms=80
             )
         )
 
         raw_segments = []
+        tot_dur = getattr(info, "duration", 0) or 1.0
         for segment in segments_gen:
             text = segment.text.strip()
             if not text:
                 continue
+
+            # Word-level timestamp precision:
+            # Anchor start to the first actual spoken word (eliminates chunk pre-silence lag)
+            # Anchor end to the last spoken word (eliminates lingering past mouth-close)
+            words = getattr(segment, "words", None)
+            if words and len(words) > 0:
+                seg_start = round(words[0].start, 2)
+                seg_end = round(words[-1].end, 2)
+            else:
+                seg_start = round(segment.start, 2)
+                seg_end = round(segment.end, 2)
+
             raw_segments.append({
-                "start": round(segment.start, 2),
-                "end": round(segment.end, 2),
+                "start": seg_start,
+                "end": max(round(seg_start + 0.35, 2), seg_end),
                 "text": text
             })
+            if progress_callback and tot_dur > 0:
+                p_cur = 45 + int(min(15, (segment.end / tot_dur) * 15))
+                m_curr = int(segment.end // 60)
+                s_curr = int(segment.end % 60)
+                progress_callback(
+                    p_cur,
+                    f"៣/៧ AI កំពុងស្តាប់នៅនាទី {m_curr:02d}:{s_curr:02d}...",
+                    f"Transcribing audio at {m_curr:02d}:{s_curr:02d}..."
+                )
 
         if not raw_segments:
             return []
 
-        # 1. First Pass: Independent Acoustic Analysis & Strict Vocative Classification
+        # Check if single voice mode is requested
+        vo_clean = str(voice_override or "").lower().strip()
+        is_single_voice = vo_clean in ("piseth", "sreymom", "male", "female")
+        single_voice = "sreymom" if vo_clean in ("sreymom", "female") else "piseth"
+
+        # Load audio samples into memory ONCE for ultra-fast in-memory acoustic analysis
+        audio_samples = None
+        sr = 16000
+        if not is_single_voice and NUMPY_AVAILABLE and audio_path and os.path.exists(audio_path):
+            audio_samples, sr = load_audio_samples_16k(audio_path)
+
+        # 1. First Pass: Fast Acoustic Analysis & Vocative Classification
         speaker_segments = []
         last_confirmed_role = "male"
 
@@ -255,8 +322,35 @@ class SpeechToTextEngine:
             start = seg["start"]
             end = seg["end"]
 
-            # Acoustic analysis on isolated audio segment
-            acoustics = analyze_segment_acoustics(audio_path, start, end)
+            if is_single_voice:
+                speaker_segments.append({
+                    "start": start,
+                    "end": end,
+                    "speaker": "ស្រីមុំ (Sreymom)" if single_voice == "sreymom" else "ពិសិដ្ឋ (Piseth)",
+                    "detected_role": "female" if single_voice == "sreymom" else "male",
+                    "voice": single_voice,
+                    "pitch": 0.0,
+                    "text": text,
+                    "text_original": text
+                })
+                continue
+
+            # Fast in-memory acoustic slice
+            acoustics = None
+            if audio_samples is not None and len(audio_samples) > 0:
+                s_idx = max(0, int(start * sr))
+                e_idx = min(len(audio_samples), int(end * sr))
+                if e_idx > s_idx:
+                    acoustics = analyze_segment_acoustics_fast(audio_samples[s_idx:e_idx], sr)
+
+            if not acoustics:
+                acoustics = {
+                    "role": "unknown",
+                    "voice": "piseth",
+                    "speaker": "តួប្រុស (ពិសិដ្ឋ)",
+                    "f0": 0.0
+                }
+
             detected_role = acoustics["role"]
 
             # Grammatical first-person & spouse vocatives check (strict)
@@ -282,7 +376,6 @@ class SpeechToTextEngine:
                     prev_seg = speaker_segments[-1]
                     turn_gap = start - prev_seg["end"]
                     if turn_gap >= 0.40:
-                        # Natural dialogue back-and-forth alternation
                         role = "female" if prev_seg["detected_role"] == "male" else "male"
                     else:
                         role = prev_seg["detected_role"]
@@ -307,8 +400,8 @@ class SpeechToTextEngine:
             })
 
         # 2. Second Pass: Tight Lip-Sync Consolidation
-        # CRITICAL: Only merge micro-gaps (<= 0.25s) within continuous speech.
-        # NEVER merge across pauses > 0.25s, ensuring speech matches mouth movements exactly!
+        # CRITICAL: Only merge micro-gaps (<= 0.10s) within continuous speech.
+        # NEVER merge across pauses, ensuring speech matches mouth movements exactly!
         consolidated = []
         for seg in speaker_segments:
             if consolidated:
@@ -317,8 +410,8 @@ class SpeechToTextEngine:
                 combined_len = round(seg["end"] - prev["start"], 2)
                 same_speaker = (prev["detected_role"] == seg["detected_role"])
 
-                # Only merge if it's the exact same speaker taking a micro-breath pause (<= 0.25s)
-                if same_speaker and combined_len <= 5.5 and gap <= 0.25:
+                # Only merge if it's the exact same speaker with zero audible pause (<= 0.10s)
+                if same_speaker and combined_len <= 3.5 and gap <= 0.10:
                     prev["end"] = seg["end"]
                     prev["text"] = f"{prev['text']} {seg['text']}".strip()
                     prev["text_original"] = prev["text"]

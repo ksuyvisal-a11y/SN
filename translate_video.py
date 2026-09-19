@@ -28,10 +28,24 @@ async def main():
                         help="Dubbing mode: drama_dubbing or movie_recap (Facebook/TikTok style)")
     parser.add_argument("--voice", type=str, choices=["piseth", "sreymom", "multi", "auto_multi"], default=None,
                         help="Dubbing voice: piseth, sreymom, or multi (Piseth & Sreymom Dual Voice)")
-    parser.add_argument("--no-burn", action="store_true", help="Do not burn subtitles into video")
+    parser.add_argument("--burn", action="store_true", default=False, help="Burn subtitles into video (Default: No subtitles)")
+    parser.add_argument("--no-burn", action="store_true", default=False, help="Explicitly do not burn subtitles into video")
 
     args = parser.parse_args()
     pm = ProjectManager()
+
+    # Determine burn_subtitles default from story_config.json
+    cfg_burn_sub = False
+    try:
+        cfg_p = Path("data/story_config.json")
+        if cfg_p.exists():
+            with open(cfg_p, "r", encoding="utf-8") as f:
+                _cfg = json.load(f)
+                cfg_burn_sub = (_cfg.get("subtitle_mode") == "burn")
+    except Exception:
+        pass
+    
+    should_burn = (args.burn or (cfg_burn_sub and not args.no_burn))
 
     if args.sample:
         print(f"\n🎬 ដំណើរការគំរូរឿងភាគ: {args.sample}")
@@ -43,7 +57,7 @@ async def main():
         print(f"✅ Mixed Audio: {project['mixed_audio_file']}")
 
         print("\n🎬 កំពុង Render វីដេអូ MP4 ជាមួយ Subtitle ខ្មែរ...")
-        project = pm.render_project_video_final(project["id"], burn_subtitles=not args.no_burn)
+        project = pm.render_project_video_final(project["id"], burn_subtitles=should_burn)
         print(f"\n🎉 ជោគជ័យ! វីដេអូសម្រេច: {project['output_video_file']}")
         return
 
@@ -74,7 +88,9 @@ async def main():
                         else:
                             chosen_voice = cfg.get("khmer_voice", "piseth")
             except Exception:
-                chosen_voice = "multi"
+                chosen_voice = "piseth"
+        if not chosen_voice:
+            chosen_voice = "piseth"
 
         voice_display = "ពិសិដ្ឋ & ស្រីមុំ (Dual Voice)" if chosen_voice in ("multi", "auto_multi") else ("ស្រីមុំ (Sreymom Solo)" if chosen_voice == "sreymom" else "ពិសិដ្ឋ (Piseth Solo)")
         print(f"\n🎬 កំពុងដំណើរការបកប្រែវីដេអូ: {video_p.name} • សំឡេង: {voice_display}")
@@ -84,13 +100,23 @@ async def main():
             mode=args.mode,
             source_lang=args.source,
             voice_override=chosen_voice,
-            burn_subtitles=not args.no_burn,
+            burn_subtitles=should_burn,
             progress_callback=cli_progress
         )
+
+        out_file = project.get("output_video_file")
+        if out_file and Path(out_file).exists():
+            export_dir = Path("data/exports")
+            export_dir.mkdir(parents=True, exist_ok=True)
+            export_target = export_dir / f"Dubbed_{video_p.stem}.mp4"
+            import shutil
+            shutil.copy2(out_file, str(export_target))
 
         print("\n========================================================")
         print(f"🎉 បកប្រែ និងបញ្ចូលសំឡេងខ្មែរជោគជ័យ ១០០%!")
         print(f"📁 វីដេអូសម្រេច: {project['output_video_file']}")
+        if out_file and Path(out_file).exists():
+            print(f"📦 បានរក្សាទុកក្នុង Exports: data/exports/Dubbed_{video_p.stem}.mp4")
         print(f"🎙️ សំឡេងខ្មែរ: {project.get('mixed_audio_file')}")
         print("========================================================\n")
         return

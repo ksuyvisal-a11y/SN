@@ -37,7 +37,7 @@ class BatchDubbingManager:
         voice_mode: str = "piseth",  # 'piseth', 'sreymom', 'auto_multi'
         drama_mode: str = "drama_dubbing",  # 'drama_dubbing' or 'movie_recap'
         aspect_ratio: str = "16:9",
-        burn_subtitles: bool = True,
+        burn_subtitles: bool = False,
         separate_bgm: bool = True
     ) -> List[Dict[str, Any]]:
         """Add multiple video/audio files to the automated batch queue."""
@@ -203,7 +203,7 @@ class BatchDubbingManager:
             mixed_audio_path=str(mixed_audio),
             output_video_path=str(final_video_path),
             dialogues=synthesized_items,
-            burn_subtitles=item.get("burn_subtitles", True),
+            burn_subtitles=item.get("burn_subtitles", False),
             aspect_ratio=item.get("aspect_ratio", "16:9"),
             temp_dir=str(item_dir / "temp")
         )

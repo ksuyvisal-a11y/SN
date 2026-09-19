@@ -2,6 +2,7 @@
 Video Processing Engine: Video Rendering, Audio Replacement, Subtitle Burning, Aspect Ratio (9:16/16:9), and Watermarking
 """
 import os
+import re
 import time
 import subprocess
 from pathlib import Path
@@ -9,6 +10,20 @@ from typing import Optional, List, Dict, Any
 from audio_processor import get_ffmpeg_path
 from translator import format_srt_content
 from subtitle_styler import generate_ass_subtitles
+
+
+def get_video_dimensions(video_path: str):
+    """Extract width and height of video quickly via FFmpeg."""
+    try:
+        cmd = [get_ffmpeg_path(), "-i", str(video_path)]
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="ignore")
+        m = re.search(r'Stream.*Video:.*?(\d{3,5})x(\d{3,5})', res.stderr)
+        if m:
+            return int(m.group(1)), int(m.group(2))
+    except Exception:
+        pass
+    return None, None
+
 
 
 def generate_sample_drama_video(output_video_path: str, duration_sec: int = 15) -> str:
@@ -43,13 +58,14 @@ def render_dubbed_video(
     mixed_audio_path: str,
     output_video_path: str,
     dialogues: Optional[List[Dict[str, Any]]] = None,
-    burn_subtitles: bool = True,
+    burn_subtitles: bool = False,
     aspect_ratio: str = "16:9",  # "16:9" or "9:16"
     watermark_text: Optional[str] = None,
     temp_dir: str = "cache/temp"
 ) -> str:
     """
     Render final dubbed video with new audio, subtitle burning, vertical 9:16 aspect ratio framing, and watermark.
+    Ultra-fast execution with boxblur (replaces slow gblur) and robust filter chaining.
     """
     out_p = Path(output_video_path)
     out_p.parent.mkdir(parents=True, exist_ok=True)
@@ -57,34 +73,19 @@ def render_dubbed_video(
     t_dir.mkdir(parents=True, exist_ok=True)
 
     # 1. Prepare ASS/SRT Subtitles
-    sub_filter_part = None
+    ass_path = None
     if burn_subtitles and dialogues:
         ass_content = generate_ass_subtitles(dialogues)
-        ass_path = t_dir / "subtitles_khmer.ass"
-        with open(ass_path, "w", encoding="utf-8") as f:
+        ass_file = t_dir / "subtitles_khmer.ass"
+        with open(ass_file, "w", encoding="utf-8") as f:
             f.write(ass_content)
-        
-        ass_escaped = str(ass_path).replace("\\", "/").replace(":", "\\:")
-        sub_filter_part = f"ass='{ass_escaped}'"
+        ass_path = str(ass_file).replace("\\", "/").replace(":", "\\:")
 
-    # 2. Build Video Filter Graph
-    video_filters = []
+    # 2. Detect video orientation
+    w, h = get_video_dimensions(original_video_path)
+    is_already_vertical = (w is not None and h is not None and w < h)
 
-    # Aspect Ratio 9:16 Vertical Framing (Reels / TikTok style with blurred background)
-    if aspect_ratio == "9:16":
-        # Split into background (blurred and scaled to 1080x1920) and foreground (scaled with original aspect)
-        video_filters.append("split[bg][fg];[bg]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=25[bg_blur];[fg]scale=1080:-1[fg_scaled];[bg_blur][fg_scaled]overlay=(W-w)/2:(H-h)/2")
-    
-    # Subtitles
-    if sub_filter_part:
-        video_filters.append(sub_filter_part)
-
-    # Watermark text overlay
-    if watermark_text and watermark_text.strip():
-        wm_clean = watermark_text.replace("'", "").replace(":", "")
-        video_filters.append(f"drawtext=text='{wm_clean}':fontsize=24:fontcolor=white@0.8:x=30:y=30:box=1:boxcolor=black@0.4:boxborderw=6")
-
-    # Combine filters or use stream copy
+    # 3. Construct FFmpeg command
     cmd = [
         get_ffmpeg_path(),
         "-y",
@@ -92,28 +93,69 @@ def render_dubbed_video(
         "-i", str(mixed_audio_path)
     ]
 
-    if video_filters:
-        vf_str = ",".join(video_filters)
+    simple_filters = []
+    if ass_path:
+        simple_filters.append(f"ass='{ass_path}'")
+    if watermark_text and watermark_text.strip():
+        wm_clean = watermark_text.replace("'", "").replace(":", "")
+        simple_filters.append(f"drawtext=text='{wm_clean}':fontsize=24:fontcolor=white@0.8:x=30:y=30:box=1:boxcolor=black@0.4:boxborderw=6")
+
+    # If 9:16 requested but input video is landscape (w >= h), frame it with blurred background
+    if aspect_ratio == "9:16" and not is_already_vertical:
+        filter_complex = (
+            "[0:v]split[bg][fg];"
+            "[bg]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=12:1[bg_blur];"
+            "[fg]scale=1080:-1[fg_scaled];"
+            "[bg_blur][fg_scaled]overlay=(W-w)/2:(H-h)/2"
+        )
+        current_pad = "[v_padded]"
+        filter_complex += current_pad
+
+        if simple_filters:
+            filter_complex += f";{current_pad}{','.join(simple_filters)}[v_out]"
+            v_map = "[v_out]"
+        else:
+            v_map = "[v_padded]"
+
         cmd.extend([
-            "-vf", vf_str,
+            "-filter_complex", filter_complex,
+            "-map", v_map,
+            "-map", "1:a:0",
             "-c:v", "libx264",
-            "-preset", "fast",
+            "-preset", "veryfast",
             "-crf", "22",
-            "-pix_fmt", "yuv420p"
+            "-pix_fmt", "yuv420p",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-shortest",
+            str(out_p)
         ])
     else:
-        cmd.extend([
-            "-c:v", "copy"
-        ])
-
-    cmd.extend([
-        "-c:a", "aac",
-        "-b:a", "192k",
-        "-map", "0:v:0",
-        "-map", "1:a:0",
-        "-shortest",
-        str(out_p)
-    ])
+        # 16:9, original aspect ratio, or already vertical video
+        if simple_filters:
+            cmd.extend([
+                "-vf", ",".join(simple_filters),
+                "-map", "0:v:0",
+                "-map", "1:a:0",
+                "-c:v", "libx264",
+                "-preset", "veryfast",
+                "-crf", "22",
+                "-pix_fmt", "yuv420p",
+                "-c:a", "aac",
+                "-b:a", "192k",
+                "-shortest",
+                str(out_p)
+            ])
+        else:
+            cmd.extend([
+                "-map", "0:v:0",
+                "-map", "1:a:0",
+                "-c:v", "copy",
+                "-c:a", "aac",
+                "-b:a", "192k",
+                "-shortest",
+                str(out_p)
+            ])
 
     proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     if proc.returncode != 0:

@@ -2713,3 +2713,161 @@ button, input, select, textarea {
     cursor: pointer;
     border-radius: 4px;
 }
+
+/* ==========================================================================
+   Story Settings: Interactive Gold Audio Sliders & Preset Chips
+   ========================================================================== */
+.ai-slider-container {
+    background: #090704;
+    border: 1px solid rgba(250, 204, 21, 0.22);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-top: 4px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ai-slider-container:hover,
+.ai-slider-container:focus-within {
+    border-color: rgba(250, 204, 21, 0.45);
+    box-shadow: 0 0 14px rgba(250, 204, 21, 0.12);
+}
+
+.ai-slider-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.ai-slider-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    color: #e2d9cc;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ai-slider-badge {
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: #facc15;
+    background: rgba(250, 204, 21, 0.12);
+    border: 1px solid rgba(250, 204, 21, 0.35);
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-family: var(--font-mono, monospace);
+    box-shadow: 0 0 8px rgba(250, 204, 21, 0.15);
+    letter-spacing: 0.3px;
+    transition: all 0.15s ease;
+}
+
+.ai-gold-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 8px;
+    background: #1a140a;
+    border: 1px solid rgba(250, 204, 21, 0.3);
+    border-radius: 9999px;
+    outline: none;
+    cursor: pointer;
+    margin: 8px 0 6px 0;
+    transition: all 0.2s ease;
+}
+
+.ai-gold-slider:hover {
+    border-color: rgba(250, 204, 21, 0.6);
+}
+
+.ai-gold-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fffbeb 0%, #facc15 50%, #ca8a04 100%);
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 10px rgba(250, 204, 21, 0.8), inset 0 1px 1px rgba(255, 255, 255, 0.8);
+    cursor: grab;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.ai-gold-slider::-webkit-slider-thumb:hover,
+.ai-gold-slider::-webkit-slider-thumb:active {
+    transform: scale(1.22);
+    box-shadow: 0 0 16px rgba(250, 204, 21, 1), 0 0 6px #fff;
+    cursor: grabbing;
+}
+
+.ai-gold-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fffbeb 0%, #facc15 50%, #ca8a04 100%);
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 10px rgba(250, 204, 21, 0.8);
+    cursor: grab;
+    transition: transform 0.12s ease;
+}
+
+.ai-gold-slider::-moz-range-thumb:hover,
+.ai-gold-slider::-moz-range-thumb:active {
+    transform: scale(1.22);
+    cursor: grabbing;
+}
+
+.ai-slider-scale-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.67rem;
+    color: #887d70;
+    margin-bottom: 8px;
+    padding: 0 2px;
+}
+
+.ai-slider-scale-labels span.rec {
+    color: #facc15;
+    font-weight: 600;
+}
+
+.ai-slider-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    margin-top: 4px;
+}
+
+.ai-preset-chip {
+    background: #141009;
+    border: 1px solid rgba(250, 204, 21, 0.2);
+    border-radius: 6px;
+    color: #cfc5b4;
+    font-size: 0.72rem;
+    padding: 4px 9px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    user-select: none;
+}
+
+.ai-preset-chip:hover {
+    background: rgba(250, 204, 21, 0.15);
+    border-color: rgba(250, 204, 21, 0.55);
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+.ai-preset-chip.active {
+    background: linear-gradient(135deg, rgba(250, 204, 21, 0.28) 0%, rgba(202, 138, 4, 0.18) 100%);
+    border-color: #facc15;
+    color: #facc15;
+    font-weight: 700;
+    box-shadow: 0 0 10px rgba(250, 204, 21, 0.35);
+}
+

@@ -29,14 +29,15 @@ def separate_vocals_and_bgm(
     bgm_output = target_dir / f"{in_p.stem}_bgm.wav"
     vocals_output = target_dir / f"{in_p.stem}_vocals.wav"
 
-    # FFmpeg Stereo Center-Channel Vocal Suppression filter
-    # In movies, dialogues are panned center (L+R in-phase), while stereo BGM & SFX are wider (L-R out-of-phase).
-    # Using stereotools + band-reject + low/high pass preserving bass/treble BGM:
+    # FFmpeg Stereo Center-Channel Vocal Cancellation (L - R)
+    # Human voice core frequencies: 200Hz - 3800Hz.
+    # In movies, dialogue is panned center (L == R). Subtracting channels mathematically eliminates 100% of center dialogue.
     bgm_filter = (
-        "stereotools=mlev=0.05:slev=1.3:mpan=0.0:sbal=0.0,"
-        "anlmdn=s=7:p=0.002:r=0.002:m=11,"
-        "equalizer=f=1000:t=q:w=2.0:g=-14,"
-        "equalizer=f=2500:t=q:w=2.0:g=-12"
+        "pan=stereo|c0=0.5*c0-0.5*c1|c1=0.5*c1-0.5*c0,"
+        "equalizer=f=280:t=q:w=1.5:g=-14,"
+        "equalizer=f=1000:t=q:w=2.0:g=-20,"
+        "equalizer=f=2200:t=q:w=2.0:g=-20,"
+        "equalizer=f=3200:t=q:w=1.8:g=-14"
     )
 
     cmd_bgm = [
@@ -51,15 +52,29 @@ def separate_vocals_and_bgm(
     ]
 
     proc_bgm = subprocess.run(cmd_bgm, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    if proc_bgm.returncode != 0:
-        # Fallback to direct copy if filter fails
-        shutil.copy(str(in_p), str(bgm_output))
+    if proc_bgm.returncode != 0 or not bgm_output.exists() or bgm_output.stat().st_size < 1000:
+        # Robust Mono/Stereo Fallback: Multiband speech notch filtering
+        fallback_filter = (
+            "equalizer=f=300:t=q:w=1.5:g=-18,"
+            "equalizer=f=1000:t=q:w=2.0:g=-24,"
+            "equalizer=f=2200:t=q:w=2.0:g=-24,"
+            "equalizer=f=3200:t=q:w=1.8:g=-20"
+        )
+        cmd_bgm_fallback = [
+            get_ffmpeg_path(),
+            "-y",
+            "-i", str(in_p),
+            "-af", fallback_filter,
+            "-acodec", "pcm_s16le",
+            "-ar", "44100",
+            str(bgm_output)
+        ]
+        subprocess.run(cmd_bgm_fallback, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     # Vocal isolation filter: Extract center channel dialogue and suppress stereo BGM
-    # In movies, dialogues are panned center (L+R in-phase), while stereo BGM & SFX are on the sides.
-    # stereotools with slev=0.0 eliminates stereo sides while preserving dialogue at 16kHz mono.
+    # In movies, dialogues are panned center (L+R in-phase).
     vocal_filter = (
-        "stereotools=mlev=1.6:slev=0.0:mpan=0.0,"
+        "pan=1c|c0=0.5*c0+0.5*c1,"
         "highpass=f=80,lowpass=f=4500,"
         "equalizer=f=1200:t=q:w=1.5:g=3,"
         "equalizer=f=2500:t=q:w=1.5:g=2"
@@ -83,7 +98,6 @@ def separate_vocals_and_bgm(
             "-af", "highpass=f=80,lowpass=f=4500",
             "-acodec", "pcm_s16le",
             "-ar", "16000",
-            "-ac", "1",
             str(vocals_output)
         ]
         subprocess.run(cmd_fallback, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

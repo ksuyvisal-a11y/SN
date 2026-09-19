@@ -25,6 +25,8 @@ async function initApp() {
     initStudioWorkspace();
     initSaveLocationPaths();
     setupDragAndDropSupport();
+    loadAiConfigData();
+    loadStoryConfigData();
 }
 
 function setupDragAndDropSupport() {
@@ -281,7 +283,8 @@ function toggleVolumeMute() {
 }
 
 function toggleAudioTrack() {
-    showToast("🎙️ Audio Track: Dual Voice (Piseth & Sreymom)");
+    const vLabel = typeof getStoryVoiceDisplayLabel === 'function' ? getStoryVoiceDisplayLabel() : "Piseth & Sreymom";
+    showToast(`🎙️ Audio Track: ${vLabel}`);
 }
 
 function toggleGuidesMenu() {
@@ -1468,6 +1471,17 @@ function backToSettingsHub() {
 }
 
 function openSettingsSubpage(key) {
+    if (key === 'ai') {
+        closeModal('modal-settings');
+        openAiProvidingModal();
+        return;
+    }
+    if (key === 'story') {
+        closeModal('modal-settings');
+        openStorySettingsModal();
+        return;
+    }
+
     const hub = document.getElementById('settings-main-hub-view');
     const subAi = document.getElementById('settings-subpage-ai');
     const subLic = document.getElementById('settings-subpage-license');
@@ -1478,10 +1492,413 @@ function openSettingsSubpage(key) {
     if (subLic) subLic.style.display = 'none';
     if (subStory) subStory.style.display = 'none';
 
-    if (key === 'ai' && subAi) subAi.style.display = 'flex';
     if (key === 'license' && subLic) subLic.style.display = 'flex';
-    if (key === 'story' && subStory) subStory.style.display = 'flex';
 }
+
+// ==========================================================================
+// STORY SETTINGS MANAGER (Exact Match to User Attached Image)
+// ==========================================================================
+let currentStoryConfig = {
+    khmer_voice: "piseth",
+    auto_multi_voice: false,
+    source_lang: "auto",
+    whisper_model: "medium",
+    aspect_ratio: "9:16",
+    subtitle_mode: "none",
+    dubbing_mode: "smart_bgm",
+    ducking_volume: "0.02",
+    speech_boost_db: 2.5
+};
+
+function getStoryVoiceDisplayLabel() {
+    if (currentStoryConfig.auto_multi_voice || currentStoryConfig.khmer_voice === 'multi') {
+        return "Piseth & Sreymom (Dual Voice)";
+    }
+    if (currentStoryConfig.khmer_voice === 'sreymom') {
+        return "Sreymom (Female Solo - អ្នកបញ្ចូលសំឡេងស្រី)";
+    }
+    return "Piseth (Male Solo - អ្នកបញ្ចូលសំឡេងទោល)";
+}
+
+function refreshStagedCardVoiceMeta() {
+    const stagedMeta = document.getElementById('staged-file-meta');
+    if (!stagedMeta) return;
+    const vLabel = getStoryVoiceDisplayLabel();
+    if (stagedVideoFile) {
+        const sizeMb = (stagedVideoFile.size / (1024 * 1024)).toFixed(1);
+        let durStr = "";
+        if (totalDurationSeconds > 0) {
+            const durM = Math.floor(totalDurationSeconds / 60);
+            const durS = Math.floor(totalDurationSeconds % 60);
+            durStr = ` • ${String(durM).padStart(2, '0')}:${String(durS).padStart(2, '0')}`;
+        }
+        stagedMeta.innerHTML = `<i class="fa-solid fa-microphone-lines" style="color:#facc15;"></i> សំឡេង: <strong style="color:#facc15;">${vLabel}</strong> • ${sizeMb} MB${durStr} • ត្រៀមបកប្រែ`;
+    } else if (stagedBatchFiles && stagedBatchFiles.length > 0) {
+        stagedMeta.innerHTML = `<i class="fa-solid fa-microphone-lines" style="color:#facc15;"></i> សំឡេង: <strong style="color:#facc15;">${vLabel}</strong> • Batch: ${stagedBatchFiles.length} វីដេអូ`;
+    }
+}
+
+async function loadStoryConfigData() {
+    try {
+        const res = await fetch('/api/story-config');
+        if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.config) {
+                currentStoryConfig = Object.assign(currentStoryConfig, data.config);
+            }
+        }
+    } catch (e) {
+        console.warn("Story config load note:", e);
+    }
+}
+
+async function loadDramaDictionaryUI() {
+    try {
+        const res = await fetch('/api/drama-dictionary');
+        if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.dictionary) {
+                const dictElem = document.getElementById('story-dictionary-textarea');
+                if (dictElem) {
+                    const lines = Object.entries(data.dictionary).map(([k, v]) => `${k} = ${v}`);
+                    dictElem.value = lines.join('\n');
+                }
+            }
+        }
+    } catch (e) {
+        console.warn("Dictionary load note:", e);
+    }
+}
+
+async function openStorySettingsModal() {
+    await loadStoryConfigData();
+    await loadDramaDictionaryUI();
+
+    // Populate Voice & AI Tab fields
+    const selVoice = document.getElementById('story-voice-select');
+    let activeVoice = currentStoryConfig.khmer_voice || 'piseth';
+    if (currentStoryConfig.auto_multi_voice || activeVoice === 'multi') {
+        activeVoice = 'multi';
+    } else if (activeVoice === 'sreymom') {
+        activeVoice = 'sreymom';
+    } else {
+        activeVoice = 'piseth';
+    }
+    if (selVoice) selVoice.value = activeVoice;
+
+    const selLang = document.getElementById('story-source-lang');
+    if (selLang) selLang.value = currentStoryConfig.source_lang || 'auto';
+
+    const selWhisper = document.getElementById('story-whisper-model');
+    if (selWhisper) selWhisper.value = currentStoryConfig.whisper_model || 'medium';
+
+    const lblProvider = document.getElementById('story-ai-provider-display');
+    if (lblProvider) lblProvider.textContent = currentStoryConfig.ai_provider_display || 'Gemini API (Key Pool)';
+
+    // Video & Look
+    const selAspect = document.getElementById('story-aspect-ratio');
+    if (selAspect) selAspect.value = currentStoryConfig.aspect_ratio || '9:16';
+
+    const selSub = document.getElementById('story-subtitle-mode');
+    if (selSub) selSub.value = currentStoryConfig.subtitle_mode || 'none';
+
+    // Audio & Music
+    const selDub = document.getElementById('story-dubbing-mode');
+    if (selDub) selDub.value = currentStoryConfig.dubbing_mode || 'smart_bgm';
+
+    let duckPct = 15;
+    const rawDuck = parseFloat(currentStoryConfig.ducking_volume);
+    if (!isNaN(rawDuck)) {
+        duckPct = Math.round(rawDuck * 100);
+        if (duckPct < 0) duckPct = 0;
+        if (duckPct > 40) duckPct = 40;
+    }
+    syncStoryDuckingUI(duckPct);
+
+    let speechVal = (currentStoryConfig.speech_boost_db !== undefined) ? parseFloat(currentStoryConfig.speech_boost_db) : 2.5;
+    if (isNaN(speechVal)) speechVal = 2.5;
+    syncStorySpeechUI(speechVal);
+
+    updateStoryVoiceHint();
+    switchStoryTab('voice');
+    openModal('modal-story-settings');
+}
+
+function formatDuckingDbText(pct) {
+    if (pct <= 0) return "🔇 0% (-45dB) • បិទស្ងាត់ពេលនិយាយ";
+    const db = 20 * Math.log10(Math.max(0.005, pct / 100));
+    let desc = "ស្តង់ដារពិរោះ";
+    if (pct <= 4) desc = "ស្រាលបំផុត";
+    else if (pct <= 8) desc = "ស្រាលទន់";
+    else if (pct <= 18) desc = "⭐ ស្តង់ដារពិរោះ";
+    else if (pct <= 28) desc = "រាងឮច្បាស់";
+    else desc = "🔊 ឮខ្លាំង";
+    return `${pct}% (${db.toFixed(1)} dB) • ${desc}`;
+}
+
+function syncStoryDuckingUI(pct) {
+    pct = parseInt(pct, 10);
+    if (isNaN(pct)) pct = 15;
+    pct = Math.max(0, Math.min(40, pct));
+
+    const slider = document.getElementById('story-ducking-slider');
+    const hidden = document.getElementById('story-ducking-vol');
+    const badge = document.getElementById('story-ducking-badge');
+    const container = document.getElementById('story-ducking-presets');
+
+    if (slider) slider.value = pct;
+    if (hidden) hidden.value = (pct / 100).toFixed(2);
+    if (badge) badge.textContent = formatDuckingDbText(pct);
+
+    if (container) {
+        const chips = container.querySelectorAll('.ai-preset-chip');
+        chips.forEach(chip => {
+            const v = parseInt(chip.getAttribute('data-val'), 10);
+            chip.classList.toggle('active', v === pct);
+        });
+    }
+}
+
+function onStoryDuckingSliderChange(val) {
+    syncStoryDuckingUI(val);
+}
+
+function setDuckingPreset(pct) {
+    syncStoryDuckingUI(pct);
+}
+
+function formatSpeechDbText(val) {
+    let desc = "ស្តង់ដារពិរោះ";
+    if (val === 0) desc = "កម្រិតធម្មតា";
+    else if (val <= 1.5) desc = "ស្រទន់";
+    else if (val <= 3.0) desc = "⭐ ណែនាំច្បាស់";
+    else if (val <= 5.0) desc = "ច្បាស់មាំ";
+    else desc = "🔥 ខ្លាំងបំផុត";
+    const prefix = val > 0 ? `+${val.toFixed(1)}` : `${val.toFixed(1)}`;
+    return `${prefix} dB • ${desc}`;
+}
+
+function syncStorySpeechUI(val) {
+    val = parseFloat(val);
+    if (isNaN(val)) val = 2.5;
+    val = Math.max(0, Math.min(8, val));
+
+    const slider = document.getElementById('story-speech-slider');
+    const hidden = document.getElementById('story-speech-boost');
+    const badge = document.getElementById('story-speech-badge');
+    const container = document.getElementById('story-speech-presets');
+
+    if (slider) slider.value = val;
+    if (hidden) hidden.value = val.toFixed(1);
+    if (badge) badge.textContent = formatSpeechDbText(val);
+
+    if (container) {
+        const chips = container.querySelectorAll('.ai-preset-chip');
+        chips.forEach(chip => {
+            const v = parseFloat(chip.getAttribute('data-val'));
+            chip.classList.toggle('active', Math.abs(v - val) < 0.1);
+        });
+    }
+}
+
+function onStorySpeechSliderChange(val) {
+    syncStorySpeechUI(val);
+}
+
+function setSpeechBoostPreset(val) {
+    syncStorySpeechUI(val);
+}
+
+function switchStoryTab(tabKey) {
+    const tabs = ['voice', 'video', 'audio', 'vocal', 'export', 'dictionary'];
+    tabs.forEach(t => {
+        const btn = document.getElementById(`story-tab-btn-${t}`);
+        const view = document.getElementById(`story-view-${t}`);
+        if (btn) btn.classList.toggle('active', t === tabKey);
+        if (view) view.style.display = (t === tabKey) ? 'flex' : 'none';
+    });
+}
+
+function applyDramaDictionaryPreset(presetKey) {
+    const dictElem = document.getElementById('story-dictionary-textarea');
+    if (!dictElem) return;
+
+    const presets = {
+        modern_ceo: [
+            "总裁 = លោកប្រធាន",
+            "董事长 = ប្រធានក្រុមប្រឹក្សាភិបាល",
+            "夫人 = លោកជំទាវ",
+            "少爷 = អ្នកប្រុស",
+            "小姐 = អ្នកនាង",
+            "特助 = ជំនួយការពិសេស",
+            "经理 = អ្នកគ្រប់គ្រង",
+            "秘书 = លេខា",
+            "保安 = សន្តិសុខ"
+        ],
+        family_inlaw: [
+            "婆婆 = ម្តាយក្មេក",
+            "公公 = ឪពុកក្មេក",
+            "儿媳 = កូនប្រសារស្រី",
+            "女婿 = កូនប្រសារប្រុស",
+            "大嫂 = បងថ្លៃស្រី",
+            "小叔子 = ប្អូនថ្លៃប្រុស",
+            "丈母娘 = ម្តាយក្មេក",
+            "亲家 = ញាតិសន្តាន"
+        ],
+        palace_royal: [
+            "皇上 = ព្រះរាជា",
+            "陛下 = ព្រះអង្គ",
+            "皇后 = ព្រះអគ្គមហេសី",
+            "贵妃 = ព្រះស្នំឯក",
+            "娘娘 = ព្រះនាង",
+            "王爷 = ព្រះអង្គម្ចាស់",
+            "太后 = ព្រះវររាជមាតា",
+            "微臣 = ទូលបង្គំ",
+            "奴才 = ខ្ញុំម្ចាស់",
+            "龙胎 = កូននាគរាជ"
+        ],
+        wuxia_martial: [
+            "掌门 = មេបក្ស",
+            "师傅 = លោកគ្រូ",
+            "师兄 = រៀមច្បងប្រុស",
+            "师妹 = អនុជស្រី",
+            "大侠 = វីរបុរស",
+            "教主 = មេនិកាយ",
+            "前辈 = រៀមច្បងជាន់ខ្ពស់",
+            "在下 = រូបខ្ញុំ"
+        ]
+    };
+
+    const linesToAdd = presets[presetKey] || [];
+    if (linesToAdd.length === 0) return;
+
+    let current = dictElem.value.trim();
+    const existingLines = current ? current.split('\n') : [];
+    const merged = new Set(existingLines);
+
+    linesToAdd.forEach(l => merged.add(l));
+    dictElem.value = Array.from(merged).join('\n');
+    showToast(`📚 បានបញ្ចូលវចនានុក្រមគំរូ: ${presetKey}`);
+}
+
+function updateStoryVoiceHint() {
+    const hint = document.getElementById('story-voice-hint');
+    const selVoice = document.getElementById('story-voice-select');
+    if (!hint || !selVoice) return;
+
+    const val = selVoice.value;
+    if (val === 'multi') {
+        hint.innerHTML = `<span style="color:#facc15; font-weight:bold;">🎭 Piseth &amp; Sreymom (Dual Voice):</span> AI នឹងបែងចែកតួអង្គស្វ័យប្រវត្ត — តួប្រុសប្រើ Piseth, តួស្រីប្រើ Sreymom ឆ្លាស់គ្នាតាមសាច់រឿង។`;
+    } else if (val === 'sreymom') {
+        hint.innerHTML = `<span style="color:#38bdf8; font-weight:bold;">👩 Sreymom (សំឡេងស្រីទោល):</span> ប្រើតែសំឡេងស្រីមុំទោលមួយគត់សម្រាប់គ្រប់ឃ្លា (គ្មានលាយសំឡេងប្រុសទេ)។`;
+    } else {
+        hint.innerHTML = `<span style="color:#22c55e; font-weight:bold;">👨 Piseth (សំឡេងប្រុសទោល):</span> ប្រើតែសំឡេងពិសិដ្ឋទោលមួយគត់សម្រាប់គ្រប់ឃ្លា (គ្មានលាយសំឡេងស្រីទេ)។`;
+    }
+}
+
+function onStoryVoiceChange() {
+    updateStoryVoiceHint();
+    const selVoice = document.getElementById('story-voice-select');
+    if (!selVoice) return;
+    if (selVoice.value === 'multi') {
+        showToast("🎭 បានជ្រើសរើស: Piseth & Sreymom (សំឡេងប្រុស & ស្រី)");
+    } else if (selVoice.value === 'sreymom') {
+        showToast("👩 បានជ្រើសរើស: Sreymom (សំឡេងស្រីទោល)");
+    } else {
+        showToast("👨 បានជ្រើសរើស: Piseth (សំឡេងប្រុសទោល)");
+    }
+}
+
+function onToggleMultiVoice(isChecked) {
+    const selVoice = document.getElementById('story-voice-select');
+    if (selVoice) selVoice.value = isChecked ? 'multi' : 'piseth';
+    updateStoryVoiceHint();
+    if (isChecked) {
+        showToast("🎭 Piseth & Sreymom (Dual Voice) Active");
+    } else {
+        showToast("🎙️ Single Voice Mode Active: Piseth");
+    }
+}
+
+async function saveStorySettings() {
+    const selVoice = document.getElementById('story-voice-select');
+    const voice = selVoice ? selVoice.value : 'piseth';
+    const isMulti = (voice === 'multi');
+    const lang = document.getElementById('story-source-lang') ? document.getElementById('story-source-lang').value : 'auto';
+    const whisper = document.getElementById('story-whisper-model') ? document.getElementById('story-whisper-model').value : 'medium';
+    const aspect = document.getElementById('story-aspect-ratio') ? document.getElementById('story-aspect-ratio').value : '9:16';
+    const subtitle = document.getElementById('story-subtitle-mode') ? document.getElementById('story-subtitle-mode').value : 'none';
+    const dubMode = document.getElementById('story-dubbing-mode') ? document.getElementById('story-dubbing-mode').value : 'smart_bgm';
+    const duckElem = document.getElementById('story-ducking-vol');
+    let duckVol = duckElem && duckElem.value ? duckElem.value : '0.15';
+    if (!duckVol || isNaN(parseFloat(duckVol))) duckVol = '0.15';
+
+    const boostElem = document.getElementById('story-speech-boost');
+    let boost = boostElem && boostElem.value ? parseFloat(boostElem.value) : 2.5;
+    if (isNaN(boost)) boost = 2.5;
+
+    const payload = {
+        khmer_voice: voice,
+        auto_multi_voice: isMulti,
+        source_lang: lang,
+        whisper_model: whisper,
+        aspect_ratio: aspect,
+        subtitle_mode: subtitle,
+        dubbing_mode: dubMode,
+        ducking_volume: duckVol,
+        speech_boost_db: boost
+    };
+
+    // Save Drama Dictionary if edited
+    const dictElem = document.getElementById('story-dictionary-textarea');
+    if (dictElem) {
+        const dictMap = {};
+        dictElem.value.split('\n').forEach(line => {
+            const trimmed = line.trim();
+            if (trimmed && (trimmed.includes('=') || trimmed.includes(':'))) {
+                const parts = trimmed.includes('=') ? trimmed.split('=') : trimmed.split(':');
+                if (parts.length >= 2) {
+                    const k = parts[0].trim();
+                    const v = parts.slice(1).join('=').trim();
+                    if (k && v) dictMap[k] = v;
+                }
+            }
+        });
+        try {
+            await fetch('/api/drama-dictionary', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dictionary: dictMap })
+            });
+        } catch (e) {
+            console.warn("Dictionary save note:", e);
+        }
+    }
+
+    try {
+        const resp = await fetch('/api/set-story-config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const resData = await resp.json();
+        if (resData.success) {
+            currentStoryConfig = Object.assign(currentStoryConfig, payload);
+            refreshStagedCardVoiceMeta();
+
+            const voiceNameText = voice === 'multi' 
+                ? "Piseth & Sreymom (ប្រុស & ស្រី)" 
+                : (voice === 'sreymom' ? "Sreymom (ស្រីទោល)" : "Piseth (ប្រុសទោល)");
+            showToast(`✨ បានរក្សាទុកការកំណត់សំឡេង និងវចនានុក្រម: ${voiceNameText} ដោយជោគជ័យ!`);
+            closeModal('modal-story-settings');
+        } else {
+            showToast(`⚠️ ${resData.message || 'Error saving story settings'}`);
+        }
+    } catch (e) {
+        showToast(`❌ Error saving: ${e.message}`);
+    }
+}
+
 
 async function saveApiKey() {
     const key = document.getElementById('input-api-key').value.trim();
@@ -1496,6 +1913,267 @@ async function saveApiKey() {
     }
     showToast("✨ Saved Studio Engine Token!");
     backToSettingsHub();
+}
+
+// ==========================================================================
+// AI PROVIDING & GEMINI KEY POOL MANAGER (Exact Match to User Image 2)
+// ==========================================================================
+let currentAiConfig = {
+    engine: "gemini_pool",
+    keys: [],
+    keys_raw: "",
+    model: "gemini-2.5-flash",
+    temperature: 0.3,
+    prompt_style: "drama_dubbing"
+};
+
+async function loadAiConfigData() {
+    try {
+        const res = await fetch('/api/ai-config');
+        if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.config) {
+                currentAiConfig = Object.assign(currentAiConfig, data.config);
+            }
+        }
+    } catch (e) {
+        console.warn("AI config load note:", e);
+    }
+}
+
+async function openAiProvidingModal() {
+    await loadAiConfigData();
+
+    // Populate UI fields
+    const selEngine = document.getElementById('ai-engine-select');
+    if (selEngine) selEngine.value = currentAiConfig.engine || 'auto';
+
+    const txtKeys = document.getElementById('ai-keys-pool-textarea');
+    if (txtKeys) {
+        txtKeys.value = currentAiConfig.keys_raw || (currentAiConfig.keys ? currentAiConfig.keys.join('\n') : '');
+    }
+
+    const selModel = document.getElementById('ai-model-select');
+    if (selModel && currentAiConfig.model) selModel.value = currentAiConfig.model;
+
+    const sliderTemp = document.getElementById('ai-temperature-slider');
+    const badgeTemp = document.getElementById('ai-temp-val');
+    if (sliderTemp && currentAiConfig.temperature !== undefined) {
+        sliderTemp.value = currentAiConfig.temperature;
+        if (badgeTemp) badgeTemp.textContent = currentAiConfig.temperature;
+    }
+
+    const txtPrompt = document.getElementById('ai-system-prompt-input');
+    if (txtPrompt && currentAiConfig.prompt_style && currentAiConfig.prompt_style.length > 20) {
+        txtPrompt.value = currentAiConfig.prompt_style;
+    }
+
+    handleAiKeysInput();
+    switchAiProvidingTab('provider');
+    openModal('modal-ai-providing');
+}
+
+function switchAiProvidingTab(tabKey) {
+    const tabs = ['provider', 'models', 'backup'];
+    tabs.forEach(t => {
+        const btn = document.getElementById(`ai-tab-btn-${t}`);
+        const view = document.getElementById(`ai-view-${t}`);
+        if (btn) btn.classList.toggle('active', t === tabKey);
+        if (view) view.style.display = (t === tabKey) ? 'flex' : 'none';
+    });
+}
+
+function onAiEngineChange() {
+    const sel = document.getElementById('ai-engine-select');
+    if (!sel) return;
+    const val = sel.value;
+    if (val === 'free_ai') {
+        showToast("🤖 Selected: Free AI Translation (No API Key Required)");
+    } else if (val === 'google_free') {
+        showToast("🌐 Selected: Google Translate Built-in Free");
+    } else {
+        showToast("⚡ Selected: Gemini Neural Key Pool");
+    }
+}
+
+function handleAiKeysInput() {
+    const textarea = document.getElementById('ai-keys-pool-textarea');
+    const gutter = document.getElementById('ai-editor-gutter');
+    const badge = document.getElementById('ai-key-count-badge');
+    if (!textarea) return;
+
+    const val = textarea.value;
+    const lines = val.split('\n');
+    const lineCount = Math.max(1, lines.length);
+
+    if (gutter) {
+        let gutterHtml = '';
+        for (let i = 1; i <= lineCount; i++) {
+            gutterHtml += `<div>${i}</div>`;
+        }
+        gutter.innerHTML = gutterHtml;
+    }
+
+    const nonBlankKeys = lines.map(l => l.trim()).filter(l => l.length > 0);
+    if (badge) {
+        if (nonBlankKeys.length === 0) {
+            badge.textContent = "0 loaded";
+            badge.style.color = "#94a3b8";
+        } else {
+            badge.textContent = `${nonBlankKeys.length} loaded · active`;
+            badge.style.color = "var(--gold-glow)";
+        }
+    }
+}
+
+function syncAiEditorScroll() {
+    const textarea = document.getElementById('ai-keys-pool-textarea');
+    const gutter = document.getElementById('ai-editor-gutter');
+    if (textarea && gutter) {
+        gutter.scrollTop = textarea.scrollTop;
+    }
+}
+
+function triggerImportKeysFile() {
+    const fileInput = document.getElementById('ai-keys-file-input');
+    if (fileInput) {
+        fileInput.value = "";
+        fileInput.click();
+    }
+}
+
+function handleAiKeysFileSelect(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const content = e.target.result || "";
+        const textarea = document.getElementById('ai-keys-pool-textarea');
+        if (textarea) {
+            const existing = textarea.value.trim();
+            const newKeys = content.trim();
+            if (existing) {
+                textarea.value = existing + "\n" + newKeys;
+            } else {
+                textarea.value = newKeys;
+            }
+            handleAiKeysInput();
+            showToast(`📥 Imported keys from ${file.name}`);
+        }
+    };
+    reader.readAsText(file);
+}
+
+async function checkKeysLive() {
+    const textarea = document.getElementById('ai-keys-pool-textarea');
+    if (!textarea) return;
+
+    const raw = textarea.value.trim();
+    const lines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+    if (lines.length === 0) {
+        showToast("⚠️ សូមបញ្ចូល Gemini API Key យ៉ាងតិច ១ មុនពេល Check!");
+        return;
+    }
+
+    const checkBtn = document.getElementById('btn-check-keys-live');
+    const origHtml = checkBtn ? checkBtn.innerHTML : "";
+    if (checkBtn) {
+        checkBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Checking ${lines.length} keys...`;
+        checkBtn.disabled = true;
+    }
+
+    try {
+        const resp = await fetch('/api/check-keys', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keys: lines, keys_raw: raw })
+        });
+        const resData = await resp.json();
+        if (resData.success) {
+            const badge = document.getElementById('ai-key-count-badge');
+            if (badge) {
+                badge.textContent = `${resData.valid} / ${resData.total} live active`;
+                badge.style.color = resData.valid > 0 ? "#4ade80" : "#f87171";
+            }
+            showToast(`✅ Key Check Complete: ${resData.valid} of ${resData.total} keys active!`);
+        } else {
+            showToast(`❌ Check error: ${resData.error || 'Failed'}`);
+        }
+    } catch (err) {
+        showToast(`❌ Network error while checking keys: ${err.message}`);
+    } finally {
+        if (checkBtn) {
+            checkBtn.innerHTML = origHtml;
+            checkBtn.disabled = false;
+        }
+    }
+}
+
+function exportKeysBackup() {
+    const textarea = document.getElementById('ai-keys-pool-textarea');
+    const content = textarea ? textarea.value.trim() : "";
+    if (!content) {
+        showToast("⚠️ មិនមាន API Key សម្រាប់ Export ទេ!");
+        return;
+    }
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `gemini_api_keys_backup_${new Date().toISOString().slice(0,10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast("💾 បាន Export Backup API Keys ដោយជោគជ័យ!");
+}
+
+function clearAllKeysPool() {
+    if (!confirm("តើអ្នកពិតជាចង់លុប Gemini API Keys ទាំងអស់នេះមែនទេ?")) return;
+    const textarea = document.getElementById('ai-keys-pool-textarea');
+    if (textarea) {
+        textarea.value = "";
+        handleAiKeysInput();
+    }
+    showToast("🧹 បានសម្អាត Keys ទាំងអស់រួចរាល់!");
+}
+
+async function saveAiProvidingConfig() {
+    const engine = document.getElementById('ai-engine-select') ? document.getElementById('ai-engine-select').value : 'auto';
+    const keysRaw = document.getElementById('ai-keys-pool-textarea') ? document.getElementById('ai-keys-pool-textarea').value.trim() : '';
+    const model = document.getElementById('ai-model-select') ? document.getElementById('ai-model-select').value : 'qwen/qwen3.8-27b';
+    const temperature = document.getElementById('ai-temperature-slider') ? parseFloat(document.getElementById('ai-temperature-slider').value) : 0.3;
+    const promptStyle = document.getElementById('ai-system-prompt-input') ? document.getElementById('ai-system-prompt-input').value.trim() : '';
+
+    const keysList = keysRaw.split('\n').map(k => k.trim()).filter(k => k.length > 0);
+
+    try {
+        const resp = await fetch('/api/set-ai-config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                engine: engine,
+                keys: keysList,
+                keys_raw: keysRaw,
+                model: model,
+                temperature: temperature,
+                prompt_style: promptStyle
+            })
+        });
+        const resData = await resp.json();
+        if (resData.success) {
+            currentAiConfig = resData.config;
+            showToast(`✨ បានរក្សាទុកការកំណត់ AI Providing និង Keys (${keysList.length} គ្រាប់) ដោយជោគជ័យ!`);
+            closeModal('modal-ai-providing');
+        } else {
+            showToast(`⚠️ ${resData.message || 'Error saving settings'}`);
+        }
+    } catch (e) {
+        showToast(`❌ បរាជ័យក្នុងការរក្សាទុក: ${e.message}`);
+    }
 }
 
 function openImportModal() { openModal('modal-import'); }
@@ -1562,7 +2240,7 @@ function setStagedVideo(file) {
         const durS = Math.floor(dur % 60);
         const durFormatted = `${String(durM).padStart(2,'0')}:${String(durS).padStart(2,'0')}`;
         const stagedMeta = document.getElementById('staged-file-meta');
-        if (stagedMeta) stagedMeta.textContent = `${(file.size / (1024 * 1024)).toFixed(1)} MB • Duration: ${durFormatted} • ត្រៀមបកប្រែជាសំឡេងខ្មែរ`;
+        if (stagedMeta) refreshStagedCardVoiceMeta();
         appendLiveTerminalLine(`Media imported: "${file.name}" • Duration: ${durFormatted} (${dur.toFixed(1)}s)`, "[Video 1/1]", "info");
     });
 
@@ -1575,7 +2253,7 @@ function setStagedVideo(file) {
     if (importPrompt) importPrompt.style.display = 'none';
     if (stagedCard) stagedCard.style.display = 'flex';
     if (stagedTitle) stagedTitle.textContent = file.name;
-    if (stagedMeta) stagedMeta.textContent = `${(file.size / (1024 * 1024)).toFixed(1)} MB • ត្រៀមបកប្រែជាសំឡេងខ្មែរ (ពិសិដ្ឋ & ស្រីមុំ)`;
+    refreshStagedCardVoiceMeta();
 
     // Highlight / Pulse top Export button
     const exportBtn = document.getElementById('btn-tab-export');
@@ -1684,10 +2362,17 @@ async function startAutoDubbingPipeline(file) {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("drama_mode", currentStudioPreset === "narration" ? "movie_recap" : "drama_dubbing");
-    formData.append("source_lang", "auto");
-    formData.append("voice_override", "auto");
-    formData.append("aspect_ratio", "16:9");
-    formData.append("burn_subtitles", "true");
+    const activeSourceLang = currentStoryConfig.source_lang || "auto";
+    const activeVoiceOverride = (currentStoryConfig.auto_multi_voice || currentStoryConfig.khmer_voice === "multi") 
+        ? "multi" 
+        : (currentStoryConfig.khmer_voice || "piseth");
+    const activeAspectRatio = currentStoryConfig.aspect_ratio || "9:16";
+    const activeBurnSubs = (currentStoryConfig.subtitle_mode === "burn") ? "true" : "false";
+
+    formData.append("source_lang", activeSourceLang);
+    formData.append("voice_override", activeVoiceOverride);
+    formData.append("aspect_ratio", activeAspectRatio);
+    formData.append("burn_subtitles", activeBurnSubs);
 
     try {
         const res = await fetch("/api/projects/auto-dub-video", {
@@ -1755,10 +2440,12 @@ async function startAutoDubbingPipeline(file) {
                         if (!loggedDialogueIds.has(idx)) {
                             loggedDialogueIds.add(idx);
                             const lineNum = String(idx + 1).padStart(2, '0');
-                            const vName = (d.voice === 'sreymom' || d.voice === 'female') ? 'ស្រីមុំ (Female)' : 'ពិសិដ្ឋ (Male)';
-                            const zhText = d.text || "(ចិន)";
-                            const kmText = d.translated_text || d.khmer_text || "(ខ្មែរ)";
-                            appendLiveTerminalLine(`[Line ${lineNum}] ZH: "${zhText}" ➜ KM: "${kmText}" (${vName})`, "[ZH ➜ KM]", "dub");
+                            const vName = (d.voice === 'sreymom' || d.voice === 'female') ? 'ស្រីមុំ (Sreymom)' : 'ពិសិដ្ឋ (Piseth)';
+                            const zhText = d.text_original || d.text || "";
+                            const kmText = d.text_km || d.translated_text || d.khmer_text || d.text || "";
+                            if (kmText && kmText !== zhText) {
+                                appendLiveTerminalLine(`[Line ${lineNum}] "${zhText}" ➜ "${kmText}" (${vName})`, "[ZH ➜ KM]", "dub");
+                            }
                         }
                     });
                 }
@@ -1836,10 +2523,14 @@ async function startBatchFilesUpload(files) {
     for (let i = 0; i < files.length; i++) {
         formData.append("files", files[i]);
     }
-    formData.append("voice_mode", "auto");
+    const activeVoiceMode = (currentStoryConfig.auto_multi_voice || currentStoryConfig.khmer_voice === "multi") 
+        ? "multi" 
+        : (currentStoryConfig.khmer_voice || "piseth");
+    formData.append("voice_mode", activeVoiceMode);
     formData.append("drama_mode", "drama_dubbing");
     formData.append("aspect_ratio", "16:9");
-    formData.append("burn_subtitles", "true");
+    const activeBatchBurnSubs = (currentStoryConfig.subtitle_mode === "burn") ? "true" : "false";
+    formData.append("burn_subtitles", activeBatchBurnSubs);
 
     try {
         const res = await fetch("/api/batch/upload", {

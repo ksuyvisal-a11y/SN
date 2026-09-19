@@ -278,6 +278,7 @@ def translate_project_script(project_id):
     data = request.get_json(force=True) or {}
     mode = data.get("mode", "drama_dubbing")
     source_lang = data.get("source_lang", "auto")
+    voice_override = data.get("voice_override")
     if not voice_override or voice_override == "auto":
         cfg = load_stored_story_config()
         if cfg.get("auto_multi_voice") or cfg.get("khmer_voice") == "multi":
@@ -352,7 +353,7 @@ def generate_audio_all(project_id):
 
 @app.route("/api/projects/<project_id>/render-video", methods=["POST"])
 def render_video_endpoint(project_id):
-    burn_sub = request.args.get("burn_subtitles", "true").lower() == "true"
+    burn_sub = request.args.get("burn_subtitles", "false").lower() in ("true", "1", "yes")
     aspect_ratio = request.args.get("aspect_ratio", "16:9")
     watermark = request.args.get("watermark", "")
     
@@ -388,7 +389,9 @@ def batch_upload_endpoint():
         voice_mode = cfg.get("khmer_voice", "piseth") if not cfg.get("auto_multi_voice", False) else "auto_multi"
     drama_mode = request.form.get("drama_mode", "drama_dubbing")
     aspect_ratio = request.form.get("aspect_ratio", "16:9")
-    burn_subtitles = request.form.get("burn_subtitles", "true").lower() == "true"
+    cfg = load_stored_story_config()
+    burn_sub_default = "true" if cfg.get("subtitle_mode", "none") == "burn" else "false"
+    burn_subtitles = request.form.get("burn_subtitles", burn_sub_default).lower() in ("true", "1", "yes")
     separate_bgm = request.form.get("separate_bgm", "true").lower() == "true"
 
     saved_paths = []
@@ -452,17 +455,30 @@ def load_stored_ai_config() -> dict:
             with open(AI_CONFIG_FILE, "r", encoding="utf-8") as f:
                 cfg = json.load(f)
                 keys = cfg.get("keys", [])
-                if keys:
-                    pm.translator.set_api_keys(keys)
-                    os.environ["GEMINI_API_KEY"] = "\n".join(keys)
+                valid_gemini = [k.strip() for k in keys if str(k).strip().startswith("AIzaSy")]
+                if valid_gemini:
+                    pm.translator.set_api_keys(valid_gemini)
+                    os.environ["GEMINI_API_KEY"] = "\n".join(valid_gemini)
+                else:
+                    pm.translator.set_api_keys([])
+
+                groq_pool = cfg.get("groq_keys", [])
+                if isinstance(groq_pool, list) and groq_pool:
+                    pm.translator.groq_keys = [k.strip() for k in groq_pool if k and str(k).startswith("gsk_")]
+                groq_k = cfg.get("groq_api_key", "").strip()
+                if groq_k:
+                    pm.translator.groq_api_key = groq_k
+                    os.environ["GROQ_API_KEY"] = groq_k
                 return cfg
         except Exception as e:
             print(f"Error loading AI config: {e}")
     return {
-        "engine": "gemini_pool",
+        "engine": "auto",
+        "groq_api_key": "",
+        "gemini_api_key": "",
         "keys": [],
         "keys_raw": "",
-        "model": "gemini-2.5-flash",
+        "model": "llama-3.3-70b-versatile",
         "temperature": 0.3,
         "prompt_style": "drama_dubbing"
     }
@@ -475,12 +491,12 @@ def load_stored_story_config() -> dict:
         except Exception as e:
             print(f"Error loading story config: {e}")
     return {
-        "khmer_voice": "multi",
-        "auto_multi_voice": True,
+        "khmer_voice": "piseth",
+        "auto_multi_voice": False,
         "source_lang": "auto",
         "whisper_model": "medium",
         "aspect_ratio": "9:16",
-        "subtitle_mode": "burn",
+        "subtitle_mode": "none",
         "dubbing_mode": "smart_bgm",
         "ducking_volume": "0.02",
         "speech_boost_db": 2.5
@@ -496,18 +512,29 @@ def set_gemini_api_key():
     data = request.get_json(force=True) or {}
     key = data.get("api_key", "").strip()
     keys = [k.strip() for k in key.replace(",", "\n").splitlines() if k.strip()]
-    pm.translator.set_api_keys(keys)
-    os.environ["GEMINI_API_KEY"] = "\n".join(keys)
-    return jsonify({"success": True, "message": "Cloud Engine Token updated successfully."})
+    valid_gemini = [k for k in keys if k.startswith("AIzaSy")]
+    pm.translator.set_api_keys(valid_gemini)
+    if valid_gemini:
+        os.environ["GEMINI_API_KEY"] = "\n".join(valid_gemini)
+    return jsonify({"success": True, "message": "API keys updated."})
 
 
 @app.route("/api/ai-config", methods=["GET"])
 def get_ai_config_endpoint():
     cfg = load_stored_ai_config()
+    safe_cfg = {
+        "engine": cfg.get("engine", "auto"),
+        "gemini_api_key": cfg.get("gemini_api_key", ""),
+        "keys": cfg.get("keys", []),
+        "keys_raw": cfg.get("keys_raw", "\n".join(cfg.get("keys", []))),
+        "model": cfg.get("model", "qwen/qwen3.8-27b"),
+        "temperature": cfg.get("temperature", 0.3),
+        "prompt_style": cfg.get("prompt_style", "drama_dubbing")
+    }
     return jsonify({
         "success": True,
-        "config": cfg,
-        "active_keys_count": len(cfg.get("keys", [])),
+        "config": safe_cfg,
+        "active_keys_count": len([k for k in cfg.get("keys", []) if k.startswith("AIzaSy")]),
         "keys_raw": cfg.get("keys_raw", "\n".join(cfg.get("keys", [])))
     })
 
@@ -522,8 +549,16 @@ def set_ai_config_endpoint():
     if not keys_raw and keys:
         keys_raw = "\n".join(keys)
 
-    engine = data.get("engine", "gemini_pool")
-    model = data.get("model", "gemini-2.5-flash")
+    existing_cfg = load_stored_ai_config()
+    groq_api_key = existing_cfg.get("groq_api_key", "")
+    groq_keys = existing_cfg.get("groq_keys", [])
+
+    gemini_api_key = data.get("gemini_api_key", "").strip()
+    if gemini_api_key and gemini_api_key not in keys:
+        keys.insert(0, gemini_api_key)
+
+    engine = data.get("engine", "auto")
+    model = data.get("model", "qwen/qwen3.8-27b")
     try:
         temperature = float(data.get("temperature", 0.3))
     except Exception:
@@ -532,6 +567,9 @@ def set_ai_config_endpoint():
 
     cfg = {
         "engine": engine,
+        "groq_api_key": groq_api_key,
+        "groq_keys": groq_keys,
+        "gemini_api_key": gemini_api_key,
         "keys": keys,
         "keys_raw": keys_raw,
         "model": model,
@@ -543,15 +581,54 @@ def set_ai_config_endpoint():
     with open(AI_CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(cfg, f, ensure_ascii=False, indent=2)
 
-    pm.translator.set_api_keys(keys)
-    if keys:
-        os.environ["GEMINI_API_KEY"] = "\n".join(keys)
+    valid_gemini = [k for k in keys if k.startswith("AIzaSy")]
+    pm.translator.set_api_keys(valid_gemini)
+    if valid_gemini:
+        os.environ["GEMINI_API_KEY"] = "\n".join(valid_gemini)
+
+    pm.translator.groq_api_key = groq_api_key
+    pm.translator.groq_keys = groq_keys
+    if groq_api_key:
+        os.environ["GROQ_API_KEY"] = groq_api_key
+
+    safe_cfg = {
+        "engine": engine,
+        "gemini_api_key": gemini_api_key,
+        "keys": keys,
+        "keys_raw": keys_raw,
+        "model": model,
+        "temperature": temperature,
+        "prompt_style": prompt_style
+    }
 
     return jsonify({
         "success": True,
-        "message": f"បានរក្សាទុក Gemini API Keys ចំនួន {len(keys)} គ្រាប់ដោយជោគជ័យ!",
-        "config": cfg
+        "config": safe_cfg,
+        "message": "AI Studio Engine configuration saved successfully."
     })
+
+
+@app.route("/api/drama-dictionary", methods=["GET", "POST"])
+def drama_dictionary_endpoint():
+    dict_file = Path("data/drama_dictionary.json")
+    if request.method == "POST":
+        data = request.get_json(force=True) or {}
+        entries = data.get("dictionary", data)
+        if isinstance(entries, dict):
+            dict_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(dict_file, "w", encoding="utf-8") as f:
+                json.dump(entries, f, ensure_ascii=False, indent=2)
+            return jsonify({"success": True, "dictionary": entries, "count": len(entries)})
+        return jsonify({"success": False, "error": "Invalid dictionary format. Expected JSON object."}), 400
+
+    # GET
+    if dict_file.exists():
+        try:
+            with open(dict_file, "r", encoding="utf-8") as f:
+                return jsonify({"success": True, "dictionary": json.load(f)})
+        except Exception:
+            pass
+    return jsonify({"success": True, "dictionary": {}})
 
 
 @app.route("/api/check-keys", methods=["POST"])
@@ -621,8 +698,10 @@ def check_keys_live_endpoint():
     })
 
 
-@app.route("/api/story-config", methods=["GET"])
+@app.route("/api/story-config", methods=["GET", "POST"])
 def get_story_config_endpoint():
+    if request.method == "POST":
+        return set_story_config_endpoint()
     cfg = load_stored_story_config()
     ai_cfg = load_stored_ai_config()
     engine_name = ai_cfg.get("engine", "gemini_pool")
@@ -657,10 +736,13 @@ def set_story_config_endpoint():
     # Sanitize ducking_volume so it is never empty or invalid
     raw_duck = str(cfg.get("ducking_volume", "")).strip()
     try:
-        if not raw_duck or float(raw_duck) <= 0:
-            cfg["ducking_volume"] = "0.02"
+        val = float(raw_duck)
+        if val < 0:
+            cfg["ducking_volume"] = "0.15"
+        else:
+            cfg["ducking_volume"] = f"{val:.2f}"
     except (ValueError, TypeError):
-        cfg["ducking_volume"] = "0.02"
+        cfg["ducking_volume"] = "0.15"
 
     STORY_CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(STORY_CONFIG_FILE, "w", encoding="utf-8") as f:
@@ -1061,7 +1143,9 @@ def auto_dub_video_endpoint():
     source_lang = request.form.get("source_lang", "auto")
     voice_override = request.form.get("voice_override", "piseth")
     aspect_ratio = request.form.get("aspect_ratio", "16:9")
-    burn_subtitles = request.form.get("burn_subtitles", "true").lower() == "true"
+    cfg = load_stored_story_config()
+    burn_sub_default = "true" if cfg.get("subtitle_mode", "none") == "burn" else "false"
+    burn_subtitles = request.form.get("burn_subtitles", burn_sub_default).lower() in ("true", "1", "yes")
     
     saved_video_path = None
     original_filename = "drama_video.mp4"
@@ -1084,7 +1168,9 @@ def auto_dub_video_endpoint():
             source_lang = data.get("source_lang", source_lang)
             voice_override = data.get("voice_override", voice_override)
             aspect_ratio = data.get("aspect_ratio", aspect_ratio)
-            burn_subtitles = data.get("burn_subtitles", burn_subtitles)
+            if "burn_subtitles" in data:
+                val = data["burn_subtitles"]
+                burn_subtitles = val if isinstance(val, bool) else str(val).lower() in ("true", "1", "yes")
 
     if voice_override in ("auto", "", None):
         cfg = load_stored_story_config()

@@ -592,9 +592,9 @@
                     <button style="background:transparent; border:none; color:var(--gold-glow); font-size:0.75rem; cursor:pointer; align-self:flex-start; margin-bottom:4px;" onclick="backToSettingsHub()">← Back to General Settings</button>
                     <label style="font-size:0.75rem; color:#cbd5e1;">Default Khmer Neural Voice</label>
                     <select style="background:#080603; border:1px solid var(--border-subtle); border-radius:5px; padding:6px 10px; font-size:0.75rem; color:#fff;">
-                        <option>Piseth & Sreymom (Multi-Speaker Dubbing Sync)</option>
-                        <option>Piseth Solo (Male Drama Narration)</option>
+                        <option selected>Piseth Solo (Male Drama Narration)</option>
                         <option>Sreymom Solo (Female Drama Narration)</option>
+                        <option>Piseth & Sreymom (Multi-Speaker Dubbing Sync)</option>
                     </select>
                 </div>
             </div>
@@ -639,6 +639,10 @@
                             <span class="ai-tab-icon">📁</span>
                             <span class="ai-tab-label">Export & Path</span>
                         </button>
+                        <button type="button" class="ai-sidebar-tab" id="story-tab-btn-dictionary" onclick="switchStoryTab('dictionary')">
+                            <span class="ai-tab-icon">📚</span>
+                            <span class="ai-tab-label">Drama Dictionary</span>
+                        </button>
                     </aside>
 
                     <!-- Right Main Content Area -->
@@ -654,9 +658,9 @@
                                 <div class="ai-field-group">
                                     <label class="ai-field-label">KHMER VOICE (ជ្រើសរើសសំឡេងបកប្រែ)</label>
                                     <select id="story-voice-select" class="ai-gold-select" onchange="onStoryVoiceChange()">
-                                        <option value="piseth">Piseth (សំឡេងប្រុសទោល / Male Solo)</option>
+                                        <option value="piseth" selected>Piseth (សំឡេងប្រុសទោល / Male Solo - ណែនាំ)</option>
                                         <option value="sreymom">Sreymom (សំឡេងស្រីទោល / Female Solo)</option>
-                                        <option value="multi" selected>Piseth &amp; Sreymom (សំឡេងប្រុស &amp; ស្រី / Dual Voice)</option>
+                                        <option value="multi">Piseth &amp; Sreymom (សំឡេងប្រុស &amp; ស្រី / Dual Voice)</option>
                                     </select>
                                     <p id="story-voice-hint" class="ai-field-hint" style="margin-top:6px; margin-bottom:14px; color: var(--gold-glow); font-size: 0.82rem; line-height:1.45;"></p>
                                 </div>
@@ -712,11 +716,11 @@
                                 </div>
 
                                 <div class="ai-field-group">
-                                    <label class="ai-field-label">SUBTITLE MODE</label>
+                                    <label class="ai-field-label">SUBTITLE MODE (ការបង្ហាញអក្សររត់លើវីដេអូ)</label>
                                     <select id="story-subtitle-mode" class="ai-gold-select">
-                                        <option value="burn" selected>Burn Subtitles into Video (Hardsub)</option>
-                                        <option value="none">No Subtitles (Dubbed Audio Only)</option>
-                                        <option value="srt">Export Separate .SRT Subtitle File</option>
+                                        <option value="none" selected>❌ No Subtitles / Hide (Dubbed Voice Only - លាក់អក្សររត់)</option>
+                                        <option value="burn">✅ Burn Subtitles into Video (Hardsub - បង្ហាញអក្សររត់)</option>
+                                        <option value="srt">📄 Export Separate .SRT Subtitle File</option>
                                     </select>
                                 </div>
                             </div>
@@ -740,23 +744,54 @@
                                 </div>
 
                                 <div class="ai-field-group" style="margin-bottom:14px;">
-                                    <label class="ai-field-label">BGM DUCKING VOLUME</label>
-                                    <select id="story-ducking-vol" class="ai-gold-select">
-                                        <option value="0.02" selected>2% (-34dB) - Zero Vocal Leakage (Clear Speech)</option>
-                                        <option value="0.05">5% (-26dB) - Deep Masking</option>
-                                        <option value="0.08">8% (-22dB) - Balanced Background</option>
-                                        <option value="0.15">15% (-16dB) - Louder Ambient BGM</option>
-                                        <option value="0.25">25% (-12dB) - Loudest Background</option>
-                                    </select>
+                                    <input type="hidden" id="story-ducking-vol" value="0.15">
+                                    <div class="ai-slider-container">
+                                        <div class="ai-slider-header">
+                                            <span class="ai-slider-title">
+                                                <i class="fa-solid fa-sliders" style="color:#facc15;"></i> BGM DUCKING VOLUME (កម្រិតរារ៉េភ្លេង)
+                                            </span>
+                                            <span class="ai-slider-badge" id="story-ducking-badge">15% (-16.5 dB) • ស្តង់ដាររលូន</span>
+                                        </div>
+                                        <input type="range" id="story-ducking-slider" class="ai-gold-slider" min="0" max="40" step="1" value="15" oninput="onStoryDuckingSliderChange(this.value)">
+                                        <div class="ai-slider-scale-labels">
+                                            <span>🔇 0% (បិទស្ងាត់)</span>
+                                            <span class="rec">⭐ 15% (ស្តង់ដារពិរោះ)</span>
+                                            <span>🔊 40% (ភ្លេងឮខ្លាំង)</span>
+                                        </div>
+                                        <div class="ai-slider-presets" id="story-ducking-presets">
+                                            <button type="button" class="ai-preset-chip" data-val="0" onclick="setDuckingPreset(0)">🔇 0% (Mute)</button>
+                                            <button type="button" class="ai-preset-chip" data-val="5" onclick="setDuckingPreset(5)">5% (ស្រាល)</button>
+                                            <button type="button" class="ai-preset-chip" data-val="10" onclick="setDuckingPreset(10)">10% (ទន់)</button>
+                                            <button type="button" class="ai-preset-chip active" data-val="15" onclick="setDuckingPreset(15)">⭐ 15% (ស្តង់ដារ)</button>
+                                            <button type="button" class="ai-preset-chip" data-val="22" onclick="setDuckingPreset(22)">22% (រាងឮ)</button>
+                                            <button type="button" class="ai-preset-chip" data-val="32" onclick="setDuckingPreset(32)">🔊 32% (ច្បាស់)</button>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div class="ai-field-group">
-                                    <label class="ai-field-label">KHMER SPEECH BOOST</label>
-                                    <select id="story-speech-boost" class="ai-gold-select">
-                                        <option value="2.5" selected>+2.5 dB (Balanced Boost)</option>
-                                        <option value="4.0">+4.0 dB (Strong & Punchy)</option>
-                                        <option value="0.0">0.0 dB (Natural Level)</option>
-                                    </select>
+                                    <input type="hidden" id="story-speech-boost" value="2.5">
+                                    <div class="ai-slider-container">
+                                        <div class="ai-slider-header">
+                                            <span class="ai-slider-title">
+                                                <i class="fa-solid fa-volume-high" style="color:#facc15;"></i> KHMER SPEECH BOOST (កម្លាំងសំឡេងខ្មែរ)
+                                            </span>
+                                            <span class="ai-slider-badge" id="story-speech-badge">+2.5 dB • ស្តង់ដារពិរោះ</span>
+                                        </div>
+                                        <input type="range" id="story-speech-slider" class="ai-gold-slider" min="0" max="8" step="0.5" value="2.5" oninput="onStorySpeechSliderChange(this.value)">
+                                        <div class="ai-slider-scale-labels">
+                                            <span>0.0 dB (ធម្មតា)</span>
+                                            <span class="rec">⭐ +2.5 dB (ណែនាំ)</span>
+                                            <span>🔥 +8.0 dB (ខ្លាំងបំផុត)</span>
+                                        </div>
+                                        <div class="ai-slider-presets" id="story-speech-presets">
+                                            <button type="button" class="ai-preset-chip" data-val="0" onclick="setSpeechBoostPreset(0)">0.0 dB (ធម្មតា)</button>
+                                            <button type="button" class="ai-preset-chip" data-val="1.5" onclick="setSpeechBoostPreset(1.5)">+1.5 dB (ស្រទន់)</button>
+                                            <button type="button" class="ai-preset-chip active" data-val="2.5" onclick="setSpeechBoostPreset(2.5)">⭐ +2.5 dB (ណែនាំ)</button>
+                                            <button type="button" class="ai-preset-chip" data-val="4" onclick="setSpeechBoostPreset(4.0)">+4.0 dB (ច្បាស់មាំ)</button>
+                                            <button type="button" class="ai-preset-chip" data-val="6" onclick="setSpeechBoostPreset(6.0)">🔥 +6.0 dB (ខ្លាំង)</button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -804,6 +839,31 @@
                                         <option selected>Yes, open folder after rendering completes</option>
                                         <option>No, keep inside studio</option>
                                     </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB 6: Drama Dictionary & Custom Terms -->
+                        <div class="ai-tab-view" id="story-view-dictionary" style="display:none;">
+                            <div class="ai-view-header">
+                                <h2 class="ai-view-title">Drama Dictionary (វចនានុក្រមរឿង)</h2>
+                                <p class="ai-view-subtitle">Define custom character names, titles & terminology for 100% accurate translation</p>
+                            </div>
+
+                            <div class="ai-card-frame">
+                                <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+                                    <button type="button" class="ai-outline-action-btn" onclick="applyDramaDictionaryPreset('modern_ceo')" style="padding:4px 10px; font-size:12px;">🏢 CEO / Romance</button>
+                                    <button type="button" class="ai-outline-action-btn" onclick="applyDramaDictionaryPreset('family_inlaw')" style="padding:4px 10px; font-size:12px;">👨‍👩‍👧‍👦 Family &amp; In-Laws</button>
+                                    <button type="button" class="ai-outline-action-btn" onclick="applyDramaDictionaryPreset('palace_royal')" style="padding:4px 10px; font-size:12px;">👑 Royal / Palace</button>
+                                    <button type="button" class="ai-outline-action-btn" onclick="applyDramaDictionaryPreset('wuxia_martial')" style="padding:4px 10px; font-size:12px;">⚔️ Wuxia / Martial Arts</button>
+                                </div>
+
+                                <div class="ai-field-group">
+                                    <label class="ai-field-label">CUSTOM MAPPINGS (ឈ្មោះចិន = ឈ្មោះខ្មែរ / ពាក្យចិន = ពាក្យខ្មែរ)</label>
+                                    <textarea id="story-dictionary-textarea" class="ai-editor-textarea" style="height:170px; font-family:monospace; padding:10px; border-radius:6px; border:1px solid rgba(212,175,55,0.3); background:#0c0d10; color:#fff;" placeholder="李沐谦 = លីមូឈៀន&#10;张昭 = ចាងចាវ&#10;总裁 = លោកប្រធាន&#10;婆婆 = ម្តាយក្មេក&#10;龙胎 = កូននាគរាជ"></textarea>
+                                    <div class="ai-field-hint" style="color:var(--gold-glow); margin-top:6px;">
+                                        💡 ដាក់មួយជួរមួយពាក្យ តាមទម្រង់៖ <strong>ពាក្យចិន = ពាក្យខ្មែរ</strong>។ AI នឹងបកប្រែចំៗពាក្យដែលបងចង់បាន ១០០%។
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -871,13 +931,11 @@
 
                             <div class="ai-card-frame">
                                 <div class="ai-field-group">
-                                    <label class="ai-field-label">AI TRANSLATION ENGINE</label>
+                                    <label class="ai-field-label">AI TRANSLATION ENGINE (ប្រព័ន្ធបកប្រែ)</label>
                                     <select id="ai-engine-select" class="ai-gold-select" onchange="onAiEngineChange()">
-                                        <option value="free_ai">Free AI (g4f)</option>
-                                        <option value="gemini_pool" selected>Gemini API (Key Pool - Piseth & Sreymom)</option>
-                                        <option value="gemini_flash">Gemini 2.5 Flash (Ultra Fast)</option>
-                                        <option value="gemini_pro">Gemini 2.5 Pro (Deep Context)</option>
-                                        <option value="google_free">Google Translate (Built-in Free Engine)</option>
+                                        <option value="auto" selected>⚡ Auto Smart (VIP Dedicated Neural Server - Built-in)</option>
+                                        <option value="gemini_pool">🤖 Custom Gemini Key Pool (Optional)</option>
+                                        <option value="local_drama">🎬 Fast Local Drama Dubbing Engine</option>
                                     </select>
                                 </div>
 
@@ -890,9 +948,9 @@
                                     <!-- Code Editor Box with Line Numbers Gutter -->
                                     <div class="ai-code-editor-box">
                                         <div class="ai-editor-gutter" id="ai-editor-gutter">1</div>
-                                        <textarea id="ai-keys-pool-textarea" class="ai-editor-textarea" placeholder="AQ.Ab8RN6J-TCt41KQL2A8F0r02ofaI2Mw19dO_...&#10;AQ.Ab8RN6L4lne7sPZZ_q0c4Zm4QIEsAB0S4V6h...&#10;One key per line..." spellcheck="false" oninput="handleAiKeysInput()" onscroll="syncAiEditorScroll()"></textarea>
+                                        <textarea id="ai-keys-pool-textarea" class="ai-editor-textarea" placeholder="AIzaSy...&#10;AIzaSy...&#10;One key per line (starts with AIzaSy)..." spellcheck="false" oninput="handleAiKeysInput()" onscroll="syncAiEditorScroll()"></textarea>
                                     </div>
-                                    <div class="ai-field-hint">One key per line — more keys prevent rate limits and quota stalls.</div>
+                                    <div class="ai-field-hint">សោរ Gemini ត្រឹមត្រូវចាប់ផ្តើមដោយ 'AIzaSy' — One key per line.</div>
                                 </div>
 
                                 <div class="ai-actions-btn-row">

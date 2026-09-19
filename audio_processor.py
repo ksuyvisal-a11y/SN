@@ -251,17 +251,18 @@ def mix_dubbed_audio(
             
         bg_audio = AudioSegment.silent(duration=target_len_ms)
 
-    # 2. Build the Khmer Speech Track
-    speech_track = AudioSegment.silent(duration=target_len_ms)
+    # 2. Build the Khmer Speech Track efficiently (O(N) sequential assembly, zero memory thrashing)
     speech_intervals = []
-
+    valid_lines = []
     for idx, item in enumerate(dialogue_items):
         audio_file = item.get("audio_file")
-        if not audio_file or not Path(audio_file).exists():
-            continue
+        if audio_file and Path(audio_file).exists():
+            valid_lines.append((idx, item))
 
+    processed_lines = []
+    for i, (idx, item) in enumerate(valid_lines):
         try:
-            line_seg = load_audio_safely(audio_file)
+            line_seg = load_audio_safely(item["audio_file"])
             if speech_volume_boost_db != 0:
                 line_seg = line_seg + speech_volume_boost_db
 
@@ -269,81 +270,137 @@ def mix_dubbed_audio(
             if len(line_seg) > 60:
                 line_seg = line_seg.fade_in(15).fade_out(25)
 
-            start_ms = int(item.get("start", 0) * 1000)
+            # Envelope bounds covering both original dialogue and Khmer audio
+            orig_s = float(item.get("orig_start", item.get("start", 0.0)))
+            orig_e = float(item.get("orig_end", item.get("end", orig_s + 2.0)))
+            orig_start_ms = max(0, int(orig_s * 1000))
+            orig_end_ms = max(0, int(orig_e * 1000))
 
-            # Determine when the next speech line starts to prevent ANY overlapping
-            next_start_ms = None
-            for next_item in dialogue_items[idx + 1:]:
-                next_af = next_item.get("audio_file")
-                if next_af and Path(next_af).exists():
-                    next_start_ms = int(next_item.get("start", 0) * 1000)
-                    break
-
-            # STRICT NON-OVERLAP ENFORCEMENT:
-            # If current line extends into the next line, cap it cleanly with a gentle fade-out
-            if next_start_ms is not None and (start_ms + len(line_seg)) > (next_start_ms - 30):
-                allowed_len = max(150, next_start_ms - start_ms - 30)
-                if len(line_seg) > allowed_len:
-                    fade_ms = min(80, max(20, allowed_len // 4))
-                    line_seg = line_seg[:allowed_len].fade_out(fade_ms)
-
+            start_ms = max(0, int(item.get("start", 0) * 1000))
             line_len_ms = len(line_seg)
-            
-            # 80ms buffer around speech to duck original vocals cleanly
-            pad_start = max(0, start_ms - 80)
-            pad_end = start_ms + line_len_ms + 80
+            speech_end_ms = start_ms + line_len_ms
+
+            # The ducking interval MUST cover the entire envelope of BOTH original Chinese speech and Khmer dubbing:
+            # -160ms before speech start to mute any opening mouth attack of original Chinese voice
+            # +180ms after speech end to mute any trailing release or trailing phrase of original Chinese voice
+            pad_start = max(0, min(orig_start_ms, start_ms) - 160)
+            pad_end = max(orig_end_ms, speech_end_ms) + 180
             speech_intervals.append((pad_start, pad_end))
-
-            if start_ms < len(speech_track):
-                speech_track = speech_track.overlay(line_seg, position=start_ms)
-            else:
-                silence_gap = start_ms - len(speech_track)
-                speech_track = speech_track + AudioSegment.silent(duration=silence_gap) + line_seg
+            processed_lines.append((start_ms, line_seg))
         except Exception as e:
-            print(f"Error overlaying line audio: {e}")
+            print(f"Error processing line audio: {e}")
 
-    # 3. Apply Clean Smart Audio Ducking
+    # Build master speech track with zero truncation and exact millisecond alignment
+    target_fr = 44100
+    channels = 2
+    if bg_audio:
+        target_fr = bg_audio.frame_rate
+        channels = bg_audio.channels
+
+    speech_track = None
+    try:
+        import numpy as np
+        total_samples = int((target_len_ms / 1000.0) * target_fr) + target_fr
+        master_buffer = np.zeros((total_samples, channels), dtype=np.int32)
+
+        for start_ms, line_seg in processed_lines:
+            if line_seg.frame_rate != target_fr or line_seg.channels != channels:
+                line_seg = line_seg.set_frame_rate(target_fr).set_channels(channels)
+
+            start_sample = max(0, int((start_ms / 1000.0) * target_fr))
+            line_samples = np.frombuffer(line_seg.raw_data, dtype=np.int16)
+            if channels > 1:
+                line_samples = line_samples.reshape(-1, channels)
+            else:
+                line_samples = line_samples.reshape(-1, 1)
+
+            n_samples = len(line_samples)
+            end_sample = min(total_samples, start_sample + n_samples)
+            if end_sample > start_sample:
+                usable_n = end_sample - start_sample
+                master_buffer[start_sample:end_sample] += line_samples[:usable_n]
+
+        # Clip safely to 16-bit range without harsh digital distortion
+        master_buffer = np.clip(master_buffer, -32768, 32767).astype(np.int16)
+        speech_track = AudioSegment(
+            master_buffer.tobytes(),
+            frame_rate=target_fr,
+            sample_width=2,
+            channels=channels
+        )
+        if len(speech_track) > target_len_ms:
+            speech_track = speech_track[:target_len_ms]
+    except Exception as np_mix_err:
+        print(f"NumPy audio track mix note ({np_mix_err}), using overlay fallback.")
+        speech_track = AudioSegment.silent(duration=target_len_ms, frame_rate=target_fr).set_channels(channels)
+        for s_ms, l_seg in processed_lines:
+            if l_seg.frame_rate != target_fr or l_seg.channels != channels:
+                l_seg = l_seg.set_frame_rate(target_fr).set_channels(channels)
+            speech_track = speech_track.overlay(l_seg, position=s_ms)
+
+    # 3. Apply Clean Smart Audio Ducking (Smooth Cinematic BGM Ducking - Zero Chinese Vocal Leakage)
     if dubbing_mode == "pure_voice":
         final_mixed = speech_track
     elif bg_audio and speech_intervals:
         speech_intervals.sort(key=lambda x: x[0])
         merged_intervals = []
+        # Professional Cinema Ducking: Merge gaps under 900ms so dialogue exchanges
+        # don't cause violent BGM volume pumping between quick breaths!
         for start, end in speech_intervals:
             if not merged_intervals:
                 merged_intervals.append([start, end])
             else:
                 prev = merged_intervals[-1]
-                if start <= prev[1] + 250:
+                if start <= prev[1] + 900:  # Smooth hold across conversation breaths
                     prev[1] = max(prev[1], end)
                 else:
                     merged_intervals.append([start, end])
 
-        ducked_bg = AudioSegment.empty()
+        ducked_chunks = []
         current_pos = 0
-        # Enforce minimum -32dB (up to -40dB) ducking to guarantee ZERO vocal bleed
-        calc_duck_db = 20 * math.log10(max(0.001, ducking_volume_factor))
-        duck_db = min(-32.0, calc_duck_db)
+        # Dynamic Cinematic BGM Ducking with Zero Vocal Leakage:
+        # If user chose deep masking or mute (ducking_volume_factor <= 0.05),
+        # duck to -48dB or digital silence during speech to guarantee 100% Zero Chinese Vocal Leakage!
+        if ducking_volume_factor <= 0.05:
+            target_duck_db = -48.0  # Full silence during speech
+        else:
+            calc = 20 * math.log10(max(0.005, ducking_volume_factor))
+            target_duck_db = min(-8.0, max(-38.0, calc))
 
-        fade_ms = 100
+        fade_in_ms = 180   # Smooth attack dip when speech starts
+        fade_out_ms = 350  # Gentle cinematic swell when speech concludes
+
         for interval_start, interval_end in merged_intervals:
             if interval_start > current_pos:
                 normal_seg = bg_audio[current_pos:interval_start]
-                ducked_bg = ducked_bg + normal_seg
+                ducked_chunks.append(normal_seg)
             
             speech_duration = min(len(bg_audio), interval_end) - interval_start
             if speech_duration > 0:
-                # Duck background and apply additional -4dB suppression during dialogue (total -36dB to -38dB)
-                ducked_seg = bg_audio[interval_start:interval_start + speech_duration] + duck_db - 4.0
-                # Smooth crossfading to prevent any abrupt audio pops
-                actual_fade = min(fade_ms, max(20, speech_duration // 4))
-                if len(ducked_seg) > actual_fade * 2:
-                    ducked_seg = ducked_seg.fade_in(actual_fade).fade_out(actual_fade)
-                ducked_bg = ducked_bg + ducked_seg
+                if target_duck_db <= -45.0:
+                    # Pure silence during dialogue: completely eliminate 100% of Chinese vocal
+                    ducked_seg = AudioSegment.silent(duration=speech_duration, frame_rate=bg_audio.frame_rate).set_channels(bg_audio.channels)
+                else:
+                    ducked_seg = bg_audio[interval_start:interval_start + speech_duration] + target_duck_db
+                    in_f = min(fade_in_ms, max(30, speech_duration // 4))
+                    out_f = min(fade_out_ms, max(30, speech_duration // 4))
+                    if len(ducked_seg) > (in_f + out_f):
+                        ducked_seg = ducked_seg.fade_in(in_f).fade_out(out_f)
+                ducked_chunks.append(ducked_seg)
                 
             current_pos = interval_end
 
         if current_pos < len(bg_audio):
-            ducked_bg = ducked_bg + bg_audio[current_pos:]
+            ducked_chunks.append(bg_audio[current_pos:])
+
+        if ducked_chunks:
+            try:
+                raw_ducked = b"".join(c._data for c in ducked_chunks)
+                ducked_bg = ducked_chunks[0]._spawn(raw_ducked)
+            except Exception:
+                ducked_bg = bg_audio
+        else:
+            ducked_bg = bg_audio
 
         final_mixed = ducked_bg.overlay(speech_track)
     else:

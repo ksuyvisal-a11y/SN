@@ -1499,12 +1499,12 @@ function openSettingsSubpage(key) {
 // STORY SETTINGS MANAGER (Exact Match to User Attached Image)
 // ==========================================================================
 let currentStoryConfig = {
-    khmer_voice: "multi",
-    auto_multi_voice: true,
+    khmer_voice: "piseth",
+    auto_multi_voice: false,
     source_lang: "auto",
     whisper_model: "medium",
     aspect_ratio: "9:16",
-    subtitle_mode: "burn",
+    subtitle_mode: "none",
     dubbing_mode: "smart_bgm",
     ducking_volume: "0.02",
     speech_boost_db: 2.5
@@ -1515,9 +1515,9 @@ function getStoryVoiceDisplayLabel() {
         return "Piseth & Sreymom (Dual Voice)";
     }
     if (currentStoryConfig.khmer_voice === 'sreymom') {
-        return "Sreymom (Female Solo)";
+        return "Sreymom (Female Solo - អ្នកបញ្ចូលសំឡេងស្រី)";
     }
-    return "Piseth (Male Solo)";
+    return "Piseth (Male Solo - អ្នកបញ្ចូលសំឡេងទោល)";
 }
 
 function refreshStagedCardVoiceMeta() {
@@ -1552,15 +1552,36 @@ async function loadStoryConfigData() {
     }
 }
 
+async function loadDramaDictionaryUI() {
+    try {
+        const res = await fetch('/api/drama-dictionary');
+        if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.dictionary) {
+                const dictElem = document.getElementById('story-dictionary-textarea');
+                if (dictElem) {
+                    const lines = Object.entries(data.dictionary).map(([k, v]) => `${k} = ${v}`);
+                    dictElem.value = lines.join('\n');
+                }
+            }
+        }
+    } catch (e) {
+        console.warn("Dictionary load note:", e);
+    }
+}
+
 async function openStorySettingsModal() {
     await loadStoryConfigData();
+    await loadDramaDictionaryUI();
 
     // Populate Voice & AI Tab fields
     const selVoice = document.getElementById('story-voice-select');
-    let activeVoice = currentStoryConfig.khmer_voice || 'multi';
+    let activeVoice = currentStoryConfig.khmer_voice || 'piseth';
     if (currentStoryConfig.auto_multi_voice || activeVoice === 'multi') {
         activeVoice = 'multi';
-    } else if (activeVoice !== 'sreymom') {
+    } else if (activeVoice === 'sreymom') {
+        activeVoice = 'sreymom';
+    } else {
         activeVoice = 'piseth';
     }
     if (selVoice) selVoice.value = activeVoice;
@@ -1579,37 +1600,185 @@ async function openStorySettingsModal() {
     if (selAspect) selAspect.value = currentStoryConfig.aspect_ratio || '9:16';
 
     const selSub = document.getElementById('story-subtitle-mode');
-    if (selSub) selSub.value = currentStoryConfig.subtitle_mode || 'burn';
+    if (selSub) selSub.value = currentStoryConfig.subtitle_mode || 'none';
 
     // Audio & Music
     const selDub = document.getElementById('story-dubbing-mode');
     if (selDub) selDub.value = currentStoryConfig.dubbing_mode || 'smart_bgm';
 
-    const selDuck = document.getElementById('story-ducking-vol');
-    if (selDuck) {
-        selDuck.value = currentStoryConfig.ducking_volume || '0.02';
-        if (!selDuck.value) selDuck.value = '0.02';
+    let duckPct = 15;
+    const rawDuck = parseFloat(currentStoryConfig.ducking_volume);
+    if (!isNaN(rawDuck)) {
+        duckPct = Math.round(rawDuck * 100);
+        if (duckPct < 0) duckPct = 0;
+        if (duckPct > 40) duckPct = 40;
     }
+    syncStoryDuckingUI(duckPct);
 
-    const selBoost = document.getElementById('story-speech-boost');
-    if (selBoost && currentStoryConfig.speech_boost_db !== undefined) {
-        selBoost.value = currentStoryConfig.speech_boost_db.toString();
-        if (!selBoost.value) selBoost.value = '2.5';
-    }
+    let speechVal = (currentStoryConfig.speech_boost_db !== undefined) ? parseFloat(currentStoryConfig.speech_boost_db) : 2.5;
+    if (isNaN(speechVal)) speechVal = 2.5;
+    syncStorySpeechUI(speechVal);
 
     updateStoryVoiceHint();
     switchStoryTab('voice');
     openModal('modal-story-settings');
 }
 
+function formatDuckingDbText(pct) {
+    if (pct <= 0) return "🔇 0% (-45dB) • បិទស្ងាត់ពេលនិយាយ";
+    const db = 20 * Math.log10(Math.max(0.005, pct / 100));
+    let desc = "ស្តង់ដារពិរោះ";
+    if (pct <= 4) desc = "ស្រាលបំផុត";
+    else if (pct <= 8) desc = "ស្រាលទន់";
+    else if (pct <= 18) desc = "⭐ ស្តង់ដារពិរោះ";
+    else if (pct <= 28) desc = "រាងឮច្បាស់";
+    else desc = "🔊 ឮខ្លាំង";
+    return `${pct}% (${db.toFixed(1)} dB) • ${desc}`;
+}
+
+function syncStoryDuckingUI(pct) {
+    pct = parseInt(pct, 10);
+    if (isNaN(pct)) pct = 15;
+    pct = Math.max(0, Math.min(40, pct));
+
+    const slider = document.getElementById('story-ducking-slider');
+    const hidden = document.getElementById('story-ducking-vol');
+    const badge = document.getElementById('story-ducking-badge');
+    const container = document.getElementById('story-ducking-presets');
+
+    if (slider) slider.value = pct;
+    if (hidden) hidden.value = (pct / 100).toFixed(2);
+    if (badge) badge.textContent = formatDuckingDbText(pct);
+
+    if (container) {
+        const chips = container.querySelectorAll('.ai-preset-chip');
+        chips.forEach(chip => {
+            const v = parseInt(chip.getAttribute('data-val'), 10);
+            chip.classList.toggle('active', v === pct);
+        });
+    }
+}
+
+function onStoryDuckingSliderChange(val) {
+    syncStoryDuckingUI(val);
+}
+
+function setDuckingPreset(pct) {
+    syncStoryDuckingUI(pct);
+}
+
+function formatSpeechDbText(val) {
+    let desc = "ស្តង់ដារពិរោះ";
+    if (val === 0) desc = "កម្រិតធម្មតា";
+    else if (val <= 1.5) desc = "ស្រទន់";
+    else if (val <= 3.0) desc = "⭐ ណែនាំច្បាស់";
+    else if (val <= 5.0) desc = "ច្បាស់មាំ";
+    else desc = "🔥 ខ្លាំងបំផុត";
+    const prefix = val > 0 ? `+${val.toFixed(1)}` : `${val.toFixed(1)}`;
+    return `${prefix} dB • ${desc}`;
+}
+
+function syncStorySpeechUI(val) {
+    val = parseFloat(val);
+    if (isNaN(val)) val = 2.5;
+    val = Math.max(0, Math.min(8, val));
+
+    const slider = document.getElementById('story-speech-slider');
+    const hidden = document.getElementById('story-speech-boost');
+    const badge = document.getElementById('story-speech-badge');
+    const container = document.getElementById('story-speech-presets');
+
+    if (slider) slider.value = val;
+    if (hidden) hidden.value = val.toFixed(1);
+    if (badge) badge.textContent = formatSpeechDbText(val);
+
+    if (container) {
+        const chips = container.querySelectorAll('.ai-preset-chip');
+        chips.forEach(chip => {
+            const v = parseFloat(chip.getAttribute('data-val'));
+            chip.classList.toggle('active', Math.abs(v - val) < 0.1);
+        });
+    }
+}
+
+function onStorySpeechSliderChange(val) {
+    syncStorySpeechUI(val);
+}
+
+function setSpeechBoostPreset(val) {
+    syncStorySpeechUI(val);
+}
+
 function switchStoryTab(tabKey) {
-    const tabs = ['voice', 'video', 'audio', 'vocal', 'export'];
+    const tabs = ['voice', 'video', 'audio', 'vocal', 'export', 'dictionary'];
     tabs.forEach(t => {
         const btn = document.getElementById(`story-tab-btn-${t}`);
         const view = document.getElementById(`story-view-${t}`);
         if (btn) btn.classList.toggle('active', t === tabKey);
         if (view) view.style.display = (t === tabKey) ? 'flex' : 'none';
     });
+}
+
+function applyDramaDictionaryPreset(presetKey) {
+    const dictElem = document.getElementById('story-dictionary-textarea');
+    if (!dictElem) return;
+
+    const presets = {
+        modern_ceo: [
+            "总裁 = លោកប្រធាន",
+            "董事长 = ប្រធានក្រុមប្រឹក្សាភិបាល",
+            "夫人 = លោកជំទាវ",
+            "少爷 = អ្នកប្រុស",
+            "小姐 = អ្នកនាង",
+            "特助 = ជំនួយការពិសេស",
+            "经理 = អ្នកគ្រប់គ្រង",
+            "秘书 = លេខា",
+            "保安 = សន្តិសុខ"
+        ],
+        family_inlaw: [
+            "婆婆 = ម្តាយក្មេក",
+            "公公 = ឪពុកក្មេក",
+            "儿媳 = កូនប្រសារស្រី",
+            "女婿 = កូនប្រសារប្រុស",
+            "大嫂 = បងថ្លៃស្រី",
+            "小叔子 = ប្អូនថ្លៃប្រុស",
+            "丈母娘 = ម្តាយក្មេក",
+            "亲家 = ញាតិសន្តាន"
+        ],
+        palace_royal: [
+            "皇上 = ព្រះរាជា",
+            "陛下 = ព្រះអង្គ",
+            "皇后 = ព្រះអគ្គមហេសី",
+            "贵妃 = ព្រះស្នំឯក",
+            "娘娘 = ព្រះនាង",
+            "王爷 = ព្រះអង្គម្ចាស់",
+            "太后 = ព្រះវររាជមាតា",
+            "微臣 = ទូលបង្គំ",
+            "奴才 = ខ្ញុំម្ចាស់",
+            "龙胎 = កូននាគរាជ"
+        ],
+        wuxia_martial: [
+            "掌门 = មេបក្ស",
+            "师傅 = លោកគ្រូ",
+            "师兄 = រៀមច្បងប្រុស",
+            "师妹 = អនុជស្រី",
+            "大侠 = វីរបុរស",
+            "教主 = មេនិកាយ",
+            "前辈 = រៀមច្បងជាន់ខ្ពស់",
+            "在下 = រូបខ្ញុំ"
+        ]
+    };
+
+    const linesToAdd = presets[presetKey] || [];
+    if (linesToAdd.length === 0) return;
+
+    let current = dictElem.value.trim();
+    const existingLines = current ? current.split('\n') : [];
+    const merged = new Set(existingLines);
+
+    linesToAdd.forEach(l => merged.add(l));
+    dictElem.value = Array.from(merged).join('\n');
+    showToast(`📚 បានបញ្ចូលវចនានុក្រមគំរូ: ${presetKey}`);
 }
 
 function updateStoryVoiceHint() {
@@ -1653,16 +1822,16 @@ function onToggleMultiVoice(isChecked) {
 
 async function saveStorySettings() {
     const selVoice = document.getElementById('story-voice-select');
-    const voice = selVoice ? selVoice.value : 'multi';
+    const voice = selVoice ? selVoice.value : 'piseth';
     const isMulti = (voice === 'multi');
     const lang = document.getElementById('story-source-lang') ? document.getElementById('story-source-lang').value : 'auto';
     const whisper = document.getElementById('story-whisper-model') ? document.getElementById('story-whisper-model').value : 'medium';
     const aspect = document.getElementById('story-aspect-ratio') ? document.getElementById('story-aspect-ratio').value : '9:16';
-    const subtitle = document.getElementById('story-subtitle-mode') ? document.getElementById('story-subtitle-mode').value : 'burn';
+    const subtitle = document.getElementById('story-subtitle-mode') ? document.getElementById('story-subtitle-mode').value : 'none';
     const dubMode = document.getElementById('story-dubbing-mode') ? document.getElementById('story-dubbing-mode').value : 'smart_bgm';
     const duckElem = document.getElementById('story-ducking-vol');
-    let duckVol = duckElem && duckElem.value ? duckElem.value : '0.02';
-    if (!duckVol || isNaN(parseFloat(duckVol))) duckVol = '0.02';
+    let duckVol = duckElem && duckElem.value ? duckElem.value : '0.15';
+    if (!duckVol || isNaN(parseFloat(duckVol))) duckVol = '0.15';
 
     const boostElem = document.getElementById('story-speech-boost');
     let boost = boostElem && boostElem.value ? parseFloat(boostElem.value) : 2.5;
@@ -1680,6 +1849,32 @@ async function saveStorySettings() {
         speech_boost_db: boost
     };
 
+    // Save Drama Dictionary if edited
+    const dictElem = document.getElementById('story-dictionary-textarea');
+    if (dictElem) {
+        const dictMap = {};
+        dictElem.value.split('\n').forEach(line => {
+            const trimmed = line.trim();
+            if (trimmed && (trimmed.includes('=') || trimmed.includes(':'))) {
+                const parts = trimmed.includes('=') ? trimmed.split('=') : trimmed.split(':');
+                if (parts.length >= 2) {
+                    const k = parts[0].trim();
+                    const v = parts.slice(1).join('=').trim();
+                    if (k && v) dictMap[k] = v;
+                }
+            }
+        });
+        try {
+            await fetch('/api/drama-dictionary', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dictionary: dictMap })
+            });
+        } catch (e) {
+            console.warn("Dictionary save note:", e);
+        }
+    }
+
     try {
         const resp = await fetch('/api/set-story-config', {
             method: 'POST',
@@ -1694,7 +1889,7 @@ async function saveStorySettings() {
             const voiceNameText = voice === 'multi' 
                 ? "Piseth & Sreymom (ប្រុស & ស្រី)" 
                 : (voice === 'sreymom' ? "Sreymom (ស្រីទោល)" : "Piseth (ប្រុសទោល)");
-            showToast(`✨ បានរក្សាទុកការកំណត់សំឡេង: ${voiceNameText} ដោយជោគជ័យ!`);
+            showToast(`✨ បានរក្សាទុកការកំណត់សំឡេង និងវចនានុក្រម: ${voiceNameText} ដោយជោគជ័យ!`);
             closeModal('modal-story-settings');
         } else {
             showToast(`⚠️ ${resData.message || 'Error saving story settings'}`);
@@ -1751,7 +1946,7 @@ async function openAiProvidingModal() {
 
     // Populate UI fields
     const selEngine = document.getElementById('ai-engine-select');
-    if (selEngine) selEngine.value = currentAiConfig.engine || 'gemini_pool';
+    if (selEngine) selEngine.value = currentAiConfig.engine || 'auto';
 
     const txtKeys = document.getElementById('ai-keys-pool-textarea');
     if (txtKeys) {
@@ -1947,9 +2142,9 @@ function clearAllKeysPool() {
 }
 
 async function saveAiProvidingConfig() {
-    const engine = document.getElementById('ai-engine-select') ? document.getElementById('ai-engine-select').value : 'gemini_pool';
+    const engine = document.getElementById('ai-engine-select') ? document.getElementById('ai-engine-select').value : 'auto';
     const keysRaw = document.getElementById('ai-keys-pool-textarea') ? document.getElementById('ai-keys-pool-textarea').value.trim() : '';
-    const model = document.getElementById('ai-model-select') ? document.getElementById('ai-model-select').value : 'gemini-2.5-flash';
+    const model = document.getElementById('ai-model-select') ? document.getElementById('ai-model-select').value : 'qwen/qwen3.8-27b';
     const temperature = document.getElementById('ai-temperature-slider') ? parseFloat(document.getElementById('ai-temperature-slider').value) : 0.3;
     const promptStyle = document.getElementById('ai-system-prompt-input') ? document.getElementById('ai-system-prompt-input').value.trim() : '';
 
@@ -2172,7 +2367,7 @@ async function startAutoDubbingPipeline(file) {
         ? "multi" 
         : (currentStoryConfig.khmer_voice || "piseth");
     const activeAspectRatio = currentStoryConfig.aspect_ratio || "9:16";
-    const activeBurnSubs = currentStoryConfig.subtitle_mode !== "none" ? "true" : "false";
+    const activeBurnSubs = (currentStoryConfig.subtitle_mode === "burn") ? "true" : "false";
 
     formData.append("source_lang", activeSourceLang);
     formData.append("voice_override", activeVoiceOverride);
@@ -2245,10 +2440,12 @@ async function startAutoDubbingPipeline(file) {
                         if (!loggedDialogueIds.has(idx)) {
                             loggedDialogueIds.add(idx);
                             const lineNum = String(idx + 1).padStart(2, '0');
-                            const vName = (d.voice === 'sreymom' || d.voice === 'female') ? 'ស្រីមុំ (Female)' : 'ពិសិដ្ឋ (Male)';
-                            const zhText = d.text || "(ចិន)";
-                            const kmText = d.translated_text || d.khmer_text || "(ខ្មែរ)";
-                            appendLiveTerminalLine(`[Line ${lineNum}] ZH: "${zhText}" ➜ KM: "${kmText}" (${vName})`, "[ZH ➜ KM]", "dub");
+                            const vName = (d.voice === 'sreymom' || d.voice === 'female') ? 'ស្រីមុំ (Sreymom)' : 'ពិសិដ្ឋ (Piseth)';
+                            const zhText = d.text_original || d.text || "";
+                            const kmText = d.text_km || d.translated_text || d.khmer_text || d.text || "";
+                            if (kmText && kmText !== zhText) {
+                                appendLiveTerminalLine(`[Line ${lineNum}] "${zhText}" ➜ "${kmText}" (${vName})`, "[ZH ➜ KM]", "dub");
+                            }
                         }
                     });
                 }
@@ -2332,7 +2529,8 @@ async function startBatchFilesUpload(files) {
     formData.append("voice_mode", activeVoiceMode);
     formData.append("drama_mode", "drama_dubbing");
     formData.append("aspect_ratio", "16:9");
-    formData.append("burn_subtitles", "true");
+    const activeBatchBurnSubs = (currentStoryConfig.subtitle_mode === "burn") ? "true" : "false";
+    formData.append("burn_subtitles", activeBatchBurnSubs);
 
     try {
         const res = await fetch("/api/batch/upload", {
