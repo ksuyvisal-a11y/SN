@@ -278,7 +278,12 @@ def translate_project_script(project_id):
     data = request.get_json(force=True) or {}
     mode = data.get("mode", "drama_dubbing")
     source_lang = data.get("source_lang", "auto")
-    voice_override = data.get("voice_override")
+    if not voice_override or voice_override == "auto":
+        cfg = load_stored_story_config()
+        if cfg.get("auto_multi_voice") or cfg.get("khmer_voice") == "multi":
+            voice_override = "multi"
+        else:
+            voice_override = cfg.get("khmer_voice", "piseth")
 
     try:
         updated_project = asyncio.run(pm.translate_project(
@@ -377,7 +382,10 @@ def batch_upload_endpoint():
     if not files:
         return jsonify({"error": "No files uploaded"}), 400
 
-    voice_mode = request.form.get("voice_mode", "auto")
+    voice_mode = request.form.get("voice_mode", "piseth")
+    if voice_mode in ("auto", "", None):
+        cfg = load_stored_story_config()
+        voice_mode = cfg.get("khmer_voice", "piseth") if not cfg.get("auto_multi_voice", False) else "auto_multi"
     drama_mode = request.form.get("drama_mode", "drama_dubbing")
     aspect_ratio = request.form.get("aspect_ratio", "16:9")
     burn_subtitles = request.form.get("burn_subtitles", "true").lower() == "true"
@@ -467,14 +475,14 @@ def load_stored_story_config() -> dict:
         except Exception as e:
             print(f"Error loading story config: {e}")
     return {
-        "khmer_voice": "piseth",
-        "auto_multi_voice": False,
+        "khmer_voice": "multi",
+        "auto_multi_voice": True,
         "source_lang": "auto",
         "whisper_model": "medium",
         "aspect_ratio": "9:16",
         "subtitle_mode": "burn",
         "dubbing_mode": "smart_bgm",
-        "ducking_volume": "0.08",
+        "ducking_volume": "0.02",
         "speech_boost_db": 2.5
     }
 
@@ -639,6 +647,20 @@ def set_story_config_endpoint():
     data = request.get_json(force=True) or {}
     cfg = load_stored_story_config()
     cfg.update(data)
+
+    # Keep auto_multi_voice and khmer_voice synchronized
+    if cfg.get("khmer_voice") == "multi":
+        cfg["auto_multi_voice"] = True
+    elif cfg.get("khmer_voice") in ("piseth", "sreymom"):
+        cfg["auto_multi_voice"] = False
+
+    # Sanitize ducking_volume so it is never empty or invalid
+    raw_duck = str(cfg.get("ducking_volume", "")).strip()
+    try:
+        if not raw_duck or float(raw_duck) <= 0:
+            cfg["ducking_volume"] = "0.02"
+    except (ValueError, TypeError):
+        cfg["ducking_volume"] = "0.02"
 
     STORY_CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(STORY_CONFIG_FILE, "w", encoding="utf-8") as f:
@@ -1037,7 +1059,7 @@ def auto_dub_video_endpoint():
     """
     mode = request.form.get("drama_mode", "drama_dubbing")
     source_lang = request.form.get("source_lang", "auto")
-    voice_override = request.form.get("voice_override", "auto")
+    voice_override = request.form.get("voice_override", "piseth")
     aspect_ratio = request.form.get("aspect_ratio", "16:9")
     burn_subtitles = request.form.get("burn_subtitles", "true").lower() == "true"
     
@@ -1063,6 +1085,13 @@ def auto_dub_video_endpoint():
             voice_override = data.get("voice_override", voice_override)
             aspect_ratio = data.get("aspect_ratio", aspect_ratio)
             burn_subtitles = data.get("burn_subtitles", burn_subtitles)
+
+    if voice_override in ("auto", "", None):
+        cfg = load_stored_story_config()
+        if cfg.get("auto_multi_voice") or cfg.get("khmer_voice") == "multi":
+            voice_override = "multi"
+        else:
+            voice_override = cfg.get("khmer_voice", "piseth")
 
     if not saved_video_path or not Path(saved_video_path).exists():
         return jsonify({"success": False, "error": "No valid video file uploaded or provided."}), 400

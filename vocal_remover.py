@@ -29,14 +29,15 @@ def separate_vocals_and_bgm(
     bgm_output = target_dir / f"{in_p.stem}_bgm.wav"
     vocals_output = target_dir / f"{in_p.stem}_vocals.wav"
 
-    # FFmpeg Stereo Center-Channel Vocal Suppression filter
-    # In movies, dialogues are panned center (L+R in-phase), while stereo BGM & SFX are wider (L-R out-of-phase).
-    # Using stereotools + band-reject + low/high pass preserving bass/treble BGM:
+    # FFmpeg Stereo Center-Channel Vocal Suppression + Multi-Band Vocal Frequency Notch
+    # Human voice core frequencies: 250Hz - 3600Hz.
+    # We suppress center-channel speech and apply targeted notches across vocal bands:
     bgm_filter = (
-        "stereotools=mlev=0.05:slev=1.3:mpan=0.0:sbal=0.0,"
-        "anlmdn=s=7:p=0.002:r=0.002:m=11,"
-        "equalizer=f=1000:t=q:w=2.0:g=-14,"
-        "equalizer=f=2500:t=q:w=2.0:g=-12"
+        "stereotools=mlev=0.02:slev=1.35:mpan=0.0:sbal=0.0,"
+        "equalizer=f=320:t=q:w=1.5:g=-16,"
+        "equalizer=f=1000:t=q:w=1.8:g=-20,"
+        "equalizer=f=2200:t=q:w=1.8:g=-18,"
+        "equalizer=f=3300:t=q:w=1.5:g=-14"
     )
 
     cmd_bgm = [

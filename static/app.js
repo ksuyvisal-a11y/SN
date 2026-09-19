@@ -283,7 +283,8 @@ function toggleVolumeMute() {
 }
 
 function toggleAudioTrack() {
-    showToast("🎙️ Audio Track: Dual Voice (Piseth & Sreymom)");
+    const vLabel = typeof getStoryVoiceDisplayLabel === 'function' ? getStoryVoiceDisplayLabel() : "Piseth & Sreymom";
+    showToast(`🎙️ Audio Track: ${vLabel}`);
 }
 
 function toggleGuidesMenu() {
@@ -1498,16 +1499,44 @@ function openSettingsSubpage(key) {
 // STORY SETTINGS MANAGER (Exact Match to User Attached Image)
 // ==========================================================================
 let currentStoryConfig = {
-    khmer_voice: "piseth",
-    auto_multi_voice: false,
+    khmer_voice: "multi",
+    auto_multi_voice: true,
     source_lang: "auto",
     whisper_model: "medium",
     aspect_ratio: "9:16",
     subtitle_mode: "burn",
     dubbing_mode: "smart_bgm",
-    ducking_volume: "0.08",
+    ducking_volume: "0.02",
     speech_boost_db: 2.5
 };
+
+function getStoryVoiceDisplayLabel() {
+    if (currentStoryConfig.auto_multi_voice || currentStoryConfig.khmer_voice === 'multi') {
+        return "Piseth & Sreymom (Dual Voice)";
+    }
+    if (currentStoryConfig.khmer_voice === 'sreymom') {
+        return "Sreymom (Female Solo)";
+    }
+    return "Piseth (Male Solo)";
+}
+
+function refreshStagedCardVoiceMeta() {
+    const stagedMeta = document.getElementById('staged-file-meta');
+    if (!stagedMeta) return;
+    const vLabel = getStoryVoiceDisplayLabel();
+    if (stagedVideoFile) {
+        const sizeMb = (stagedVideoFile.size / (1024 * 1024)).toFixed(1);
+        let durStr = "";
+        if (totalDurationSeconds > 0) {
+            const durM = Math.floor(totalDurationSeconds / 60);
+            const durS = Math.floor(totalDurationSeconds % 60);
+            durStr = ` • ${String(durM).padStart(2, '0')}:${String(durS).padStart(2, '0')}`;
+        }
+        stagedMeta.innerHTML = `<i class="fa-solid fa-microphone-lines" style="color:#facc15;"></i> សំឡេង: <strong style="color:#facc15;">${vLabel}</strong> • ${sizeMb} MB${durStr} • ត្រៀមបកប្រែ`;
+    } else if (stagedBatchFiles && stagedBatchFiles.length > 0) {
+        stagedMeta.innerHTML = `<i class="fa-solid fa-microphone-lines" style="color:#facc15;"></i> សំឡេង: <strong style="color:#facc15;">${vLabel}</strong> • Batch: ${stagedBatchFiles.length} វីដេអូ`;
+    }
+}
 
 async function loadStoryConfigData() {
     try {
@@ -1528,10 +1557,13 @@ async function openStorySettingsModal() {
 
     // Populate Voice & AI Tab fields
     const selVoice = document.getElementById('story-voice-select');
-    if (selVoice) selVoice.value = currentStoryConfig.khmer_voice || 'piseth';
-
-    const chkMulti = document.getElementById('story-auto-multi-voice');
-    if (chkMulti) chkMulti.checked = !!currentStoryConfig.auto_multi_voice;
+    let activeVoice = currentStoryConfig.khmer_voice || 'multi';
+    if (currentStoryConfig.auto_multi_voice || activeVoice === 'multi') {
+        activeVoice = 'multi';
+    } else if (activeVoice !== 'sreymom') {
+        activeVoice = 'piseth';
+    }
+    if (selVoice) selVoice.value = activeVoice;
 
     const selLang = document.getElementById('story-source-lang');
     if (selLang) selLang.value = currentStoryConfig.source_lang || 'auto';
@@ -1554,11 +1586,15 @@ async function openStorySettingsModal() {
     if (selDub) selDub.value = currentStoryConfig.dubbing_mode || 'smart_bgm';
 
     const selDuck = document.getElementById('story-ducking-vol');
-    if (selDuck) selDuck.value = currentStoryConfig.ducking_volume || '0.08';
+    if (selDuck) {
+        selDuck.value = currentStoryConfig.ducking_volume || '0.02';
+        if (!selDuck.value) selDuck.value = '0.02';
+    }
 
     const selBoost = document.getElementById('story-speech-boost');
     if (selBoost && currentStoryConfig.speech_boost_db !== undefined) {
         selBoost.value = currentStoryConfig.speech_boost_db.toString();
+        if (!selBoost.value) selBoost.value = '2.5';
     }
 
     updateStoryVoiceHint();
@@ -1577,52 +1613,64 @@ function switchStoryTab(tabKey) {
 }
 
 function updateStoryVoiceHint() {
-    const chk = document.getElementById('story-auto-multi-voice');
     const hint = document.getElementById('story-voice-hint');
     const selVoice = document.getElementById('story-voice-select');
-    if (!hint) return;
+    if (!hint || !selVoice) return;
 
-    if (chk && chk.checked) {
-        hint.textContent = "Automatically switches between Piseth (Male) and Sreymom (Female) per character.";
-        hint.style.color = "var(--gold-glow)";
-        if (selVoice) selVoice.disabled = true;
+    const val = selVoice.value;
+    if (val === 'multi') {
+        hint.innerHTML = `<span style="color:#facc15; font-weight:bold;">🎭 Piseth &amp; Sreymom (Dual Voice):</span> AI នឹងបែងចែកតួអង្គស្វ័យប្រវត្ត — តួប្រុសប្រើ Piseth, តួស្រីប្រើ Sreymom ឆ្លាស់គ្នាតាមសាច់រឿង។`;
+    } else if (val === 'sreymom') {
+        hint.innerHTML = `<span style="color:#38bdf8; font-weight:bold;">👩 Sreymom (សំឡេងស្រីទោល):</span> ប្រើតែសំឡេងស្រីមុំទោលមួយគត់សម្រាប់គ្រប់ឃ្លា (គ្មានលាយសំឡេងប្រុសទេ)។`;
     } else {
-        const voiceName = selVoice && selVoice.value === 'sreymom' ? "Sreymom" : "Piseth";
-        hint.textContent = `This one fixed Khmer voice (${voiceName}) is used for every translated line.`;
-        hint.style.color = "#94a3b8";
-        if (selVoice) selVoice.disabled = false;
+        hint.innerHTML = `<span style="color:#22c55e; font-weight:bold;">👨 Piseth (សំឡេងប្រុសទោល):</span> ប្រើតែសំឡេងពិសិដ្ឋទោលមួយគត់សម្រាប់គ្រប់ឃ្លា (គ្មានលាយសំឡេងស្រីទេ)។`;
     }
 }
 
 function onStoryVoiceChange() {
     updateStoryVoiceHint();
+    const selVoice = document.getElementById('story-voice-select');
+    if (!selVoice) return;
+    if (selVoice.value === 'multi') {
+        showToast("🎭 បានជ្រើសរើស: Piseth & Sreymom (សំឡេងប្រុស & ស្រី)");
+    } else if (selVoice.value === 'sreymom') {
+        showToast("👩 បានជ្រើសរើស: Sreymom (សំឡេងស្រីទោល)");
+    } else {
+        showToast("👨 បានជ្រើសរើស: Piseth (សំឡេងប្រុសទោល)");
+    }
 }
 
 function onToggleMultiVoice(isChecked) {
+    const selVoice = document.getElementById('story-voice-select');
+    if (selVoice) selVoice.value = isChecked ? 'multi' : 'piseth';
     updateStoryVoiceHint();
     if (isChecked) {
-        showToast("🎭 Auto Multi-character Voice (Piseth & Sreymom) Active");
+        showToast("🎭 Piseth & Sreymom (Dual Voice) Active");
     } else {
-        const selVoice = document.getElementById('story-voice-select');
-        const v = selVoice ? selVoice.value : 'piseth';
-        showToast(`🎙️ Single Voice Mode Active: ${v === 'sreymom' ? 'Sreymom' : 'Piseth'}`);
+        showToast("🎙️ Single Voice Mode Active: Piseth");
     }
 }
 
 async function saveStorySettings() {
-    const voice = document.getElementById('story-voice-select') ? document.getElementById('story-voice-select').value : 'piseth';
-    const autoMulti = document.getElementById('story-auto-multi-voice') ? document.getElementById('story-auto-multi-voice').checked : false;
+    const selVoice = document.getElementById('story-voice-select');
+    const voice = selVoice ? selVoice.value : 'multi';
+    const isMulti = (voice === 'multi');
     const lang = document.getElementById('story-source-lang') ? document.getElementById('story-source-lang').value : 'auto';
     const whisper = document.getElementById('story-whisper-model') ? document.getElementById('story-whisper-model').value : 'medium';
     const aspect = document.getElementById('story-aspect-ratio') ? document.getElementById('story-aspect-ratio').value : '9:16';
     const subtitle = document.getElementById('story-subtitle-mode') ? document.getElementById('story-subtitle-mode').value : 'burn';
     const dubMode = document.getElementById('story-dubbing-mode') ? document.getElementById('story-dubbing-mode').value : 'smart_bgm';
-    const duckVol = document.getElementById('story-ducking-vol') ? document.getElementById('story-ducking-vol').value : '0.08';
-    const boost = document.getElementById('story-speech-boost') ? parseFloat(document.getElementById('story-speech-boost').value) : 2.5;
+    const duckElem = document.getElementById('story-ducking-vol');
+    let duckVol = duckElem && duckElem.value ? duckElem.value : '0.02';
+    if (!duckVol || isNaN(parseFloat(duckVol))) duckVol = '0.02';
+
+    const boostElem = document.getElementById('story-speech-boost');
+    let boost = boostElem && boostElem.value ? parseFloat(boostElem.value) : 2.5;
+    if (isNaN(boost)) boost = 2.5;
 
     const payload = {
         khmer_voice: voice,
-        auto_multi_voice: autoMulti,
+        auto_multi_voice: isMulti,
         source_lang: lang,
         whisper_model: whisper,
         aspect_ratio: aspect,
@@ -1641,7 +1689,12 @@ async function saveStorySettings() {
         const resData = await resp.json();
         if (resData.success) {
             currentStoryConfig = Object.assign(currentStoryConfig, payload);
-            showToast("✨ បានរក្សាទុកការកំណត់ Story Settings ដោយជោគជ័យ!");
+            refreshStagedCardVoiceMeta();
+
+            const voiceNameText = voice === 'multi' 
+                ? "Piseth & Sreymom (ប្រុស & ស្រី)" 
+                : (voice === 'sreymom' ? "Sreymom (ស្រីទោល)" : "Piseth (ប្រុសទោល)");
+            showToast(`✨ បានរក្សាទុកការកំណត់សំឡេង: ${voiceNameText} ដោយជោគជ័យ!`);
             closeModal('modal-story-settings');
         } else {
             showToast(`⚠️ ${resData.message || 'Error saving story settings'}`);
@@ -1992,7 +2045,7 @@ function setStagedVideo(file) {
         const durS = Math.floor(dur % 60);
         const durFormatted = `${String(durM).padStart(2,'0')}:${String(durS).padStart(2,'0')}`;
         const stagedMeta = document.getElementById('staged-file-meta');
-        if (stagedMeta) stagedMeta.textContent = `${(file.size / (1024 * 1024)).toFixed(1)} MB • Duration: ${durFormatted} • ត្រៀមបកប្រែជាសំឡេងខ្មែរ`;
+        if (stagedMeta) refreshStagedCardVoiceMeta();
         appendLiveTerminalLine(`Media imported: "${file.name}" • Duration: ${durFormatted} (${dur.toFixed(1)}s)`, "[Video 1/1]", "info");
     });
 
@@ -2005,7 +2058,7 @@ function setStagedVideo(file) {
     if (importPrompt) importPrompt.style.display = 'none';
     if (stagedCard) stagedCard.style.display = 'flex';
     if (stagedTitle) stagedTitle.textContent = file.name;
-    if (stagedMeta) stagedMeta.textContent = `${(file.size / (1024 * 1024)).toFixed(1)} MB • ត្រៀមបកប្រែជាសំឡេងខ្មែរ (ពិសិដ្ឋ & ស្រីមុំ)`;
+    refreshStagedCardVoiceMeta();
 
     // Highlight / Pulse top Export button
     const exportBtn = document.getElementById('btn-tab-export');
@@ -2115,7 +2168,9 @@ async function startAutoDubbingPipeline(file) {
     formData.append("file", file);
     formData.append("drama_mode", currentStudioPreset === "narration" ? "movie_recap" : "drama_dubbing");
     const activeSourceLang = currentStoryConfig.source_lang || "auto";
-    const activeVoiceOverride = currentStoryConfig.auto_multi_voice ? "auto" : (currentStoryConfig.khmer_voice || "piseth");
+    const activeVoiceOverride = (currentStoryConfig.auto_multi_voice || currentStoryConfig.khmer_voice === "multi") 
+        ? "multi" 
+        : (currentStoryConfig.khmer_voice || "piseth");
     const activeAspectRatio = currentStoryConfig.aspect_ratio || "9:16";
     const activeBurnSubs = currentStoryConfig.subtitle_mode !== "none" ? "true" : "false";
 
@@ -2271,7 +2326,10 @@ async function startBatchFilesUpload(files) {
     for (let i = 0; i < files.length; i++) {
         formData.append("files", files[i]);
     }
-    formData.append("voice_mode", "auto");
+    const activeVoiceMode = (currentStoryConfig.auto_multi_voice || currentStoryConfig.khmer_voice === "multi") 
+        ? "multi" 
+        : (currentStoryConfig.khmer_voice || "piseth");
+    formData.append("voice_mode", activeVoiceMode);
     formData.append("drama_mode", "drama_dubbing");
     formData.append("aspect_ratio", "16:9");
     formData.append("burn_subtitles", "true");

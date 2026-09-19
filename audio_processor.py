@@ -75,6 +75,64 @@ def save_audio_safely(segment: AudioSegment, output_path: str, bitrate: str = "1
     return str(out_p)
 
 
+def enhance_voice_clarity_studio(
+    input_path: str,
+    output_path: Optional[str] = None,
+    speed_ratio: float = 1.0
+) -> str:
+    """
+    Studio-grade vocal post-processing chain for Khmer Neural TTS:
+    - High-pass filter at 75Hz (eliminates low mic rumble and plosive thuds)
+    - Presence EQ boost (+2.4dB at 3.2kHz, Q=1.2) for crisp Khmer speech clarity
+    - High-shelf sheen (+1.8dB at 8.5kHz) for studio air
+    - Broadcast compression (acompressor) to balance vocal dynamics
+    - Smooth atempo time-scaling if speed_ratio != 1.0
+    """
+    in_file = Path(input_path)
+    if not in_file.exists():
+        return str(input_path)
+
+    out_file = Path(output_path) if output_path else in_file.parent / f"enhanced_{in_file.name}"
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+
+    filter_parts = [
+        "highpass=f=75",
+        "equalizer=f=3200:t=q:w=1.2:g=2.4",
+        "equalizer=f=8500:t=h:g=1.8",
+        "acompressor=threshold=-19dB:ratio=2.6:attack=12:release=110"
+    ]
+
+    sr = max(0.5, min(2.0, float(speed_ratio)))
+    if abs(sr - 1.0) > 0.01:
+        filter_parts.append(f"atempo={sr:.3f}")
+
+    filter_str = ",".join(filter_parts)
+    temp_out = out_file.parent / f"tmp_dsp_{out_file.name}"
+    cmd = [
+        get_ffmpeg_path(), "-y",
+        "-i", str(in_file),
+        "-filter:a", filter_str,
+        "-b:a", "192k",
+        str(temp_out)
+    ]
+    res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if res.returncode == 0 and temp_out.exists() and temp_out.stat().st_size > 100:
+        if output_path is None or str(output_path) == str(input_path):
+            if in_file.exists():
+                in_file.unlink(missing_ok=True)
+            temp_out.rename(in_file)
+            return str(in_file)
+        else:
+            if out_file.exists():
+                out_file.unlink(missing_ok=True)
+            temp_out.rename(out_file)
+            return str(out_file)
+    else:
+        if temp_out.exists():
+            temp_out.unlink(missing_ok=True)
+        return str(input_path)
+
+
 def extract_audio_from_video(video_path: str, output_audio_path: str) -> str:
     """Extract audio track from video file as 16-bit 44.1kHz WAV for mixing."""
     out_p = Path(output_audio_path)
@@ -160,7 +218,7 @@ def mix_dubbed_audio(
     dialogue_items: List[Dict[str, Any]],
     output_mixed_path: str,
     total_duration_sec: Optional[float] = None,
-    ducking_volume_factor: float = 0.08,  # Reduce BGM to 8% (-22dB) during speech to completely mask original vocals
+    ducking_volume_factor: float = 0.02,  # Deep -34dB ducking during speech to guarantee Zero Vocal Leakage
     speech_volume_boost_db: float = 2.5,   # Boost speech clarity by +2.5dB
     dubbing_mode: str = "smart_bgm"        # "smart_bgm", "pure_voice", "standard_ducking"
 ) -> str:
@@ -207,6 +265,10 @@ def mix_dubbed_audio(
             if speech_volume_boost_db != 0:
                 line_seg = line_seg + speech_volume_boost_db
 
+            # Micro-fades to eliminate digital clicks and boundary pops
+            if len(line_seg) > 60:
+                line_seg = line_seg.fade_in(15).fade_out(25)
+
             start_ms = int(item.get("start", 0) * 1000)
 
             # Determine when the next speech line starts to prevent ANY overlapping
@@ -219,10 +281,10 @@ def mix_dubbed_audio(
 
             # STRICT NON-OVERLAP ENFORCEMENT:
             # If current line extends into the next line, cap it cleanly with a gentle fade-out
-            if next_start_ms is not None and (start_ms + len(line_seg)) > (next_start_ms - 40):
-                allowed_len = max(150, next_start_ms - start_ms - 40)
+            if next_start_ms is not None and (start_ms + len(line_seg)) > (next_start_ms - 30):
+                allowed_len = max(150, next_start_ms - start_ms - 30)
                 if len(line_seg) > allowed_len:
-                    fade_ms = min(60, max(15, allowed_len // 4))
+                    fade_ms = min(80, max(20, allowed_len // 4))
                     line_seg = line_seg[:allowed_len].fade_out(fade_ms)
 
             line_len_ms = len(line_seg)
@@ -258,10 +320,11 @@ def mix_dubbed_audio(
 
         ducked_bg = AudioSegment.empty()
         current_pos = 0
-        # -22dB ducking level completely isolates Khmer speech while keeping ambient music smooth
-        duck_db = 20 * math.log10(max(0.005, ducking_volume_factor))
+        # Enforce minimum -32dB (up to -40dB) ducking to guarantee ZERO vocal bleed
+        calc_duck_db = 20 * math.log10(max(0.001, ducking_volume_factor))
+        duck_db = min(-32.0, calc_duck_db)
 
-        fade_ms = 120
+        fade_ms = 100
         for interval_start, interval_end in merged_intervals:
             if interval_start > current_pos:
                 normal_seg = bg_audio[current_pos:interval_start]
@@ -269,10 +332,12 @@ def mix_dubbed_audio(
             
             speech_duration = min(len(bg_audio), interval_end) - interval_start
             if speech_duration > 0:
-                ducked_seg = bg_audio[interval_start:interval_start + speech_duration] + duck_db
+                # Duck background and apply additional -4dB suppression during dialogue (total -36dB to -38dB)
+                ducked_seg = bg_audio[interval_start:interval_start + speech_duration] + duck_db - 4.0
                 # Smooth crossfading to prevent any abrupt audio pops
-                if len(ducked_seg) > fade_ms * 2:
-                    ducked_seg = ducked_seg.fade_in(fade_ms).fade_out(fade_ms)
+                actual_fade = min(fade_ms, max(20, speech_duration // 4))
+                if len(ducked_seg) > actual_fade * 2:
+                    ducked_seg = ducked_seg.fade_in(actual_fade).fade_out(actual_fade)
                 ducked_bg = ducked_bg + ducked_seg
                 
             current_pos = interval_end

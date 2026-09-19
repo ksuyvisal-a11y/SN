@@ -136,45 +136,42 @@ async def synthesize_khmer_speech(
 
 def trim_and_fit_voice_audio(audio_path: str, max_duration_sec: Optional[float] = None) -> float:
     """
-    Strip leading/trailing dead silence added by Edge-TTS and time-fit audio to dialogue window.
-    Guarantees speech completes cleanly without colliding into the next speaker.
+    Strip leading/trailing dead silence, apply studio vocal mastering (EQ/compressor),
+    and time-fit audio to dialogue window so speech finishes in sync with character.
     """
     try:
-        from audio_processor import load_audio_safely, save_audio_safely, get_ffmpeg_path
+        from audio_processor import (
+            load_audio_safely,
+            save_audio_safely,
+            enhance_voice_clarity_studio,
+            get_ffmpeg_path
+        )
         from pydub.silence import detect_leading_silence
-        import subprocess
 
         seg = load_audio_safely(audio_path)
-        s_trim = detect_leading_silence(seg, silence_threshold=-40.0)
-        e_trim = detect_leading_silence(seg.reverse(), silence_threshold=-40.0)
+        s_trim = detect_leading_silence(seg, silence_threshold=-42.0)
+        e_trim = detect_leading_silence(seg.reverse(), silence_threshold=-42.0)
         dur = len(seg)
         if (s_trim + e_trim) < dur:
-            start_pos = max(0, s_trim - 15)
-            end_pos = min(dur, dur - e_trim + 25)
+            start_pos = max(0, s_trim - 10)
+            end_pos = min(dur, dur - e_trim + 20)
             trimmed = seg[start_pos:end_pos]
         else:
             trimmed = seg
 
         trimmed_sec = len(trimmed) / 1000.0
+        save_audio_safely(trimmed, str(audio_path))
 
+        # Precision time-fitting if speech overshoots the character's speaking window
+        speed_ratio = 1.0
         if max_duration_sec and max_duration_sec > 0.4 and trimmed_sec > max_duration_sec:
-            speed_ratio = min(1.38, max(1.0, trimmed_sec / max_duration_sec))
-            temp_wav = str(audio_path) + ".tmp.wav"
-            save_audio_safely(trimmed, temp_wav)
-            cmd = [
-                get_ffmpeg_path(), "-y",
-                "-i", temp_wav,
-                "-filter:a", f"atempo={speed_ratio:.3f}",
-                str(audio_path)
-            ]
-            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            if os.path.exists(temp_wav):
-                os.remove(temp_wav)
-            res = load_audio_safely(audio_path)
-            return len(res) / 1000.0
-        else:
-            save_audio_safely(trimmed, str(audio_path))
-            return trimmed_sec
+            speed_ratio = min(1.55, max(1.0, trimmed_sec / max_duration_sec))
+
+        # Apply Studio Vocal EQ, Highpass, and Broadcast Compression Chain
+        enhance_voice_clarity_studio(str(audio_path), speed_ratio=speed_ratio)
+
+        final_res = load_audio_safely(audio_path)
+        return len(final_res) / 1000.0
     except Exception as e:
         print(f"Voice trim/fit note: {e}")
         return 0.0
@@ -186,28 +183,46 @@ async def batch_synthesize(
     default_voice: str = "piseth"
 ) -> List[Dict[str, Any]]:
     """
-    Synthesize dialogue items with silence-stripping and time-fitting for 100% sync.
+    Synthesize dialogue items with dynamic rate estimation, studio vocal mastering,
+    and tight lip-sync alignment so speech strictly matches the characters.
     """
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
-    semaphore = asyncio.Semaphore(3)
+    semaphore = asyncio.Semaphore(4)
 
     async def _process_item(item: Dict[str, Any], index: int) -> Dict[str, Any]:
         async with semaphore:
             item_id = item.get("id", index)
-            text = item.get("text_km") or item.get("text", "")
+            text = (item.get("text_km") or item.get("text", "")).strip()
             voice = item.get("voice") or default_voice
-            rate = item.get("rate_percent", 0)
-            pitch = item.get("pitch_hz", 0)
+            rate = int(item.get("rate_percent", 0))
+            pitch = int(item.get("pitch_hz", 0))
 
-            # Calculate target available window before next dialogue
+            # Calculate target dialogue window anchored to character speaking duration
             start = float(item.get("start", 0.0))
             end = float(item.get("end", start + 2.0))
+            char_dur = max(0.5, end - start)
+
             if index + 1 < len(dialogue_items):
                 next_start = float(dialogue_items[index + 1].get("start", end + 1.0))
-                target_window = max(0.5, (next_start - start) - 0.08)
+                # Lip-sync sync: finish close to character's mouth closing, never exceed next_start
+                target_window = min(max(0.5, next_start - start - 0.05), char_dur * 1.10 + 0.35)
             else:
-                target_window = max(0.8, (end - start) + 0.6)
+                target_window = char_dur * 1.15 + 0.40
+
+            # Dynamic Speech Rate Pre-calculation:
+            # Khmer neural speech naturally averages ~10-11 characters/sec.
+            # If line is dense relative to dialogue window, pre-boost rate so it sounds brisk and natural:
+            if rate == 0 and len(text) > 0:
+                est_duration = len(text) / 10.5
+                if est_duration > char_dur * 1.08:
+                    ratio = est_duration / char_dur
+                    if ratio >= 1.40:
+                        rate = 22  # +22% energetic drama pace
+                    elif ratio >= 1.22:
+                        rate = 15  # +15%
+                    elif ratio >= 1.08:
+                        rate = 8   # +8%
 
             line_audio_path = out_path / f"line_{index:04d}_{item_id}.mp3"
             try:
@@ -219,13 +234,14 @@ async def batch_synthesize(
                     output_path=str(line_audio_path)
                 )
 
-                # Strip silence and time-fit cleanly into the scene timing!
+                # Strip dead silence, apply studio vocal DSP, and time-fit to character window!
                 final_dur = trim_and_fit_voice_audio(audio_file, target_window)
 
                 item_copy = dict(item)
                 item_copy["audio_file"] = audio_file
                 item_copy["voice_used"] = voice
                 item_copy["audio_duration"] = final_dur
+                item_copy["rate_percent"] = rate
                 calculated_end = round(start + final_dur, 2)
                 orig_end = float(item.get("end", calculated_end))
                 if index + 1 < len(dialogue_items):

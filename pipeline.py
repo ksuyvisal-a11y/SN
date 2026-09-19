@@ -10,7 +10,23 @@ from typing import Dict, Any, List, Optional
 
 from tts_engine import batch_synthesize, synthesize_khmer_speech, get_available_voices
 from translator import DramaTranslator, parse_srt_content, format_srt_content
-from audio_processor import extract_audio_from_video, mix_dubbed_audio, create_waveform_data, get_media_duration
+from audio_processor import (
+    extract_audio_from_video,
+    mix_dubbed_audio,
+    create_waveform_data,
+    get_media_duration
+)
+from tts_engine import batch_synthesize
+
+def safe_float(val: Any, default: float = 0.02) -> float:
+    """Safely convert value to float with reliable fallback against empty strings and None."""
+    try:
+        if val is None or str(val).strip() == "":
+            return default
+        return float(val)
+    except (ValueError, TypeError):
+        return default
+
 from video_processor import render_dubbed_video, generate_sample_drama_video
 from vocal_remover import separate_vocals_and_bgm
 from stt_engine import SpeechToTextEngine
@@ -173,6 +189,16 @@ class ProjectManager:
         proj_dir = Path(f"data/projects/{project_id}")
         proj_dir.mkdir(parents=True, exist_ok=True)
         
+        # Load default ducking from story_config.json
+        cfg_duck = 0.02
+        try:
+            cfg_p = Path("data/story_config.json")
+            if cfg_p.exists():
+                with open(cfg_p, "r", encoding="utf-8") as f:
+                    cfg_duck = safe_float(json.load(f).get("ducking_volume"), 0.02)
+        except Exception:
+            cfg_duck = 0.02
+
         project = {
             "id": project_id,
             "title": title,
@@ -184,7 +210,7 @@ class ProjectManager:
             "mixed_audio_file": None,
             "output_video_file": None,
             "duration": 0.0,
-            "ducking_factor": 0.25,
+            "ducking_factor": cfg_duck,
             "burn_subtitles": True,
             "aspect_ratio": "16:9",  # 16:9 or 9:16
             "watermark_text": "",
@@ -291,12 +317,28 @@ class ProjectManager:
 
         mode = mode or project.get("mode", "drama_dubbing")
         source_lang = source_lang or project.get("source_lang", "auto")
+        
+        if not voice_override or voice_override in (None, "", "auto"):
+            cfg = {}
+            try:
+                cfg_p = Path("data/story_config.json")
+                if cfg_p.exists():
+                    with open(cfg_p, "r", encoding="utf-8") as f:
+                        cfg = json.load(f)
+            except Exception:
+                pass
+            if cfg.get("auto_multi_voice") or cfg.get("khmer_voice") == "multi":
+                v_override = "multi"
+            else:
+                v_override = cfg.get("khmer_voice", "piseth")
+        else:
+            v_override = voice_override
 
         translated_dialogues = await self.translator.translate_dialogues(
             dialogues=project.get("dialogues", []),
             mode=mode,
             source_lang=source_lang,
-            target_voice_override=voice_override
+            target_voice_override=v_override
         )
 
         project["dialogues"] = translated_dialogues
@@ -336,7 +378,7 @@ class ProjectManager:
             dialogue_items=processed_dialogues,
             output_mixed_path=str(mixed_audio_path),
             total_duration_sec=project.get("duration", 0),
-            ducking_volume_factor=float(project.get("ducking_factor", 0.08)),
+            ducking_volume_factor=safe_float(project.get("ducking_factor"), 0.02),
             dubbing_mode="smart_bgm"
         )
 
@@ -475,9 +517,32 @@ class ProjectManager:
         project["dialogues"] = dialogues
         self.save_project(project)
 
-        # 4. Translate to Khmer Drama Dialogue with Character Roles
-        update_prog(62, "៤/៧ AI កំពុងបកប្រែជាភាសាខ្មែរតាមតួអង្គ (រឿងភាគ)...", "Translating script to natural Khmer...")
-        v_override = None if voice_override in (None, "", "auto") else voice_override
+        # 4. Translate to Khmer Drama Dialogue (Strictly honors Piseth, Sreymom, or Dual Voice)
+        cfg_data = {}
+        try:
+            cfg_p = Path("data/story_config.json")
+            if cfg_p.exists():
+                with open(cfg_p, "r", encoding="utf-8") as f:
+                    cfg_data = json.load(f)
+        except Exception:
+            pass
+
+        if not voice_override or voice_override in (None, "", "auto"):
+            if cfg_data.get("auto_multi_voice") or cfg_data.get("khmer_voice") == "multi":
+                voice_override = "multi"
+            else:
+                voice_override = cfg_data.get("khmer_voice", "piseth")
+
+        v_override = str(voice_override).lower().strip()
+        is_multi = v_override in ("multi", "auto_multi")
+        if is_multi:
+            voice_label = "ពិសិដ្ឋ & ស្រីមុំ (Dual Voice)"
+        elif v_override == "sreymom":
+            voice_label = "ស្រីមុំ (Sreymom Solo)"
+        else:
+            voice_label = "ពិសិដ្ឋ (Piseth Solo)"
+
+        update_prog(62, f"៤/៧ AI កំពុងបកប្រែជាភាសាខ្មែរ {voice_label}...", f"Translating script to {voice_label}...")
         translated = await self.translator.translate_dialogues(
             dialogues=dialogues,
             mode=mode,
@@ -486,13 +551,17 @@ class ProjectManager:
         )
         project["dialogues"] = translated
         self.save_project(project)
-        update_prog(68, "៤/៧ បកប្រែបានជោគជ័យ! កំពុងត្រៀមបញ្ចូលសំឡេងខ្មែរ...", "Translation completed! Preparing voice synthesis...", dialogues=translated)
+        update_prog(68, f"៤/៧ បកប្រែបានជោគជ័យ! កំពុងត្រៀមបញ្ចូលសំឡេង {voice_label}...", "Translation completed! Preparing voice synthesis...", dialogues=translated)
 
-        # 5. Neural Khmer Voice Synthesis (Piseth & Sreymom Multi-Pitch)
-        update_prog(76, "៥/៧ កំពុងបញ្ចូលសំឡេងខ្មែរ ពិសិដ្ឋ & ស្រីមុំ...", "Synthesizing Khmer neural speech...")
+        # 5. Neural Khmer Voice Synthesis
+        update_prog(76, f"៥/៧ កំពុងបញ្ចូលសំឡេងខ្មែរ {voice_label}...", f"Synthesizing Khmer neural speech ({voice_label})...")
         voice_out_dir = proj_dir / "voices"
         voice_out_dir.mkdir(parents=True, exist_ok=True)
-        synthesized = await batch_synthesize(translated, output_dir=str(voice_out_dir))
+        synthesized = await batch_synthesize(
+            translated,
+            output_dir=str(voice_out_dir),
+            default_voice="piseth" if is_multi else v_override
+        )
         project["dialogues"] = synthesized
         self.save_project(project)
 
@@ -500,12 +569,13 @@ class ProjectManager:
         update_prog(88, "៦/៧ កំពុងសម្រួលសំឡេង BGM & សំឡេងខ្មែរ (Zero Vocal Leakage)...", "Mixing dubbed audio with clean BGM...")
         mixed_audio = proj_dir / "mixed_dubbed_audio.mp3"
         bgm_track = project.get("isolated_bgm_file") or str(audio_dest)
+        duck_val = safe_float(cfg_data.get("ducking_volume"), safe_float(project.get("ducking_factor"), 0.02))
         mix_dubbed_audio(
             original_audio_path=bgm_track,
             dialogue_items=synthesized,
             output_mixed_path=str(mixed_audio),
             total_duration_sec=project.get("duration", 0),
-            ducking_volume_factor=float(project.get("ducking_factor", 0.08)),
+            ducking_volume_factor=duck_val,
             dubbing_mode="smart_bgm"
         )
         project["mixed_audio_file"] = str(mixed_audio)

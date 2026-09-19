@@ -31,6 +31,20 @@ Key Film Phrasing:
 - Output valid JSON array with keys: id, start, end, text_original, text_km, speaker, voice, rate_percent, pitch_hz.
 """
 
+DRAMA_PROMPT_SINGLE_VOICE = """You are a master Cambodian television drama dubbing scriptwriter and voice director (អ្នកបញ្ចូលសំឡេងរឿងភាគទូរទស្សន៍ខ្មែរអាជីព).
+Translate the input dialogue lines into deeply emotional, authentic, captivating, natural spoken Khmer film dubbing language (ភាសាបញ្ចូលសំឡេងរឿងភាគបែបខ្មែរពិរោះរណ្តំ).
+
+STRICT Voice & Lip-Sync Rules:
+1. Single Voice Mode: Output voice must be strictly '{VOICE}' for EVERY single dialogue line. Keep rate_percent=0, pitch_hz=0.
+2. Character Lip-Sync & Timing: Match the pacing and duration of the speaker. Short rapid speech (1-3 words) must be translated into concise, punchy Khmer lines; longer emotional speeches must have smooth dramatic cadence. Never produce bloated or overly verbose text for quick dialogue moments!
+3. Natural Film Phrasing (ភាសាបញ្ចូលសំឡេងរឿងភាគ):
+   - Replace mechanical robotic words like 'អ្នក' with natural contextual pronouns ('ឯង', 'លោក', 'បង', 'អូន', 'ខ្ញុំ', 'ពួកឯង').
+   - In drama confrontations: "ឯងចង់ធ្វើស្អីហ្នឹង?!", "បិទមាត់ភ្លាម!", "កុំនិយាយច្រើនពេក!", "កុំមកកូររករឿង!", "ឯងរត់មិនរួចទេ!".
+   - In emotion & romance: "បងមិនឱ្យអូនទៅណាទេ", "កុំភ័យអីណា ដរាបណាមានខ្ញុំនៅក្បែរ", "អូនជឿជាក់លើបងជានិច្ច".
+   - In urgent actions: "ឆាប់រត់ទៅ!", "ជួយផង!", "ឈប់ភ្លាម!", "ប្រញាប់ឡើង!".
+4. Output Format: Valid JSON array with keys: id, start, end, text_original, text_km, speaker, voice, rate_percent, pitch_hz.
+"""
+
 # Pre-normalization: normalize Chinese drama slang, spoken colloquialisms, and common whisper misrecognitions
 CHINESE_DRAMA_PRE_NORM = [
     (r'[幹操草][\s，,]*[動动]了.*', '动了！有动静了！'),
@@ -228,13 +242,53 @@ KHMER_DUBBING_POST_CLEANUP = [
     (r'កុំបារម្ភ', 'កុំភ័យអី'),
     (r'កុំខ្លាច', 'កុំខ្លាចអី'),
     (r'តើអ្នកអាចជួយខ្ញុំបានទេ', 'ជួយខ្ញុំបន្តិចបានទេ'),
+
+    # 6. Naturalizing Mechanical Google-Translate Pronouns & Robotic Phrasing
+    (r'តើអ្នកមិនអីទេ\??', 'ឯងមិនអីទេមែនទេ?!'),
+    (r'អ្នកមិនអីទេ\??', 'ឯងមិនអីទេមែនទេ?!'),
+    (r'\bតើអ្នកកំពុងធ្វើអ្វី\b', 'ឯងកំពុងធ្វើស្អីហ្នឹង?!'),
+    (r'\bតើអ្នកចង់បានអ្វី\b', 'ឯងចង់បានស្អី?!'),
+    (r'\bតើអ្នកដឹងទេ\b', 'ឯងដឹងទេ?!'),
+    (r'\bតើអ្នកជាអ្នកណា\b', 'ឯងជានរណា?!'),
+    (r'\bតើអ្នកមកពីណា\b', 'ឯងមកពីណា?!'),
+    (r'\bតើអ្នកយល់ទេ\b', 'ឯងយល់ទេ?!'),
+    (r'\bតើអ្នកឮទេ\b', 'ឯងឮទេ?!'),
+    (r'\bអ្នកសុខសប្បាយជាទេ\b', 'ឯងមិនអីទេមែនទេ?!'),
+    (r'\bអ្នកមិនដឹងទេ\b', 'ឯងមិនដឹងរឿងអីទេ!'),
+    (r'\bតើអ្នក\b', 'ឯង'),
+    (r'\bអ្នកកុំ\b', 'ឯងកុំ'),
+    (r'\bអ្នកត្រូវ\b', 'ឯងត្រូវ'),
+    (r'\bអ្នកឯង\b', 'ឯង'),
+    (r'\bតើត្រូវធ្វើដូចម្តេច\b', 'តើត្រូវធ្វើយ៉ាងម៉េចទៅ?!'),
+    (r'\bតើខ្ញុំគួរធ្វើដូចម្តេច\b', 'តើឱ្យខ្ញុំធ្វើយ៉ាងម៉េចទៅ?!'),
+    (r'\bតើវាជាការពិតទេ\b', 'ជារឿងពិតមែនទេ?!'),
+    (r'\bតើអ្នកកំពុងនិយាយអំពីអ្វី\b', 'ឯងកំពុងនិយាយពីស្អីហ្នឹង?!'),
+    (r'\bខ្ញុំមិនខ្វល់\b', 'ខ្ញុំមិនខ្វល់ទេ!'),
+    (r'\bកុំខ្វល់ពីខ្ញុំ\b', 'កុំខ្វល់ពីខ្ញុំអី!'),
+    (r'\bលែងខ្ញុំ(?!\s*ភ្លាម)\b', 'លែងខ្ញុំភ្លាម!'),
+    (r'អនុញ្ញាតឱ្យខ្ញុំទៅ', 'លែងខ្ញុំភ្លាម!'),
+    (r'អនុញ្ញាតឱ្យខ្ញុំ', 'លែងខ្ញុំ!'),
+    (r'\bកុំប៉ះខ្ញុំ\b', 'កុំប៉ះខ្ញុំឱ្យសោះ!'),
+    (r'\bខ្ញុំសុំទោសចំពោះអ្នក\b', 'ខ្ញុំពិតជាសុំទោសឯងខ្លាំងណាស់!'),
+    (r'\bចាំខ្ញុំផង\b', 'ចាំខ្ញុំសិន!'),
+    (r'\bកុំទៅណា\b', 'កុំទៅណាឱ្យសោះ!'),
+    (r'\bជឿខ្ញុំ\b', 'ជឿជាក់លើខ្ញុំទៅ!'),
+    (r'\bបំភ្លេចវាទៅ\b', 'បំភ្លេចវាចោលទៅ!'),
+    (r'\bចាកចេញពីទីនេះ\b', 'ឆាប់ចេញពីទីនេះភ្លាម!'),
+    (r'\bកុំមកជិត\b', 'កុំចូលមកជិតឱ្យសោះ!'),
+    (r'\bតើអ្នកបានលឺទេ\b', 'ឯងបានឮច្បាស់ហើយនៅ?!'),
+    (r'\bនិយាយម្តងទៀត\b', 'សាកនិយាយម្តងទៀតមើល៍?!'),
+    (r'\bខ្ញុំមិនដឹងអ្វីទាំងអស់\b', 'ខ្ញុំមិនដឹងរឿងអីទាំងអស់!'),
+    (r'\bកុំធ្វើបាបខ្ញុំ\b', 'កុំធ្វើបាបខ្ញុំអី!'),
+    (r'\bខ្ញុំនឹងមិនអត់ទោសឱ្យអ្នក\b', 'ខ្ញុំមិនលើកលែងឱ្យឯងដាច់ខាត!'),
+    (r'\bឯងមិនរួចខ្លួនទេ\b', 'ឯងរត់មិនរួចខ្លួនទេ!'),
 ]
 
 
 def enrich_khmer_drama_dialogue(km_text: str, zh_text: str = "", voice: str = "piseth") -> str:
     """
-    Guarantees that no Khmer dialogue line is left dry, clipped, or short.
-    Expands short utterances into natural, expressive Cambodian TV drama dubbing lines.
+    Polishes Khmer drama dialogue into natural, emotional TV dubbing sentences.
+    Preserves lip-sync pacing so short lines are punchy and do not bloat into long audio overruns.
     """
     res = km_text.strip()
     if not res:
@@ -243,61 +297,59 @@ def enrich_khmer_drama_dialogue(km_text: str, zh_text: str = "", voice: str = "p
     # Strip trailing artifact words like 'ចាន'
     res = re.sub(r'\s*ចាន[។.!?]*$', '!', res)
 
-    # Clean double punctuation only if ? or ! is actually present
+    # Clean punctuation cleanly
     if '?' in res or '!' in res:
         res = re.sub(r'[?!]+[។.\s]*$', '?!', res)
     res = re.sub(r'([។.!?])\1+', r'\1', res)
 
-    # 1. Direct Regex Expansion for common short words and expressions
+    # 1. Apply drama idiom dictionary substitutions
     for pattern, replacement in KHMER_DUBBING_POST_CLEANUP:
         if re.search(pattern, res):
             res = re.sub(pattern, replacement, res)
-            break
 
-    # 2. Semantic matching for boss/knowledge/agreement
+    # Clean repeated phrase patterns that can occur during chained substitutions
+    res = re.sub(r'(?:ភ្លាម[!?\s]*)+', 'ភ្លាម! ', res)
+    res = re.sub(r'(?:កុំរត់[!?\s]*)+', 'កុំរត់! ', res)
+    res = re.sub(r'(?:ឆាប់[!?\s]*)+', 'ឆាប់! ', res)
+    res = re.sub(r'[!?។.\s]+$', '?!' if ('?' in res or '!' in res) else '!', res.strip())
+
+    # 2. Semantic matching for boss/knowledge
     if re.search(r'ខ្ញុំ.*(?:ចៅហ្វាយ|ថៅកែ)', res):
         return 'ខ្ញុំនេះទើបជាថៅកែពិតប្រាកដ!'
-    if re.search(r'ខ្ញុំ.*ដឹង', res):
+    if re.search(r'ខ្ញុំ.*ដឹង', res) and len(res) <= 15:
         return 'ខ្ញុំដឹងតាំងពីដំបូងមកម្ល៉េះ!'
 
-    # 3. If text is still extremely short (<= 15 characters, or <= 3 words), expand dramatically
-    if len(res) <= 15:
-        # Check semantic endings
+    # 3. Compact lip-sync friendly enrichment for short utterances (keeps audio < 1.4s)
+    if len(res) <= 12:
         if res.endswith("?!") or res.endswith("?"):
             if "ស្អី" in res or "អ្វី" in res:
-                res = "ស្អីគេហ្នឹង?! តើមានរឿងអី?!"
+                res = "ស្អីគេហ្នឹង?!"
             elif "ម៉េច" in res:
-                res = "ម៉េចក៏ទៅជាបែបនេះ?!"
-            elif "ឯណា" in res:
-                res = "តើនៅឯណាឱ្យប្រាកដហ្នឹង?!"
+                res = "ម៉េចក៏បែបនេះ?!"
             elif "នរណា" in res or "អ្នកណា" in res:
-                res = "តើនរណាគេហ្នឹង?!"
-            elif "ល្ងង់" in res:
-                res = "ឯងឆ្កួតឬក៏ល្ងង់ឱ្យប្រាកដហ្នឹង?!"
+                res = "តើនរណាគេ?!"
             elif "មែនទេ" in res:
-                res = "ជារឿងពិតមែនទេ?!"
-            elif not res.endswith("ហ្នឹង?!") and not res.endswith("ទេ?!"):
-                res = f"{res.rstrip('?!')}ឱ្យប្រាកដហ្នឹង?!"
+                res = "ពិតមែនទេ?!"
         elif "បាទ" in res:
-            res = "បាទ! ខ្ញុំយល់ច្បាស់ហើយ!"
+            res = "បាទ ខ្ញុំយល់ហើយ!"
         elif "ចាស" in res:
-            res = "ចាស! ខ្ញុំយល់ច្បាស់ហើយ!"
+            res = "ចាស ខ្ញុំយល់ហើយ!"
         elif "មិនអី" in res:
-            res = "មិនអីនោះទេ មិនបាច់បារម្ភទេ!"
+            res = "មិនអីទេ កុំបារម្ភ!"
         elif "ឈប់" in res:
-            res = "ឈប់ភ្លាម! ឈប់ដៃមួយរំពេច!"
+            res = "ឈប់ភ្លាម!"
         elif "ចេញ" in res:
-            res = "ឆាប់ចេញពីទីនេះភ្លាមទៅ!"
+            res = "ឆាប់ចេញទៅ!"
         elif "រត់" in res:
-            res = "ឆាប់រត់ទៅ! ប្រញាប់ឡើង!"
+            res = "ឆាប់រត់ទៅ!"
         elif "លឿន" in res or "ឆាប់" in res:
-            res = "ឆាប់ឡើង! ប្រញាប់បន្តិចទៅ!"
+            res = "ប្រញាប់ឡើង!"
         elif "ជួយ" in res:
-            res = "ជួយផង! ជួយខ្ញុំផង!"
+            res = "ជួយផង!"
         elif "សុំទោស" in res:
-            res = "ខ្ញុំពិតជាសុំទោសខ្លាំងណាស់!"
+            res = "ខ្ញុំសុំទោស!"
         elif "អរគុណ" in res:
-            res = "អរគុណច្រើនណាស់ណា!"
+            res = "អរគុណច្រើន!"
 
     return res.strip()
 
@@ -426,18 +478,24 @@ class DramaTranslator:
         target_voice_override: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Assign STRICTLY either 'piseth' (Male) or 'sreymom' (Female).
-        NO 3-4 voices, NO pitch shifting (pitch_hz=0), NO rate shifting (rate_percent=0).
+        Assign voice. If target_voice_override is provided or by default in Single Voice mode,
+        assign strictly that single voice (Piseth by default, or Sreymom).
+        Only if target_voice_override is explicitly 'multi' or 'auto_multi' will it use multi-voice alternating.
         """
-        if target_voice_override in ("piseth", "sreymom"):
+        override_str = str(target_voice_override or "").lower().strip()
+        is_multi = override_str in ("multi", "auto_multi")
+
+        if not is_multi:
+            chosen = "sreymom" if override_str in ("sreymom", "female", "ស្រីមុំ", "តួស្រី") else "piseth"
+            role_title = "ពិសិដ្ឋ (Piseth - អ្នកបញ្ចូលសំឡេង)" if chosen == "piseth" else "ស្រីមុំ (Sreymom - អ្នកបញ្ចូលសំឡេង)"
             return {
-                "voice": target_voice_override,
+                "voice": chosen,
                 "rate_percent": 0,
                 "pitch_hz": 0,
-                "character_role": "ពិសិដ្ឋ (Piseth)" if target_voice_override == "piseth" else "ស្រីមុំ (Sreymom)"
+                "character_role": role_title
             }
 
-        # Check existing voice attribute if already detected by STT acoustic pitch
+        # Multi-voice fallback if explicitly requested:
         item_voice = str(item.get("voice", "")).lower()
         if item_voice in ("piseth", "sreymom"):
             return {
@@ -461,9 +519,10 @@ class DramaTranslator:
             detected_role in ("female", "elder_female")
         )
 
-        # Check for Male character indicators:
+        # Check for Male character indicators (avoid 'female' substring matching 'male'):
+        speaker_no_female = speaker_name.replace("female", "")
         is_male = (
-            "male" in speaker_name or
+            "male" in speaker_no_female or
             "តួប្រុស" in speaker_name or
             "ប្រុស" in speaker_name or
             "ឪពុក" in speaker_name or
@@ -510,11 +569,23 @@ class DramaTranslator:
     ) -> List[Dict[str, Any]]:
         """
         Translate dialogue items into authentic Khmer drama dubbing lines.
-        Strictly applies only TWO voices: Piseth and Sreymom (rate=0, pitch=0).
-        Enriches short lines into full, expressive TV drama sentences.
+        Defaults strictly to SINGLE VOICE (Piseth or Sreymom) for seamless flow,
+        with optional multi-voice support when explicitly requested.
         """
         if not dialogues:
             return []
+
+        # Determine Single Voice vs Multi-Voice mode
+        override_str = str(target_voice_override or "").lower().strip()
+        is_multi = override_str in ("multi", "auto_multi")
+        chosen_single_voice = "sreymom" if override_str in ("sreymom", "female", "ស្រីមុំ", "តួស្រី") else "piseth"
+
+        if not is_multi:
+            voice_directive = f"Single Voice Dubbing Mode: Assign 'voice' strictly to '{chosen_single_voice}' for ALL dialogue items. Keep rate_percent=0, pitch_hz=0. Style: Authentic Cambodian television drama solo dubbing / narration (អ្នកបញ្ចូលសំឡេងរឿងទោល)."
+            active_system_prompt = DRAMA_PROMPT_SINGLE_VOICE.replace("{VOICE}", chosen_single_voice)
+        else:
+            voice_directive = "Assign 'voice' strictly to either 'piseth' or 'sreymom'. Keep rate_percent=0, pitch_hz=0."
+            active_system_prompt = DRAMA_PROMPT_SYSTEM
 
         # 1. Gemini AI Studio Translation if API Key is configured
         if self.clients and self.api_keys:
@@ -529,7 +600,7 @@ Input script items in JSON:
 {json.dumps(chunk, ensure_ascii=False, indent=2)}
 
 Translate each dialogue item into emotional, dramatic, natural spoken Khmer dubbing script ('text_km').
-Assign 'voice' strictly to either 'piseth' or 'sreymom'. Keep rate_percent=0, pitch_hz=0.
+{voice_directive}
 Do NOT use short robotic translations. Expand lines into expressive drama dialogue.
 Return ONLY valid JSON array with keys: id, start, end, text_original, text_km, speaker, voice, rate_percent, pitch_hz."""
 
@@ -541,7 +612,7 @@ Return ONLY valid JSON array with keys: id, start, end, text_original, text_km, 
                             model='gemini-2.5-flash',
                             contents=prompt,
                             config=types.GenerateContentConfig(
-                                system_instruction=DRAMA_PROMPT_SYSTEM,
+                                system_instruction=active_system_prompt,
                                 response_mime_type="application/json"
                             )
                         )
@@ -553,7 +624,7 @@ Return ONLY valid JSON array with keys: id, start, end, text_original, text_km, 
                                 model='gemini-2.5-flash',
                                 contents=prompt,
                                 config=types.GenerateContentConfig(
-                                    system_instruction=DRAMA_PROMPT_SYSTEM,
+                                    system_instruction=active_system_prompt,
                                     response_mime_type="application/json"
                                 )
                             )
@@ -568,8 +639,10 @@ Return ONLY valid JSON array with keys: id, start, end, text_original, text_km, 
                                     item["end"] = chunk[j].get("end", item.get("end", 0))
                                     item["rate_percent"] = 0
                                     item["pitch_hz"] = 0
-                                    v = target_voice_override or item.get("voice", chunk[j].get("voice", "piseth"))
+                                    v = chosen_single_voice if not is_multi else item.get("voice", chunk[j].get("voice", "piseth"))
                                     item["voice"] = v
+                                    if not is_multi:
+                                        item["speaker"] = "ពិសិដ្ឋ (Piseth - អ្នកបញ្ចូលសំឡេង)" if chosen_single_voice == "piseth" else "ស្រីមុំ (Sreymom - អ្នកបញ្ចូលសំឡេង)"
                                     item["text_km"] = enrich_khmer_drama_dialogue(
                                         item.get("text_km", ""),
                                         chunk[j].get("text_original", ""),

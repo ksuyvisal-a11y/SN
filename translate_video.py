@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import os
 import sys
+import json
 from pathlib import Path
 
 # Enable utf-8 output in Windows terminal
@@ -25,8 +26,8 @@ async def main():
                         help="Source drama language (Chinese, Korean, English, Auto)")
     parser.add_argument("--mode", type=str, default="drama_dubbing", choices=["drama_dubbing", "movie_recap"],
                         help="Dubbing mode: drama_dubbing or movie_recap (Facebook/TikTok style)")
-    parser.add_argument("--voice", type=str, choices=["piseth", "sreymom"],
-                        help="Override voice for all lines (piseth or sreymom)")
+    parser.add_argument("--voice", type=str, choices=["piseth", "sreymom", "multi", "auto_multi"], default=None,
+                        help="Dubbing voice: piseth, sreymom, or multi (Piseth & Sreymom Dual Voice)")
     parser.add_argument("--no-burn", action="store_true", help="Do not burn subtitles into video")
 
     args = parser.parse_args()
@@ -60,13 +61,29 @@ async def main():
         def cli_progress(pct: int, msg_km: str, msg_en: str):
             print(f"[{pct}%] {msg_km}")
 
-        print(f"\n🎬 កំពុងដំណើរការបកប្រែវីដេអូ: {video_p.name}")
+        # Resolve voice: CLI flag or fallback to data/story_config.json
+        chosen_voice = args.voice
+        if not chosen_voice:
+            try:
+                cfg_p = Path("data/story_config.json")
+                if cfg_p.exists():
+                    with open(cfg_p, "r", encoding="utf-8") as f:
+                        cfg = json.load(f)
+                        if cfg.get("auto_multi_voice") or cfg.get("khmer_voice") == "multi":
+                            chosen_voice = "multi"
+                        else:
+                            chosen_voice = cfg.get("khmer_voice", "piseth")
+            except Exception:
+                chosen_voice = "multi"
+
+        voice_display = "ពិសិដ្ឋ & ស្រីមុំ (Dual Voice)" if chosen_voice in ("multi", "auto_multi") else ("ស្រីមុំ (Sreymom Solo)" if chosen_voice == "sreymom" else "ពិសិដ្ឋ (Piseth Solo)")
+        print(f"\n🎬 កំពុងដំណើរការបកប្រែវីដេអូ: {video_p.name} • សំឡេង: {voice_display}")
         project = await pm.process_video_pipeline(
             video_path=str(video_p),
             title=f"Dubbed_{video_p.stem}",
             mode=args.mode,
             source_lang=args.source,
-            voice_override=args.voice,
+            voice_override=chosen_voice,
             burn_subtitles=not args.no_burn,
             progress_callback=cli_progress
         )

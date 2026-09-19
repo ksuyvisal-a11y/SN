@@ -34,7 +34,7 @@ class BatchDubbingManager:
     def add_files_to_queue(
         self,
         file_paths: List[str],
-        voice_mode: str = "auto",  # 'auto', 'piseth', 'sreymom'
+        voice_mode: str = "piseth",  # 'piseth', 'sreymom', 'auto_multi'
         drama_mode: str = "drama_dubbing",  # 'drama_dubbing' or 'movie_recap'
         aspect_ratio: str = "16:9",
         burn_subtitles: bool = True,
@@ -153,9 +153,18 @@ class BatchDubbingManager:
             }]
 
         # 4. Contextual Drama/Recap Translation into Khmer
-        item["step"] = "4/5 AI កំពុងបកប្រែជាភាសាខ្មែរ (រឿងភាគ/សម្រាយរឿង)..."
+        v_override = item["voice_mode"] if item.get("voice_mode") not in (None, "", "auto") else "piseth"
+        v_override = str(v_override).lower().strip()
+        is_multi = v_override in ("multi", "auto_multi")
+        if is_multi:
+            v_label = "ពិសិដ្ឋ & ស្រីមុំ (Dual Voice)"
+        elif v_override == "sreymom":
+            v_label = "ស្រីមុំ (Sreymom Solo)"
+        else:
+            v_label = "ពិសិដ្ឋ (Piseth Solo)"
+
+        item["step"] = f"4/5 AI កំពុងបកប្រែជាភាសាខ្មែរ {v_label}..."
         item["progress"] = 65
-        v_override = None if item["voice_mode"] == "auto" else item["voice_mode"]
         translated_dialogues = await self.translator.translate_dialogues(
             dialogues=dialogues,
             mode=item["drama_mode"],
@@ -163,12 +172,16 @@ class BatchDubbingManager:
             target_voice_override=v_override
         )
 
-        # 5. Batch TTS Synthesis (Piseth & Sreymom)
-        item["step"] = "5/5 កំពុងបញ្ចូលសំឡេង ពិសិដ្ឋ/ស្រីមុំ & Render វីដេអូ..."
+        # 5. Batch TTS Synthesis
+        item["step"] = f"5/5 កំពុងបញ្ចូលសំឡេងខ្មែរ {v_label} & Render..."
         item["progress"] = 80
         voices_dir = item_dir / "voices"
         voices_dir.mkdir(parents=True, exist_ok=True)
-        synthesized_items = await batch_synthesize(translated_dialogues, output_dir=str(voices_dir))
+        synthesized_items = await batch_synthesize(
+            translated_dialogues,
+            output_dir=str(voices_dir),
+            default_voice="piseth" if is_multi else v_override
+        )
 
         # Mix Audio with BGM Ducking (Zero Chinese Vocal Bleed)
         mixed_audio = item_dir / "dubbed_mixed.mp3"
@@ -177,7 +190,7 @@ class BatchDubbingManager:
             dialogue_items=synthesized_items,
             output_mixed_path=str(mixed_audio),
             total_duration_sec=duration,
-            ducking_volume_factor=0.08,
+            ducking_volume_factor=0.02,
             dubbing_mode="smart_bgm"
         )
 
