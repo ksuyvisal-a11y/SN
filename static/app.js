@@ -1500,7 +1500,7 @@ function openSettingsSubpage(key) {
 // ==========================================================================
 let currentStoryConfig = {
     khmer_voice: "piseth",
-    auto_multi_voice: false,
+    auto_multi_voice: true,
     source_lang: "auto",
     whisper_model: "medium",
     aspect_ratio: "9:16",

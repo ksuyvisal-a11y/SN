@@ -338,6 +338,24 @@ def _get_cache_filename(text: str, voice_id: str, rate: str, pitch: str) -> Path
     return CACHE_DIR / f"{hash_str}.mp3"
 
 
+def calculate_optimal_tts_rate(text_km: str, target_window_sec: float) -> int:
+    """
+    Calculate the exact Edge-TTS speed rate percentage (+0% to +35%)
+    so that Khmer speech naturally completes within the character's speaking window.
+    Khmer average natural speech speed is ~5.6 characters per second.
+    """
+    if not text_km or target_window_sec <= 0.3:
+        return 0
+    clean = text_km.strip()
+    est_natural_sec = len(clean) / 5.6
+    if est_natural_sec <= target_window_sec:
+        return 0
+    factor = est_natural_sec / target_window_sec
+    needed_rate = int((factor - 1.0) * 100)
+    # Clamp between +5% and +35% (Edge-TTS sounds crystal clear and energetic up to +35%)
+    return min(35, max(5, needed_rate))
+
+
 async def synthesize_khmer_speech(
     text: str,
     voice: str = "piseth",
@@ -523,7 +541,7 @@ async def batch_synthesize(
                 audio_file = await synthesize_khmer_speech(
                     text=text,
                     voice=voice,
-                    rate_percent=rate,
+                    rate_percent=effective_rate,
                     pitch_hz=pitch,
                     output_path=str(line_audio_path)
                 )

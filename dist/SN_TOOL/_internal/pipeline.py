@@ -179,7 +179,15 @@ SAMPLE_DRAMAS = {
 class ProjectManager:
     def __init__(self):
         self.translator = DramaTranslator()
-        self.stt_engine = SpeechToTextEngine(model_size="base")
+        cfg_model = "base"
+        try:
+            cfg_file = Path("data/story_config.json")
+            if cfg_file.exists():
+                with open(cfg_file, "r", encoding="utf-8") as f:
+                    cfg_model = json.load(f).get("whisper_model", "base")
+        except Exception:
+            pass
+        self.stt_engine = SpeechToTextEngine(model_size=cfg_model if cfg_model in ("tiny", "base", "small", "medium") else "base")
 
     def get_project_file(self, project_id: str) -> Path:
         return DATA_DIR / f"{project_id}.json"

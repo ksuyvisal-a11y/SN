@@ -29,19 +29,19 @@ try:
 except ImportError:
     FASTER_WHISPER_AVAILABLE = False
 
-# Strict Drama First-Person Self-References & Direct Spouse Vocatives
-# NOTE: Third-person pronouns ("他", "她") and object nouns ("男人", "女人") are STRICTLY excluded
+# Strict Drama First-Person Self-References, Kinship Terms & Direct Vocatives
 FEMALE_VOCATIVES = [
     "老公", "相公", "夫君", "死鬼",
     "本宫", "臣妾", "奴婢", "小女子", "妾身", "本小姐",
-    "老娘", "妈妈我", "女兒我", "娘亲我",
+    "老娘", "妈妈我", "女兒我", "娘亲我", "妈咪", "阿姨", "婆婆",
+    "怀着孩子", "怀孕", "儿媳", "嫂嫂", "大嫂", "小姑子", "姐姐", "妹妹",
     "오빠", "언니"
 ]
 
 MALE_VOCATIVES = [
     "老婆", "娘子", "夫人", "爱妃", "媳妇",
     "本座", "本王", "朕", "老子", "为父", "为夫", "微臣",
-    "兄弟我", "爸爸我", "爹爹我",
+    "兄弟我", "爸爸我", "爹爹我", "儿子", "岳父", "岳母",
     "형"
 ]
 
@@ -269,8 +269,14 @@ class SpeechToTextEngine:
         raw_segments = []
         tot_dur = getattr(info, "duration", 0) or 1.0
         for segment in segments_gen:
-            text = segment.text.strip()
-            if not text:
+            if not segment.words:
+                text = segment.text.strip()
+                if text:
+                    raw_segments.append({
+                        "start": round(segment.start, 2),
+                        "end": round(segment.end, 2),
+                        "text": text
+                    })
                 continue
 
             # Word-level timestamp precision:
@@ -426,3 +432,4 @@ class SpeechToTextEngine:
             item["pitch_hz"] = 0
 
         return consolidated
+

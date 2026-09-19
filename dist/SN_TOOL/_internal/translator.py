@@ -155,7 +155,7 @@ CHINESE_DRAMA_PRE_NORM = [
     (r'想擦', '想逃跑'),
     (r'罷面前', '爸面前'),
     (r'插船你們嗎|插船你们吗', '拆穿你们吗'),
-    (r'滿臨|满临|滿靈|满灵|满灵', '曼玲'),
+    (r'滿臨|满临|滿靈|满灵', '曼玲'),
     (r'不曉得了|不晓得了', '不想活了'),
     (r'張柔哥|張潮哥|张潮哥|林森哥|張宗哥|张宗哥', '张潮哥'),
     (r'在個路上|在个路上', '在路上'),
@@ -1186,8 +1186,7 @@ Return JSON object with key "dialogues" containing an array with keys: id, start
         valid_gemini_keys = [k for k in self.api_keys if k.startswith("AIzaSy")]
         if self.clients and valid_gemini_keys:
             try:
-                chunk_size = 20
-                all_results = []
+                chunk_size = 18
                 for i in range(0, len(dialogues), chunk_size):
                     chunk = dialogues[i:i + chunk_size]
                     enriched_chunk = []
@@ -1268,16 +1267,40 @@ Return ONLY valid JSON array with keys: id, start, end, text_original, text_km, 
                                         item["voice"],
                                         duration_sec=dur_sec
                                     )
-                            all_results.extend(parsed)
-                        else:
+                                    if response and response.text:
+                                        break
+                                except Exception:
+                                    pass
                             break
-                    else:
-                        break
 
-                if len(all_results) == len(dialogues):
-                    return all_results
+                    if response and response.text:
+                        try:
+                            clean_json = response.text.strip()
+                            clean_json = re.sub(r'^```(?:json)?\s*', '', clean_json, flags=re.IGNORECASE)
+                            clean_json = re.sub(r'\s*```$', '', clean_json)
+                            parsed = json.loads(clean_json)
+                            if isinstance(parsed, list):
+                                for j, p_item in enumerate(parsed):
+                                    global_idx = i + j
+                                    if global_idx < len(dialogues):
+                                        orig_item = dialogues[global_idx]
+                                        p_item["id"] = orig_item.get("id", global_idx + 1)
+                                        p_item["start"] = orig_item.get("start", p_item.get("start", 0))
+                                        p_item["end"] = orig_item.get("end", p_item.get("end", 0))
+                                        p_item["rate_percent"] = 0
+                                        p_item["pitch_hz"] = 0
+                                        v = target_voice_override or p_item.get("voice", orig_item.get("voice", "piseth"))
+                                        p_item["voice"] = v
+                                        p_item["text_km"] = enrich_khmer_drama_dialogue(
+                                            p_item.get("text_km", ""),
+                                            orig_item.get("text_original", ""),
+                                            v
+                                        )
+                                        translated_items[global_idx] = p_item
+                        except Exception as parse_err:
+                            print(f"Gemini chunk parse error: {parse_err}")
             except Exception as e:
-                print(f"Gemini translation note: {e}. Using professional free drama dubbing engine.")
+                print(f"Gemini batch translation note: {e}")
 
         # 3. High-Speed Local Drama Dubbing Engine (Concurrent with Semaphore=12 & Connection Pool)
         sem = asyncio.Semaphore(12)
@@ -1293,16 +1316,16 @@ Return ONLY valid JSON array with keys: id, start, end, text_original, text_km, 
                 v_info = self._determine_strictly_two_voices(item, target_voice_override)
                 chosen_voice = v_info["voice"]
 
-                # Translate with drama pre-norm, post-polish, and dialogue enrichment
-                try:
-                    text_km = await self.translate_text_free(
-                        orig_text,
-                        source_lang=source_lang,
-                        voice=chosen_voice
-                    )
-                except Exception as e:
-                    print(f"Translation error on line {idx}: {e}")
-                    text_km = orig_text
+                    # Translate with drama pre-norm, post-polish, and dialogue enrichment
+                    try:
+                        text_km = await self.translate_text_free(
+                            orig_text,
+                            source_lang=source_lang,
+                            voice=chosen_voice
+                        )
+                    except Exception as e:
+                        print(f"Fallback translation error on line {global_idx}: {e}")
+                        text_km = orig_text
 
                 # Final pass enrichment: duration-aware script adaptation
                 final_text_km = enrich_khmer_drama_dialogue(
@@ -1312,10 +1335,38 @@ Return ONLY valid JSON array with keys: id, start, end, text_original, text_km, 
                     duration_sec=dur_sec
                 )
 
-                return {
-                    "id": item.get("id", idx + 1),
-                    "start": start,
-                    "end": end,
+                    return global_idx, {
+                        "id": item.get("id", global_idx + 1),
+                        "start": start,
+                        "end": end,
+                        "speaker": v_info["character_role"],
+                        "text_original": orig_text,
+                        "text_km": final_text_km,
+                        "voice": chosen_voice,
+                        "rate_percent": 0,
+                        "pitch_hz": 0
+                    }
+
+            tasks = [_translate_single(idx) for idx in missing_indices]
+            fallback_results = await asyncio.gather(*tasks, return_exceptions=True)
+            for res in fallback_results:
+                if isinstance(res, tuple) and len(res) == 2:
+                    g_idx, res_item = res
+                    translated_items[g_idx] = res_item
+
+        # 3. Final safety net: Ensure absolutely every dialogue has a valid item
+        ordered_results = []
+        for i in range(len(dialogues)):
+            if i in translated_items:
+                ordered_results.append(translated_items[i])
+            else:
+                orig_item = dialogues[i]
+                orig_text = orig_item.get("text") or orig_item.get("text_original", "")
+                v_info = self._determine_strictly_two_voices(orig_item, target_voice_override)
+                ordered_results.append({
+                    "id": orig_item.get("id", i + 1),
+                    "start": orig_item.get("start", 0.0),
+                    "end": orig_item.get("end", 0.0),
                     "speaker": v_info["character_role"],
                     "text_original": orig_text,
                     "text_km": final_text_km,
@@ -1324,9 +1375,7 @@ Return ONLY valid JSON array with keys: id, start, end, text_original, text_km, 
                     "pitch_hz": v_info["pitch_hz"]
                 }
 
-        tasks = [_translate_single(item, idx) for idx, item in enumerate(dialogues)]
-        results = await asyncio.gather(*tasks)
-        return list(results)
+        return ordered_results
 
 
 def parse_srt_content(srt_text: str) -> List[Dict[str, Any]]:
