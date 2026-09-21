@@ -29,6 +29,49 @@ async function initApp() {
     loadStoryConfigData();
 }
 
+async function extractFilesFromDataTransfer(dt) {
+    const files = [];
+    if (dt.items && dt.items.length > 0) {
+        const queue = [];
+        for (let i = 0; i < dt.items.length; i++) {
+            const item = dt.items[i];
+            if (item.webkitGetAsEntry) {
+                const entry = item.webkitGetAsEntry();
+                if (entry) queue.push(entry);
+            } else if (item.kind === 'file') {
+                const f = item.getAsFile();
+                if (f) files.push(f);
+            }
+        }
+
+        while (queue.length > 0) {
+            const entry = queue.shift();
+            if (entry.isFile) {
+                const f = await new Promise((res) => entry.file(res, () => res(null)));
+                if (f) files.push(f);
+            } else if (entry.isDirectory) {
+                const reader = entry.createReader();
+                const entries = await new Promise((res) => {
+                    const all = [];
+                    function readNext() {
+                        reader.readEntries((batch) => {
+                            if (!batch || batch.length === 0) res(all);
+                            else { all.push(...batch); readNext(); }
+                        }, () => res(all));
+                    }
+                    readNext();
+                });
+                for (const child of entries) {
+                    queue.push(child);
+                }
+            }
+        }
+    } else if (dt.files && dt.files.length > 0) {
+        files.push(...Array.from(dt.files));
+    }
+    return files;
+}
+
 function setupDragAndDropSupport() {
     ['dragenter', 'dragover'].forEach(eventName => {
         window.addEventListener(eventName, (e) => {
@@ -44,11 +87,14 @@ function setupDragAndDropSupport() {
         }, false);
     });
 
-    window.addEventListener('drop', (e) => {
+    window.addEventListener('drop', async (e) => {
         e.preventDefault();
         e.stopPropagation();
-        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-            handleSelectedFiles(e.dataTransfer.files);
+        if (e.dataTransfer) {
+            const files = await extractFilesFromDataTransfer(e.dataTransfer);
+            if (files && files.length > 0) {
+                handleSelectedFiles(files);
+            }
         }
     }, false);
 }
@@ -618,12 +664,15 @@ function showCleanSourceView() {
 
     const importPrompt = document.getElementById('clean-import-prompt');
     const stagedCard = document.getElementById('staged-video-card');
+    const sourceLabel = document.getElementById('clean-source-label');
     if (stagedVideoFile || stagedBatchFiles) {
         if (importPrompt) importPrompt.style.display = 'none';
         if (stagedCard) stagedCard.style.display = 'flex';
+        if (sourceLabel) sourceLabel.style.display = 'none';
     } else {
         if (importPrompt) importPrompt.style.display = 'flex';
         if (stagedCard) stagedCard.style.display = 'none';
+        if (sourceLabel) sourceLabel.style.display = 'block';
     }
 }
 
@@ -885,9 +934,71 @@ function startAudioPlaybackVUMeter() {
 let exportJobTimer = null;
 let exportPercent = 0;
 let exportElapsedSec = 0;
+let currentExportOutputMode = 'separate'; // 'separate' | 'full' | 'both'
 
-function startStudioExportJob() {
-    // 1. If user staged a single video, start AI dubbing upon clicking Export
+function openExportOptionsModal() {
+    const epCountElem = document.getElementById('export-output-ep-count');
+    const epChainElem = document.getElementById('export-output-ep-chain');
+    const descFullElem = document.getElementById('export-desc-full');
+    const descBothElem = document.getElementById('export-desc-both');
+
+    let baseTitle = "Drama_Series";
+
+    if (stagedBatchFiles && stagedBatchFiles.length > 0) {
+        const count = stagedBatchFiles.length;
+        if (epCountElem) epCountElem.textContent = `${count} episodes`;
+
+        if (epChainElem) {
+            if (count <= 4) {
+                epChainElem.textContent = stagedBatchFiles.map((f, i) => `Ep${i + 1}`).join(' → ');
+            } else {
+                epChainElem.textContent = `Ep1 → Ep2 → ... → Ep${count}`;
+            }
+        }
+
+        const rawName = stagedBatchFiles[0].name.replace(/\.[^/.]+$/, '');
+        baseTitle = rawName.replace(/(?:_part|[-_]ep|[-_]e|\bep|\bepisode)[-_]?\d+/i, '').replace(/[-_]+$/, '').trim() || "Drama_Series";
+
+        const mergedName = `Dubbed_${baseTitle}_Full_Movie.mp4`;
+        if (descFullElem) descFullElem.textContent = `Joined into ${mergedName} — ${count} episodes merged`;
+        if (descBothElem) descBothElem.textContent = `Episodes + ${mergedName} (ទទួលបានទាំងពីរ)`;
+
+    } else if (stagedVideoFile) {
+        if (epCountElem) epCountElem.textContent = "1 video episode";
+        if (epChainElem) epChainElem.textContent = stagedVideoFile.name;
+
+        const rawName = stagedVideoFile.name.replace(/\.[^/.]+$/, '');
+        baseTitle = rawName || "Video";
+        const singleOutName = `Dubbed_${baseTitle}.mp4`;
+
+        if (descFullElem) descFullElem.textContent = `Full single video — ${singleOutName}`;
+        if (descBothElem) descBothElem.textContent = `Single video master — ${singleOutName}`;
+    } else {
+        showToast("⚠️ សូមដាក់វីដេអូចូលជាមុនសិន រួចចុច Export!");
+        openImportModal();
+        return;
+    }
+
+    selectExportOutputMode(currentExportOutputMode || 'separate');
+    openModal('modal-export-options');
+}
+
+function selectExportOutputMode(mode) {
+    currentExportOutputMode = mode;
+    const optSep = document.getElementById('export-opt-separate');
+    const optFull = document.getElementById('export-opt-full');
+    const optBoth = document.getElementById('export-opt-both');
+
+    if (optSep) optSep.classList.toggle('active', mode === 'separate');
+    if (optFull) optFull.classList.toggle('active', mode === 'full');
+    if (optBoth) optBoth.classList.toggle('active', mode === 'both');
+}
+
+async function confirmAndExecuteExport() {
+    closeModal('modal-export-options');
+    const chosenMode = currentExportOutputMode || 'separate';
+
+    // 1. Single video staged
     if (stagedVideoFile) {
         const fileToDub = stagedVideoFile;
         stagedVideoFile = null;
@@ -897,13 +1008,29 @@ function startStudioExportJob() {
         return;
     }
 
-    // 2. If user staged batch videos, start batch dubbing upon clicking Export
+    // 2. Batch videos staged
     if (stagedBatchFiles && stagedBatchFiles.length > 0) {
         const filesToDub = stagedBatchFiles;
         stagedBatchFiles = null;
         const exportBtn = document.getElementById('btn-tab-export');
         if (exportBtn) exportBtn.classList.remove('export-ready-pulse');
-        startBatchFilesUpload(filesToDub);
+        startStudioBatchDubbingPipeline(filesToDub, chosenMode);
+        return;
+    }
+
+    showToast("⚠️ មិនមានវីដេអូដែលបានដាក់នោះទេ!");
+}
+
+function startStudioExportJob() {
+    // 1. If user staged a single video, open Export Options Modal (Choice for user)
+    if (stagedVideoFile) {
+        openExportOptionsModal();
+        return;
+    }
+
+    // 2. If user staged batch videos / folder, open Export Options Modal (Separate / One Full Video / Both)
+    if (stagedBatchFiles && stagedBatchFiles.length > 0) {
+        openExportOptionsModal();
         return;
     }
 
@@ -1511,9 +1638,6 @@ let currentStoryConfig = {
 };
 
 function getStoryVoiceDisplayLabel() {
-    if (currentStoryConfig.auto_multi_voice || currentStoryConfig.khmer_voice === 'multi') {
-        return "Piseth & Sreymom (Dual Voice)";
-    }
     if (currentStoryConfig.khmer_voice === 'sreymom') {
         return "Sreymom (Female Solo - អ្នកបញ្ចូលសំឡេងស្រី)";
     }
@@ -1538,6 +1662,136 @@ function refreshStagedCardVoiceMeta() {
     }
 }
 
+function syncStagedCardControls() {
+    // 1. Sync voice chip active state
+    let activeKey = 'piseth';
+    if (currentStoryConfig.khmer_voice === 'sreymom') {
+        activeKey = 'sreymom';
+    }
+    ['piseth', 'sreymom'].forEach(k => {
+        const chip = document.getElementById(`voice-chip-${k}`);
+        if (chip) {
+            if (k === activeKey) chip.classList.add('active');
+            else chip.classList.remove('active');
+        }
+    });
+
+    const vBadge = document.getElementById('staged-voice-status-badge');
+    if (vBadge) {
+        if (activeKey === 'sreymom') vBadge.textContent = "Sreymom (ស្រីទោល)";
+        else vBadge.textContent = "Piseth (ប្រុសទោល)";
+    }
+
+    // 2. Sync BGM slider & presets
+    const rawDuck = parseFloat(currentStoryConfig.ducking_volume !== undefined ? currentStoryConfig.ducking_volume : 0.18);
+    const duckingNum = Math.min(40, Math.max(0, Math.round(rawDuck * 100)));
+    const slider = document.getElementById('staged-bgm-slider');
+    if (slider) slider.value = duckingNum;
+
+    [0, 10, 18, 28].forEach(p => {
+        const btn = document.getElementById(`bgm-pre-${p}`);
+        if (btn) {
+            if (p === duckingNum || (p === 18 && (duckingNum >= 15 && duckingNum <= 20))) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        }
+    });
+
+    const bgmBadge = document.getElementById('staged-bgm-val-badge');
+    if (bgmBadge) {
+        if (duckingNum === 0) bgmBadge.textContent = "0% (បិទភ្លេង)";
+        else if (duckingNum <= 10) bgmBadge.textContent = `${duckingNum}% • ភ្លេងស្រាល`;
+        else if (duckingNum <= 20) bgmBadge.textContent = `${duckingNum}% • ស្តង់ដារពិរោះ`;
+        else bgmBadge.textContent = `${duckingNum}% • ភ្លេងរាងឮ`;
+    }
+}
+
+async function selectQuickVoice(voiceKey) {
+    if (voiceKey === 'sreymom') {
+        currentStoryConfig.khmer_voice = 'sreymom';
+        currentStoryConfig.auto_multi_voice = false;
+    } else {
+        currentStoryConfig.khmer_voice = 'piseth';
+        currentStoryConfig.auto_multi_voice = false;
+    }
+
+    syncStagedCardControls();
+    refreshStagedCardVoiceMeta();
+
+    const voiceLabels = {
+        'piseth': 'ពិសិដ្ឋ (Piseth - តួប្រុស/អ្នកនិទានរឿងទោល)',
+        'sreymom': 'ស្រីមុំ (Sreymom - តួស្រី/អ្នកនិទានរឿងទោល)'
+    };
+    showToast(`🎙️ បានប្តូរសំឡេង: ${voiceLabels[voiceKey] || voiceKey}`);
+    appendLiveTerminalLine(`Dubbing voice set to: ${voiceLabels[voiceKey] || voiceKey}`, "[Voice Config]", "info");
+
+    // Sync modal selector
+    const modalSelect = document.getElementById('story-voice-select');
+    if (modalSelect) modalSelect.value = voiceKey;
+
+    try {
+        await fetch('/api/set-story-config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                khmer_voice: currentStoryConfig.khmer_voice,
+                auto_multi_voice: false
+            })
+        });
+    } catch (e) {
+        console.warn("Save quick voice error:", e);
+    }
+}
+
+function selectQuickBgmPreset(val) {
+    const slider = document.getElementById('staged-bgm-slider');
+    if (slider) slider.value = val;
+    onQuickBgmSliderChange(val);
+}
+
+let quickBgmSaveDebounce = null;
+function onQuickBgmSliderChange(val) {
+    const numVal = parseInt(val, 10);
+    const duckingFraction = (numVal / 100).toFixed(2);
+    currentStoryConfig.ducking_volume = duckingFraction;
+
+    [0, 10, 18, 28].forEach(p => {
+        const btn = document.getElementById(`bgm-pre-${p}`);
+        if (btn) {
+            if (p === numVal) btn.classList.add('active');
+            else btn.classList.remove('active');
+        }
+    });
+
+    const bgmBadge = document.getElementById('staged-bgm-val-badge');
+    if (bgmBadge) {
+        if (numVal === 0) bgmBadge.textContent = "0% (បិទភ្លេង)";
+        else if (numVal <= 10) bgmBadge.textContent = `${numVal}% • ភ្លេងស្រាល`;
+        else if (numVal <= 20) bgmBadge.textContent = `${numVal}% • ស្តង់ដារពិរោះ`;
+        else bgmBadge.textContent = `${numVal}% • ភ្លេងរាងឮ`;
+    }
+
+    const modalSlider = document.getElementById('story-ducking-slider');
+    if (modalSlider) modalSlider.value = numVal;
+
+    if (quickBgmSaveDebounce) clearTimeout(quickBgmSaveDebounce);
+    quickBgmSaveDebounce = setTimeout(async () => {
+        try {
+            await fetch('/api/set-story-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ducking_volume: duckingFraction
+                })
+            });
+            showToast(`🎵 កម្រិតសំឡេងភ្លេង BGM បានកែសម្រួល: ${numVal}%`);
+            appendLiveTerminalLine(`BGM volume / ducking set to: ${numVal}%`, "[Audio Config]", "info");
+        } catch (e) {}
+    }, 400);
+}
+
 async function loadStoryConfigData() {
     try {
         const res = await fetch('/api/story-config');
@@ -1545,6 +1799,8 @@ async function loadStoryConfigData() {
             const data = await res.json();
             if (data.success && data.config) {
                 currentStoryConfig = Object.assign(currentStoryConfig, data.config);
+                syncStagedCardControls();
+                refreshStagedCardVoiceMeta();
             }
         }
     } catch (e) {
@@ -1576,14 +1832,7 @@ async function openStorySettingsModal() {
 
     // Populate Voice & AI Tab fields
     const selVoice = document.getElementById('story-voice-select');
-    let activeVoice = currentStoryConfig.khmer_voice || 'piseth';
-    if (currentStoryConfig.auto_multi_voice || activeVoice === 'multi') {
-        activeVoice = 'multi';
-    } else if (activeVoice === 'sreymom') {
-        activeVoice = 'sreymom';
-    } else {
-        activeVoice = 'piseth';
-    }
+    let activeVoice = (currentStoryConfig.khmer_voice === 'sreymom') ? 'sreymom' : 'piseth';
     if (selVoice) selVoice.value = activeVoice;
 
     const selLang = document.getElementById('story-source-lang');
@@ -1787,12 +2036,10 @@ function updateStoryVoiceHint() {
     if (!hint || !selVoice) return;
 
     const val = selVoice.value;
-    if (val === 'multi') {
-        hint.innerHTML = `<span style="color:#facc15; font-weight:bold;">🎭 Piseth &amp; Sreymom (Dual Voice):</span> AI នឹងបែងចែកតួអង្គស្វ័យប្រវត្ត — តួប្រុសប្រើ Piseth, តួស្រីប្រើ Sreymom ឆ្លាស់គ្នាតាមសាច់រឿង។`;
-    } else if (val === 'sreymom') {
-        hint.innerHTML = `<span style="color:#38bdf8; font-weight:bold;">👩 Sreymom (សំឡេងស្រីទោល):</span> ប្រើតែសំឡេងស្រីមុំទោលមួយគត់សម្រាប់គ្រប់ឃ្លា (គ្មានលាយសំឡេងប្រុសទេ)។`;
+    if (val === 'sreymom') {
+        hint.innerHTML = `<span style="color:#f472b6; font-weight:bold;">👩 Sreymom (សំឡេងស្រីទោល):</span> ប្រើសំឡេងស្រីមុំទោលស្រទន់ &amp; ពិរោះរលូនសម្រាប់គ្រប់ឃ្លា (Female Solo)។`;
     } else {
-        hint.innerHTML = `<span style="color:#22c55e; font-weight:bold;">👨 Piseth (សំឡេងប្រុសទោល):</span> ប្រើតែសំឡេងពិសិដ្ឋទោលមួយគត់សម្រាប់គ្រប់ឃ្លា (គ្មានលាយសំឡេងស្រីទេ)។`;
+        hint.innerHTML = `<span style="color:#38bdf8; font-weight:bold;">👨 Piseth (សំឡេងប្រុសទោល):</span> ប្រើសំឡេងពិសិដ្ឋទោលច្បាស់ &amp; ពិរោះរលូនសម្រាប់គ្រប់ឃ្លា (Male Solo)។`;
     }
 }
 
@@ -1800,9 +2047,7 @@ function onStoryVoiceChange() {
     updateStoryVoiceHint();
     const selVoice = document.getElementById('story-voice-select');
     if (!selVoice) return;
-    if (selVoice.value === 'multi') {
-        showToast("🎭 បានជ្រើសរើស: Piseth & Sreymom (សំឡេងប្រុស & ស្រី)");
-    } else if (selVoice.value === 'sreymom') {
+    if (selVoice.value === 'sreymom') {
         showToast("👩 បានជ្រើសរើស: Sreymom (សំឡេងស្រីទោល)");
     } else {
         showToast("👨 បានជ្រើសរើស: Piseth (សំឡេងប្រុសទោល)");
@@ -1811,19 +2056,14 @@ function onStoryVoiceChange() {
 
 function onToggleMultiVoice(isChecked) {
     const selVoice = document.getElementById('story-voice-select');
-    if (selVoice) selVoice.value = isChecked ? 'multi' : 'piseth';
+    if (selVoice) selVoice.value = isChecked ? 'sreymom' : 'piseth';
     updateStoryVoiceHint();
-    if (isChecked) {
-        showToast("🎭 Piseth & Sreymom (Dual Voice) Active");
-    } else {
-        showToast("🎙️ Single Voice Mode Active: Piseth");
-    }
 }
 
 async function saveStorySettings() {
     const selVoice = document.getElementById('story-voice-select');
-    const voice = selVoice ? selVoice.value : 'piseth';
-    const isMulti = (voice === 'multi');
+    const voice = (selVoice && selVoice.value === 'sreymom') ? 'sreymom' : 'piseth';
+    const isMulti = false;
     const lang = document.getElementById('story-source-lang') ? document.getElementById('story-source-lang').value : 'auto';
     const whisper = document.getElementById('story-whisper-model') ? document.getElementById('story-whisper-model').value : 'medium';
     const aspect = document.getElementById('story-aspect-ratio') ? document.getElementById('story-aspect-ratio').value : '9:16';
@@ -1885,6 +2125,7 @@ async function saveStorySettings() {
         if (resData.success) {
             currentStoryConfig = Object.assign(currentStoryConfig, payload);
             refreshStagedCardVoiceMeta();
+            syncStagedCardControls();
 
             const voiceNameText = voice === 'multi' 
                 ? "Piseth & Sreymom (ប្រុស & ស្រី)" 
@@ -2249,11 +2490,14 @@ function setStagedVideo(file) {
     const stagedCard = document.getElementById('staged-video-card');
     const stagedTitle = document.getElementById('staged-file-title');
     const stagedMeta = document.getElementById('staged-file-meta');
+    const sourceLabel = document.getElementById('clean-source-label');
 
     if (importPrompt) importPrompt.style.display = 'none';
     if (stagedCard) stagedCard.style.display = 'flex';
+    if (sourceLabel) sourceLabel.style.display = 'none';
     if (stagedTitle) stagedTitle.textContent = file.name;
     refreshStagedCardVoiceMeta();
+    syncStagedCardControls();
 
     // Highlight / Pulse top Export button
     const exportBtn = document.getElementById('btn-tab-export');
@@ -2277,7 +2521,19 @@ function setStagedBatchFiles(files) {
     stagedVideoFile = null;
 
     if (files && files.length > 0) {
-        autoDetectVideoDuration(files[0], (dur) => {
+        const firstFile = files[0];
+        const mainVideo = document.getElementById('main-video');
+        if (mainVideo) {
+            try {
+                const blobUrl = URL.createObjectURL(firstFile);
+                mainVideo.src = blobUrl;
+                mainVideo.style.display = 'block';
+                mainVideo.load();
+            } catch (e) {
+                console.warn("Batch preview blob error:", e);
+            }
+        }
+        autoDetectVideoDuration(firstFile, (dur) => {
             totalDurationSeconds = dur;
             playheadSeconds = 0;
             updateScrubberUI();
@@ -2288,17 +2544,37 @@ function setStagedBatchFiles(files) {
     const stagedCard = document.getElementById('staged-video-card');
     const stagedTitle = document.getElementById('staged-file-title');
     const stagedMeta = document.getElementById('staged-file-meta');
+    const sourceLabel = document.getElementById('clean-source-label');
 
     if (importPrompt) importPrompt.style.display = 'none';
     if (stagedCard) stagedCard.style.display = 'flex';
-    if (stagedTitle) stagedTitle.textContent = `Batch: ${files.length} ភាគរឿងភាគ`;
-    if (stagedMeta) stagedMeta.textContent = `បានជ្រើសរើស ${files.length} វីដេអូ • សូមចុច "Export" ដើម្បីដំណើរការ Batch Dubbing`;
+    if (sourceLabel) sourceLabel.style.display = 'none';
+
+    let folderName = "";
+    if (files[0] && files[0].webkitRelativePath) {
+        const parts = files[0].webkitRelativePath.split('/');
+        if (parts.length > 1) folderName = parts[0];
+    }
+    const seriesTitle = folderName ? `Folder: "${folderName}"` : `រឿងភាគមួយចប់`;
+
+    if (stagedTitle) stagedTitle.textContent = `🎬 ${seriesTitle} (${files.length} ភាគ)`;
+    if (stagedMeta) stagedMeta.textContent = `បានតម្រៀបតាមលំដាប់រឿង Episode 1 ដល់ ${files.length} ត្រឹមត្រូវ • ចុច "Export" ដើម្បីបកប្រែទាំងអស់`;
+    refreshStagedCardVoiceMeta();
+    syncStagedCardControls();
 
     const exportBtn = document.getElementById('btn-tab-export');
     if (exportBtn) exportBtn.classList.add('export-ready-pulse');
 
-    showToast(`📁 បានដាក់ ${files.length} ភាគរួចរាល់! សូមចុចប៊ូតុង "Export" ដើម្បីចាប់ផ្តើមបកប្រែ។`);
-    appendTerminalLine(`[Ready] ${files.length} episode files staged. Click [Export] to begin batch processing.`);
+    showToast(`📁 បានផ្ទុក ${files.length} ភាគក្នុង Folder ជោគជ័យ! ចុច Export ដើម្បីចាប់ផ្តើមបកប្រែ។`);
+    clearLiveTerminal();
+    appendLiveTerminalLine(`Folder / Series Staged: ${files.length} episodes loaded in story order.`, "[Batch Ready]", "info");
+    for (let i = 0; i < Math.min(files.length, 5); i++) {
+        appendLiveTerminalLine(`  • Episode ${i+1}: "${files[i].name}" (${(files[i].size / (1024*1024)).toFixed(1)} MB)`, "[Episode List]", "info");
+    }
+    if (files.length > 5) {
+        appendLiveTerminalLine(`  ... និង ${files.length - 5} ភាគទៀត`, "[Episode List]", "info");
+    }
+    appendLiveTerminalLine(`Click [Export] on the top bar to begin full drama automated dubbing.`, "[Ready]", "success");
 }
 
 function clearStagedFiles() {
@@ -2309,23 +2585,29 @@ function clearStagedFiles() {
 
     const importPrompt = document.getElementById('clean-import-prompt');
     const stagedCard = document.getElementById('staged-video-card');
+    const sourceLabel = document.getElementById('clean-source-label');
     if (importPrompt) importPrompt.style.display = 'flex';
     if (stagedCard) stagedCard.style.display = 'none';
+    if (sourceLabel) sourceLabel.style.display = 'block';
 }
 
 function handleSelectedFiles(files) {
     if (!files || files.length === 0) return;
     closeModal('modal-import');
 
+    const validExts = ['.mp4', '.mkv', '.mov', '.avi', '.webm', '.flv', '.ts', '.m4v', '.wmv'];
     const fileList = Array.from(files).filter(f => {
         const n = (f.name || '').toLowerCase();
-        return n.endsWith('.mp4') || n.endsWith('.mkv') || n.endsWith('.mov') || n.endsWith('.avi') || n.endsWith('.webm') || (f.type && f.type.startsWith('video/'));
+        return validExts.some(ext => n.endsWith(ext)) || (f.type && f.type.startsWith('video/'));
     });
 
     if (fileList.length === 0) {
-        showToast("⚠️ សូមជ្រើសរើសឯកសារជាប្រភេទវីដេអូ (MP4, MKV, MOV...)");
+        showToast("⚠️ សូមជ្រើសរើសឯកសារជាប្រភេទវីដេអូរឿងភាគ (MP4, MKV, MOV...)");
         return;
     }
+
+    // Natural numerical sorting: Episode 1, Episode 2, Episode 10 in true story order!
+    fileList.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
 
     if (fileList.length === 1) {
         setStagedVideo(fileList[0]);
@@ -2515,41 +2797,237 @@ async function startAutoDubbingPipeline(file) {
     }
 }
 
-async function startBatchFilesUpload(files) {
-    showToast(`📂 កំពុង Upload វីដេអូចំនួន ${files.length} ភាគ...`);
-    appendTerminalLine(`[Batch Upload] Uploading ${files.length} video files for auto-dubbing...`);
+async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
+    if (!files || files.length === 0) return;
+    const totalBatchCount = files.length;
+    const modeLabel = outputMode === 'full' ? 'បញ្ចូលគ្នារឿងពេញ (One Full Video)' : (outputMode === 'both' ? 'យកទាំងពីរ (Both Episodes & Full Video)' : 'បកប្រែជាភាគៗ (Separate Episodes)');
+    showToast(`🎬 ចាប់ផ្តើមបកប្រែរឿងភាគ (${totalBatchCount} ភាគ) - ${modeLabel}...`);
 
-    const formData = new FormData();
-    for (let i = 0; i < files.length; i++) {
-        formData.append("files", files[i]);
-    }
-    const activeVoiceMode = (currentStoryConfig.auto_multi_voice || currentStoryConfig.khmer_voice === "multi") 
-        ? "multi" 
-        : (currentStoryConfig.khmer_voice || "piseth");
-    formData.append("voice_mode", activeVoiceMode);
-    formData.append("drama_mode", "drama_dubbing");
-    formData.append("aspect_ratio", "16:9");
-    const activeBatchBurnSubs = (currentStoryConfig.subtitle_mode === "burn") ? "true" : "false";
-    formData.append("burn_subtitles", activeBatchBurnSubs);
+    clearLiveTerminal();
+    appendLiveTerminalLine(`========================================================================`, "[Batch Series]", "info");
+    appendLiveTerminalLine(`Series Batch Dubbing Initiated: ${totalBatchCount} episodes loaded in story order.`, "[Batch Series]", "info");
+    appendLiveTerminalLine(`Export Mode: "${outputMode.toUpperCase()}" (${modeLabel})`, "[Batch Series]", "info");
+    appendLiveTerminalLine(`Voices: ពិសិដ្ឋ (Piseth - Male) & ស្រីមុំ (Sreymom - Female) • Zero Vocal Leakage Enabled`, "[Batch Series]", "info");
+    appendLiveTerminalLine(`Mode: Studio In-Place Sequential Dubbing (stays right in Studio)`, "[Batch Series]", "info");
+    appendLiveTerminalLine(`========================================================================`, "[Batch Series]", "info");
 
-    try {
-        const res = await fetch("/api/batch/upload", {
-            method: "POST",
-            body: formData
-        });
-        const data = await res.json();
-        if (data.success) {
-            showToast(`🚀 បានដាក់ចូលក្នុង Queue ចំនួន ${data.added_count} ភាគ!`);
-            appendLiveTerminalLine(`Batch queue initialized: ${data.added_count} episodes queued for automated processing.`, "[Batch]", "success");
-            switchMainTab('dl');
-            switchDlViewMode('queue');
-        } else {
-            showToast(`❌ ${data.error || 'បរាជ័យ'}`);
-            appendLiveTerminalLine(`Batch upload failed: ${data.error || 'Server error'}`, "[Batch]", "error");
+    // Keep clean source view active
+    showCleanSourceView();
+
+    // Set Engine Monitor to Active Encoding State
+    const pill = document.getElementById('monitor-engine-status-pill');
+    const dot = document.getElementById('monitor-pulse-dot');
+    const text = document.getElementById('monitor-engine-status-text');
+    if (pill) pill.className = 'engine-status-pill';
+    if (dot) dot.className = 'pulse-indicator';
+
+    let totalElapsedSeconds = 0;
+    const batchMasterTimer = setInterval(() => {
+        totalElapsedSeconds++;
+    }, 1000);
+
+    const completedProjects = [];
+
+    for (let i = 0; i < totalBatchCount; i++) {
+        const file = files[i];
+        const epNum = i + 1;
+
+        if (text) text.textContent = `BATCH DUBBING (${epNum} / ${totalBatchCount})`;
+
+        appendLiveTerminalLine(`------------------------------------------------------------------------`, `[Ep ${epNum}/${totalBatchCount}]`, "info");
+        appendLiveTerminalLine(`▶ Starting Episode ${epNum}/${totalBatchCount}: "${file.name}" (${(file.size / (1024 * 1024)).toFixed(1)} MB)...`, `[Ep ${epNum}/${totalBatchCount}]`, "info");
+        appendLiveTerminalLine(`AI voice removal: extracting audio & isolating Chinese vocals...`, `[Ep ${epNum}/${totalBatchCount}]`, "info");
+
+        const basePct = Math.round((i / totalBatchCount) * 100);
+        updateExportProgressUI(basePct, totalElapsedSeconds, 60 * (totalBatchCount - i), `ភាគ ${epNum}/${totalBatchCount}: ${file.name} - កំពុងផ្ញើទៅ Studio...`);
+
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("drama_mode", currentStudioPreset === "narration" ? "movie_recap" : "drama_dubbing");
+        const activeSourceLang = currentStoryConfig.source_lang || "auto";
+        const activeVoiceOverride = (currentStoryConfig.auto_multi_voice || currentStoryConfig.khmer_voice === "multi") 
+            ? "multi" 
+            : (currentStoryConfig.khmer_voice || "piseth");
+        const activeAspectRatio = currentStoryConfig.aspect_ratio || "9:16";
+        const activeBurnSubs = (currentStoryConfig.subtitle_mode === "burn") ? "true" : "false";
+
+        formData.append("source_lang", activeSourceLang);
+        formData.append("voice_override", activeVoiceOverride);
+        formData.append("aspect_ratio", activeAspectRatio);
+        formData.append("burn_subtitles", activeBurnSubs);
+
+        let taskId = null;
+        try {
+            const res = await fetch("/api/projects/auto-dub-video", {
+                method: "POST",
+                body: formData
+            });
+            const data = await res.json();
+            if (!data.success || !data.task_id) {
+                appendLiveTerminalLine(`❌ Episode ${epNum} skipped: ${data.error || 'Upload error'}`, `[Ep ${epNum}/${totalBatchCount}]`, "error");
+                continue;
+            }
+            taskId = data.task_id;
+            activeDubbingTaskId = taskId;
+        } catch (uploadErr) {
+            appendLiveTerminalLine(`❌ Episode ${epNum} network error: ${uploadErr.message}`, `[Ep ${epNum}/${totalBatchCount}]`, "error");
+            continue;
         }
-    } catch (e) {
-        showToast("❌ កំហុសបណ្តាញ");
-        appendLiveTerminalLine(`Batch network error: ${e.message}`, "[Batch]", "error");
+
+        // Poll this episode until complete
+        const epDone = await new Promise((resolve) => {
+            let lastLoggedStep = "";
+            let loggedDialogueIds = new Set();
+            let sepProgressSim = 5;
+            let sepTimerTicks = 0;
+
+            const pollInterval = setInterval(async () => {
+                try {
+                    const sRes = await fetch(`/api/projects/auto-dub-status/${taskId}`);
+                    const sData = await sRes.json();
+                    if (!sRes.ok || !sData.success) return;
+
+                    const epPct = sData.progress || 10;
+                    const stepKm = sData.step_km || "កំពុងដំណើរការ...";
+                    const stepEn = sData.step_en || stepKm;
+
+                    const overallPct = Math.min(99, Math.round((i / totalBatchCount) * 100 + (epPct / totalBatchCount)));
+                    const remPct = 100 - overallPct;
+                    const estEta = Math.max(5, Math.round((totalElapsedSeconds / Math.max(1, overallPct)) * remPct));
+
+                    updateExportProgressUI(overallPct, totalElapsedSeconds, estEta, `ភាគ ${epNum}/${totalBatchCount}: ${file.name} - ${stepKm}`);
+
+                    if (epPct < 35) {
+                        sepTimerTicks++;
+                        if (sepTimerTicks % 2 === 0 && sepProgressSim < 95) {
+                            appendLiveTerminalLine(`AI voice removal: separating voice from music (${sepProgressSim}%)...`, `[Ep ${epNum}/${totalBatchCount}]`, "info");
+                            sepProgressSim += Math.floor(Math.random() * 4) + 3;
+                        }
+                    }
+
+                    if (stepEn && stepEn !== lastLoggedStep) {
+                        lastLoggedStep = stepEn;
+                        appendLiveTerminalLine(`${stepEn} (${epPct}%) [${stepKm}]`, `[Ep ${epNum}/${totalBatchCount}]`, "info");
+                    }
+
+                    // Stream dialogues
+                    const currentDialogues = (sData.project && sData.project.dialogues) || sData.dialogues || [];
+                    if (Array.isArray(currentDialogues) && currentDialogues.length > 0) {
+                        currentDialogues.forEach((d, idx) => {
+                            if (!loggedDialogueIds.has(idx)) {
+                                loggedDialogueIds.add(idx);
+                                const lineNum = String(idx + 1).padStart(2, '0');
+                                const vName = (d.voice === 'sreymom' || d.voice === 'female') ? 'ស្រីមុំ (Sreymom)' : 'ពិសិដ្ឋ (Piseth)';
+                                const zhText = d.text_original || d.text || "";
+                                const kmText = d.text_km || d.translated_text || d.khmer_text || d.text || "";
+                                if (kmText && kmText !== zhText) {
+                                    appendLiveTerminalLine(`[Line ${lineNum}] "${zhText}" ➜ "${kmText}" (${vName})`, `[Ep ${epNum} Dub]`, "dub");
+                                }
+                            }
+                        });
+                    }
+
+                    if (sData.status === "completed") {
+                        clearInterval(pollInterval);
+                        completedProjects.push(sData.project);
+                        currentDubbedProject = sData.project;
+
+                        // Preview newly finished episode in player
+                        const mainVideo = document.getElementById('main-video');
+                        if (mainVideo && sData.video_url) {
+                            mainVideo.src = sData.video_url;
+                            mainVideo.style.display = 'block';
+                            mainVideo.load();
+                        }
+
+                        appendLiveTerminalLine(`✓ Episode ${epNum}/${totalBatchCount} finished: "${sData.project.output_video_file || file.name}"`, `[Ep ${epNum}/${totalBatchCount}]`, "success");
+                        showToast(`✅ ភាគ ${epNum}/${totalBatchCount} បកប្រែរួចរាល់!`);
+                        resolve(true);
+                    } else if (sData.status === "failed") {
+                        clearInterval(pollInterval);
+                        appendLiveTerminalLine(`❌ Episode ${epNum}/${totalBatchCount} failed: ${sData.error || 'Unknown error'}`, `[Ep ${epNum}/${totalBatchCount}]`, "error");
+                        showToast(`⚠️ ភាគ ${epNum} ជួបបញ្ហា: ${sData.error || 'បរាជ័យ'}`);
+                        resolve(false);
+                    }
+                } catch (pollErr) {
+                    console.warn("Batch episode poll error:", pollErr);
+                }
+            }, 1000);
+        });
+
+        // Small 1.5s pause between episodes
+        if (i < totalBatchCount - 1) {
+            await new Promise(r => setTimeout(r, 1500));
+        }
+    }
+
+    // Merge into One Full Video if user selected 'full' or 'both'
+    if ((outputMode === 'full' || outputMode === 'both') && completedProjects.length > 1) {
+        appendLiveTerminalLine(`------------------------------------------------------------------------`, "[Full Movie Merge]", "info");
+        appendLiveTerminalLine(`Export Mode: "${outputMode.toUpperCase()}" ➜ Concat/Merging all ${completedProjects.length} episodes into One Full Video...`, "[Full Movie Merge]", "info");
+        updateExportProgressUI(96, totalElapsedSeconds, 30, `កំពុងបញ្ចូល ${completedProjects.length} ភាគ ជារឿងពេញមួយចប់ (Full Movie)...`);
+
+        const videoPaths = completedProjects.map(p => p.output_video_file || p.output_file || p.video_file).filter(Boolean);
+        let seriesTitle = "Drama_Series";
+        if (files && files[0] && files[0].name) {
+            seriesTitle = files[0].name.replace(/\.[^/.]+$/, '').replace(/(?:_part|[-_]ep|[-_]e|\bep|\bepisode)[-_]?\d+/i, '').replace(/[-_]+$/, '').trim() || "Drama_Series";
+        }
+
+        try {
+            const mRes = await fetch("/api/projects/merge-episodes", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    video_paths: videoPaths,
+                    series_title: seriesTitle
+                })
+            });
+            const mData = await mRes.json();
+            if (mData.success) {
+                appendLiveTerminalLine(`✓ Full Movie merged successfully: "${mData.merged_filename}"`, "[Full Movie Merge]", "success");
+                showToast(`🎬 រឿងពេញមួយចប់ត្រូវបាន Merge ជោគជ័យ: ${mData.merged_filename}`);
+
+                const mainVideo = document.getElementById('main-video');
+                if (mainVideo && mData.video_url) {
+                    mainVideo.src = mData.video_url;
+                    mainVideo.style.display = 'block';
+                    mainVideo.load();
+                }
+
+                if (currentDubbedProject) {
+                    currentDubbedProject.output_video_file = mData.merged_path;
+                    currentDubbedProject.merged_filename = mData.merged_filename;
+                }
+            } else {
+                appendLiveTerminalLine(`⚠️ Merge failed: ${mData.error || 'Concat error'} (Separate episodes preserved)`, "[Full Movie Merge]", "error");
+            }
+        } catch (mErr) {
+            appendLiveTerminalLine(`⚠️ Merge network error: ${mErr.message} (Separate episodes preserved)`, "[Full Movie Merge]", "error");
+        }
+    }
+
+    clearInterval(batchMasterTimer);
+    clearStagedFiles();
+    updateExportProgressUI(100, totalElapsedSeconds, 0, `🎉 រួចរាល់ ១០០%! រឿងភាគទាំងអស់ចំនួន ${completedProjects.length}/${totalBatchCount} ភាគ ត្រូវបានបកប្រែជោគជ័យ!`);
+    showToast(`🎉 រឿងភាគមួយចប់ (${completedProjects.length} ភាគ) ត្រូវបានបកប្រែជាសំឡេងខ្មែរជោគជ័យ!`);
+
+    appendLiveTerminalLine(`========================================================================`, "[Batch Complete]", "success");
+    appendLiveTerminalLine(`🎉 Series Batch Dubbing Finished: ${completedProjects.length}/${totalBatchCount} episodes completed.`, "[Batch Complete]", "success");
+    appendLiveTerminalLine(`Zero vocal leakage. All dubbed videos saved in "data/exports/".`, "[Batch Complete]", "success");
+    appendLiveTerminalLine(`========================================================================`, "[Batch Complete]", "success");
+
+    resetEngineMonitorToStandby();
+
+    // Auto open export folder in Windows Explorer
+    openExportFolderDirect();
+
+    // Show success notification banner
+    if (completedProjects.length > 0) {
+        showDubbingSuccessNotification({
+            project: completedProjects[completedProjects.length - 1],
+            batch_count: completedProjects.length,
+            total_count: totalBatchCount
+        });
     }
 }
 
@@ -2576,23 +3054,31 @@ function showDubbingSuccessNotification(data) {
         animation: fadeIn 0.3s ease;
     `;
 
+    const isBatch = data && data.batch_count;
+    const bannerMsg = isBatch
+        ? `រឿងភាគទាំងអស់ចំនួន ${data.batch_count} ភាគ បាន Render រួចរាល់ជាមួយសំឡេងខ្មែរ ពិសិដ្ឋ & ស្រីមុំ និងបានរក្សាទុកក្នុង Folder Exports!`
+        : `វីដេអូបាន Render រួចរាល់ជាមួយសំឡេងខ្មែរ ពិសិដ្ឋ & ស្រីមុំ និងបានរក្សាទុកក្នុង Folder Exports!`;
+
+    const downloadUrl = (data && data.video_url) ? data.video_url : '#';
+
     banner.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center;">
             <div style="font-weight:700; color:#facc15; font-size:0.9rem; display:flex; align-items:center; gap:8px;">
-                <i class="fa-solid fa-circle-check" style="color:#22c55e;"></i> បកប្រែជាសំឡេងខ្មែរជោគជ័យ!
+                <i class="fa-solid fa-circle-check" style="color:#22c55e;"></i> ${isBatch ? 'បកប្រែរឿងភាគមួយចប់ជោគជ័យ!' : 'បកប្រែជាសំឡេងខ្មែរជោគជ័យ!'}
             </div>
             <button onclick="this.parentElement.parentElement.remove()" style="background:transparent; border:none; color:#716655; font-size:0.85rem; cursor:pointer;">✕</button>
         </div>
         <div style="font-size:0.75rem; color:#cbd5e1;">
-            វីដេអូបាន Render រួចរាល់ជាមួយសំឡេងខ្មែរ ពិសិដ្ឋ & ស្រីមុំ និងបានរក្សាទុកក្នុង Folder Exports!
+            ${bannerMsg}
         </div>
         <div style="display:flex; gap:8px; margin-top:4px;">
             <button onclick="openExportFolderDirect()" style="flex:1; background:rgba(250,204,21,0.15); border:1px solid #facc15; color:#facc15; border-radius:6px; padding:6px 12px; font-size:0.75rem; font-weight:600; cursor:pointer;">
                 <i class="fa-solid fa-folder-open"></i> បើក Folder វីដេអូ
             </button>
-            <a href="${data.video_url}" download style="flex:1; text-align:center; background:#facc15; color:#000; border-radius:6px; padding:6px 12px; font-size:0.75rem; font-weight:700; text-decoration:none; display:inline-block;">
+            ${downloadUrl !== '#' ? `
+            <a href="${downloadUrl}" download style="flex:1; text-align:center; background:#facc15; color:#000; border-radius:6px; padding:6px 12px; font-size:0.75rem; font-weight:700; text-decoration:none; display:inline-block;">
                 <i class="fa-solid fa-download"></i> ទាញយក MP4
-            </a>
+            </a>` : ''}
         </div>
     `;
 

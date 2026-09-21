@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=6.3">
 </head>
 <body>
     <div class="unich-app-container">
@@ -17,20 +17,19 @@
              TOP NAVBAR
              ==================================================================== -->
         <header class="unich-header-bar">
-            <!-- Left Toggle Switch (Matching Image 2) -->
+            <!-- Left Brand & 3D Logo Badge -->
             <div class="header-brand-group">
-                <label class="brand-toggle-switch" title="SN TOOL Auto / AI Mode">
-                    <input type="checkbox" id="brand-main-switch" checked onchange="toggleAutoSwitch(this.checked)">
-                    <span class="switch-track"></span>
-                </label>
+                <div class="brand-badge-wrapper" title="SN TOOL Studio Edition">
+                    <img src="logo.png?v=6.2" class="brand-badge-logo" alt="SN Logo">
+                </div>
+                <div class="brand-studio-title">
+                    <span class="brand-name-bold">SN TOOL</span>
+                    <span class="brand-pro-tag">STUDIO PRO</span>
+                </div>
             </div>
 
-            <!-- Center Action Pill Buttons (Exact Match to Image 2 Order) -->
+            <!-- Center Action Pill Buttons (Remaining studio actions) -->
             <nav class="header-nav-pills">
-                <button class="nav-pill-btn" id="btn-tab-import" onclick="openImportModal()" title="Import Video or Folder">
-                    <i class="fa-solid fa-inbox icon-import"></i>
-                    <span>Import</span>
-                </button>
                 <button class="nav-pill-btn active" id="btn-tab-translate" onclick="switchMainTab('translate')" title="Translation & Dubbing Studio">
                     <i class="fa-solid fa-globe icon-translate"></i>
                     <span>Translate</span>
@@ -102,6 +101,14 @@
             <div class="studio-layout-grid" id="view-studio-translate">
                 <!-- Left 9:16 Vertical Video Monitor -->
                 <div class="studio-left-monitor-card">
+                    <!-- Monitor Header Status Bar -->
+                    <div class="monitor-header-kicker">
+                        <div class="monitor-kicker-left">
+                            <span class="monitor-kicker-dot"></span>
+                            <span class="monitor-kicker-title">PREVIEW MONITOR</span>
+                        </div>
+                    </div>
+
                     <div class="monitor-screen-area" id="monitor-screen-area" onclick="togglePlayPreview(event)">
                         <video id="main-video" playsinline style="display:none;" onclick="togglePlayPreview(event)"></video>
                         
@@ -153,27 +160,92 @@
                         <div class="studio-source-clean-view" id="studio-source-clean-view">
                             <div class="clean-source-label" id="clean-source-label">Translation source</div>
                             
-                            <!-- Initial Empty State -->
+                            <!-- Initial Empty State: Professional Studio Media Ingest -->
                             <div class="clean-import-center-cta" id="clean-import-prompt" onclick="openImportModal()">
-                                <div class="clean-plus-icon">+</div>
-                                <div class="clean-import-text">Import File / Folder</div>
+                                <div class="clean-import-icon-box">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                                </div>
+                                <div class="clean-import-text">Import Media / Drama Folder</div>
+                                <div class="clean-import-sub">Drag &amp; drop video files or series folder to begin dubbing</div>
+                                <div class="clean-import-formats">
+                                    <span class="media-fmt-chip">MP4</span>
+                                    <span class="media-fmt-chip">MKV</span>
+                                    <span class="media-fmt-chip">MOV</span>
+                                    <span class="media-fmt-chip highlight">SERIES FOLDER</span>
+                                </div>
                             </div>
 
                             <!-- Staged Video Ready to Export State -->
+                            <!-- Staged Video Ready State (Direct Voice Selector & BGM Audio Controls) -->
+                            <!-- Staged Video Ready State (Ultra-Clean, Full-Frame Studio Layout) -->
                             <div class="staged-video-ready-card" id="staged-video-card" style="display:none;">
-                                <div class="staged-card-badge"><i class="fa-solid fa-circle-check" style="color:#22c55e;"></i> VIDEO READY</div>
-                                <div class="staged-card-title" id="staged-file-title">Drama_Episode_01.mp4</div>
-                                <div class="staged-card-meta" id="staged-file-meta">Ready for Single-Voice AI Dubbing (Piseth / Sreymom)</div>
-                                <div class="staged-card-actions">
-                                    <button type="button" class="staged-export-primary-btn" onclick="startStudioExportJob()" title="Start AI Dubbing">
-                                        <i class="fa-solid fa-bolt"></i> ចុច Export ដើម្បីចាប់ផ្តើមបកប្រែ
-                                    </button>
-                                    <button type="button" class="staged-change-file-btn" onclick="openStorySettingsModal()" title="Voice & Dubbing Settings" style="border-color: rgba(234, 179, 8, 0.45); color: #facc15;">
-                                        <i class="fa-solid fa-sliders"></i> កំណត់សំឡេង (Settings)
-                                    </button>
-                                    <button type="button" class="staged-change-file-btn" onclick="openImportModal()" title="Change video">
-                                        <i class="fa-solid fa-arrows-rotate"></i> ប្តូរវីដេអូ
-                                    </button>
+                                <!-- Header Row: Source Kicker, File Name, Size/Duration & Quick Action Buttons -->
+                                <div class="staged-compact-header">
+                                    <div class="staged-file-info-left">
+                                        <span class="staged-source-kicker"><i class="fa-solid fa-film"></i> SOURCE</span>
+                                        <span class="staged-status-pill"><i class="fa-solid fa-circle-check" style="color:#22c55e;"></i> READY</span>
+                                        <span class="staged-card-title" id="staged-file-title">Drama_Episode_01.mp4</span>
+                                        <span class="staged-card-meta" id="staged-file-meta">44.1 MB • 03:00</span>
+                                    </div>
+                                    <div class="staged-file-actions-right">
+                                        <button type="button" class="staged-mini-btn" onclick="openImportModal()" title="ប្តូរវីដេអូ ឬ Folder ផ្សេង">
+                                            <i class="fa-solid fa-arrows-rotate"></i> ប្តូរវីដេអូ / Folder
+                                        </button>
+                                        <button type="button" class="staged-mini-btn" onclick="openStorySettingsModal()" title="ការកំណត់បន្ថែម">
+                                            <i class="fa-solid fa-sliders"></i> Settings
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Section 1: Dubbing Voice Selector (2 Columns: Piseth & Sreymom) -->
+                                <div class="staged-section-wrapper staged-voice-section">
+                                    <div class="staged-section-label">
+                                        <span><i class="fa-solid fa-microphone-lines" style="color:#facc15;"></i> ជ្រើសរើសសំឡេងបកប្រែ (Dubbing Voice)</span>
+                                        <span class="staged-section-badge" id="staged-voice-status-badge">Piseth (ប្រុសទោល)</span>
+                                    </div>
+                                    <div class="staged-voice-grid">
+                                        <!-- Chip 1: Piseth Solo -->
+                                        <button type="button" class="staged-voice-chip active" id="voice-chip-piseth" onclick="selectQuickVoice('piseth')">
+                                            <div class="staged-chip-top-row">
+                                                <div class="staged-chip-radio"><i class="fa-solid fa-check"></i></div>
+                                                <div class="staged-chip-tag">⭐ ណែនាំខ្ពស់</div>
+                                            </div>
+                                            <div class="staged-chip-body">
+                                                <div class="staged-chip-icon-box">
+                                                    <i class="fa-solid fa-user-tie staged-chip-icon" style="color:#38bdf8;"></i>
+                                                </div>
+                                                <div class="staged-chip-text-group">
+                                                    <div class="staged-chip-title">ពិសិដ្ឋ (Piseth)</div>
+                                                    <div class="staged-chip-sub">Male Solo • សំឡេងប្រុសទោលច្បាស់ &amp; ពិរោះរលូន</div>
+                                                </div>
+                                            </div>
+                                        </button>
+
+                                        <!-- Chip 2: Sreymom Solo -->
+                                        <button type="button" class="staged-voice-chip" id="voice-chip-sreymom" onclick="selectQuickVoice('sreymom')">
+                                            <div class="staged-chip-top-row">
+                                                <div class="staged-chip-radio"><i class="fa-solid fa-check"></i></div>
+                                                <div class="staged-chip-tag-empty">🎙️ តួស្រីទោល</div>
+                                            </div>
+                                            <div class="staged-chip-body">
+                                                <div class="staged-chip-icon-box">
+                                                    <i class="fa-solid fa-user staged-chip-icon" style="color:#f472b6;"></i>
+                                                </div>
+                                                <div class="staged-chip-text-group">
+                                                    <div class="staged-chip-title">ស្រីមុំ (Sreymom)</div>
+                                                    <div class="staged-chip-sub">Female Solo • សំឡេងស្រីទោលស្រទន់ &amp; ពិរោះរលូន</div>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Quick Export Action Trigger -->
+                                <div class="staged-action-cta-row">
+                                    <div class="staged-cta-hint">
+                                        <i class="fa-solid fa-circle-info" style="color:#facc15;"></i>
+                                        <span>ជ្រើសរើសសំឡេងរួចរាល់ សូមចុច <strong>Export</strong> នៅខាងលើ ដើម្បីជ្រើសរើសទម្រង់វីដេអូ</span>
+                                    </div>
                                 </div>
                             </div>
 
@@ -307,8 +379,8 @@
                     <div class="studio-engine-monitor-box" id="studio-terminal-box">
                         <div class="engine-monitor-top-bar">
                             <div class="engine-monitor-title-group">
-                                <i class="fa-solid fa-terminal" style="color:#facc15;"></i>
-                                <span class="engine-monitor-heading">Studio Engine Live Output</span>
+                                <i class="fa-solid fa-wave-square" style="color:#facc15;"></i>
+                                <span class="engine-monitor-heading">Studio Processing &amp; Activity Console</span>
                                 <span class="engine-status-pill standby" id="monitor-engine-status-pill">
                                     <span class="pulse-indicator standby" id="monitor-pulse-dot"></span> <span id="monitor-engine-status-text">STANDBY</span>
                                 </span>
@@ -488,8 +560,8 @@
         </footer>
 
         <!-- Hidden Inputs for File/Folder Dialogs -->
-        <input type="file" id="batch-files-input" multiple accept="video/*" style="display:none;" onchange="handleSelectedFiles(this.files)">
-        <input type="file" id="batch-folder-input" webkitdirectory directory multiple style="display:none;" onchange="handleSelectedFiles(this.files)">
+        <input type="file" id="batch-files-input" multiple accept="video/*,.mp4,.mkv,.mov,.avi,.webm,.flv,.ts,.m4v" style="display:none;" onchange="handleSelectedFiles(this.files); this.value=''">
+        <input type="file" id="batch-folder-input" webkitdirectory directory multiple style="display:none;" onchange="handleSelectedFiles(this.files); this.value=''">
 
         <!-- ====================================================================
              MODALS (Exact Match to Images 3, 4 & Power Tools)
@@ -660,7 +732,6 @@
                                     <select id="story-voice-select" class="ai-gold-select" onchange="onStoryVoiceChange()">
                                         <option value="piseth" selected>Piseth (សំឡេងប្រុសទោល / Male Solo - ណែនាំ)</option>
                                         <option value="sreymom">Sreymom (សំឡេងស្រីទោល / Female Solo)</option>
-                                        <option value="multi">Piseth &amp; Sreymom (សំឡេងប្រុស &amp; ស្រី / Dual Voice)</option>
                                     </select>
                                     <p id="story-voice-hint" class="ai-field-hint" style="margin-top:6px; margin-bottom:14px; color: var(--gold-glow); font-size: 0.82rem; line-height:1.45;"></p>
                                 </div>
@@ -1085,6 +1156,88 @@
             </div>
         </div>
 
+        <!-- ====================================================================
+             MODAL: OUTPUT EXPORT OPTIONS (Separate / One Full Video / Both)
+             ==================================================================== -->
+        <div class="modal-backdrop-overlay" id="modal-export-options">
+            <div class="modal-content-card export-output-modal-card">
+                <!-- Modal Top Header -->
+                <div class="modal-top-header">
+                    <div class="modal-title">
+                        <i class="fa-solid fa-file-export" style="color: #facc15;"></i>
+                        <span>Output (ទម្រង់ Export វីដេអូ)</span>
+                    </div>
+                    <button type="button" class="modal-close-icon-btn" onclick="closeModal('modal-export-options')">✕</button>
+                </div>
+
+                <div class="modal-inner-body" style="padding: 16px 22px 20px 22px; gap: 14px;">
+                    <!-- Episode Chain Subtitle -->
+                    <div class="export-output-meta-sub" id="export-output-meta-sub">
+                        <span id="export-output-ep-count">3 episodes</span> • <span id="export-output-ep-chain">Ep1 → Ep2 → Ep3</span>
+                    </div>
+
+                    <!-- 3 Selectable Output Cards -->
+                    <div class="export-options-list">
+                        <!-- Option 1: Separate episodes -->
+                        <div class="export-opt-card active" id="export-opt-separate" onclick="selectExportOutputMode('separate')">
+                            <div class="export-opt-icon-wrap">
+                                <i class="fa-solid fa-clapperboard"></i>
+                            </div>
+                            <div class="export-opt-text-wrap">
+                                <div class="export-opt-title">Separate episodes (បកប្រែជាភាគៗ)</div>
+                                <div class="export-opt-desc">One translated file per episode (សម្រាប់ផុសជាភាគៗ)</div>
+                            </div>
+                            <div class="export-opt-check-wrap">
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+                        </div>
+
+                        <!-- Option 2: One full video -->
+                        <div class="export-opt-card" id="export-opt-full" onclick="selectExportOutputMode('full')">
+                            <div class="export-opt-icon-wrap">
+                                <i class="fa-solid fa-film"></i>
+                            </div>
+                            <div class="export-opt-text-wrap">
+                                <div class="export-opt-title">One full video (បញ្ចូលគ្នាជារឿងពេញមួយចប់)</div>
+                                <div class="export-opt-desc" id="export-desc-full">Joined into drama_Full_Movie.mp4 — episodes merged</div>
+                            </div>
+                            <div class="export-opt-check-wrap">
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+                        </div>
+
+                        <!-- Option 3: Both -->
+                        <div class="export-opt-card" id="export-opt-both" onclick="selectExportOutputMode('both')">
+                            <div class="export-opt-icon-wrap">
+                                <i class="fa-solid fa-folder-tree"></i>
+                            </div>
+                            <div class="export-opt-text-wrap">
+                                <div class="export-opt-title">Both (យកទាំងពីរ - ភាគៗ &amp; រឿងពេញ)</div>
+                                <div class="export-opt-desc" id="export-desc-both">Episodes + drama_Full_Movie.mp4 (ទទួលបានទាំងពីរ)</div>
+                            </div>
+                            <div class="export-opt-check-wrap">
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Location Hint -->
+                    <div class="export-output-location-row">
+                        <i class="fa-solid fa-folder" style="color: #facc15;"></i>
+                        <span>Beside each video (creates an <strong>SN TOOL</strong> folder)</span>
+                    </div>
+
+                    <!-- Footer Action Buttons -->
+                    <div class="export-output-footer-btns">
+                        <button type="button" class="export-btn-cancel" onclick="closeModal('modal-export-options')">Cancel</button>
+                        <button type="button" class="export-btn-start" onclick="confirmAndExecuteExport()">
+                            <i class="fa-solid fa-play"></i> Start
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- MODAL 3: MERGE VIDEO -->
         <div class="modal-backdrop-overlay" id="modal-power-merge">
             <div class="modal-content-card">
@@ -1190,6 +1343,6 @@
         <div class="unich-toast-box" id="toast"></div>
     </div>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=6.0"></script>
 </body>
 </html>

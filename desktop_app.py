@@ -58,12 +58,12 @@ def main():
         import webview
         launched_native = True
         window = webview.create_window(
-            title="🎬 Khmer AI Drama Voice Translator & Movie Recap Studio (ពិសិដ្ឋ & ស្រីមុំ)",
+            title="SN TOOL - STUDIO PRO",
             url="http://127.0.0.1:8000",
             width=1360,
             height=860,
             min_size=(1024, 680),
-            background_color="#090d16"
+            background_color="#08090d"
         )
         webview.start()
     except Exception as e:

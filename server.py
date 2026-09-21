@@ -10,6 +10,7 @@ import asyncio
 import subprocess
 import threading
 import uuid
+import re
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
@@ -1294,6 +1295,54 @@ def open_project_folder_endpoint():
         except Exception as e:
             return jsonify({"success": False, "error": str(e)}), 500
     return jsonify({"success": True, "opened_path": target_path})
+
+
+@app.route("/api/projects/merge-episodes", methods=["POST"])
+def merge_episodes_endpoint():
+    """Merge multiple dubbed episode MP4 files into a single full movie video."""
+    data = request.get_json(force=True) or {}
+    video_paths = data.get("video_paths", [])
+    series_title = data.get("series_title", "Drama_Series")
+
+    clean_title = re.sub(r'[^\w\-_.]', '_', str(series_title)).strip('_')
+    if not clean_title:
+        clean_title = "Drama_Series"
+
+    output_filename = f"Dubbed_{clean_title}_Full_Movie.mp4"
+    out_file = Path("data/exports") / output_filename
+
+    if not video_paths:
+        return jsonify({"success": False, "error": "No video paths provided"}), 400
+
+    resolved_paths = []
+    for vp in video_paths:
+        p = Path(vp)
+        if p.exists():
+            resolved_paths.append(str(p.resolve()))
+            continue
+        p_exports = Path("data/exports") / p.name
+        if p_exports.exists():
+            resolved_paths.append(str(p_exports.resolve()))
+            continue
+        p_base = (BASE_DIR / vp).resolve()
+        if p_base.exists():
+            resolved_paths.append(str(p_base))
+            continue
+
+    if not resolved_paths:
+        return jsonify({"success": False, "error": "No existing episode files found to merge"}), 404
+
+    try:
+        from video_processor import merge_videos
+        final_path = merge_videos(resolved_paths, str(out_file))
+        return jsonify({
+            "success": True,
+            "merged_path": str(final_path),
+            "merged_filename": output_filename,
+            "video_url": f"/media/data/exports/{output_filename}"
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route("/media/<path:filename>")

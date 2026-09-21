@@ -6,6 +6,6 @@
   "aspect_ratio": "9:16",
   "subtitle_mode": "none",
   "dubbing_mode": "smart_bgm",
-  "ducking_volume": "0.22",
+  "ducking_volume": "0.10",
   "speech_boost_db": 4
 }

@@ -69,7 +69,7 @@ async def main():
     if args.video:
         video_p = Path(args.video)
         if not video_p.exists():
-            print(f"❌ រកមិនឃើញឯកសារវីដេអូ: {args.video}")
+            print(f"❌ រកមិនឃើញឯកសារវីដេអូ ឬ Folder: {args.video}")
             return
 
         def cli_progress(pct: int, msg_km: str, msg_en: str):
@@ -83,41 +83,60 @@ async def main():
                 if cfg_p.exists():
                     with open(cfg_p, "r", encoding="utf-8") as f:
                         cfg = json.load(f)
-                        if cfg.get("auto_multi_voice") or cfg.get("khmer_voice") == "multi":
+                        if cfg.get("auto_multi_voice") is not False or cfg.get("khmer_voice") == "multi":
                             chosen_voice = "multi"
                         else:
-                            chosen_voice = cfg.get("khmer_voice", "piseth")
+                            chosen_voice = cfg.get("khmer_voice", "multi")
             except Exception:
-                chosen_voice = "piseth"
+                chosen_voice = "multi"
         if not chosen_voice:
-            chosen_voice = "piseth"
+            chosen_voice = "multi"
 
         voice_display = "ពិសិដ្ឋ & ស្រីមុំ (Dual Voice)" if chosen_voice in ("multi", "auto_multi") else ("ស្រីមុំ (Sreymom Solo)" if chosen_voice == "sreymom" else "ពិសិដ្ឋ (Piseth Solo)")
-        print(f"\n🎬 កំពុងដំណើរការបកប្រែវីដេអូ: {video_p.name} • សំឡេង: {voice_display}")
-        project = await pm.process_video_pipeline(
-            video_path=str(video_p),
-            title=f"Dubbed_{video_p.stem}",
-            mode=args.mode,
-            source_lang=args.source,
-            voice_override=chosen_voice,
-            burn_subtitles=should_burn,
-            progress_callback=cli_progress
-        )
 
-        out_file = project.get("output_video_file")
-        if out_file and Path(out_file).exists():
-            export_dir = Path("data/exports")
-            export_dir.mkdir(parents=True, exist_ok=True)
-            export_target = export_dir / f"Dubbed_{video_p.stem}.mp4"
-            import shutil
-            shutil.copy2(out_file, str(export_target))
+        # Collect target video files (single file or series folder)
+        import re
+        import shutil
+
+        def natural_sort_key(p: Path):
+            return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', p.name)]
+
+        valid_exts = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".flv", ".ts", ".m4v"}
+        if video_p.is_dir():
+            target_files = [f for f in video_p.iterdir() if f.is_file() and f.suffix.lower() in valid_exts]
+            target_files.sort(key=natural_sort_key)
+            if not target_files:
+                print(f"❌ គ្មានឯកសារវីដេអូនៅក្នុង Folder: {video_p}")
+                return
+            print(f"\n📂 បានរកឃើញវីដេអូរឿងភាគចំនួន {len(target_files)} ភាគ នៅក្នុង Folder: {video_p.name}")
+        else:
+            target_files = [video_p]
+
+        total_vids = len(target_files)
+        for idx, single_vid in enumerate(target_files, start=1):
+            print(f"\n🎬 [{idx}/{total_vids}] កំពុងដំណើរការបកប្រែវីដេអូ: {single_vid.name} • សំឡេង: {voice_display}")
+            project = await pm.process_video_pipeline(
+                video_path=str(single_vid),
+                title=f"Dubbed_{single_vid.stem}",
+                mode=args.mode,
+                source_lang=args.source,
+                voice_override=chosen_voice,
+                burn_subtitles=should_burn,
+                progress_callback=cli_progress
+            )
+
+            out_file = project.get("output_video_file")
+            if out_file and Path(out_file).exists():
+                export_dir = Path("data/exports")
+                export_dir.mkdir(parents=True, exist_ok=True)
+                export_target = export_dir / f"Dubbed_{single_vid.stem}.mp4"
+                shutil.copy2(out_file, str(export_target))
+
+            print(f"✅ [{idx}/{total_vids}] ភាគនេះជោគជ័យ: {project.get('output_video_file')}")
 
         print("\n========================================================")
-        print(f"🎉 បកប្រែ និងបញ្ចូលសំឡេងខ្មែរជោគជ័យ ១០០%!")
-        print(f"📁 វីដេអូសម្រេច: {project['output_video_file']}")
-        if out_file and Path(out_file).exists():
-            print(f"📦 បានរក្សាទុកក្នុង Exports: data/exports/Dubbed_{video_p.stem}.mp4")
-        print(f"🎙️ សំឡេងខ្មែរ: {project.get('mixed_audio_file')}")
+        print(f"🎉 បកប្រែ និងបញ្ចូលសំឡេងខ្មែរជោគជ័យ ១០០% សម្រាប់ {total_vids} ភាគ!")
+        print(f"📦 វីដេអូទាំងអស់បានរក្សាទុកក្នុង Folder: data/exports/")
         print("========================================================\n")
         return
 
