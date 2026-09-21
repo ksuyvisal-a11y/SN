@@ -335,12 +335,30 @@ class ProjectManager:
                         cfg = json.load(f)
             except Exception:
                 pass
-            if cfg.get("auto_multi_voice") or cfg.get("khmer_voice") == "multi":
+            if cfg.get("auto_multi_voice") is not False or cfg.get("khmer_voice") == "multi":
                 v_override = "multi"
             else:
-                v_override = cfg.get("khmer_voice", "piseth")
+                v_override = cfg.get("khmer_voice", "multi")
         else:
             v_override = voice_override
+
+        # Ensure dialogues have acoustic diarization if in multi-voice mode
+        if v_override in ("multi", "auto_multi"):
+            target_audio = project.get("isolated_vocals_file") or project.get("audio_file")
+            if target_audio and Path(target_audio).exists():
+                try:
+                    from stt_engine import analyze_segment_acoustics
+                    for d in project.get("dialogues", []):
+                        spk_low = str(d.get("speaker", "")).lower()
+                        if not d.get("detected_role") or "solo" in spk_low:
+                            s_time = float(d.get("start", 0.0))
+                            e_time = float(d.get("end", s_time + 1.0))
+                            ac = analyze_segment_acoustics(str(target_audio), s_time, e_time)
+                            if ac.get("role") in ("female", "male"):
+                                d["detected_role"] = ac["role"]
+                                d["voice"] = ac["voice"]
+                except Exception as e:
+                    print(f"Acoustic re-diarization notice: {e}")
 
         translated_dialogues = await self.translator.translate_dialogues(
             dialogues=project.get("dialogues", []),
@@ -402,7 +420,7 @@ class ProjectManager:
             bgm_track = project.get("original_audio_file")
 
         mixed_audio_path = proj_dir / "mixed_dubbed_audio.mp3"
-        duck_val = safe_float(cfg_data.get("ducking_volume"), safe_float(project.get("ducking_factor"), 0.02))
+        duck_val = safe_float(cfg_data.get("ducking_volume"), safe_float(project.get("ducking_factor"), 0.35))
         dub_mode = cfg_data.get("dubbing_mode", "smart_bgm")
         speech_boost = safe_float(cfg_data.get("speech_boost_db"), 2.5)
 
@@ -547,10 +565,10 @@ class ProjectManager:
             pass
 
         if not voice_override or voice_override in (None, "", "auto"):
-            if cfg_data.get("auto_multi_voice") or cfg_data.get("khmer_voice") == "multi":
+            if cfg_data.get("auto_multi_voice") is not False or cfg_data.get("khmer_voice") == "multi":
                 voice_override = "multi"
             else:
-                voice_override = cfg_data.get("khmer_voice", "piseth")
+                voice_override = cfg_data.get("khmer_voice", "multi")
 
         v_override = str(voice_override).lower().strip()
         is_multi = v_override in ("multi", "auto_multi")
@@ -563,7 +581,10 @@ class ProjectManager:
 
         # 3. Speech-to-Text (Auto Transcribe via Faster-Whisper with word-level timestamps)
         update_prog(45, f"៣/៧ AI កំពុងស្តាប់ និងចាប់សំឡេងចិន ({voice_label})...", "Transcribing speech...")
-        stt_target_audio = str(audio_dest)
+        # Use isolated vocals (clean without BGM) for ultra-accurate transcription & F0 pitch diarization
+        stt_target_audio = project.get("isolated_vocals_file") or str(audio_dest)
+        if not Path(stt_target_audio).exists() or Path(stt_target_audio).stat().st_size < 1000:
+            stt_target_audio = str(audio_dest)
         try:
             dialogues = self.stt_engine.transcribe_audio(
                 audio_path=stt_target_audio,
@@ -617,7 +638,7 @@ class ProjectManager:
         bgm_track = project.get("isolated_bgm_file") or str(audio_dest)
         if not Path(bgm_track).exists():
             bgm_track = str(audio_dest)
-        duck_val = safe_float(cfg_data.get("ducking_volume"), safe_float(project.get("ducking_factor"), 0.02))
+        duck_val = safe_float(cfg_data.get("ducking_volume"), safe_float(project.get("ducking_factor"), 0.35))
         dub_mode = cfg_data.get("dubbing_mode", "smart_bgm")
         speech_boost = safe_float(cfg_data.get("speech_boost_db"), 2.5)
         mix_dubbed_audio(

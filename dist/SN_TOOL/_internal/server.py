@@ -281,10 +281,10 @@ def translate_project_script(project_id):
     voice_override = data.get("voice_override")
     if not voice_override or voice_override == "auto":
         cfg = load_stored_story_config()
-        if cfg.get("auto_multi_voice") or cfg.get("khmer_voice") == "multi":
+        if cfg.get("auto_multi_voice") is not False or cfg.get("khmer_voice") == "multi":
             voice_override = "multi"
         else:
-            voice_override = cfg.get("khmer_voice", "piseth")
+            voice_override = cfg.get("khmer_voice", "multi")
 
     try:
         updated_project = asyncio.run(pm.translate_project(
@@ -492,13 +492,13 @@ def load_stored_story_config() -> dict:
             print(f"Error loading story config: {e}")
     return {
         "khmer_voice": "piseth",
-        "auto_multi_voice": False,
+        "auto_multi_voice": True,
         "source_lang": "auto",
         "whisper_model": "medium",
         "aspect_ratio": "9:16",
         "subtitle_mode": "none",
         "dubbing_mode": "smart_bgm",
-        "ducking_volume": "0.02",
+        "ducking_volume": "0.35",
         "speech_boost_db": 2.5
     }
 
@@ -668,19 +668,12 @@ def check_keys_live_endpoint():
             if "RESOURCE_EXHAUSTED" in err_str or "429" in err_str:
                 status = "rate_limited"
                 message = "Rate Limited (429)"
-            elif "API_KEY_INVALID" in err_str or "400" in err_str:
+            elif any(token in err_str for token in ("401", "UNAUTHENTICATED", "API_KEY_INVALID", "400", "ACCESS_TOKEN")):
                 status = "invalid"
-                message = "Invalid API Key"
+                message = "Invalid Key (Need AIzaSy...)"
             else:
-                # Soft check - key format valid
-                if len(key) > 20:
-                    is_valid = True
-                    status = "active"
-                    message = "Ready"
-                    valid_count += 1
-                else:
-                    status = "non_standard"
-                    message = "Non-standard format"
+                status = "error"
+                message = "Auth Failed"
 
         results.append({
             "index": idx,
@@ -738,162 +731,11 @@ def set_story_config_endpoint():
     try:
         val = float(raw_duck)
         if val < 0:
-            cfg["ducking_volume"] = "0.15"
+            cfg["ducking_volume"] = "0.35"
         else:
             cfg["ducking_volume"] = f"{val:.2f}"
     except (ValueError, TypeError):
-        cfg["ducking_volume"] = "0.15"
-
-    STORY_CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(STORY_CONFIG_FILE, "w", encoding="utf-8") as f:
-        json.dump(cfg, f, ensure_ascii=False, indent=2)
-
-    return jsonify({
-        "success": True,
-        "message": "Story settings saved successfully!",
-        "config": cfg
-    })
-
-
-@app.route("/api/ai-config", methods=["GET"])
-def get_ai_config_endpoint():
-    cfg = load_stored_ai_config()
-    return jsonify({
-        "success": True,
-        "config": cfg,
-        "active_keys_count": len(cfg.get("keys", [])),
-        "keys_raw": cfg.get("keys_raw", "\n".join(cfg.get("keys", [])))
-    })
-
-
-@app.route("/api/set-ai-config", methods=["POST"])
-def set_ai_config_endpoint():
-    data = request.get_json(force=True) or {}
-    keys_raw = data.get("keys_raw", "")
-    keys = data.get("keys", [])
-    if not keys and keys_raw:
-        keys = [k.strip() for k in keys_raw.replace(",", "\n").splitlines() if k.strip()]
-    if not keys_raw and keys:
-        keys_raw = "\n".join(keys)
-
-    engine = data.get("engine", "gemini_pool")
-    model = data.get("model", "gemini-2.5-flash")
-    try:
-        temperature = float(data.get("temperature", 0.3))
-    except Exception:
-        temperature = 0.3
-    prompt_style = data.get("prompt_style", "drama_dubbing")
-
-    cfg = {
-        "engine": engine,
-        "keys": keys,
-        "keys_raw": keys_raw,
-        "model": model,
-        "temperature": temperature,
-        "prompt_style": prompt_style
-    }
-
-    AI_CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(AI_CONFIG_FILE, "w", encoding="utf-8") as f:
-        json.dump(cfg, f, ensure_ascii=False, indent=2)
-
-    pm.translator.set_api_keys(keys)
-    if keys:
-        os.environ["GEMINI_API_KEY"] = "\n".join(keys)
-
-    return jsonify({
-        "success": True,
-        "message": f"បានរក្សាទុក Gemini API Keys ចំនួន {len(keys)} គ្រាប់ដោយជោគជ័យ!",
-        "config": cfg
-    })
-
-
-@app.route("/api/check-keys", methods=["POST"])
-def check_keys_live_endpoint():
-    data = request.get_json(force=True) or {}
-    keys_raw = data.get("keys_raw", "")
-    keys = data.get("keys", [])
-    if not keys and keys_raw:
-        keys = [k.strip() for k in keys_raw.replace(",", "\n").splitlines() if k.strip()]
-
-    if not keys:
-        return jsonify({"success": False, "error": "No API keys provided to check.", "total": 0, "valid": 0})
-
-    results = []
-    valid_count = 0
-
-    for idx, key in enumerate(keys, start=1):
-        masked = key[:6] + "..." + key[-4:] if len(key) > 10 else key
-        status = "unknown"
-        is_valid = False
-        message = ""
-
-        try:
-            from google import genai
-            client = genai.Client(api_key=key)
-            resp = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents="test",
-                config={"max_output_tokens": 2}
-            )
-            is_valid = True
-            status = "active"
-            message = "Live (200 OK)"
-            valid_count += 1
-        except Exception as err:
-            err_str = str(err)
-            if "RESOURCE_EXHAUSTED" in err_str or "429" in err_str:
-                status = "rate_limited"
-                message = "Rate Limited (429)"
-            elif any(token in err_str for token in ("401", "UNAUTHENTICATED", "API_KEY_INVALID", "400", "ACCESS_TOKEN")):
-                status = "invalid"
-                message = "Invalid Key (Need AIzaSy...)"
-            else:
-                status = "error"
-                message = "Auth Failed"
-
-        results.append({
-            "index": idx,
-            "key_masked": masked,
-            "status": status,
-            "valid": is_valid,
-            "message": message
-        })
-
-    return jsonify({
-        "success": True,
-        "total": len(keys),
-        "valid": valid_count,
-        "results": results
-    })
-
-
-@app.route("/api/story-config", methods=["GET"])
-def get_story_config_endpoint():
-    cfg = load_stored_story_config()
-    ai_cfg = load_stored_ai_config()
-    engine_name = ai_cfg.get("engine", "gemini_pool")
-    if engine_name == "free_ai":
-        provider_display = "Free AI (g4f)"
-    elif engine_name == "google_free":
-        provider_display = "Google Translate Built-in"
-    elif engine_name == "gemini_pro":
-        provider_display = "Gemini 2.5 Pro"
-    else:
-        provider_display = "Gemini API (Key Pool)"
-        
-    cfg["ai_provider_display"] = provider_display
-    return jsonify({
-        "success": True,
-        "config": cfg
-    })
-
-
-@app.route("/api/set-story-config", methods=["POST"])
-def set_story_config_endpoint():
-    data = request.get_json(force=True) or {}
-    cfg = load_stored_story_config()
-    cfg.update(data)
+        cfg["ducking_volume"] = "0.35"
 
     STORY_CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(STORY_CONFIG_FILE, "w", encoding="utf-8") as f:
@@ -1292,7 +1134,7 @@ def auto_dub_video_endpoint():
     """
     mode = request.form.get("drama_mode", "drama_dubbing")
     source_lang = request.form.get("source_lang", "auto")
-    voice_override = request.form.get("voice_override", "piseth")
+    voice_override = request.form.get("voice_override")
     aspect_ratio = request.form.get("aspect_ratio", "16:9")
     cfg = load_stored_story_config()
     burn_sub_default = "true" if cfg.get("subtitle_mode", "none") == "burn" else "false"
@@ -1323,12 +1165,12 @@ def auto_dub_video_endpoint():
                 val = data["burn_subtitles"]
                 burn_subtitles = val if isinstance(val, bool) else str(val).lower() in ("true", "1", "yes")
 
-    if voice_override in ("auto", "", None):
+    if not voice_override or voice_override in ("auto", "", None):
         cfg = load_stored_story_config()
-        if cfg.get("auto_multi_voice") or cfg.get("khmer_voice") == "multi":
+        if cfg.get("auto_multi_voice") is not False or cfg.get("khmer_voice") == "multi":
             voice_override = "multi"
         else:
-            voice_override = cfg.get("khmer_voice", "piseth")
+            voice_override = cfg.get("khmer_voice", "multi")
 
     if not saved_video_path or not Path(saved_video_path).exists():
         return jsonify({"success": False, "error": "No valid video file uploaded or provided."}), 400

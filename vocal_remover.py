@@ -30,14 +30,13 @@ def separate_vocals_and_bgm(
     vocals_output = target_dir / f"{in_p.stem}_vocals.wav"
 
     # FFmpeg Stereo Center-Channel Vocal Cancellation (L - R)
-    # Human voice core frequencies: 200Hz - 3800Hz.
-    # In movies, dialogue is panned center (L == R). Subtracting channels mathematically eliminates 100% of center dialogue.
+    # Both channels are kept strictly IN-PHASE so there is ZERO phase cancellation on mobile phone speakers or social media.
     bgm_filter = (
-        "pan=stereo|c0=0.5*c0-0.5*c1|c1=0.5*c1-0.5*c0,"
-        "equalizer=f=280:t=q:w=1.5:g=-14,"
-        "equalizer=f=1000:t=q:w=2.0:g=-20,"
-        "equalizer=f=2200:t=q:w=2.0:g=-20,"
-        "equalizer=f=3200:t=q:w=1.8:g=-14"
+        "pan=stereo|c0=0.5*c0-0.5*c1|c1=0.5*c0-0.5*c1,"
+        "equalizer=f=280:t=q:w=1.5:g=-6,"
+        "equalizer=f=1000:t=q:w=2.0:g=-10,"
+        "equalizer=f=2200:t=q:w=2.0:g=-10,"
+        "equalizer=f=3200:t=q:w=1.8:g=-6"
     )
 
     cmd_bgm = [

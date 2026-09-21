@@ -269,14 +269,16 @@ class SpeechToTextEngine:
         raw_segments = []
         tot_dur = getattr(info, "duration", 0) or 1.0
         for segment in segments_gen:
+            text = segment.text.strip()
+            if not text:
+                continue
+
             if not segment.words:
-                text = segment.text.strip()
-                if text:
-                    raw_segments.append({
-                        "start": round(segment.start, 2),
-                        "end": round(segment.end, 2),
-                        "text": text
-                    })
+                raw_segments.append({
+                    "start": round(segment.start, 2),
+                    "end": round(segment.end, 2),
+                    "text": text
+                })
                 continue
 
             # Word-level timestamp precision:

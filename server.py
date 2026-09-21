@@ -281,10 +281,10 @@ def translate_project_script(project_id):
     voice_override = data.get("voice_override")
     if not voice_override or voice_override == "auto":
         cfg = load_stored_story_config()
-        if cfg.get("auto_multi_voice") or cfg.get("khmer_voice") == "multi":
+        if cfg.get("auto_multi_voice") is not False or cfg.get("khmer_voice") == "multi":
             voice_override = "multi"
         else:
-            voice_override = cfg.get("khmer_voice", "piseth")
+            voice_override = cfg.get("khmer_voice", "multi")
 
     try:
         updated_project = asyncio.run(pm.translate_project(
@@ -498,7 +498,7 @@ def load_stored_story_config() -> dict:
         "aspect_ratio": "9:16",
         "subtitle_mode": "none",
         "dubbing_mode": "smart_bgm",
-        "ducking_volume": "0.02",
+        "ducking_volume": "0.35",
         "speech_boost_db": 2.5
     }
 
@@ -731,11 +731,11 @@ def set_story_config_endpoint():
     try:
         val = float(raw_duck)
         if val < 0:
-            cfg["ducking_volume"] = "0.15"
+            cfg["ducking_volume"] = "0.35"
         else:
             cfg["ducking_volume"] = f"{val:.2f}"
     except (ValueError, TypeError):
-        cfg["ducking_volume"] = "0.15"
+        cfg["ducking_volume"] = "0.35"
 
     STORY_CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(STORY_CONFIG_FILE, "w", encoding="utf-8") as f:
@@ -1134,7 +1134,7 @@ def auto_dub_video_endpoint():
     """
     mode = request.form.get("drama_mode", "drama_dubbing")
     source_lang = request.form.get("source_lang", "auto")
-    voice_override = request.form.get("voice_override", "piseth")
+    voice_override = request.form.get("voice_override")
     aspect_ratio = request.form.get("aspect_ratio", "16:9")
     cfg = load_stored_story_config()
     burn_sub_default = "true" if cfg.get("subtitle_mode", "none") == "burn" else "false"
@@ -1165,12 +1165,12 @@ def auto_dub_video_endpoint():
                 val = data["burn_subtitles"]
                 burn_subtitles = val if isinstance(val, bool) else str(val).lower() in ("true", "1", "yes")
 
-    if voice_override in ("auto", "", None):
+    if not voice_override or voice_override in ("auto", "", None):
         cfg = load_stored_story_config()
-        if cfg.get("auto_multi_voice") or cfg.get("khmer_voice") == "multi":
+        if cfg.get("auto_multi_voice") is not False or cfg.get("khmer_voice") == "multi":
             voice_override = "multi"
         else:
-            voice_override = cfg.get("khmer_voice", "piseth")
+            voice_override = cfg.get("khmer_voice", "multi")
 
     if not saved_video_path or not Path(saved_video_path).exists():
         return jsonify({"success": False, "error": "No valid video file uploaded or provided."}), 400

@@ -536,6 +536,10 @@ async def batch_synthesize(
                 elif cps <= 6.0 and char_dur >= 2.0 and rate == 0:
                     rate = -4              # -4% calm measured pace
 
+            # Auto-calculate dynamic speed so Khmer speech finishes inside target window
+            calculated_rate = calculate_optimal_tts_rate(text, target_window)
+            effective_rate = rate if rate != 0 else calculated_rate
+
             line_audio_path = out_path / f"line_{index:04d}_{item_id}.mp3"
             try:
                 audio_file = await synthesize_khmer_speech(

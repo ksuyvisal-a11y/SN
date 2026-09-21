@@ -351,7 +351,7 @@ KHMER_DUBBING_POST_CLEANUP = [
     (r'នៅក្នុងជីវិតរបស់ខ្ញុំ\s*Li\s*Muqian', 'មនុស្សដូចខ្ញុំ លីមូឈៀន មួយជីវិតនេះ'),
     (r'Li\s*Muqian|លី\s*មូឈៀន', 'លីមូឈៀន'),
     (r'មិនដែលត្រូវបានគំរាមកំហែង[។.]*', 'មិនដែលឱ្យនរណាមកគំរាមកំហែងបានទេ!'),
-    (r'ម៉េចហ៊ានវាយយើង.*', 'ពួកឯងហ៊ានវាយមនុស្សរបស់ខ្ញុំផង?! ថ្លើមធំសម្បើមណាស់!'),
+    (r'ម៉េចហ៊ានវាយយើង[!?។.\s]*', 'ពួកឯងហ៊ានវាយមនុស្សរបស់ខ្ញុំផង?! ថ្លើមធំសម្បើមណាស់! '),
     (r'Man\s*Ling\s*ហ៊ានវាយយើងយ៉ាងម៉េច\??', 'ពួកឯងហ៊ានវាយម៉ានលីងផង?! ថ្លើមធំសម្បើមណាស់!'),
     (r'ខ្ញុំគិតថាអ្នកមិនដឹងទៀតទេ[។.]*', 'ខ្ញុំគិតថាឯងច្បាស់ជាមិនចង់រស់ទេ!'),
     (r'ខ្ញុំគិតថាអ្នកមិនចង់រស់នៅទៀតទេ[។.]*', 'ខ្ញុំគិតថាឯងច្បាស់ជាមិនចង់រស់ទេ!'),
@@ -456,6 +456,21 @@ KHMER_DUBBING_POST_CLEANUP = [
     (r'\bកុំធ្វើបាបខ្ញុំ\b', 'កុំធ្វើបាបខ្ញុំអី!'),
     (r'\bខ្ញុំនឹងមិនអត់ទោសឱ្យអ្នក\b', 'ខ្ញុំមិនលើកលែងឱ្យឯងដាច់ខាត!'),
     (r'\bឯងមិនរួចខ្លួនទេ\b', 'ឯងរត់មិនរួចខ្លួនទេ!'),
+    (r'\bប្រពន្ធ\s*ថៅកែ\b', 'ថៅកែស្រី'),
+    (r'\bមានអណ្តូងរ៉ែនៅផ្ទះ\b', 'គ្រួសារអភិជនមានលុយវាល់លាន'),
+    (r'\bទំនិញក្លែងក្លាយ\b', 'មនុស្សក្លែងបន្លំ'),
+    (r'\bមិនទទួលយកការសម្រុះសម្រួល\b', 'មិនព្រមសម្រុះសម្រួលដាច់ខាត'),
+    (r'\bភ្នែកខ្វាក់\b', 'ខ្វាក់ភ្នែក'),
+    (r'\bមើលមុខឯងសរសេរថា\b', 'មើលទឹកមុខឯងក៏ដឹងដែរថា'),
+    (r'\bកុំនិយាយមិនសមហេតុផល\b', 'កុំមកនិយាយផ្តេសផ្តាស!'),
+    (r'\bនិយាយមិនសមហេតុផល\b', 'និយាយផ្តេសផ្តាស!'),
+    (r'\bឯងជាអ្វី\b', 'ឯងគិតថាឯងជាស្អី?!'),
+    (r'\bចង់ស្លាប់មែនទេ\b', 'ឯងចង់ងាប់មែនទេ?!'),
+    (r'\bតើអ្នកចង់ស្លាប់ទេ\b', 'ឯងចង់ងាប់មែនទេ?!'),
+    (r'\bបិទមាត់របស់អ្នក\b', 'បិទមាត់ឯងភ្លាម!'),
+    (r'លីន\s*ហ្សាវ\s*ហ្សាវ', 'លីនចាវចាវ'),
+    (r'សិន\s*ម៉ាន\s*លីន', 'សិនម៉ាន់លីង'),
+    (r'លី\s*ម៉ូ\s*ឈៀន', 'លីមូឈៀន'),
 ]
 
 DRAMA_DICTIONARY_FILE = Path("data/drama_dictionary.json")
@@ -496,9 +511,13 @@ def enrich_khmer_drama_dialogue(
             res = custom_dict[clean_zh]
         else:
             for k, v in custom_dict.items():
-                if len(k) >= 3 and k in clean_zh and len(clean_zh) <= len(k) + 4:
-                    res = v
-                    break
+                if k in zh_text:
+                    if k in ("李沐迁", "李沐谦"):
+                        res = re.sub(r'លី\s*មូឈៀន|លី\s*ម៉ូឈៀន|លីមូកៀន', 'លីមូឈៀន', res)
+                    elif k in ("林早早", "林凿凿"):
+                        res = re.sub(r'លីន\s*ហ្សាវហ្សាវ|លីន\s*ចាវចាវ|ហ្សាវហ្សាវ', 'លីនចាវចាវ', res)
+                    elif k in ("沈曼琳", "沈蔓琳"):
+                        res = re.sub(r'សិន\s*ម៉ានលីន|សិន\s*ម៉ាន់លីង|ម៉ាន់លីង', 'សិនម៉ាន់លីង', res)
 
     # Strip trailing artifact words like 'ចាន'
     res = re.sub(r'\s*ចាន[។.!?]*$', '', res)
@@ -549,73 +568,38 @@ def enrich_khmer_drama_dialogue(
         else:
             res = re.sub(r'[!?។.\s]+$', '។', res)
 
-    # 4. Semantic matching for boss/knowledge
-    if re.search(r'ខ្ញុំ.*(?:ចៅហ្វាយ|ថៅកែ)', res):
-        return 'ខ្ញុំនេះទើបជាថៅកែពិតប្រាកដ!'
-    if re.search(r'ខ្ញុំ.*ដឹង', res) and len(res) <= 15:
-        return 'ខ្ញុំដឹងតាំងពីដំបូងមកម្ល៉េះ!'
-
-    # 5. Lip-Sync & Script Adaptation: Match duration strictly!
-    # If duration_sec <= 1.2s or original text was <=3 characters, keep strictly concise so audio never overruns mouth closing!
+    # 4. Lip-Sync & Short Interjections Adaptation:
+    # Only standardize if the whole sentence is a short 1-2 word exclamation (never overwrite real dialogue)
+    clean_no_punct = re.sub(r'[!！?？។.\s]+', '', res)
     is_short = (duration_sec is not None and duration_sec <= 1.2) or (zh_text and len(zh_text.strip()) <= 3)
 
-    if is_short:
-        if "បាទ" in res:
+    if is_short and len(clean_no_punct) <= 8:
+        if clean_no_punct in ("បាទ", "បាទលោក", "បាទយល់ហើយ"):
             res = "បាទ!"
-        elif "ចាស" in res:
+        elif clean_no_punct in ("ចាស", "ចាសអ្នកនាង", "ចាសយល់ហើយ"):
             res = "ចាស!"
-        elif "មិនអី" in res:
+        elif clean_no_punct in ("មិនអី", "មិនអីទេ"):
             res = "មិនអីទេ!"
-        elif "ឈប់" in res:
+        elif clean_no_punct in ("ឈប់", "ឈប់ភ្លាម"):
             res = "ឈប់!"
-        elif "ចេញ" in res:
+        elif clean_no_punct in ("ចេញ", "ចេញទៅ", "ឆាប់ចេញ"):
             res = "ចេញទៅ!"
-        elif "រត់" in res:
+        elif clean_no_punct in ("រត់", "រត់ទៅ", "ឆាប់រត់"):
             res = "រត់ទៅ!"
-        elif "លឿន" in res or "ឆាប់" in res:
+        elif clean_no_punct in ("លឿន", "ឆាប់", "ឆាប់ឡើង"):
             res = "ឆាប់ឡើង!"
-        elif "ជួយ" in res:
+        elif clean_no_punct in ("ជួយ", "ជួយផង", "ជួយខ្ញុំ"):
             res = "ជួយផង!"
-        elif "សុំទោស" in res:
+        elif clean_no_punct in ("សុំទោស", "ខ្ញុំសុំទោស"):
             res = "សុំទោស!"
-        elif "អរគុណ" in res:
+        elif clean_no_punct in ("អរគុណ", "អរគុណច្រើន"):
             res = "អរគុណ!"
-        elif "ស្អី" in res or "អ្វី" in res:
+        elif clean_no_punct in ("ស្អី", "អ្វី", "ស្អីគេ"):
             res = "ស្អីគេ?!"
-        elif "ម៉េច" in res:
+        elif clean_no_punct in ("ម៉េច", "យ៉ាងម៉េច", "ម៉េចចឹង"):
             res = "ម៉េចចឹង?!"
-        elif "ដឹង" in res:
+        elif clean_no_punct in ("ដឹងហើយ", "ដឹង"):
             res = "ដឹងហើយ!"
-    elif len(res) <= 12:
-        if res.endswith("?!") or res.endswith("?"):
-            if "ស្អី" in res or "អ្វី" in res:
-                res = "ស្អីគេហ្នឹង?!"
-            elif "ម៉េច" in res:
-                res = "ម៉េចក៏បែបនេះ?!"
-            elif "នរណា" in res or "អ្នកណា" in res:
-                res = "តើនរណាគេ?!"
-            elif "មែនទេ" in res:
-                res = "ពិតមែនទេ?!"
-        elif "បាទ" in res:
-            res = "បាទ ខ្ញុំយល់ហើយ!"
-        elif "ចាស" in res:
-            res = "ចាស ខ្ញុំយល់ហើយ!"
-        elif "មិនអី" in res:
-            res = "មិនអីទេ កុំបារម្ភ!"
-        elif "ឈប់" in res:
-            res = "ឈប់ភ្លាម!"
-        elif "ចេញ" in res:
-            res = "ឆាប់ចេញទៅ!"
-        elif "រត់" in res:
-            res = "ឆាប់រត់ទៅ!"
-        elif "លឿន" in res or "ឆាប់" in res:
-            res = "ប្រញាប់ឡើង!"
-        elif "ជួយ" in res:
-            res = "ជួយផង!"
-        elif "សុំទោស" in res:
-            res = "ខ្ញុំសុំទោស!"
-        elif "អរគុណ" in res:
-            res = "អរគុណច្រើន!"
 
     # 6. Single Continuous Breath Flow (១ ដង្ហើមជាប់គ្នា):
     # Strip internal mid-sentence commas and pauses so speech flows in 1 uninterrupted breath
@@ -637,7 +621,7 @@ def enrich_khmer_drama_dialogue(
 def resolve_dubbing_mode(target_voice_override: Optional[str] = None) -> Tuple[bool, str]:
     """
     Determine whether dubbing should be Multi-Voice or Single-Voice, and the chosen single voice.
-    Defaults strictly to Single-Voice 'piseth' unless explicitly configured.
+    Defaults strictly to Multi-Voice (Piseth for male, Sreymom for female) unless explicitly configured.
     """
     override_str = str(target_voice_override or "").lower().strip()
     if not override_str or override_str in ("auto", "none"):
@@ -646,15 +630,15 @@ def resolve_dubbing_mode(target_voice_override: Optional[str] = None) -> Tuple[b
             if cfg_p.exists():
                 with open(cfg_p, "r", encoding="utf-8") as f:
                     cfg_data = json.load(f)
-                    if cfg_data.get("auto_multi_voice") or cfg_data.get("khmer_voice") == "multi":
+                    if cfg_data.get("auto_multi_voice") is not False or cfg_data.get("khmer_voice") == "multi":
                         override_str = "multi"
                     else:
-                        override_str = cfg_data.get("khmer_voice", "piseth")
+                        override_str = cfg_data.get("khmer_voice", "multi")
         except Exception:
-            override_str = "piseth"
+            override_str = "multi"
 
     if not override_str or override_str in ("auto", "none"):
-        override_str = "piseth"
+        override_str = "multi"
 
     is_multi = override_str in ("multi", "auto_multi")
     chosen_single_voice = "sreymom" if override_str in ("sreymom", "female", "ស្រីមុំ", "តួស្រី") else "piseth"
@@ -694,6 +678,12 @@ def infer_drama_persona_acoustics(
     speaker_raw = str(item.get("speaker") or item.get("speaker_role") or "").lower()
     role_hint = str(item.get("detected_role") or item.get("role") or "").lower()
 
+    # Strip previous artificial solo stamps
+    if "solo" in speaker_raw or speaker_raw in ("piseth", "sreymom", "narrator", "ពិសិដ្ឋ", "ស្រីមុំ"):
+        speaker_clean = ""
+    else:
+        speaker_clean = speaker_raw
+
     # Pre-existing values if already provided
     try:
         pitch = int(item.get("pitch_hz", 0))
@@ -707,46 +697,60 @@ def infer_drama_persona_acoustics(
     # 1. Mother-in-law / Elder Woman
     elder_female_zh = ["妈", "婆婆", "老夫人", "伯母", "母亲", "奶奶", "夫人", "李夫人"]
     elder_female_km = ["ម៉ាក់ក្មេក", "ម្តាយក្មេក", "អ្នកម៉ាក់", "លោកយាយ", "ម៉ាក់", "លោកស្រី"]
-    is_elder_female = any(k in orig_text for k in elder_female_zh) or any(k in km_text for k in elder_female_km) or "mother" in speaker_raw or "婆" in speaker_raw or "ម្តាយ" in speaker_raw or "elder_female" in role_hint
+    is_elder_female = any(k in orig_text for k in elder_female_zh) or any(k in km_text for k in elder_female_km) or "mother" in speaker_clean or "婆" in speaker_clean or "ម្តាយ" in speaker_clean or "elder_female" in role_hint
 
     # 2. Grandfather / Elder Male
     elder_male_zh = ["爷爷", "老太爷", "父亲", "伯父", "老头", "管家", "老爷"]
     elder_male_km = ["លោកតា", "លោកប៉ា", "ឪពុក", "លោកអ៊ំ", "លោកមេផ្ទះ"]
-    is_elder_male = any(k in orig_text for k in elder_male_zh) or any(k in km_text for k in elder_male_km) or "grandpa" in speaker_raw or "father" in speaker_raw or "លោកតា" in speaker_raw or "elder_male" in role_hint
+    is_elder_male = any(k in orig_text for k in elder_male_zh) or any(k in km_text for k in elder_male_km) or "grandpa" in speaker_clean or "father" in speaker_clean or "លោកតា" in speaker_clean or "elder_male" in role_hint
 
     # 3. Villainess / Mean Sister / Screaming / Mocking Woman
     villainess_zh = ["白痴", "贱人", "你敢", "滚", "算什么东西", "要脸不要", "狐狸精", "死丫头", "不要脸", "沈曼琳", "小三", "给脸不要脸", "野种", "狐媚子", "看你脸"]
     villainess_km = ["អាចង្រៃ", "ស្រីឆ្កួត", "មីក្បត់", "ឆ្កួតមែន", "មុខក្រាស់", "ឯងគិតថាឯងជាស្អី", "ចេញទៅ!", "ល្ងង់", "ស្រីថោកទាប", "ស្រីក្បត់", "មុខល្ងង់", "ស៊ិន ម៉ាន់លីន", "沈曼琳"]
-    is_villainess = any(k in orig_text for k in villainess_zh) or any(k in km_text for k in villainess_km) or "villainess" in speaker_raw or "曼琳" in speaker_raw or "តួកាច" in speaker_raw
+    is_villainess = any(k in orig_text for k in villainess_zh) or any(k in km_text for k in villainess_km) or "villainess" in speaker_clean or "曼琳" in speaker_clean or "តួកាច" in speaker_clean
 
     # 4. Female Lead / Suffering / Sweet / Crying
     heroine_zh = ["早早", "林早早", "求求你", "为什么", "放过我", "呜呜", "对不起", "孩子", "肚子", "求你"]
     heroine_km = ["លីន ចាវចាវ", "សូមអង្វរ", "ហេតុអ្វី", "អត់ទោស", "សុំទោស", "កូនរបស់ខ្ញុំ", "កូនក្នុងពោះ", "អាណិតខ្ញុំផង"]
-    is_heroine = any(k in orig_text for k in heroine_zh) or any(k in km_text for k in heroine_km) or "heroine" in speaker_raw or "早早" in speaker_raw or "តួឯកស្រី" in speaker_raw
+    is_heroine = any(k in orig_text for k in heroine_zh) or any(k in km_text for k in heroine_km) or "heroine" in speaker_clean or "早早" in speaker_clean or "តួឯកស្រី" in speaker_clean
 
     # 5. Angry Male / Shouting / Fight
     angry_male_zh = ["混蛋", "找死", "闭嘴", "给我滚", "废话", "弄死你", "混账", "住口", "你找死"]
     angry_male_km = ["បិទមាត់!", "អាគម្រក់!", "ឯងចង់ងាប់មែនទេ!", "ចេញទៅ!", "ឈប់ភ្លាម!", "កុំមកចង់ខ្លាំង!", "ចង់ងាប់"]
-    is_angry_male = any(k in orig_text for k in angry_male_zh) or any(k in km_text for k in angry_male_km) or ("!" in orig_text and ("男" in speaker_raw or "male" in speaker_raw or "piseth" in speaker_raw))
+    is_angry_male = any(k in orig_text for k in angry_male_zh) or any(k in km_text for k in angry_male_km) or ("!" in orig_text and ("男" in speaker_clean or "male" in speaker_clean))
 
     # 6. Male Lead / CEO / President
     male_lead_zh = ["李沐谦", "李总", "少爷", "少东家", "顾总", "先生", "总裁", "沐谦", "张昭"]
     male_lead_km = ["លោកប្រធាន", "លី មូឈាន", "ចៅហ្វាយ", "ប្តីសម្លាញ់", "លោកម្ចាស់", "ចាងចាវ", "ចាង ចាវ"]
-    is_male_lead = any(k in orig_text for k in male_lead_zh) or any(k in km_text for k in male_lead_km) or "ceo" in speaker_raw or "沐谦" in speaker_raw or "តួឯកប្រុស" in speaker_raw
+    is_male_lead = any(k in orig_text for k in male_lead_zh) or any(k in km_text for k in male_lead_km) or "ceo" in speaker_clean or "沐谦" in speaker_clean or "តួឯកប្រុស" in speaker_clean
 
     # Determine gender if multi-voice
     curr_voice = str(item.get("voice", "")).lower()
+    has_solo_stamp = "solo" in speaker_raw
+
     if not is_multi:
         assigned_voice = chosen_single_voice
     else:
-        if curr_voice in ("piseth", "sreymom"):
-            assigned_voice = curr_voice
-        elif is_elder_female or is_villainess or is_heroine or "female" in speaker_raw or "sreymom" in speaker_raw or "ស្រី" in speaker_raw or "早早" in orig_text or "曼琳" in orig_text:
+        # Priority 1: Direct text & character indicators
+        if is_elder_female or is_villainess or is_heroine or "female" in speaker_clean or "sreymom" in speaker_clean or "ស្រី" in speaker_clean or "早早" in orig_text or "曼琳" in orig_text:
             assigned_voice = "sreymom"
-        elif is_elder_male or is_angry_male or is_male_lead or "male" in speaker_raw.replace("female", "") or "piseth" in speaker_raw or "ប្រុស" in speaker_raw or "沐谦" in orig_text or "张昭" in orig_text:
+        elif is_elder_male or is_angry_male or is_male_lead or "male" in speaker_clean.replace("female", "") or "ប្រុស" in speaker_clean or "沐谦" in orig_text or "张昭" in orig_text:
             assigned_voice = "piseth"
+        # Priority 2: Detected acoustic role from STT F0
+        elif role_hint == "female":
+            assigned_voice = "sreymom"
+        elif role_hint == "male":
+            assigned_voice = "piseth"
+        # Priority 3: Existing voice if not a solo override
+        elif curr_voice in ("piseth", "sreymom") and not has_solo_stamp:
+            assigned_voice = curr_voice
         else:
-            assigned_voice = "sreymom" if role_hint == "female" else "piseth"
+            assigned_voice = "sreymom" if any(w in orig_text for w in ["女", "姐", "妹", "早早", "曼琳", "妈", "娘"]) else "piseth"
+
+    # In Multi-Voice mode: if old item had a single-voice solo stamp or mismatched voice, reset pitch & rate
+    if is_multi and (has_solo_stamp or (assigned_voice == "sreymom" and "piseth" in speaker_raw) or (assigned_voice == "piseth" and "sreymom" in speaker_raw)):
+        pitch = 0
+        rate = 0
 
     # Dynamic Acoustic Persona Assignment
     if pitch == 0 and rate == 0:
@@ -792,7 +796,7 @@ def infer_drama_persona_acoustics(
                     pitch = -12
                     rate = -8
                     speaker_desc = "ពិសិដ្ឋ (Piseth - ម្តាយក្មេក)"
-                elif is_villainess or is_heroine or "female" in speaker_raw or "ស្រី" in speaker_raw:
+                elif is_villainess or is_heroine or "female" in speaker_clean or "ស្រី" in speaker_clean:
                     pitch = 28
                     rate = 6
                     speaker_desc = "ពិសិដ្ឋ (Piseth - បញ្ចូលសំឡេងតួស្រី)"
@@ -801,14 +805,18 @@ def infer_drama_persona_acoustics(
                     pitch = -26
                     rate = -10
                     speaker_desc = "ស្រីមុំ (Sreymom - លោកតា/ចាស់ទុំ)"
-                elif is_angry_male or is_male_lead or "male" in speaker_raw.replace("female", "") or "ប្រុស" in speaker_raw:
+                elif is_angry_male or is_male_lead or "male" in speaker_clean.replace("female", "") or "ប្រុស" in speaker_clean:
                     pitch = -24
                     rate = -4
                     speaker_desc = "ស្រីមុំ (Sreymom - បញ្ចូលសំឡេងតួប្រុស)"
     else:
         pitch = max(-35, min(35, pitch))
         rate = max(-20, min(30, rate))
-        speaker_desc = item.get("speaker") or ("ស្រីមុំ (Sreymom)" if assigned_voice == "sreymom" else "ពិសិដ្ឋ (Piseth)")
+        old_spk = str(item.get("speaker") or "")
+        if "solo" in old_spk.lower() or (assigned_voice == "sreymom" and "piseth" in old_spk.lower()) or (assigned_voice == "piseth" and "sreymom" in old_spk.lower()):
+            speaker_desc = "ស្រីមុំ (Sreymom)" if assigned_voice == "sreymom" else "ពិសិដ្ឋ (Piseth)"
+        else:
+            speaker_desc = old_spk or ("ស្រីមុំ (Sreymom)" if assigned_voice == "sreymom" else "ពិសិដ្ឋ (Piseth)")
 
     return {
         "voice": assigned_voice,
@@ -1186,7 +1194,8 @@ Return JSON object with key "dialogues" containing an array with keys: id, start
         valid_gemini_keys = [k for k in self.api_keys if k.startswith("AIzaSy")]
         if self.clients and valid_gemini_keys:
             try:
-                chunk_size = 18
+                chunk_size = 20
+                all_results = []
                 for i in range(0, len(dialogues), chunk_size):
                     chunk = dialogues[i:i + chunk_size]
                     enriched_chunk = []
@@ -1210,6 +1219,7 @@ CRITICAL LIP-SYNC & SCRIPT DURATION ADAPTATION:
 - For longer lines (duration >= 3.0s): translate with natural dramatic cadence.
 Return ONLY valid JSON array with keys: id, start, end, text_original, text_km, speaker, voice, rate_percent, pitch_hz, emotion."""
 
+                    # Rotate through key pool
                     active_client = self.get_client() or self.client
                     def _call_gemini(c):
                         return c.models.generate_content(
@@ -1233,7 +1243,7 @@ Return ONLY valid JSON array with keys: id, start, end, text_original, text_km, 
                                 break
                         else:
                             break
-                    if response.text:
+                    if response and response.text:
                         parsed = json.loads(response.text)
                         if isinstance(parsed, list):
                             for j, item in enumerate(parsed):
@@ -1266,40 +1276,16 @@ Return ONLY valid JSON array with keys: id, start, end, text_original, text_km, 
                                         item["voice"],
                                         duration_sec=dur_sec
                                     )
-                                    if response and response.text:
-                                        break
-                                except Exception:
-                                    pass
+                            all_results.extend(parsed)
+                        else:
                             break
+                    else:
+                        break
 
-                    if response and response.text:
-                        try:
-                            clean_json = response.text.strip()
-                            clean_json = re.sub(r'^```(?:json)?\s*', '', clean_json, flags=re.IGNORECASE)
-                            clean_json = re.sub(r'\s*```$', '', clean_json)
-                            parsed = json.loads(clean_json)
-                            if isinstance(parsed, list):
-                                for j, p_item in enumerate(parsed):
-                                    global_idx = i + j
-                                    if global_idx < len(dialogues):
-                                        orig_item = dialogues[global_idx]
-                                        p_item["id"] = orig_item.get("id", global_idx + 1)
-                                        p_item["start"] = orig_item.get("start", p_item.get("start", 0))
-                                        p_item["end"] = orig_item.get("end", p_item.get("end", 0))
-                                        p_item["rate_percent"] = 0
-                                        p_item["pitch_hz"] = 0
-                                        v = target_voice_override or p_item.get("voice", orig_item.get("voice", "piseth"))
-                                        p_item["voice"] = v
-                                        p_item["text_km"] = enrich_khmer_drama_dialogue(
-                                            p_item.get("text_km", ""),
-                                            orig_item.get("text_original", ""),
-                                            v
-                                        )
-                                        translated_items[global_idx] = p_item
-                        except Exception as parse_err:
-                            print(f"Gemini chunk parse error: {parse_err}")
+                if len(all_results) == len(dialogues):
+                    return all_results
             except Exception as e:
-                print(f"Gemini batch translation note: {e}")
+                print(f"Gemini translation note: {e}. Using professional free drama dubbing engine.")
 
         # 3. High-Speed Local Drama Dubbing Engine (Concurrent with Semaphore=12 & Connection Pool)
         sem = asyncio.Semaphore(12)
@@ -1315,16 +1301,16 @@ Return ONLY valid JSON array with keys: id, start, end, text_original, text_km, 
                 v_info = self._determine_strictly_two_voices(item, target_voice_override)
                 chosen_voice = v_info["voice"]
 
-                    # Translate with drama pre-norm, post-polish, and dialogue enrichment
-                    try:
-                        text_km = await self.translate_text_free(
-                            orig_text,
-                            source_lang=source_lang,
-                            voice=chosen_voice
-                        )
-                    except Exception as e:
-                        print(f"Fallback translation error on line {global_idx}: {e}")
-                        text_km = orig_text
+                # Translate with drama pre-norm, post-polish, and dialogue enrichment
+                try:
+                    text_km = await self.translate_text_free(
+                        orig_text,
+                        source_lang=source_lang,
+                        voice=chosen_voice
+                    )
+                except Exception as e:
+                    print(f"Translation error on line {idx}: {e}")
+                    text_km = orig_text
 
                 # Final pass enrichment: duration-aware script adaptation
                 final_text_km = enrich_khmer_drama_dialogue(
@@ -1334,38 +1320,10 @@ Return ONLY valid JSON array with keys: id, start, end, text_original, text_km, 
                     duration_sec=dur_sec
                 )
 
-                    return global_idx, {
-                        "id": item.get("id", global_idx + 1),
-                        "start": start,
-                        "end": end,
-                        "speaker": v_info["character_role"],
-                        "text_original": orig_text,
-                        "text_km": final_text_km,
-                        "voice": chosen_voice,
-                        "rate_percent": 0,
-                        "pitch_hz": 0
-                    }
-
-            tasks = [_translate_single(idx) for idx in missing_indices]
-            fallback_results = await asyncio.gather(*tasks, return_exceptions=True)
-            for res in fallback_results:
-                if isinstance(res, tuple) and len(res) == 2:
-                    g_idx, res_item = res
-                    translated_items[g_idx] = res_item
-
-        # 3. Final safety net: Ensure absolutely every dialogue has a valid item
-        ordered_results = []
-        for i in range(len(dialogues)):
-            if i in translated_items:
-                ordered_results.append(translated_items[i])
-            else:
-                orig_item = dialogues[i]
-                orig_text = orig_item.get("text") or orig_item.get("text_original", "")
-                v_info = self._determine_strictly_two_voices(orig_item, target_voice_override)
-                ordered_results.append({
-                    "id": orig_item.get("id", i + 1),
-                    "start": orig_item.get("start", 0.0),
-                    "end": orig_item.get("end", 0.0),
+                return {
+                    "id": item.get("id", idx + 1),
+                    "start": start,
+                    "end": end,
                     "speaker": v_info["character_role"],
                     "text_original": orig_text,
                     "text_km": final_text_km,
@@ -1374,7 +1332,9 @@ Return ONLY valid JSON array with keys: id, start, end, text_original, text_km, 
                     "pitch_hz": v_info["pitch_hz"]
                 }
 
-        return ordered_results
+        tasks = [_translate_single(item, idx) for idx, item in enumerate(dialogues)]
+        results = await asyncio.gather(*tasks)
+        return list(results)
 
 
 def parse_srt_content(srt_text: str) -> List[Dict[str, Any]]:

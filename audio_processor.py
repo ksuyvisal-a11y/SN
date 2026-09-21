@@ -218,7 +218,7 @@ def mix_dubbed_audio(
     dialogue_items: List[Dict[str, Any]],
     output_mixed_path: str,
     total_duration_sec: Optional[float] = None,
-    ducking_volume_factor: float = 0.02,  # Deep -34dB ducking during speech to guarantee Zero Vocal Leakage
+    ducking_volume_factor: float = 0.35,  # Professional -9dB ducking (warm continuous musical bed)
     speech_volume_boost_db: float = 2.5,   # Boost speech clarity by +2.5dB
     dubbing_mode: str = "smart_bgm"        # "smart_bgm", "pure_voice", "standard_ducking"
 ) -> str:
@@ -338,68 +338,84 @@ def mix_dubbed_audio(
                 l_seg = l_seg.set_frame_rate(target_fr).set_channels(channels)
             speech_track = speech_track.overlay(l_seg, position=s_ms)
 
-    # 3. Apply Clean Smart Audio Ducking (Smooth Cinematic BGM Ducking - Zero Chinese Vocal Leakage)
+    # 3. Apply Clean Continuous Smart Audio Ducking (Professional Cinema Ducking)
     if dubbing_mode == "pure_voice":
         final_mixed = speech_track
     elif bg_audio and speech_intervals:
+        # Professional Cinema Ducking: Merge gaps under 1800ms so dialogue exchanges
+        # maintain a consistent musical bed without volume pumping between quick sentences!
         speech_intervals.sort(key=lambda x: x[0])
         merged_intervals = []
-        # Professional Cinema Ducking: Merge gaps under 900ms so dialogue exchanges
-        # don't cause violent BGM volume pumping between quick breaths!
         for start, end in speech_intervals:
             if not merged_intervals:
                 merged_intervals.append([start, end])
             else:
                 prev = merged_intervals[-1]
-                if start <= prev[1] + 900:  # Smooth hold across conversation breaths
+                if start <= prev[1] + 1800:  # Smooth hold across conversation pauses
                     prev[1] = max(prev[1], end)
                 else:
                     merged_intervals.append([start, end])
 
-        ducked_chunks = []
-        current_pos = 0
-        # Dynamic Cinematic BGM Ducking with Zero Vocal Leakage:
-        # If user chose deep masking or mute (ducking_volume_factor <= 0.05),
-        # duck to -48dB or digital silence during speech to guarantee 100% Zero Chinese Vocal Leakage!
-        if ducking_volume_factor <= 0.05:
-            target_duck_db = -48.0  # Full silence during speech
-        else:
-            calc = 20 * math.log10(max(0.005, ducking_volume_factor))
-            target_duck_db = min(-8.0, max(-38.0, calc))
+        # Calculate continuous gain envelope across all frames with NumPy
+        try:
+            import numpy as np
+            sr = bg_audio.frame_rate
+            channels = bg_audio.channels
+            raw_samples = np.frombuffer(bg_audio.raw_data, dtype=np.int16)
+            total_frames = len(raw_samples) // channels
 
-        fade_in_ms = 180   # Smooth attack dip when speech starts
-        fade_out_ms = 350  # Gentle cinematic swell when speech concludes
+            # Safe clamped target gain: ensures BGM is never muted to 0 / dead silence
+            # Default factor 0.35 = -9dB (gentle, warm bed of music)
+            target_gain = float(np.clip(ducking_volume_factor, 0.18, 0.65))
 
-        for interval_start, interval_end in merged_intervals:
-            if interval_start > current_pos:
-                normal_seg = bg_audio[current_pos:interval_start]
-                ducked_chunks.append(normal_seg)
-            
-            speech_duration = min(len(bg_audio), interval_end) - interval_start
-            if speech_duration > 0:
-                if target_duck_db <= -45.0:
-                    # Pure silence during dialogue: completely eliminate 100% of Chinese vocal
-                    ducked_seg = AudioSegment.silent(duration=speech_duration, frame_rate=bg_audio.frame_rate).set_channels(bg_audio.channels)
-                else:
-                    ducked_seg = bg_audio[interval_start:interval_start + speech_duration] + target_duck_db
-                    in_f = min(fade_in_ms, max(30, speech_duration // 4))
-                    out_f = min(fade_out_ms, max(30, speech_duration // 4))
-                    if len(ducked_seg) > (in_f + out_f):
-                        ducked_seg = ducked_seg.fade_in(in_f).fade_out(out_f)
-                ducked_chunks.append(ducked_seg)
-                
-            current_pos = interval_end
+            gain_curve = np.ones(total_frames, dtype=np.float32)
+            fade_in_frames = max(1, int((0.300) * sr))   # 300ms smooth dip
+            fade_out_frames = max(1, int((0.500) * sr))  # 500ms smooth return
 
-        if current_pos < len(bg_audio):
-            ducked_chunks.append(bg_audio[current_pos:])
+            for s_ms, e_ms in merged_intervals:
+                start_frame = max(0, int((s_ms / 1000.0) * sr))
+                end_frame = min(total_frames, int((e_ms / 1000.0) * sr))
 
-        if ducked_chunks:
-            try:
-                raw_ducked = b"".join(c._data for c in ducked_chunks)
-                ducked_bg = ducked_chunks[0]._spawn(raw_ducked)
-            except Exception:
-                ducked_bg = bg_audio
-        else:
+                if start_frame >= total_frames:
+                    continue
+
+                # Smooth dip into ducking
+                dip_start = max(0, start_frame - fade_in_frames // 2)
+                dip_end = min(total_frames, dip_start + fade_in_frames)
+                if dip_end > dip_start:
+                    ramp_down = np.linspace(1.0, target_gain, dip_end - dip_start, dtype=np.float32)
+                    gain_curve[dip_start:dip_end] = np.minimum(gain_curve[dip_start:dip_end], ramp_down)
+
+                # Steady ducked level during dialogue
+                body_start = dip_end
+                body_end = max(body_start, end_frame)
+                if body_end > body_start and body_start < total_frames:
+                    gain_curve[body_start:min(total_frames, body_end)] = np.minimum(
+                        gain_curve[body_start:min(total_frames, body_end)], target_gain
+                    )
+
+                # Smooth swell back to full volume after dialogue
+                rise_start = body_end
+                rise_end = min(total_frames, rise_start + fade_out_frames)
+                if rise_end > rise_start and rise_start < total_frames:
+                    ramp_up = np.linspace(target_gain, 1.0, rise_end - rise_start, dtype=np.float32)
+                    gain_curve[rise_start:rise_end] = np.minimum(gain_curve[rise_start:rise_end], ramp_up)
+
+            if channels > 1:
+                samples_2d = raw_samples.reshape(-1, channels).astype(np.float32)
+                ducked_samples = samples_2d * gain_curve[:, np.newaxis]
+            else:
+                ducked_samples = raw_samples.astype(np.float32) * gain_curve
+
+            ducked_int16 = np.clip(ducked_samples, -32768, 32767).astype(np.int16)
+            ducked_bg = AudioSegment(
+                ducked_int16.tobytes(),
+                frame_rate=sr,
+                sample_width=2,
+                channels=channels
+            )
+        except Exception as e:
+            print(f"NumPy smooth ducking fallback note: {e}")
             ducked_bg = bg_audio
 
         final_mixed = ducked_bg.overlay(speech_track)

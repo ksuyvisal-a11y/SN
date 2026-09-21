@@ -83,14 +83,14 @@ async def main():
                 if cfg_p.exists():
                     with open(cfg_p, "r", encoding="utf-8") as f:
                         cfg = json.load(f)
-                        if cfg.get("auto_multi_voice") or cfg.get("khmer_voice") == "multi":
+                        if cfg.get("auto_multi_voice") is not False or cfg.get("khmer_voice") == "multi":
                             chosen_voice = "multi"
                         else:
-                            chosen_voice = cfg.get("khmer_voice", "piseth")
+                            chosen_voice = cfg.get("khmer_voice", "multi")
             except Exception:
-                chosen_voice = "piseth"
+                chosen_voice = "multi"
         if not chosen_voice:
-            chosen_voice = "piseth"
+            chosen_voice = "multi"
 
         voice_display = "ពិសិដ្ឋ & ស្រីមុំ (Dual Voice)" if chosen_voice in ("multi", "auto_multi") else ("ស្រីមុំ (Sreymom Solo)" if chosen_voice == "sreymom" else "ពិសិដ្ឋ (Piseth Solo)")
         print(f"\n🎬 កំពុងដំណើរការបកប្រែវីដេអូ: {video_p.name} • សំឡេង: {voice_display}")
