@@ -7,7 +7,7 @@ let isPlaying = false;
 let playheadSeconds = 0;
 let totalDurationSeconds = 114; // 01:54
 let playbackTimer = null;
-let dlSelectedPlatform = "all";
+let dlSelectedPlatform = "hongguo";
 let dlCurrentDrama = null;
 let dlEpisodesList = [];
 let dlPollTimer = null;
@@ -27,6 +27,17 @@ async function initApp() {
     setupDragAndDropSupport();
     loadAiConfigData();
     loadStoryConfigData();
+}
+
+function getMediaFileName(f) {
+    if (!f) return "video.mp4";
+    if (typeof f === 'string') return f.split(/[\\/]/).pop() || f;
+    return f.name || f.filename || (f.filepath ? f.filepath.split(/[\\/]/).pop() : "video.mp4");
+}
+
+function getMediaFilePath(f) {
+    if (!f) return null;
+    return f.filepath || f.path || null;
 }
 
 async function extractFilesFromDataTransfer(dt) {
@@ -66,8 +77,26 @@ async function extractFilesFromDataTransfer(dt) {
                 }
             }
         }
-    } else if (dt.files && dt.files.length > 0) {
+    }
+    
+    // Always fallback to dt.files if directory entry reading returned nothing
+    if (files.length === 0 && dt.files && dt.files.length > 0) {
         files.push(...Array.from(dt.files));
+    } else if (dt.files && dt.files.length > 0) {
+        // If WebView2 provided native Windows path on dt.files, transfer filepath to files
+        const pathMap = {};
+        for (let i = 0; i < dt.files.length; i++) {
+            const df = dt.files[i];
+            if (df && df.name && (df.path || df.filepath)) {
+                pathMap[df.name] = df.path || df.filepath;
+            }
+        }
+        for (let i = 0; i < files.length; i++) {
+            const f = files[i];
+            if (f && !f.filepath && pathMap[f.name]) {
+                f.filepath = pathMap[f.name];
+            }
+        }
     }
     return files;
 }
@@ -77,6 +106,9 @@ function setupDragAndDropSupport() {
         window.addEventListener(eventName, (e) => {
             e.preventDefault();
             e.stopPropagation();
+            if (e.dataTransfer) {
+                e.dataTransfer.dropEffect = 'copy';
+            }
         }, false);
     });
 
@@ -140,13 +172,17 @@ function switchMainTab(tabKey) {
         } else if (tabKey === 'settings') {
             openSettingsModal();
         } else if (tabKey === 'overlay') {
-            showToast("📁 Interactive Canvas Overlays enabled.");
+            showToast("Interactive Canvas Overlays enabled.");
         } else if (tabKey === 'export') {
             startStudioExportJob();
+            const transBtn = document.getElementById('btn-tab-translate');
+            if (transBtn) transBtn.classList.add('active');
+            const expBtn = document.getElementById('btn-tab-export');
+            if (expBtn) expBtn.classList.remove('active');
         } else if (tabKey === 'recap') {
-            showToast("🎬 AI Viral Movie Recap Engine ready.");
+            showToast("Movie Recap Engine ready.");
         } else if (tabKey === 'dramamg') {
-            showToast("🎞️ Drama Manager & Episode Concat ready.");
+            showToast("Drama Manager & Episode Concat ready.");
         }
     }
 }
@@ -182,10 +218,10 @@ function openCompressModal(type = 'single') { closePowerMenu(); openModal('modal
 
 function executeVideoMerge() {
     closeModal('modal-power-merge');
-    showToast("⏳ Merging selected video files...");
+    showToast("Merging selected video files...");
     appendTerminalLine("[Power: Merge] Executing stream concat...");
     setTimeout(() => {
-        showToast("🎉 Merge complete! Saved in data/exports");
+        showToast("Merge complete! Saved in data/exports");
         appendTerminalLine("[Power: Merge] Saved to data/exports/merged_drama.mp4");
     }, 1500);
 }
@@ -193,30 +229,30 @@ function executeVideoMerge() {
 function executeVideoSplit() {
     const sec = document.getElementById('split-duration-val').value;
     closeModal('modal-power-split');
-    showToast(`⏳ Splitting video into ${sec}s parts...`);
+    showToast(`Splitting video into ${sec}s parts...`);
     appendTerminalLine(`[Power: Split] Splitting into ${sec}s chunks...`);
     setTimeout(() => {
-        showToast("🎉 Video split completed!");
+        showToast("Video split completed!");
     }, 1200);
 }
 
 function executeBatchRename() {
     const prefix = document.getElementById('rename-prefix-input').value;
     closeModal('modal-power-rename');
-    showToast(`⏳ Renaming files with prefix: ${prefix}...`);
+    showToast(`Renaming files with prefix: ${prefix}...`);
     appendTerminalLine(`[Power: Rename] Standardized file sequence.`);
     setTimeout(() => {
-        showToast("🎉 Batch rename completed!");
+        showToast("Batch rename completed!");
     }, 800);
 }
 
 function executeVideoCompress() {
     const crf = document.getElementById('compress-crf-val').value;
     closeModal('modal-power-compress');
-    showToast(`⏳ Compressing video (CRF ${crf})...`);
+    showToast(`Compressing video (CRF ${crf})...`);
     appendTerminalLine(`[Power: Compress] Video compressed (saved 60% disk space).`);
     setTimeout(() => {
-        showToast("🎉 Video compressed successfully!");
+        showToast("Video compressed successfully!");
     }, 1600);
 }
 
@@ -290,7 +326,7 @@ function toggleAudioTrack() {
         mainVideo.muted = false;
         mainVideo.volume = 1.0;
     }
-    showToast("🎙️ កំពុងដំណើរការសំឡេងខ្មែរ: ពិសិដ្ឋ (Piseth) & ស្រីមុំ (Sreymom) - Master Audio Bed");
+    showToast("កំពុងដំណើរការសំឡេងខ្មែរ: ពិសិដ្ឋ (Piseth) & ស្រីមុំ (Sreymom) - Master Audio Bed");
 }
 
 function handleSeekClick(e) {
@@ -335,17 +371,17 @@ function toggleVolumeMute() {
     const mainVideo = document.getElementById('main-video');
     if (mainVideo) {
         mainVideo.muted = !mainVideo.muted;
-        showToast(mainVideo.muted ? "🔇 Audio Muted" : "🔊 Audio Unmuted");
+        showToast(mainVideo.muted ? "Audio Muted" : "Audio Unmuted");
     }
 }
 
 function toggleAudioTrack() {
     const vLabel = typeof getStoryVoiceDisplayLabel === 'function' ? getStoryVoiceDisplayLabel() : "Piseth & Sreymom";
-    showToast(`🎙️ Audio Track: ${vLabel}`);
+    showToast(`Audio Track: ${vLabel}`);
 }
 
 function toggleGuidesMenu() {
-    showToast("📐 Aspect Guides: 9:16 Vertical / Safe Margins Active");
+    showToast("Aspect Guides: 9:16 Vertical / Safe Margins Active");
 }
 
 function toggleFullscreen() {
@@ -438,7 +474,7 @@ function autoDetectVideoDuration(file, callback) {
 }
 
 function toggleAutoSwitch(checked) {
-    showToast(checked ? "⚡ Auto Processing Mode: ON" : "⏸️ Auto Processing Mode: OFF");
+    showToast(checked ? "Auto Processing Mode: ON" : "Auto Processing Mode: OFF");
 }
 
 function getFormattedTerminalTime() {
@@ -519,7 +555,7 @@ function appendTerminalLine(text) {
 }
 
 function refreshAppTelemetry() {
-    showToast("🔄 Telemetry Refreshed");
+    showToast("Telemetry Refreshed");
     appendLiveTerminalLine(`Status rechecked - engine idle.`, "[System]", "info");
 }
 
@@ -659,7 +695,7 @@ function selectStudioPreset(presetKey) {
     // Load dialogues into grid
     renderDialogueGrid(preset.dialogues);
 
-    showToast(`🎬 Mode Configured: ${preset.name}`);
+    showToast(`Mode Configured: ${preset.name}`);
     appendTerminalLine(`[Ready] Workflow preset set to ${preset.name}. Ready for media import or audition.`);
 }
 
@@ -773,7 +809,7 @@ async function playDialogueSnippet(id) {
     document.querySelectorAll('.dialogue-row').forEach(r => r.classList.remove('playing'));
     if (targetRow) targetRow.classList.add('playing');
 
-    showToast(`🔊 កំពុងចាក់សំឡេងខ្មែរបន្ទាត់ #${id}`);
+    showToast(`កំពុងចាក់សំឡេងខ្មែរបន្ទាត់ #${id}`);
     appendTerminalLine(`[Audio Engine] Auditioning line #${id} (${item ? (item.voice || 'piseth') : 'audio'})`);
 
     if (activeDialogueAudioPlayer) {
@@ -839,7 +875,7 @@ async function playDialogueSnippet(id) {
 }
 
 function editDialogueSnippet(id) {
-    showToast(`✏️ Editing dialogue line #${id}`);
+    showToast(`Editing dialogue line #${id}`);
 }
 
 function generateWaveformBars() {
@@ -967,7 +1003,9 @@ function openExportOptionsModal() {
             }
         }
 
-        const rawName = stagedBatchFiles[0].name.replace(/\.[^/.]+$/, '');
+        const firstFile = stagedBatchFiles[0];
+        const fName = getMediaFileName(firstFile);
+        const rawName = fName.replace(/\.[^/.]+$/, '');
         baseTitle = rawName.replace(/(?:_part|[-_]ep|[-_]e|\bep|\bepisode)[-_]?\d+/i, '').replace(/[-_]+$/, '').trim() || "Drama_Series";
 
         const mergedName = `Dubbed_${baseTitle}_Full_Movie.mp4`;
@@ -975,17 +1013,18 @@ function openExportOptionsModal() {
         if (descBothElem) descBothElem.textContent = `Episodes + ${mergedName} (ទទួលបានទាំងពីរ)`;
 
     } else if (stagedVideoFile) {
+        const vName = getMediaFileName(stagedVideoFile);
         if (epCountElem) epCountElem.textContent = "1 video episode";
-        if (epChainElem) epChainElem.textContent = stagedVideoFile.name;
+        if (epChainElem) epChainElem.textContent = vName;
 
-        const rawName = stagedVideoFile.name.replace(/\.[^/.]+$/, '');
+        const rawName = vName.replace(/\.[^/.]+$/, '');
         baseTitle = rawName || "Video";
         const singleOutName = `Dubbed_${baseTitle}.mp4`;
 
         if (descFullElem) descFullElem.textContent = `Full single video — ${singleOutName}`;
         if (descBothElem) descBothElem.textContent = `Single video master — ${singleOutName}`;
     } else {
-        showToast("⚠️ សូមដាក់វីដេអូចូលជាមុនសិន រួចចុច Export!");
+        showToast("សូមដាក់វីដេអូចូលជាមុនសិន រួចចុច Export!");
         openImportModal();
         return;
     }
@@ -1029,10 +1068,16 @@ async function confirmAndExecuteExport() {
         return;
     }
 
-    showToast("⚠️ មិនមានវីដេអូដែលបានដាក់នោះទេ!");
+    showToast("មិនមានវីដេអូដែលបានដាក់នោះទេ!");
 }
 
 function startStudioExportJob() {
+    // 0. If dubbing task is currently running in background
+    if (activeDubbingTaskId) {
+        showToast("ម៉ាស៊ីន Studio កំពុងបកប្រែវីដេអូ សូមរង់ចាំ...");
+        return;
+    }
+
     // 1. If user staged a single video, open Export Options Modal (Choice for user)
     if (stagedVideoFile) {
         openExportOptionsModal();
@@ -1048,7 +1093,7 @@ function startStudioExportJob() {
     // 3. If a dubbed video is already completed, open folder or download
     if (currentDubbedProject && currentDubbedProject.output_video_file) {
         openExportFolderDirect(currentDubbedProject.output_video_file);
-        showToast("📂 បានបើកទីតាំង Folder វីដេអូដែល Render រួចរាល់!");
+        showToast("បានបើកទីតាំង Folder វីដេអូដែល Render រួចរាល់!");
         const mainVideo = document.getElementById('main-video');
         if (mainVideo && mainVideo.src) {
             const a = document.createElement('a');
@@ -1062,7 +1107,7 @@ function startStudioExportJob() {
     }
 
     // 4. If nothing is staged, guide the user to import first
-    showToast("⚠️ សូមដាក់វីដេអូចូលជាមុនសិន រួចចុច Export!");
+    showToast("សូមដាក់វីដេអូចូលជាមុនសិន រួចចុច Export!");
     openImportModal();
 }
 
@@ -1160,9 +1205,17 @@ async function loadDownloaderPlatforms() {
             data.platforms.forEach(p => {
                 const item = document.createElement('div');
                 item.className = `dl-platform-pill-item ${p.id === dlSelectedPlatform ? 'active' : ''}`;
-                item.onclick = () => filterByPlatform(p.id, p.name, p.count);
+                item.onclick = () => filterByPlatform(p.id, p.name, p.count, p.logo);
+                
+                let iconHtml = '';
+                if (p.logo) {
+                    iconHtml = `<img src="${p.logo}" class="dl-platform-icon-img" alt="${escapeHtml(p.name)}">`;
+                } else if (p.icon) {
+                    iconHtml = `<i class="${p.icon}"></i>`;
+                }
+                
                 item.innerHTML = `
-                    <i class="${p.icon}"></i>
+                    ${iconHtml}
                     <span>${escapeHtml(p.name)}</span>
                 `;
                 container.appendChild(item);
@@ -1171,13 +1224,16 @@ async function loadDownloaderPlatforms() {
     } catch (e) {}
 }
 
-function filterByPlatform(platId, platName, totalCount) {
+function filterByPlatform(platId, platName, totalCount, platLogo) {
     dlSelectedPlatform = platId;
     loadDownloaderPlatforms();
 
     const countLabel = document.getElementById('dl-catalog-count-label');
     if (countLabel) {
-        countLabel.innerHTML = `<i class="fa-solid fa-globe"></i> ${escapeHtml(platName)} (${totalCount !== undefined ? totalCount : 0})`;
+        const iconPart = platLogo 
+            ? `<img src="${platLogo}" class="dl-platform-icon-img" style="vertical-align:middle; margin-right:6px;" alt="">` 
+            : `<i class="fa-solid fa-globe"></i>`;
+        countLabel.innerHTML = `${iconPart} ${escapeHtml(platName)} (${totalCount !== undefined ? totalCount : 0})`;
     }
 
     const input = document.getElementById('dl-link-url-input');
@@ -1319,11 +1375,11 @@ async function analyzeEnteredLink() {
     const input = document.getElementById('dl-link-url-input');
     const url = input ? input.value.trim() : "";
     if (!url) {
-        showToast("⚠️ Please enter a drama URL");
+        showToast("Please enter a drama URL");
         return;
     }
 
-    showToast("🔍 Analyzing drama link...");
+    showToast("Analyzing drama link...");
     appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Analyzing drama manifest from URL: ${url}`);
 
     try {
@@ -1338,12 +1394,12 @@ async function analyzeEnteredLink() {
             dlEpisodesList = data.episodes || [];
             await loadDramaCatalog();
             selectDramaCard(data.drama.id);
-            showToast(`✨ Found: ${data.drama.title} (${dlEpisodesList.length} EP)`);
+            showToast(`Found: ${data.drama.title} (${dlEpisodesList.length} EP)`);
         } else {
-            showToast(`❌ ${data.error || 'Failed to analyze'}`);
+            showToast(`${data.error || 'Failed to analyze'}`);
         }
     } catch (e) {
-        showToast("❌ Network error");
+        showToast("Network error");
     }
 }
 
@@ -1379,6 +1435,13 @@ async function initSaveLocationPaths() {
         input.value = driveCustomPaths["D"] || "D:/SN_Dramas";
     }
     input.setAttribute('title', input.value);
+    input.addEventListener('input', () => {
+        const val = input.value.trim();
+        if (val) {
+            localStorage.setItem('sn_save_location', val);
+            input.setAttribute('title', val);
+        }
+    });
     updateDriveButtonHighlight();
 }
 
@@ -1400,7 +1463,7 @@ function selectDrive(driveLetter) {
     localStorage.setItem('sn_active_drive', letter);
     updateDriveButtonHighlight();
 
-    showToast(`💽 បានជ្រើសរើស Drive ${letter}: (${targetPath})`);
+    showToast(`បានជ្រើសរើស Drive ${letter}: (${targetPath})`);
     appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Active download location: Drive ${letter}: (${targetPath})`);
 }
 
@@ -1422,7 +1485,7 @@ async function browseSaveLocation() {
     const input = document.getElementById('dl-save-path-input');
     const currentPath = input ? input.value.trim() : '';
 
-    showToast("📂 កំពុងបើកផ្ទាំងជ្រើសរើស Folder លើ Laptop...");
+    showToast("កំពុងបើកផ្ទាំងជ្រើសរើស Folder...");
     appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Opening Windows folder chooser...`);
 
     try {
@@ -1446,16 +1509,16 @@ async function browseSaveLocation() {
             }
             localStorage.setItem('sn_save_location', cleanPath);
             updateDriveButtonHighlight();
-            showToast(`✅ បានជ្រើសរើស Folder: ${cleanPath}`);
+            showToast(`បានជ្រើសរើស Folder: ${cleanPath}`);
             appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Save folder updated: ${cleanPath}`);
         } else if (data.cancelled) {
-            showToast("ℹ️ បានបោះបង់ការជ្រើសរើស Folder");
+            showToast("បានបោះបង់ការជ្រើសរើស Folder");
         } else {
-            showToast("⚠️ មិនអាចជ្រើសរើស Folder បានទេ");
+            showToast("មិនអាចជ្រើសរើស Folder បានទេ");
         }
     } catch (e) {
         console.error("Browse folder error:", e);
-        showToast("⚠️ បញ្ហាក្នុងការបើក Folder Dialog");
+        showToast("បញ្ហាក្នុងការបើក Folder Dialog");
     }
 }
 
@@ -1463,7 +1526,7 @@ async function openSaveLocationInExplorer() {
     const input = document.getElementById('dl-save-path-input');
     const path = input ? input.value.trim() : '';
     if (!path) {
-        showToast("⚠️ សូមជ្រើសរើសទីតាំង Folder ជាមុនសិន");
+        showToast("សូមជ្រើសរើសទីតាំង Folder ជាមុនសិន");
         return;
     }
 
@@ -1475,20 +1538,20 @@ async function openSaveLocationInExplorer() {
         });
         const data = await res.json();
         if (data.success) {
-            showToast(`📂 បានបើក Folder ក្នុង Windows Explorer`);
+            showToast(`បានបើក Folder ក្នុង Windows Explorer`);
             appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Opened directory: ${path}`);
         } else {
-            showToast(`⚠️ ${data.error || 'មិនអាចបើក Folder បានទេ'}`);
+            showToast(`${data.error || 'មិនអាចបើក Folder បានទេ'}`);
         }
     } catch (e) {
-        showToast("⚠️ កំហុសក្នុងការបើក Windows Explorer");
+        showToast("កំហុសក្នុងការបើក Windows Explorer");
     }
 }
 
 function previewLoadedDrama() {
     if (!dlCurrentDrama) return;
     switchMainTab('translate');
-    showToast(`▶ Loaded '${dlCurrentDrama.title}' in 9:16 Monitor`);
+    showToast(`Loaded '${dlCurrentDrama.title}' in 9:16 Monitor`);
 }
 
 function previewDramaVideoDirect(dramaId) {
@@ -1499,11 +1562,11 @@ function previewDramaVideoDirect(dramaId) {
 async function startBatchDownload() {
     const selected = dlEpisodesList.filter(e => e.is_selected);
     if (selected.length === 0) {
-        showToast("⚠️ Please select at least one episode");
+        showToast("Please select at least one episode");
         return;
     }
 
-    showToast(`🚀 Downloading ${selected.length} episodes...`);
+    showToast(`Downloading ${selected.length} episodes...`);
     appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Starting batch queue for ${selected.length} episodes...`);
 
     const path = document.getElementById('dl-save-path-input').value.trim();
@@ -1536,7 +1599,7 @@ async function startBatchDownload() {
                     if (!sData.is_downloading) {
                         clearInterval(dlPollTimer);
                         dlPollTimer = null;
-                        showToast("🎉 Download batch completed!");
+                        showToast("Download batch completed!");
                     }
                 }
             } catch (e) {}
@@ -1547,7 +1610,7 @@ async function startBatchDownload() {
 async function stopBatchDownload() {
     try {
         await fetch('/api/downloader/stop', { method: 'POST' });
-        showToast("⏹️ Download Stopped");
+        showToast("Download Stopped");
         if (dlPollTimer) {
             clearInterval(dlPollTimer);
             dlPollTimer = null;
@@ -1585,7 +1648,7 @@ function appendDownloaderLog(msg) {
 function clearDownloaderLog() {
     const box = document.getElementById('dl-activity-terminal-box');
     if (box) box.innerHTML = `<div class="terminal-line">[${new Date().toLocaleTimeString()}] Activity log cleared.</div>`;
-    showToast("🧹 Log cleared");
+    showToast("Log cleared");
 }
 
 // ==========================================================================
@@ -1660,7 +1723,7 @@ function refreshStagedCardVoiceMeta() {
     if (!stagedMeta) return;
     const vLabel = getStoryVoiceDisplayLabel();
     if (stagedVideoFile) {
-        const sizeMb = (stagedVideoFile.size / (1024 * 1024)).toFixed(1);
+        const sizeMb = stagedVideoFile.size_mb !== undefined ? stagedVideoFile.size_mb : (stagedVideoFile.size ? (stagedVideoFile.size / (1024 * 1024)).toFixed(1) : "0.0");
         let durStr = "";
         if (totalDurationSeconds > 0) {
             const durM = Math.floor(totalDurationSeconds / 60);
@@ -1735,7 +1798,7 @@ async function selectQuickVoice(voiceKey) {
         'piseth': 'ពិសិដ្ឋ (Piseth - តួប្រុស/អ្នកនិទានរឿងទោល)',
         'sreymom': 'ស្រីមុំ (Sreymom - តួស្រី/អ្នកនិទានរឿងទោល)'
     };
-    showToast(`🎙️ បានប្តូរសំឡេង: ${voiceLabels[voiceKey] || voiceKey}`);
+    showToast(`បានប្តូរសំឡេង: ${voiceLabels[voiceKey] || voiceKey}`);
     appendLiveTerminalLine(`Dubbing voice set to: ${voiceLabels[voiceKey] || voiceKey}`, "[Voice Config]", "info");
 
     // Sync modal selector
@@ -1797,7 +1860,7 @@ function onQuickBgmSliderChange(val) {
                     ducking_volume: duckingFraction
                 })
             });
-            showToast(`🎵 កម្រិតសំឡេងភ្លេង BGM បានកែសម្រួល: ${numVal}%`);
+            showToast(`កម្រិតសំឡេងភ្លេង BGM បានកែសម្រួល: ${numVal}%`);
             appendLiveTerminalLine(`BGM volume / ducking set to: ${numVal}%`, "[Audio Config]", "info");
         } catch (e) {}
     }, 400);
@@ -1885,14 +1948,14 @@ async function openStorySettingsModal() {
 }
 
 function formatDuckingDbText(pct) {
-    if (pct <= 0) return "🔇 0% (-45dB) • បិទស្ងាត់ពេលនិយាយ";
+    if (pct <= 0) return "0% (-45dB) • បិទស្ងាត់ពេលនិយាយ";
     const db = 20 * Math.log10(Math.max(0.005, pct / 100));
     let desc = "ស្តង់ដារពិរោះ";
     if (pct <= 4) desc = "ស្រាលបំផុត";
     else if (pct <= 8) desc = "ស្រាលទន់";
-    else if (pct <= 18) desc = "⭐ ស្តង់ដារពិរោះ";
+    else if (pct <= 18) desc = "ស្តង់ដារពិរោះ";
     else if (pct <= 28) desc = "រាងឮច្បាស់";
-    else desc = "🔊 ឮខ្លាំង";
+    else desc = "ឮខ្លាំង";
     return `${pct}% (${db.toFixed(1)} dB) • ${desc}`;
 }
 
@@ -1931,9 +1994,9 @@ function formatSpeechDbText(val) {
     let desc = "ស្តង់ដារពិរោះ";
     if (val === 0) desc = "កម្រិតធម្មតា";
     else if (val <= 1.5) desc = "ស្រទន់";
-    else if (val <= 3.0) desc = "⭐ ណែនាំច្បាស់";
+    else if (val <= 3.0) desc = "ណែនាំច្បាស់";
     else if (val <= 5.0) desc = "ច្បាស់មាំ";
-    else desc = "🔥 ខ្លាំងបំផុត";
+    else desc = "ខ្លាំងបំផុត";
     const prefix = val > 0 ? `+${val.toFixed(1)}` : `${val.toFixed(1)}`;
     return `${prefix} dB • ${desc}`;
 }
@@ -2038,7 +2101,7 @@ function applyDramaDictionaryPreset(presetKey) {
 
     linesToAdd.forEach(l => merged.add(l));
     dictElem.value = Array.from(merged).join('\n');
-    showToast(`📚 បានបញ្ចូលវចនានុក្រមគំរូ: ${presetKey}`);
+    showToast(`បានបញ្ចូលវចនានុក្រមគំរូ: ${presetKey}`);
 }
 
 function updateStoryVoiceHint() {
@@ -2048,9 +2111,9 @@ function updateStoryVoiceHint() {
 
     const val = selVoice.value;
     if (val === 'sreymom') {
-        hint.innerHTML = `<span style="color:#f472b6; font-weight:bold;">👩 Sreymom (សំឡេងស្រីទោល):</span> ប្រើសំឡេងស្រីមុំទោលស្រទន់ &amp; ពិរោះរលូនសម្រាប់គ្រប់ឃ្លា (Female Solo)។`;
+        hint.innerHTML = `<span style="color:#f472b6; font-weight:bold;">Sreymom (សំឡេងស្រីទោល):</span> ប្រើសំឡេងស្រីមុំទោលស្រទន់ &amp; ពិរោះរលូនសម្រាប់គ្រប់ឃ្លា (Female Solo)។`;
     } else {
-        hint.innerHTML = `<span style="color:#38bdf8; font-weight:bold;">👨 Piseth (សំឡេងប្រុសទោល):</span> ប្រើសំឡេងពិសិដ្ឋទោលច្បាស់ &amp; ពិរោះរលូនសម្រាប់គ្រប់ឃ្លា (Male Solo)។`;
+        hint.innerHTML = `<span style="color:#38bdf8; font-weight:bold;">Piseth (សំឡេងប្រុសទោល):</span> ប្រើសំឡេងពិសិដ្ឋទោលច្បាស់ &amp; ពិរោះរលូនសម្រាប់គ្រប់ឃ្លា (Male Solo)។`;
     }
 }
 
@@ -2059,9 +2122,9 @@ function onStoryVoiceChange() {
     const selVoice = document.getElementById('story-voice-select');
     if (!selVoice) return;
     if (selVoice.value === 'sreymom') {
-        showToast("👩 បានជ្រើសរើស: Sreymom (សំឡេងស្រីទោល)");
+        showToast("បានជ្រើសរើស: Sreymom (សំឡេងស្រីទោល)");
     } else {
-        showToast("👨 បានជ្រើសរើស: Piseth (សំឡេងប្រុសទោល)");
+        showToast("បានជ្រើសរើស: Piseth (សំឡេងប្រុសទោល)");
     }
 }
 
@@ -2141,13 +2204,13 @@ async function saveStorySettings() {
             const voiceNameText = voice === 'multi' 
                 ? "Piseth & Sreymom (ប្រុស & ស្រី)" 
                 : (voice === 'sreymom' ? "Sreymom (ស្រីទោល)" : "Piseth (ប្រុសទោល)");
-            showToast(`✨ បានរក្សាទុកការកំណត់សំឡេង និងវចនានុក្រម: ${voiceNameText} ដោយជោគជ័យ!`);
+            showToast(`បានរក្សាទុកការកំណត់សំឡេង និងវចនានុក្រម: ${voiceNameText} ដោយជោគជ័យ!`);
             closeModal('modal-story-settings');
         } else {
-            showToast(`⚠️ ${resData.message || 'Error saving story settings'}`);
+            showToast(`${resData.message || 'Error saving story settings'}`);
         }
     } catch (e) {
-        showToast(`❌ Error saving: ${e.message}`);
+        showToast(`Error saving: ${e.message}`);
     }
 }
 
@@ -2163,12 +2226,12 @@ async function saveApiKey() {
             });
         } catch (e) {}
     }
-    showToast("✨ Saved Studio Engine Token!");
+    showToast("Saved Studio Engine Token!");
     backToSettingsHub();
 }
 
 // ==========================================================================
-// AI PROVIDING & GEMINI KEY POOL MANAGER (Exact Match to User Image 2)
+// STUDIO ENGINE & GEMINI KEY POOL MANAGER
 // ==========================================================================
 let currentAiConfig = {
     engine: "gemini_pool",
@@ -2239,12 +2302,12 @@ function onAiEngineChange() {
     const sel = document.getElementById('ai-engine-select');
     if (!sel) return;
     const val = sel.value;
-    if (val === 'free_ai') {
-        showToast("🤖 Selected: Free AI Translation (No API Key Required)");
+    if (val === 'free_ai' || val === 'auto') {
+        showToast("Selected: Built-in Studio Translation Engine (Standard)");
     } else if (val === 'google_free') {
-        showToast("🌐 Selected: Google Translate Built-in Free");
+        showToast("Selected: Web Translation Engine");
     } else {
-        showToast("⚡ Selected: Gemini Neural Key Pool");
+        showToast("Selected: Cloud API Engine (Key Pool)");
     }
 }
 
@@ -2311,7 +2374,7 @@ function handleAiKeysFileSelect(event) {
                 textarea.value = newKeys;
             }
             handleAiKeysInput();
-            showToast(`📥 Imported keys from ${file.name}`);
+            showToast(`Imported keys from ${file.name}`);
         }
     };
     reader.readAsText(file);
@@ -2325,7 +2388,7 @@ async function checkKeysLive() {
     const lines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
     if (lines.length === 0) {
-        showToast("⚠️ សូមបញ្ចូល Gemini API Key យ៉ាងតិច ១ មុនពេល Check!");
+        showToast("សូមបញ្ចូល Gemini API Key យ៉ាងតិច ១ មុនពេល Check!");
         return;
     }
 
@@ -2349,12 +2412,12 @@ async function checkKeysLive() {
                 badge.textContent = `${resData.valid} / ${resData.total} live active`;
                 badge.style.color = resData.valid > 0 ? "#4ade80" : "#f87171";
             }
-            showToast(`✅ Key Check Complete: ${resData.valid} of ${resData.total} keys active!`);
+            showToast(`Key Check Complete: ${resData.valid} of ${resData.total} keys active!`);
         } else {
-            showToast(`❌ Check error: ${resData.error || 'Failed'}`);
+            showToast(`Check error: ${resData.error || 'Failed'}`);
         }
     } catch (err) {
-        showToast(`❌ Network error while checking keys: ${err.message}`);
+        showToast(`Network error while checking keys: ${err.message}`);
     } finally {
         if (checkBtn) {
             checkBtn.innerHTML = origHtml;
@@ -2367,7 +2430,7 @@ function exportKeysBackup() {
     const textarea = document.getElementById('ai-keys-pool-textarea');
     const content = textarea ? textarea.value.trim() : "";
     if (!content) {
-        showToast("⚠️ មិនមាន API Key សម្រាប់ Export ទេ!");
+        showToast("មិនមាន API Key សម្រាប់ Export ទេ!");
         return;
     }
 
@@ -2380,7 +2443,7 @@ function exportKeysBackup() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showToast("💾 បាន Export Backup API Keys ដោយជោគជ័យ!");
+    showToast("បាន Export Backup API Keys ដោយជោគជ័យ!");
 }
 
 function clearAllKeysPool() {
@@ -2390,7 +2453,7 @@ function clearAllKeysPool() {
         textarea.value = "";
         handleAiKeysInput();
     }
-    showToast("🧹 បានសម្អាត Keys ទាំងអស់រួចរាល់!");
+    showToast("បានសម្អាត Keys ទាំងអស់រួចរាល់!");
 }
 
 async function saveAiProvidingConfig() {
@@ -2418,54 +2481,50 @@ async function saveAiProvidingConfig() {
         const resData = await resp.json();
         if (resData.success) {
             currentAiConfig = resData.config;
-            showToast(`✨ បានរក្សាទុកការកំណត់ AI Providing និង Keys (${keysList.length} គ្រាប់) ដោយជោគជ័យ!`);
+            showToast(`បានរក្សាទុកការកំណត់ Engine និង Keys (${keysList.length} គ្រាប់) ដោយជោគជ័យ!`);
             closeModal('modal-ai-providing');
         } else {
-            showToast(`⚠️ ${resData.message || 'Error saving settings'}`);
+            showToast(`${resData.message || 'Error saving settings'}`);
         }
     } catch (e) {
-        showToast(`❌ បរាជ័យក្នុងការរក្សាទុក: ${e.message}`);
+        showToast(`បរាជ័យក្នុងការរក្សាទុក: ${e.message}`);
     }
 }
 
 function openImportModal() { openModal('modal-import'); }
 
 async function triggerFileSelect() {
+    closeModal('modal-import');
     try {
         const res = await fetch("/api/system/select-media-files", { method: "POST" });
         const data = await res.json();
-        if (data.success && data.files && data.files.length > 0) {
-            closeModal('modal-import');
+        if (data && data.success && data.files && data.files.length > 0) {
             handleSelectedFiles(data.files);
-            return;
-        } else if (data.cancelled) {
-            closeModal('modal-import');
-            return;
         }
+        // Native picker concluded or cancelled - do not pop a second dialog!
+        return;
     } catch (e) {
         console.warn("Native file picker note, falling back to HTML input:", e);
+        const input = document.getElementById('batch-files-input');
+        if (input) input.click();
     }
-    const input = document.getElementById('batch-files-input');
-    if (input) input.click();
 }
 
 async function triggerFolderSelect() {
+    closeModal('modal-import');
     try {
         const res = await fetch("/api/system/select-media-folder", { method: "POST" });
         const data = await res.json();
-        if (data.success && data.files && data.files.length > 0) {
-            closeModal('modal-import');
+        if (data && data.success && data.files && data.files.length > 0) {
             handleSelectedFiles(data.files, data.series_title);
-            return;
-        } else if (data.cancelled) {
-            closeModal('modal-import');
-            return;
         }
+        // Native picker concluded or cancelled - do not pop a second dialog!
+        return;
     } catch (e) {
         console.warn("Native folder picker note, falling back to HTML input:", e);
+        const input = document.getElementById('batch-folder-input');
+        if (input) input.click();
     }
-    const input = document.getElementById('batch-folder-input');
-    if (input) input.click();
 }
 
 let activeDubbingTaskId = null;
@@ -2479,15 +2538,16 @@ function setStagedVideo(file) {
     stagedVideoFile = file;
     stagedBatchFiles = null;
 
-    const fileName = file.name || file.filename || "drama_video.mp4";
-    const fileSizeMB = file.size_mb ? file.size_mb : (file.size ? (file.size / (1024 * 1024)).toFixed(1) : "0.0");
+    const fileName = getMediaFileName(file);
+    const fileSizeMB = file.size_mb !== undefined ? file.size_mb : (file.size ? (file.size / (1024 * 1024)).toFixed(1) : "0.0");
+    const filePath = getMediaFilePath(file);
 
     // Preview video in left monitor (support both native filepath and browser File blob)
     const mainVideo = document.getElementById('main-video');
     if (mainVideo) {
         try {
-            if (file.filepath) {
-                mainVideo.src = `/media/${file.filepath.replace(/\\/g, '/')}`;
+            if (filePath) {
+                mainVideo.src = `/media/${filePath.replace(/\\/g, '/')}`;
             } else {
                 mainVideo.src = URL.createObjectURL(file);
             }
@@ -2516,7 +2576,7 @@ function setStagedVideo(file) {
         }
     }
 
-    if (!file.filepath) {
+    if (!filePath) {
         autoDetectVideoDuration(file, (dur) => {
             totalDurationSeconds = dur;
             playheadSeconds = 0;
@@ -2557,8 +2617,8 @@ function setStagedVideo(file) {
     if (text) text.textContent = 'READY FOR EXPORT';
 
     updateScrubberUI();
-    showToast(`📁 បានផ្ទុក "${fileName}" ជោគជ័យ! សូមចុច Export ដើម្បីចាប់ផ្តើមបកប្រែ។`);
-    appendTerminalLine(`[Ready] Video "${fileName}" staged. Click [Export] to begin AI Dubbing.`);
+    showToast(`បានផ្ទុក "${fileName}" ជោគជ័យ! សូមចុច Export ដើម្បីចាប់ផ្តើមបកប្រែ។`);
+    appendTerminalLine(`[Ready] Video "${fileName}" loaded. Click [Export] to begin studio dubbing.`);
 }
 
 function setStagedBatchFiles(files, folderTitle = "") {
@@ -2567,11 +2627,12 @@ function setStagedBatchFiles(files, folderTitle = "") {
 
     if (files && files.length > 0) {
         const firstFile = files[0];
+        const firstPath = getMediaFilePath(firstFile);
         const mainVideo = document.getElementById('main-video');
         if (mainVideo) {
             try {
-                if (firstFile.filepath) {
-                    mainVideo.src = `/media/${firstFile.filepath.replace(/\\/g, '/')}`;
+                if (firstPath) {
+                    mainVideo.src = `/media/${firstPath.replace(/\\/g, '/')}`;
                 } else {
                     mainVideo.src = URL.createObjectURL(firstFile);
                 }
@@ -2597,10 +2658,13 @@ function setStagedBatchFiles(files, folderTitle = "") {
     if (!folderName && files[0] && files[0].webkitRelativePath) {
         const parts = files[0].webkitRelativePath.split('/');
         if (parts.length > 1) folderName = parts[0];
+    } else if (!folderName && files[0] && files[0].filepath) {
+        const parts = files[0].filepath.split(/[\\/]/);
+        if (parts.length > 2) folderName = parts[parts.length - 2];
     }
     const seriesTitle = folderName ? `Folder: "${folderName}"` : `រឿងភាគមួយចប់`;
 
-    if (stagedTitle) stagedTitle.textContent = `🎬 ${seriesTitle} (${files.length} ភាគ)`;
+    if (stagedTitle) stagedTitle.textContent = `${seriesTitle} (${files.length} ភាគ)`;
     if (stagedMeta) stagedMeta.textContent = `បានតម្រៀបតាមលំដាប់រឿង Episode 1 ដល់ ${files.length} ត្រឹមត្រូវ • ចុច "Export" ដើម្បីបកប្រែទាំងអស់`;
     refreshStagedCardVoiceMeta();
     syncStagedCardControls();
@@ -2608,13 +2672,13 @@ function setStagedBatchFiles(files, folderTitle = "") {
     const exportBtn = document.getElementById('btn-tab-export');
     if (exportBtn) exportBtn.classList.add('export-ready-pulse');
 
-    showToast(`📁 បានផ្ទុក ${files.length} ភាគក្នុង Folder ជោគជ័យ! ចុច Export ដើម្បីចាប់ផ្តើមបកប្រែ។`);
+    showToast(`បានផ្ទុក ${files.length} ភាគក្នុង Folder ជោគជ័យ! ចុច Export ដើម្បីចាប់ផ្តើមបកប្រែ។`);
     clearLiveTerminal();
     appendLiveTerminalLine(`Folder / Series Staged: ${files.length} episodes loaded in story order.`, "[Batch Ready]", "info");
     for (let i = 0; i < Math.min(files.length, 5); i++) {
         const f = files[i];
-        const fName = f.name || f.filename || `Episode ${i+1}`;
-        const fMB = f.size_mb || (f.size ? (f.size / (1024*1024)).toFixed(1) : "?");
+        const fName = getMediaFileName(f) || `Episode ${i+1}`;
+        const fMB = f.size_mb !== undefined ? f.size_mb : (f.size ? (f.size / (1024*1024)).toFixed(1) : "?");
         appendLiveTerminalLine(`  • Episode ${i+1}: "${fName}" (${fMB} MB)`, "[Episode List]", "info");
     }
     if (files.length > 5) {
@@ -2643,19 +2707,19 @@ function handleSelectedFiles(files, folderTitle = "") {
 
     const validExts = ['.mp4', '.mkv', '.mov', '.avi', '.webm', '.flv', '.ts', '.m4v', '.wmv'];
     const fileList = Array.from(files).filter(f => {
-        const n = (f.name || f.filename || '').toLowerCase();
+        const n = getMediaFileName(f).toLowerCase();
         return validExts.some(ext => n.endsWith(ext)) || (f.type && f.type.startsWith('video/'));
     });
 
     if (fileList.length === 0) {
-        showToast("⚠️ សូមជ្រើសរើសឯកសារជាប្រភេទវីដេអូរឿងភាគ (MP4, MKV, MOV...)");
+        showToast("សូមជ្រើសរើសឯកសារជាប្រភេទវីដេអូរឿងភាគ (MP4, MKV, MOV...)");
         return;
     }
 
     // Natural numerical sorting: Episode 1, Episode 2, Episode 10 in true story order!
     fileList.sort((a, b) => {
-        const nameA = a.name || a.filename || "";
-        const nameB = b.name || b.filename || "";
+        const nameA = getMediaFileName(a);
+        const nameB = getMediaFileName(b);
         return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
     });
 
@@ -2667,18 +2731,19 @@ function handleSelectedFiles(files, folderTitle = "") {
 }
 
 async function startAutoDubbingPipeline(file) {
-    const fileName = file.name || file.filename || "drama_video.mp4";
-    const fileSizeMB = file.size_mb ? file.size_mb : (file.size ? (file.size / (1024*1024)).toFixed(1) : "?");
-    showToast(`🚀 កំពុងរៀបចំ និងចាប់ផ្តើមបកប្រែវីដេអូ: ${fileName}`);
+    const fileName = getMediaFileName(file);
+    const fileSizeMB = file.size_mb !== undefined ? file.size_mb : (file.size ? (file.size / (1024*1024)).toFixed(1) : "?");
+    const filePath = getMediaFilePath(file);
+    showToast(`កំពុងរៀបចំ និងចាប់ផ្តើមបកប្រែវីដេអូ: ${fileName}`);
 
     // Output initial console startup sequence matching Image 2
     clearLiveTerminal();
-    appendLiveTerminalLine(`Job initiated: AI Video Dubbing & Translation Pipeline`, "[Video 1/1]", "info");
+    appendLiveTerminalLine(`Job initiated: Video Dubbing & Translation Pipeline`, "[Video 1/1]", "info");
     appendLiveTerminalLine(`Source media: ${fileName} (${fileSizeMB} MB)...`, "[Video 1/1]", "info");
-    appendLiveTerminalLine(`AI voice removal: extracting audio...`, "[Video 1/1]", "info");
-    appendLiveTerminalLine(`AI voice removal: preparing the separation engine...`, "[Video 1/1]", "info");
-    appendLiveTerminalLine(`AI voice removal: running on GPU (CUDA / DirectML)...`, "[Video 1/1]", "info");
-    appendLiveTerminalLine(`AI voice removal: using the built-in model.`, "[Video 1/1]", "info");
+    appendLiveTerminalLine(`Stem isolation: extracting audio track...`, "[Video 1/1]", "info");
+    appendLiveTerminalLine(`Stem isolation: initializing separation engine...`, "[Video 1/1]", "info");
+    appendLiveTerminalLine(`Stem isolation: hardware acceleration active (GPU / DirectML)...`, "[Video 1/1]", "info");
+    appendLiveTerminalLine(`Stem isolation: acoustic separation model loaded.`, "[Video 1/1]", "info");
 
     // Keep clean source view active (uncluttered layout)
     showCleanSourceView();
@@ -2689,7 +2754,7 @@ async function startAutoDubbingPipeline(file) {
     const text = document.getElementById('monitor-engine-status-text');
     if (pill) pill.className = 'engine-status-pill';
     if (dot) dot.className = 'pulse-indicator';
-    if (text) text.textContent = 'AI DUBBING IN PROGRESS';
+    if (text) text.textContent = 'STUDIO DUBBING IN PROGRESS';
 
     updateExportProgressUI(5, 0, 90, "១/៦ កំពុងភ្ជាប់វីដេអូទៅកាន់ម៉ាស៊ីន Studio...");
 
@@ -2703,12 +2768,13 @@ async function startAutoDubbingPipeline(file) {
 
     try {
         let res;
-        if (file.filepath) {
+        if (filePath) {
             res = await fetch("/api/projects/auto-dub-video", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    filepath: file.filepath,
+                    filepath: filePath,
+                    filename: fileName,
                     drama_mode: activeDramaMode,
                     source_lang: activeSourceLang,
                     voice_override: activeVoiceOverride,
@@ -2732,7 +2798,7 @@ async function startAutoDubbingPipeline(file) {
         }
         const data = await res.json();
         if (!data.success || !data.task_id) {
-            showToast(`❌ បរាជ័យ: ${data.error || "មិនអាចចាប់ផ្តើមបានទេ"}`);
+            showToast(`បរាជ័យ: ${data.error || "មិនអាចចាប់ផ្តើមបានទេ"}`);
             appendLiveTerminalLine(`Failed to start pipeline: ${data.error || 'Server error'}`, "[Error]", "error");
             resetEngineMonitorToStandby();
             return;
@@ -2773,7 +2839,7 @@ async function startAutoDubbingPipeline(file) {
                 if (pct < 35) {
                     sepTimerTicks++;
                     if (sepTimerTicks % 2 === 0 && sepProgressSim < 95) {
-                        appendLiveTerminalLine(`AI voice removal: separating voice from music (${sepProgressSim}%)...`, "[Video 1/1]", "info");
+                        appendLiveTerminalLine(`Acoustic separation: isolating dialogue stem (${sepProgressSim}%)...`, "[Video 1/1]", "info");
                         sepProgressSim += Math.floor(Math.random() * 4) + 3;
                     }
                 }
@@ -2822,9 +2888,9 @@ async function startAutoDubbingPipeline(file) {
                         });
                     }
 
-                    updateExportProgressUI(100, elapsed, 0, "🎉 រួចរាល់ ១០០%! វីដេអូសម្រេចបានរក្សាទុក!");
-                    showToast("🎉 បកប្រែ និងបញ្ចូលសំឡេងខ្មែរជោគជ័យ ១០០%!");
-                    appendLiveTerminalLine(`AI voice synthesis & audio mixing: 100% finished. Zero vocal leakage.`, "[Video 1/1]", "success");
+                    updateExportProgressUI(100, elapsed, 0, "រួចរាល់ ១០០%! វីដេអូសម្រេចបានរក្សាទុក!");
+                    showToast("បកប្រែ និងបញ្ចូលសំឡេងខ្មែរជោគជ័យ ១០០%!");
+                    appendLiveTerminalLine(`Master audio mix: vocal synthesis & balance complete. Zero vocal bleed.`, "[Video 1/1]", "success");
                     appendLiveTerminalLine(`Master export MP4 generated: ${sData.project.output_video_file || 'Dubbed_Video.mp4'}`, "[Video 1/1]", "success");
                     appendLiveTerminalLine(`[Success 100%] Video dubbed successfully! Ready for playback.`, "[Video 1/1]", "success");
 
@@ -2850,7 +2916,7 @@ async function startAutoDubbingPipeline(file) {
                 } else if (sData.status === "failed") {
                     clearInterval(activeDubbingPollTimer);
                     activeDubbingPollTimer = null;
-                    showToast(`❌ កំហុស: ${sData.error || 'ដំណើរការបរាជ័យ'}`);
+                    showToast(`កំហុស: ${sData.error || 'ដំណើរការបរាជ័យ'}`);
                     appendLiveTerminalLine(`Dubbing error: ${sData.error}`, "[Video 1/1]", "error");
                     resetEngineMonitorToStandby();
                 }
@@ -2860,7 +2926,7 @@ async function startAutoDubbingPipeline(file) {
         }, 1000);
 
     } catch (e) {
-        showToast("❌ កំហុសក្នុងការ Upload វីដេអូ");
+        showToast("កំហុសក្នុងការ Upload វីដេអូ");
         appendLiveTerminalLine(`Network upload failed: ${e.message}`, "[Error]", "error");
         resetEngineMonitorToStandby();
     }
@@ -2870,7 +2936,7 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
     if (!files || files.length === 0) return;
     const totalBatchCount = files.length;
     const modeLabel = outputMode === 'full' ? 'បញ្ចូលគ្នារឿងពេញ (One Full Video)' : (outputMode === 'both' ? 'យកទាំងពីរ (Both Episodes & Full Video)' : 'បកប្រែជាភាគៗ (Separate Episodes)');
-    showToast(`🎬 ចាប់ផ្តើមបកប្រែរឿងភាគ (${totalBatchCount} ភាគ) - ${modeLabel}...`);
+    showToast(`ចាប់ផ្តើមបកប្រែរឿងភាគ (${totalBatchCount} ភាគ) - ${modeLabel}...`);
 
     clearLiveTerminal();
     appendLiveTerminalLine(`========================================================================`, "[Batch Series]", "info");
@@ -2900,14 +2966,15 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
     for (let i = 0; i < totalBatchCount; i++) {
         const file = files[i];
         const epNum = i + 1;
-        const fileName = file.name || file.filename || `Episode_${epNum}.mp4`;
+        const fileName = getMediaFileName(file) || `Episode_${epNum}.mp4`;
         const fileSizeMb = file.size_mb !== undefined ? file.size_mb : (file.size ? (file.size / (1024 * 1024)).toFixed(1) : "?");
+        const filePath = getMediaFilePath(file);
 
         if (text) text.textContent = `BATCH DUBBING (${epNum} / ${totalBatchCount})`;
 
         appendLiveTerminalLine(`------------------------------------------------------------------------`, `[Ep ${epNum}/${totalBatchCount}]`, "info");
         appendLiveTerminalLine(`▶ Starting Episode ${epNum}/${totalBatchCount}: "${fileName}" (${fileSizeMb} MB)...`, `[Ep ${epNum}/${totalBatchCount}]`, "info");
-        appendLiveTerminalLine(`AI voice removal: extracting audio & isolating vocals...`, `[Ep ${epNum}/${totalBatchCount}]`, "info");
+        appendLiveTerminalLine(`Stem isolation: extracting audio track & isolating dialogue...`, `[Ep ${epNum}/${totalBatchCount}]`, "info");
 
         const basePct = Math.round((i / totalBatchCount) * 100);
         updateExportProgressUI(basePct, totalElapsedSeconds, 60 * (totalBatchCount - i), `ភាគ ${epNum}/${totalBatchCount}: ${fileName} - កំពុងផ្ញើទៅ Studio...`);
@@ -2923,12 +2990,12 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
         let taskId = null;
         try {
             let res;
-            if (file.filepath) {
+            if (filePath) {
                 res = await fetch("/api/projects/auto-dub-video", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        filepath: file.filepath,
+                        filepath: filePath,
                         filename: fileName,
                         drama_mode: dramaMode,
                         source_lang: activeSourceLang,
@@ -2953,13 +3020,13 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
             }
             const data = await res.json();
             if (!data.success || !data.task_id) {
-                appendLiveTerminalLine(`❌ Episode ${epNum} skipped: ${data.error || 'Upload error'}`, `[Ep ${epNum}/${totalBatchCount}]`, "error");
+                appendLiveTerminalLine(`Episode ${epNum} skipped: ${data.error || 'Upload error'}`, `[Ep ${epNum}/${totalBatchCount}]`, "error");
                 continue;
             }
             taskId = data.task_id;
             activeDubbingTaskId = taskId;
         } catch (uploadErr) {
-            appendLiveTerminalLine(`❌ Episode ${epNum} network error: ${uploadErr.message}`, `[Ep ${epNum}/${totalBatchCount}]`, "error");
+            appendLiveTerminalLine(`Episode ${epNum} network error: ${uploadErr.message}`, `[Ep ${epNum}/${totalBatchCount}]`, "error");
             continue;
         }
 
@@ -2984,12 +3051,12 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
                     const remPct = 100 - overallPct;
                     const estEta = Math.max(5, Math.round((totalElapsedSeconds / Math.max(1, overallPct)) * remPct));
 
-                    updateExportProgressUI(overallPct, totalElapsedSeconds, estEta, `ភាគ ${epNum}/${totalBatchCount}: ${file.name} - ${stepKm}`);
+                    updateExportProgressUI(overallPct, totalElapsedSeconds, estEta, `ភាគ ${epNum}/${totalBatchCount}: ${fileName} - ${stepKm}`);
 
                     if (epPct < 35) {
                         sepTimerTicks++;
                         if (sepTimerTicks % 2 === 0 && sepProgressSim < 95) {
-                            appendLiveTerminalLine(`AI voice removal: separating voice from music (${sepProgressSim}%)...`, `[Ep ${epNum}/${totalBatchCount}]`, "info");
+                            appendLiveTerminalLine(`Acoustic separation: isolating dialogue stem (${sepProgressSim}%)...`, `[Ep ${epNum}/${totalBatchCount}]`, "info");
                             sepProgressSim += Math.floor(Math.random() * 4) + 3;
                         }
                     }
@@ -3030,12 +3097,12 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
                         }
 
                         appendLiveTerminalLine(`✓ Episode ${epNum}/${totalBatchCount} finished: "${sData.project.output_video_file || fileName}"`, `[Ep ${epNum}/${totalBatchCount}]`, "success");
-                        showToast(`✅ ភាគ ${epNum}/${totalBatchCount} បកប្រែរួចរាល់!`);
+                        showToast(`ភាគ ${epNum}/${totalBatchCount} បកប្រែរួចរាល់!`);
                         resolve(true);
                     } else if (sData.status === "failed") {
                         clearInterval(pollInterval);
-                        appendLiveTerminalLine(`❌ Episode ${epNum}/${totalBatchCount} failed: ${sData.error || 'Unknown error'}`, `[Ep ${epNum}/${totalBatchCount}]`, "error");
-                        showToast(`⚠️ ភាគ ${epNum} ជួបបញ្ហា: ${sData.error || 'បរាជ័យ'}`);
+                        appendLiveTerminalLine(`Episode ${epNum}/${totalBatchCount} failed: ${sData.error || 'Unknown error'}`, `[Ep ${epNum}/${totalBatchCount}]`, "error");
+                        showToast(`ភាគ ${epNum} ជួបបញ្ហា: ${sData.error || 'បរាជ័យ'}`);
                         resolve(false);
                     }
                 } catch (pollErr) {
@@ -3058,8 +3125,9 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
 
         const videoPaths = completedProjects.map(p => p.output_video_file || p.output_file || p.video_file).filter(Boolean);
         let seriesTitle = "Drama_Series";
-        if (files && files[0] && files[0].name) {
-            seriesTitle = files[0].name.replace(/\.[^/.]+$/, '').replace(/(?:_part|[-_]ep|[-_]e|\bep|\bepisode)[-_]?\d+/i, '').replace(/[-_]+$/, '').trim() || "Drama_Series";
+        if (files && files[0]) {
+            const f0Name = getMediaFileName(files[0]);
+            seriesTitle = f0Name.replace(/\.[^/.]+$/, '').replace(/(?:_part|[-_]ep|[-_]e|\bep|\bepisode)[-_]?\d+/i, '').replace(/[-_]+$/, '').trim() || "Drama_Series";
         }
 
         try {
@@ -3074,7 +3142,7 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
             const mData = await mRes.json();
             if (mData.success) {
                 appendLiveTerminalLine(`✓ Full Movie merged successfully: "${mData.merged_filename}"`, "[Full Movie Merge]", "success");
-                showToast(`🎬 រឿងពេញមួយចប់ត្រូវបាន Merge ជោគជ័យ: ${mData.merged_filename}`);
+                showToast(`រឿងពេញមួយចប់ត្រូវបាន Merge ជោគជ័យ: ${mData.merged_filename}`);
 
                 const mainVideo = document.getElementById('main-video');
                 if (mainVideo && mData.video_url) {
@@ -3088,20 +3156,20 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
                     currentDubbedProject.merged_filename = mData.merged_filename;
                 }
             } else {
-                appendLiveTerminalLine(`⚠️ Merge failed: ${mData.error || 'Concat error'} (Separate episodes preserved)`, "[Full Movie Merge]", "error");
+                appendLiveTerminalLine(`Merge failed: ${mData.error || 'Concat error'} (Separate episodes preserved)`, "[Full Movie Merge]", "error");
             }
         } catch (mErr) {
-            appendLiveTerminalLine(`⚠️ Merge network error: ${mErr.message} (Separate episodes preserved)`, "[Full Movie Merge]", "error");
+            appendLiveTerminalLine(`Merge network error: ${mErr.message} (Separate episodes preserved)`, "[Full Movie Merge]", "error");
         }
     }
 
     clearInterval(batchMasterTimer);
     clearStagedFiles();
-    updateExportProgressUI(100, totalElapsedSeconds, 0, `🎉 រួចរាល់ ១០០%! រឿងភាគទាំងអស់ចំនួន ${completedProjects.length}/${totalBatchCount} ភាគ ត្រូវបានបកប្រែជោគជ័យ!`);
-    showToast(`🎉 រឿងភាគមួយចប់ (${completedProjects.length} ភាគ) ត្រូវបានបកប្រែជាសំឡេងខ្មែរជោគជ័យ!`);
+    updateExportProgressUI(100, totalElapsedSeconds, 0, `រួចរាល់ ១០០%! រឿងភាគទាំងអស់ចំនួន ${completedProjects.length}/${totalBatchCount} ភាគ ត្រូវបានបកប្រែជោគជ័យ!`);
+    showToast(`រឿងភាគមួយចប់ (${completedProjects.length} ភាគ) ត្រូវបានបកប្រែជាសំឡេងខ្មែរជោគជ័យ!`);
 
     appendLiveTerminalLine(`========================================================================`, "[Batch Complete]", "success");
-    appendLiveTerminalLine(`🎉 Series Batch Dubbing Finished: ${completedProjects.length}/${totalBatchCount} episodes completed.`, "[Batch Complete]", "success");
+    appendLiveTerminalLine(`Series Batch Dubbing Finished: ${completedProjects.length}/${totalBatchCount} episodes completed.`, "[Batch Complete]", "success");
     appendLiveTerminalLine(`Zero vocal leakage. All dubbed videos saved in "data/exports/".`, "[Batch Complete]", "success");
     appendLiveTerminalLine(`========================================================================`, "[Batch Complete]", "success");
 
@@ -3183,12 +3251,12 @@ async function openExportFolderDirect(targetPath) {
         });
         const data = await res.json();
         if (data.success) {
-            showToast("📂 បានបើក Folder Exports ក្នុង Windows Explorer");
+            showToast("បានបើក Folder Exports ក្នុង Windows Explorer");
         } else {
-            showToast(`⚠️ ${data.error || 'មិនអាចបើក Folder បានទេ'}`);
+            showToast(`${data.error || 'មិនអាចបើក Folder បានទេ'}`);
         }
     } catch (e) {
-        showToast("⚠️ កំហុសក្នុងការបើក Folder");
+        showToast("កំហុសក្នុងការបើក Folder");
     }
 }
 
@@ -3259,7 +3327,7 @@ async function submitGateLicense() {
             msgBox.style.display = 'block';
             msgBox.style.color = '#f87171';
             msgBox.style.background = 'rgba(239,68,68,0.1)';
-            msgBox.textContent = "⚠️ សូមបញ្ចូល License Key របស់អ្នក";
+            msgBox.textContent = "សូមបញ្ចូល License Key របស់អ្នក";
         }
         return;
     }
@@ -3268,7 +3336,7 @@ async function submitGateLicense() {
         msgBox.style.display = 'block';
         msgBox.style.color = '#facc15';
         msgBox.style.background = 'rgba(250,204,21,0.1)';
-        msgBox.textContent = "⏳ កំពុងផ្ទៀងផ្ទាត់ License Key...";
+        msgBox.textContent = "កំពុងផ្ទៀងផ្ទាត់ License Key...";
     }
 
     try {
@@ -3282,9 +3350,9 @@ async function submitGateLicense() {
             if (msgBox) {
                 msgBox.style.color = '#4ade80';
                 msgBox.style.background = 'rgba(34,197,94,0.15)';
-                msgBox.textContent = "🎉 បានបើកដំណើរការជោគជ័យ ១០០% (Activated!)";
+                msgBox.textContent = "បានបើកដំណើរការជោគជ័យ ១០០% (Activated!)";
             }
-            showToast("🎉 បាន Activate License Key ជោគជ័យ!");
+            showToast("បាន Activate License Key ជោគជ័យ!");
             setTimeout(() => {
                 checkDeviceLicenseStatus();
             }, 1000);
@@ -3292,13 +3360,13 @@ async function submitGateLicense() {
             if (msgBox) {
                 msgBox.style.color = '#f87171';
                 msgBox.style.background = 'rgba(239,68,68,0.15)';
-                msgBox.textContent = `❌ ${data.error || 'License Key មិនត្រឹមត្រូវ'}`;
+                msgBox.textContent = `${data.error || 'License Key មិនត្រឹមត្រូវ'}`;
             }
         }
     } catch (e) {
         if (msgBox) {
             msgBox.style.color = '#f87171';
-            msgBox.textContent = "❌ មានបញ្ហាភ្ជាប់បណ្តាញ";
+            msgBox.textContent = "មានបញ្ហាភ្ជាប់បណ្តាញ";
         }
     }
 }
@@ -3306,7 +3374,7 @@ async function submitGateLicense() {
 async function confirmActivateLicense() {
     const key = document.getElementById('input-license-key').value.trim();
     if (!key) {
-        showToast("⚠️ សូមបញ្ចូល License Key");
+        showToast("សូមបញ្ចូល License Key");
         return;
     }
 
@@ -3318,14 +3386,14 @@ async function confirmActivateLicense() {
         });
         const data = await res.json();
         if (data.success) {
-            showToast("🎉 VIP License Key Activated 100%!");
+            showToast("VIP License Key Activated 100%!");
             checkDeviceLicenseStatus();
             backToSettingsHub();
         } else {
-            showToast(`❌ ${data.error || 'Invalid key'}`);
+            showToast(`${data.error || 'Invalid key'}`);
         }
     } catch (e) {
-        showToast("❌ Network error");
+        showToast("Network error");
     }
 }
 
@@ -3334,7 +3402,7 @@ function copyHwid(elemId = 'settings-hwid-text') {
     const text = elem ? elem.textContent.trim() : currentHwid;
     if (text && text !== "FETCHING...") {
         navigator.clipboard.writeText(text).then(() => {
-            showToast(`📋 បានចម្លង HWID: ${text}`);
+            showToast(`បានចម្លង HWID: ${text}`);
         }).catch(() => {
             showToast(`HWID: ${text}`);
         });
@@ -3350,10 +3418,10 @@ async function pasteGateLicense() {
                 input.value = text.trim();
                 input.focus();
             }
-            showToast("📋 បានបិទភ្ជាប់ (Pasted) License Key!");
+            showToast("បានបិទភ្ជាប់ (Pasted) License Key!");
         }
     } catch (e) {
-        showToast("⚠️ សូមចុច Ctrl+V ដើម្បី Paste");
+        showToast("សូមចុច Ctrl+V ដើម្បី Paste");
     }
 }
 

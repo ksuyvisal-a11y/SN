@@ -11,15 +11,7 @@ echo  🎙️ សំឡេងខ្មែរផ្លូវការ: ពិស�
 echo ========================================================================
 echo.
 
-:: 1. If compiled native app exists, launch it directly
-if exist "%~dp0SN_TOOL.exe" (
-    start "" /d "%~dp0" "%~dp0SN_TOOL.exe" %*
-    exit /b 0
-)
-if exist "%~dp0dist\SN_TOOL\SN_TOOL.exe" (
-    start "" /d "%~dp0dist\SN_TOOL" "%~dp0dist\SN_TOOL\SN_TOOL.exe" %*
-    exit /b 0
-)
+:: 1. Developer / Studio Mode: Run directly via Python (No .exe, No License Gate prompt)
 
 :: 2. Normal launch: Start Native Desktop App via Python
 where python >nul 2>nul

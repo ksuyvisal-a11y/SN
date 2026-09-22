@@ -76,6 +76,12 @@ def index():
     return send_from_directory(str(STATIC_DIR), "index.html")
 
 
+@app.route("/static/<path:filename>")
+def serve_static_alias(filename):
+    """Ensure /static/ prefix always resolves properly to STATIC_DIR."""
+    return send_from_directory(str(STATIC_DIR), filename)
+
+
 @app.route("/favicon.ico")
 @app.route("/icon.ico")
 def favicon():
@@ -942,40 +948,305 @@ def system_default_paths_endpoint():
     })
 
 
-def open_native_windows_folder_dialog(initial_dir: str = "", title: str = "ជ្រើសរើស Folder រឿងភាគ (Select Drama Series Folder)") -> Optional[str]:
+APP_ICON_PATH = str(Path(__file__).resolve().parent / "icon.ico").replace("\\", "/")
+if not os.path.exists(APP_ICON_PATH):
+    APP_ICON_PATH = str(Path(__file__).resolve().parent / "static" / "favicon.ico").replace("\\", "/")
+
+MODERN_FOLDER_PICKER_CS = """
+using System;
+using System.IO;
+using System.Runtime.InteropServices;
+
+[ComImport]
+[Guid("00000114-0000-0000-C000-000000000046")]
+[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface IOleWindow {
+    [PreserveSig] int GetWindow(out IntPtr phwnd);
+    [PreserveSig] int ContextSensitiveHelp(bool fEnterMode);
+}
+
+[ComImport]
+[Guid("43826D1E-E718-42EE-BC55-A1E261C37BFE")]
+[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface IShellItem {
+    void BindToHandler();
+    void GetParent();
+    void GetDisplayName(uint sigdnName, [MarshalAs(UnmanagedType.LPWStr)] out string ppszName);
+    void GetAttributes();
+    void Compare();
+}
+
+[ComImport]
+[Guid("973510DB-7D7F-452B-8975-74A85828D354")]
+[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface IFileDialogEvents {
+    [PreserveSig] int OnFileOk(IntPtr pfd);
+    [PreserveSig] int OnFolderChanging(IntPtr pfd, IntPtr psiFolder);
+    [PreserveSig] int OnFolderChange(IntPtr pfd);
+    [PreserveSig] int OnSelectionChange(IntPtr pfd);
+    [PreserveSig] int OnShareViolation(IntPtr pfd, IntPtr psi, out int pResponse);
+    [PreserveSig] int OnTypeChange(IntPtr pfd);
+    [PreserveSig] int OnOverwrite(IntPtr pfd, IntPtr psi, out int pResponse);
+}
+
+[ComImport]
+[Guid("DC1C5A9C-E88A-4dde-A5A1-60F82A20AEF7")]
+public class FileOpenDialog { }
+
+[ComImport]
+[Guid("42f85136-db7e-439c-85f1-e4075d135fc8")]
+[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface IFileOpenDialog {
+    [PreserveSig] int Show(IntPtr parent);
+    void SetFileTypes();
+    void SetFileTypeIndex();
+    void GetFileTypeIndex();
+    void Advise(IFileDialogEvents pfde, out uint pdwCookie);
+    void Unadvise(uint dwCookie);
+    void SetOptions(uint fos);
+    void GetOptions(out uint fos);
+    void SetDefaultFolder(IShellItem psi);
+    void SetFolder(IShellItem psi);
+    void GetFolder(out IShellItem ppsi);
+    void GetCurrentSelection(out IShellItem ppsi);
+    void SetFileName([MarshalAs(UnmanagedType.LPWStr)] string pszName);
+    void GetFileName([MarshalAs(UnmanagedType.LPWStr)] out string pszName);
+    void SetTitle([MarshalAs(UnmanagedType.LPWStr)] string pszTitle);
+    void SetOkButtonLabel([MarshalAs(UnmanagedType.LPWStr)] string pszText);
+    void SetFileNameLabel([MarshalAs(UnmanagedType.LPWStr)] string pszLabel);
+    void GetResult(out IShellItem ppsi);
+    void AddPlace();
+    void SetDefaultExtension();
+    void Close();
+    void SetClientGuid();
+    void ClearClientData();
+    void SetFilter();
+    void GetResults();
+    void GetSelectedItems();
+}
+
+public class DialogEventHandler : IFileDialogEvents {
+    private object _dialog;
+    private string _iconPath;
+    public DialogEventHandler(object dialog, string iconPath) {
+        _dialog = dialog;
+        _iconPath = iconPath;
+    }
+
+    public int OnFolderChange(IntPtr pfd) {
+        try {
+            var ole = _dialog as IOleWindow;
+            if (ole != null) {
+                IntPtr hwnd;
+                if (ole.GetWindow(out hwnd) == 0) {
+                    ModernFolderPicker.ApplyStyleAndIcon(hwnd, _iconPath);
+                }
+            }
+        } catch { }
+        return 0;
+    }
+
+    public int OnFileOk(IntPtr pfd) { return 0; }
+    public int OnFolderChanging(IntPtr pfd, IntPtr psiFolder) {
+        try {
+            var ole = _dialog as IOleWindow;
+            if (ole != null) {
+                IntPtr hwnd;
+                if (ole.GetWindow(out hwnd) == 0) {
+                    ModernFolderPicker.ApplyStyleAndIcon(hwnd, _iconPath);
+                }
+            }
+        } catch { }
+        return 0;
+    }
+    public int OnSelectionChange(IntPtr pfd) { return 0; }
+    public int OnShareViolation(IntPtr pfd, IntPtr psi, out int pResponse) { pResponse = 0; return 0; }
+    public int OnTypeChange(IntPtr pfd) { return 0; }
+    public int OnOverwrite(IntPtr pfd, IntPtr psi, out int pResponse) { pResponse = 0; return 0; }
+}
+
+public class ModernFolderPicker {
+    [DllImport("user32.dll")]
+    public static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
+
+    [DllImport("shcore.dll")]
+    public static extern int SetProcessDpiAwareness(int awareness);
+
+    [DllImport("user32.dll")]
+    public static extern bool SetProcessDPIAware();
+
+    [DllImport("user32.dll")]
+    private static extern int GetSystemMetrics(int nIndex);
+
+    private const int SM_CXICON = 11;
+    private const int SM_CYICON = 12;
+    private const int SM_CXSMICON = 49;
+    private const int SM_CYSMICON = 50;
+
+    public static void EnableHighDpi() {
+        try {
+            // Per-Monitor V2 High DPI Awareness (eliminates blurriness on 125%, 150%, 175%, 200% scaling!)
+            if (!SetProcessDpiAwarenessContext((IntPtr)(-4))) {
+                SetProcessDpiAwareness(2);
+            }
+        } catch {
+            try {
+                SetProcessDPIAware();
+            } catch { }
+        }
+    }
+
+    [DllImport("shell32.dll")]
+    private static extern int SHCreateItemFromParsingName(
+        [MarshalAs(UnmanagedType.LPWStr)] string pszPath,
+        IntPtr pbc,
+        [In, MarshalAs(UnmanagedType.LPStruct)] Guid riid,
+        [Out, MarshalAs(UnmanagedType.Interface)] out IShellItem ppv);
+
+    [DllImport("dwmapi.dll")]
+    public static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    public static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    public static extern IntPtr LoadImage(IntPtr hinst, string lpszName, uint uType, int cxDesired, int cyDesired, uint fuLoad);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetForegroundWindow();
+
+    public const int DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1 = 19;
+    public const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+
+    private const uint WM_SETICON = 0x0080;
+    private const uint IMAGE_ICON = 1;
+    private const uint LR_LOADFROMFILE = 0x00000010;
+
+    public static void ApplyStyleAndIcon(IntPtr hwnd, string iconPath) {
+        if (hwnd == IntPtr.Zero) return;
+        try {
+            int darkMode = 1;
+            DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref darkMode, sizeof(int));
+            DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1, ref darkMode, sizeof(int));
+
+            if (!string.IsNullOrEmpty(iconPath) && File.Exists(iconPath)) {
+                int cxSmall = GetSystemMetrics(SM_CXSMICON);
+                int cySmall = GetSystemMetrics(SM_CYSMICON);
+                int cxBig = GetSystemMetrics(SM_CXICON);
+                int cyBig = GetSystemMetrics(SM_CYICON);
+                if (cxSmall <= 0) cxSmall = 16;
+                if (cySmall <= 0) cySmall = 16;
+                if (cxBig <= 0) cxBig = 32;
+                if (cyBig <= 0) cyBig = 32;
+
+                IntPtr hSmall = LoadImage(IntPtr.Zero, iconPath, IMAGE_ICON, cxSmall, cySmall, LR_LOADFROMFILE);
+                if (hSmall != IntPtr.Zero) {
+                    SendMessage(hwnd, WM_SETICON, (IntPtr)0, hSmall);
+                }
+                IntPtr hBig = LoadImage(IntPtr.Zero, iconPath, IMAGE_ICON, cxBig, cyBig, LR_LOADFROMFILE);
+                if (hBig != IntPtr.Zero) {
+                    SendMessage(hwnd, WM_SETICON, (IntPtr)1, hBig);
+                }
+            }
+        } catch { }
+    }
+
+    public static string ShowDialog(string initialPath, string title, string iconPath, IntPtr owner) {
+        var dialog = (IFileOpenDialog)new FileOpenDialog();
+        uint FOS_PICKFOLDERS = 0x00000020;
+        uint FOS_FORCEFILESYSTEM = 0x00000040;
+        uint FOS_NOVALIDATE = 0x00000100;
+        uint FOS_NOTESTFILECREATE = 0x00010000;
+        uint FOS_PATHMUSTEXIST = 0x00000800;
+        dialog.SetOptions(FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_NOVALIDATE | FOS_NOTESTFILECREATE | FOS_PATHMUSTEXIST);
+
+        if (!string.IsNullOrEmpty(title)) {
+            dialog.SetTitle(title);
+            dialog.SetOkButtonLabel("Select Folder");
+        }
+
+        if (!string.IsNullOrEmpty(initialPath) && Directory.Exists(initialPath)) {
+            IShellItem folderItem;
+            Guid riid = new Guid("43826D1E-E718-42EE-BC55-A1E261C37BFE");
+            if (SHCreateItemFromParsingName(initialPath, IntPtr.Zero, riid, out folderItem) == 0) {
+                dialog.SetFolder(folderItem);
+            }
+        }
+
+        uint cookie = 0;
+        var handler = new DialogEventHandler(dialog, iconPath);
+        try {
+            dialog.Advise(handler, out cookie);
+        } catch { }
+
+        int hr = dialog.Show(owner);
+
+        if (cookie != 0) {
+            try { dialog.Unadvise(cookie); } catch { }
+        }
+
+        if (hr == 0) {
+            IShellItem result;
+            dialog.GetResult(out result);
+            string path;
+            result.GetDisplayName(0x80058000, out path); // SIGDN_FILESYSPATH
+            return path;
+        }
+        return null;
+    }
+}
+"""
+
+
+def open_native_windows_folder_dialog(initial_dir: str = "", title: str = "Select the folder that holds the episodes") -> Optional[str]:
     """
-    Open native Windows folder picker safely using PowerShell -STA -EncodedCommand.
-    Runs in an isolated PowerShell process with a TopMost owner form so it appears on top.
+    Open modern native Windows File Explorer folder picker safely using PowerShell -STA -EncodedCommand.
+    Uses modern Vista/Win10/Win11 IFileOpenDialog with full File Explorer GUI (navigation pane, address bar, drives),
+    Per-Monitor V2 High DPI crisp font rendering, and SN Tool official logo icon.
     Guaranteed: NEVER calls sys.executable, avoiding PyInstaller child restarts and taskkill issues.
     """
     if not initial_dir or not os.path.exists(initial_dir):
         initial_dir = "D:/" if os.path.exists("D:/") else "C:/"
     init_dir_esc = str(Path(initial_dir).resolve()).replace("'", "''")
     title_esc = str(title).replace("'", "''")
+    icon_esc = str(APP_ICON_PATH).replace("'", "''")
 
     ps_code = f"""
-Add-Type -AssemblyName System.Windows.Forms
-$f = New-Object System.Windows.Forms.FolderBrowserDialog
-$f.Description = '{title_esc}'
-$f.ShowNewFolderButton = $false
-$initDir = '{init_dir_esc}'
-if (Test-Path $initDir) {{
-    $f.SelectedPath = $initDir
+try {{
+    Add-Type -TypeDefinition @'
+{MODERN_FOLDER_PICKER_CS}
+'@
+    [ModernFolderPicker]::EnableHighDpi()
+    $owner = [ModernFolderPicker]::GetForegroundWindow()
+    $res = [ModernFolderPicker]::ShowDialog('{init_dir_esc}', '{title_esc}', '{icon_esc}', $owner)
+    if ($res) {{
+        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+        Write-Output ("RESULT:" + $res)
+    }} else {{
+        Write-Output "CANCELLED"
+    }}
+    exit 0
+}} catch {{
+    # Fallback only if COM compilation fails completely
+    Add-Type -AssemblyName System.Windows.Forms
+    $f = New-Object System.Windows.Forms.OpenFileDialog
+    $f.Title = '{title_esc}'
+    $f.ValidateNames = $false
+    $f.CheckFileExists = $false
+    $f.CheckPathExists = $true
+    $f.FileName = "Select Folder Here"
+    $initDir = '{init_dir_esc}'
+    if (Test-Path $initDir) {{ $f.InitialDirectory = $initDir }}
+    $res = $f.ShowDialog()
+    if ($res -eq [System.Windows.Forms.DialogResult]::OK) {{
+        $folder = [System.IO.Path]::GetDirectoryName($f.FileName)
+        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+        Write-Output ("RESULT:" + $folder)
+    }} else {{
+        Write-Output "CANCELLED"
+    }}
+    exit 0
 }}
-$topForm = New-Object System.Windows.Forms.Form
-$topForm.TopMost = $true
-$topForm.Width = 1
-$topForm.Height = 1
-$topForm.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
-$res = $f.ShowDialog($topForm)
-if ($res -eq [System.Windows.Forms.DialogResult]::OK) {{
-    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-    Write-Output ("RESULT:" + $f.SelectedPath)
-}} else {{
-    Write-Output "CANCELLED"
-}}
-$topForm.Dispose()
-$f.Dispose()
 """
     try:
         import base64
@@ -999,9 +1270,9 @@ $f.Dispose()
     return None
 
 
-def open_native_windows_files_dialog(initial_dir: str = "", title: str = "ជ្រើសរើសវីដេអូរឿងភាគ (Select Drama Videos)") -> List[str]:
+def open_native_windows_files_dialog(initial_dir: str = "", title: str = "Select the video files for the drama series") -> List[str]:
     """
-    Open native Windows multi-file picker safely using PowerShell -STA -EncodedCommand.
+    Open native Windows multi-file picker safely using PowerShell -STA -EncodedCommand with High DPI support.
     Guaranteed safe across all Windows environments without invoking sys.executable.
     """
     if not initial_dir or not os.path.exists(initial_dir):
@@ -1011,6 +1282,13 @@ def open_native_windows_files_dialog(initial_dir: str = "", title: str = "ជ្
 
     ps_code = f"""
 Add-Type -AssemblyName System.Windows.Forms
+try {{
+    Add-Type -TypeDefinition @'
+{MODERN_FOLDER_PICKER_CS}
+'@
+    [ModernFolderPicker]::EnableHighDpi()
+}} catch {{ }}
+
 $f = New-Object System.Windows.Forms.OpenFileDialog
 $f.Title = '{title_esc}'
 $f.Filter = 'Video Files (*.mp4;*.mkv;*.mov;*.avi;*.webm;*.flv;*.ts;*.m4v)|*.mp4;*.mkv;*.mov;*.avi;*.webm;*.flv;*.ts;*.m4v|All Files (*.*)|*.*'
@@ -1019,12 +1297,7 @@ $initDir = '{init_dir_esc}'
 if (Test-Path $initDir) {{
     $f.InitialDirectory = $initDir
 }}
-$topForm = New-Object System.Windows.Forms.Form
-$topForm.TopMost = $true
-$topForm.Width = 1
-$topForm.Height = 1
-$topForm.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
-$res = $f.ShowDialog($topForm)
+$res = $f.ShowDialog()
 if ($res -eq [System.Windows.Forms.DialogResult]::OK) {{
     [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
     $json = ConvertTo-Json -Compress @($f.FileNames)
@@ -1032,8 +1305,8 @@ if ($res -eq [System.Windows.Forms.DialogResult]::OK) {{
 }} else {{
     Write-Output "CANCELLED"
 }}
-$topForm.Dispose()
 $f.Dispose()
+exit 0
 """
     try:
         import base64
@@ -1066,7 +1339,7 @@ def system_select_folder_endpoint():
     if request.is_json:
         data = request.get_json(silent=True) or {}
     initial_dir = data.get("initial_dir", "")
-    chosen_path = open_native_windows_folder_dialog(initial_dir, title="Select Download Save Folder (Drive C: or Drive D:)")
+    chosen_path = open_native_windows_folder_dialog(initial_dir, title="Select Download Save Folder")
     if chosen_path:
         return jsonify({"success": True, "path": chosen_path})
     return jsonify({"success": False, "cancelled": True})
@@ -1080,7 +1353,7 @@ def system_select_media_files_endpoint():
         data = request.get_json(silent=True) or {}
     initial_dir = data.get("initial_dir", "")
 
-    chosen_files = open_native_windows_files_dialog(initial_dir, title="ជ្រើសរើសវីដេអូរឿងភាគ (Select Drama Videos)")
+    chosen_files = open_native_windows_files_dialog(initial_dir, title="Select the video files for the drama series")
 
     if chosen_files:
         valid_exts = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".flv", ".ts", ".m4v", ".wmv"}
@@ -1113,7 +1386,7 @@ def system_select_media_folder_endpoint():
         data = request.get_json(silent=True) or {}
     initial_dir = data.get("initial_dir", "")
 
-    chosen_folder = open_native_windows_folder_dialog(initial_dir, title="ជ្រើសរើស Folder រឿងភាគ (Select Drama Series Folder)")
+    chosen_folder = open_native_windows_folder_dialog(initial_dir, title="Select the folder that holds the episodes")
 
     if not chosen_folder or not os.path.exists(chosen_folder):
         return jsonify({"success": False, "cancelled": True, "files": []})
@@ -1285,7 +1558,7 @@ def auto_dub_video_endpoint():
         data = request.get_json(force=True) or {}
         saved_video_path = data.get("filepath")
         if saved_video_path:
-            original_filename = Path(saved_video_path).name
+            original_filename = data.get("filename") or Path(saved_video_path).name
             mode = data.get("drama_mode", mode)
             source_lang = data.get("source_lang", source_lang)
             voice_override = data.get("voice_override", voice_override)
@@ -1293,6 +1566,9 @@ def auto_dub_video_endpoint():
             if "burn_subtitles" in data:
                 val = data["burn_subtitles"]
                 burn_subtitles = val if isinstance(val, bool) else str(val).lower() in ("true", "1", "yes")
+    elif request.form.get("filepath"):
+        saved_video_path = request.form.get("filepath")
+        original_filename = request.form.get("filename") or Path(saved_video_path).name
 
     if not voice_override or voice_override in ("auto", "", None):
         cfg = load_stored_story_config()

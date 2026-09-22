@@ -20,13 +20,7 @@ DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
 # Dynamic platform registry matching user preferences
 SUPPORTED_PLATFORMS: List[Dict[str, Any]] = [
     {"id": "all", "name": "All platforms", "icon": "fa-solid fa-globe", "count": 0},
-    {"id": "anyreel", "name": "AnyReel", "icon": "fa-solid fa-video", "count": 0},
-    {"id": "dramabite", "name": "DramaBite", "icon": "fa-solid fa-fire-flame-curved", "count": 0},
-    {"id": "dramabox", "name": "DramaBox", "icon": "fa-solid fa-box", "count": 0},
-    {"id": "dramacool", "name": "DramaCool", "icon": "fa-solid fa-snowflake", "count": 0},
-    {"id": "dramapops", "name": "DramaPops", "icon": "fa-solid fa-fire", "count": 0},
-    {"id": "shortmax", "name": "ShortMax", "icon": "fa-solid fa-arrow-trend-up", "count": 0},
-    {"id": "tiktok", "name": "TikTok / Douyin", "icon": "fa-brands fa-tiktok", "count": 0},
+    {"id": "hongguo", "name": "Hongguo", "logo": "hongguo_logo.png", "icon": "fa-solid fa-play", "count": 0},
 ]
 
 # Dynamic user drama catalog (clean - populated only when user analyzes or uploads drama)
@@ -114,17 +108,17 @@ class DramaDownloadManager:
         
         if not matched_drama:
             # Fallback: create dynamic entry
-            platform_name = "DramaBox" if "dramabox" in url_lower else "DramaShorts" if "short" in url_lower else "Web Media"
+            platform_name = "Hongguo"
             matched_drama = {
                 "id": f"drama_{int(time.time())}",
-                "title": re.sub(r'https?://[^/]+/', '', url).split('?')[0].replace('-', ' ').title() or "Analyzed Online Drama",
+                "title": re.sub(r'https?://[^/]+/', '', url).split('?')[0].replace('-', ' ').title() or "Hongguo Short Drama",
                 "platform": platform_name,
-                "platform_id": platform_name.lower(),
+                "platform_id": "hongguo",
                 "total_episodes": 40,
                 "locked_episodes": 0,
                 "poster": "vertical_drama_sample.jpg",
                 "description": f"Imported series stream from {url}. Full episode manifest fetched.",
-                "tags": ["Online Stream", "Short Drama"],
+                "tags": ["Hongguo Stream", "Short Drama"],
                 "rating": "4.9",
                 "release_year": "2024"
             }

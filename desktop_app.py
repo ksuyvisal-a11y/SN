@@ -16,8 +16,21 @@ multiprocessing.freeze_support()
 if len(sys.argv) > 1 and sys.argv[1] in ("-c", "--help", "-h"):
     sys.exit(0)
 
-# Enable utf-8 output in Windows terminal
+# Enable native Per-Monitor V2 High DPI on Windows (crystal clear UI & dialogs)
 if sys.platform == "win32":
+    try:
+        import ctypes
+        ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
+    except Exception:
+        try:
+            import ctypes
+            ctypes.windll.shcore.SetProcessDpiAwareness(2)
+        except Exception:
+            try:
+                import ctypes
+                ctypes.windll.user32.SetProcessDPIAware()
+            except Exception:
+                pass
     try:
         sys.stdout.reconfigure(encoding="utf-8")
         sys.stderr.reconfigure(encoding="utf-8")

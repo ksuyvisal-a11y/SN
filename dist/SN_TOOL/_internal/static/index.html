@@ -208,7 +208,7 @@
                                         <button type="button" class="staged-voice-chip active" id="voice-chip-piseth" onclick="selectQuickVoice('piseth')">
                                             <div class="staged-chip-top-row">
                                                 <div class="staged-chip-radio"><i class="fa-solid fa-check"></i></div>
-                                                <div class="staged-chip-tag">⭐ ណែនាំខ្ពស់</div>
+                                                <div class="staged-chip-tag"><i class="fa-solid fa-circle-check" style="font-size:0.65rem; margin-right:3px;"></i> PRIMARY TRACK</div>
                                             </div>
                                             <div class="staged-chip-body">
                                                 <div class="staged-chip-icon-box">
@@ -225,7 +225,7 @@
                                         <button type="button" class="staged-voice-chip" id="voice-chip-sreymom" onclick="selectQuickVoice('sreymom')">
                                             <div class="staged-chip-top-row">
                                                 <div class="staged-chip-radio"><i class="fa-solid fa-check"></i></div>
-                                                <div class="staged-chip-tag-empty">🎙️ តួស្រីទោល</div>
+                                                <div class="staged-chip-tag-empty"><i class="fa-solid fa-waveform" style="font-size:0.65rem; margin-right:3px;"></i> SECONDARY TRACK</div>
                                             </div>
                                             <div class="staged-chip-body">
                                                 <div class="staged-chip-icon-box">
@@ -244,8 +244,12 @@
                                 <div class="staged-action-cta-row">
                                     <div class="staged-cta-hint">
                                         <i class="fa-solid fa-circle-info" style="color:#facc15;"></i>
-                                        <span>ជ្រើសរើសសំឡេងរួចរាល់ សូមចុច <strong>Export</strong> នៅខាងលើ ដើម្បីជ្រើសរើសទម្រង់វីដេអូ</span>
+                                        <span>ជ្រើសរើសសំឡេងរួចរាល់ សូមចុច <strong>Export</strong> ខាងលើ ឬចុចប៊ូតុងខាងស្តាំ</span>
                                     </div>
+                                    <button type="button" class="staged-main-export-btn" id="btn-staged-export-direct" onclick="startStudioExportJob()" title="Start Dubbing & Export Video">
+                                        <i class="fa-solid fa-bolt"></i>
+                                        <span>Export ឥឡូវនេះ (Start Export)</span>
+                                    </button>
                                 </div>
                             </div>
 
@@ -267,13 +271,13 @@
                             </div>
 
                             <div class="studio-preset-cards-grid">
-                                <!-- Card 1: 🎬 Drama Dubbing Mode (16:9 / 9:16) -->
+                                <!-- Card 1: Drama Dubbing Mode (16:9 / 9:16) -->
                                 <div class="studio-preset-card active" id="card-preset-drama" onclick="selectStudioPreset('drama')">
                                     <div class="preset-card-icon-wrap">
                                         <i class="fa-solid fa-clapperboard"></i>
                                     </div>
                                     <div class="preset-card-body">
-                                        <div class="preset-card-title">🎬 Drama Dubbing Mode</div>
+                                        <div class="preset-card-title">Drama Dubbing Mode</div>
                                         <div class="preset-card-subtitle">(16:9 / 9:16)</div>
                                         <div class="preset-card-desc">Dual aspect ratio video dubbing, frame-accurate timeline re-framing and lip-sync alignment.</div>
                                     </div>
@@ -283,13 +287,13 @@
                                     </div>
                                 </div>
 
-                                <!-- Card 2: 🎙️ Voiceover Narration (Piseth / Sreymom Audio) -->
+                                <!-- Card 2: Voiceover Narration (Piseth / Sreymom Audio) -->
                                 <div class="studio-preset-card" id="card-preset-narration" onclick="selectStudioPreset('narration')">
                                     <div class="preset-card-icon-wrap">
                                         <i class="fa-solid fa-microphone-lines"></i>
                                     </div>
                                     <div class="preset-card-body">
-                                        <div class="preset-card-title">🎙️ Voiceover Narration</div>
+                                        <div class="preset-card-title">Voiceover &amp; Narration</div>
                                         <div class="preset-card-subtitle">(Piseth / Sreymom Audio)</div>
                                         <div class="preset-card-desc">Expressive cinematic dual-speaker narration with natural Khmer tone modulation and clarity.</div>
                                     </div>
@@ -299,14 +303,14 @@
                                     </div>
                                 </div>
 
-                                <!-- Card 3: 📝 Subtitle Extraction & Khmer Sync -->
+                                <!-- Card 3: Subtitle Extraction & Khmer Sync -->
                                 <div class="studio-preset-card" id="card-preset-subtitle" onclick="selectStudioPreset('subtitle')">
                                     <div class="preset-card-icon-wrap">
                                         <i class="fa-solid fa-closed-captioning"></i>
                                     </div>
                                     <div class="preset-card-body">
-                                        <div class="preset-card-title">📝 Subtitle Extraction & Khmer Sync</div>
-                                        <div class="preset-card-subtitle">(Speech Recognition & Subtitle Sync)</div>
+                                        <div class="preset-card-title">Speech-to-Text &amp; Khmer Sync</div>
+                                        <div class="preset-card-subtitle">(Speech Recognition &amp; Subtitle Sync)</div>
                                         <div class="preset-card-desc">High-precision acoustic speech recognition, automatic timestamp extraction and Khmer subtitle sync.</div>
                                     </div>
                                     <div class="preset-card-footer">
@@ -419,40 +423,34 @@
                         <!-- Populated dynamically via JS -->
                     </div>
 
-                    <!-- Save Location Section -->
+                    <!-- Save Location Section (Clean Modern Style matching Image 2, Cyber-Gold Theme) -->
                     <div class="dl-save-location-box">
-                        <div class="dl-location-header-row">
-                            <div class="dl-section-header-title">
-                                <i class="fa-solid fa-hard-drive" style="color: #facc15; margin-right: 4px;"></i> SAVE LOCATION
-                            </div>
-                            <button type="button" class="dl-btn-open-explorer" onclick="openSaveLocationInExplorer()" title="Open Folder in Windows Explorer">
-                                <i class="fa-solid fa-folder-open"></i> Open Folder
+                        <div class="dl-clean-save-title">SAVE LOCATION</div>
+
+                        <!-- Path Input & Folder Picker Button -->
+                        <div class="dl-clean-path-row">
+                            <input type="text" id="dl-save-path-input" value="D:/SN_Dramas" spellcheck="false" placeholder="Select save folder..." title="Click folder icon to change directory or paste path">
+                            <button type="button" class="dl-clean-folder-btn" onclick="browseSaveLocation()" title="Select folder on Laptop">
+                                <i class="fa-solid fa-folder"></i>
                             </button>
                         </div>
 
-                        <!-- Drive C: & Drive D: Selection -->
-                        <div class="dl-drive-toggle-row">
-                            <button type="button" class="dl-drive-btn" id="btn-drive-c" onclick="selectDrive('C')" title="Save on Local Disk (C:)">
-                                <i class="fa-solid fa-hard-drive"></i> Drive C:
-                            </button>
-                            <button type="button" class="dl-drive-btn active" id="btn-drive-d" onclick="selectDrive('D')" title="Save on Local Disk (D:)">
-                                <i class="fa-solid fa-hard-drive"></i> Drive D:
-                            </button>
-                        </div>
-                        
-                        <div class="dl-path-input-group">
-                            <input type="text" id="dl-save-path-input" value="D:/SN_Dramas" spellcheck="false" title="Click Browse to select folder on Laptop">
-                            <button type="button" class="dl-browse-folder-btn" onclick="browseSaveLocation()" title="Select folder on Laptop">
-                                <i class="fa-solid fa-folder-tree"></i> Browse...
-                            </button>
-                        </div>
+                        <!-- Save drama poster Checkbox -->
+                        <label class="dl-clean-checkbox-row" for="dl-save-poster-check">
+                            <input type="checkbox" id="dl-save-poster-check" checked>
+                            <span class="dl-custom-checkbox"><i class="fa-solid fa-check"></i></span>
+                            <span class="dl-checkbox-text">Save drama poster</span>
+                        </label>
 
-                        <div class="dl-action-buttons-stack">
-                            <button type="button" class="dl-big-btn-yellow" id="btn-dl-start-batch" onclick="startBatchDownload()">
-                                <i class="fa-solid fa-cloud-arrow-down"></i> Download Selected
+                        <!-- Download Action Buttons Stack -->
+                        <div class="dl-clean-action-stack">
+                            <button type="button" class="dl-clean-btn-start dl-big-btn-yellow" id="btn-dl-start-batch" onclick="startBatchDownload()">
+                                <i class="fa-solid fa-play"></i>
+                                <span>Download selected</span>
                             </button>
-                            <button type="button" class="dl-btn-dark-outline" id="btn-dl-stop-batch" onclick="stopBatchDownload()">
-                                <i class="fa-solid fa-stop"></i> Stop Download
+                            <button type="button" class="dl-clean-btn-stop dl-btn-dark-outline" id="btn-dl-stop-batch" onclick="stopBatchDownload()">
+                                <i class="fa-solid fa-square"></i>
+                                <span>Stop download</span>
                             </button>
                         </div>
                     </div>
@@ -469,7 +467,7 @@
                             </div>
                         </div>
                         <div class="dl-input-analyze-row">
-                            <input type="text" class="dl-link-input-box" id="dl-link-url-input" placeholder="Paste a All platforms URL..." onkeydown="handleDlLinkKey(event)">
+                            <input type="text" class="dl-link-input-box" id="dl-link-url-input" placeholder="Paste a Hongguo URL..." onkeydown="handleDlLinkKey(event)">
                             <button class="dl-btn-analyze-yellow" onclick="analyzeEnteredLink()">
                                 <i class="fa-solid fa-magnifying-glass"></i> Analyze
                             </button>
@@ -477,7 +475,7 @@
                     </div>
 
                     <div class="dl-catalog-count-badge" id="dl-catalog-count-label">
-                        <i class="fa-solid fa-globe"></i> All platforms (0)
+                        <img src="hongguo_logo.png" class="dl-platform-icon-img" style="vertical-align:middle; margin-right:6px;" alt=""> Hongguo (0)
                     </div>
 
                     <!-- Drama Cards Grid (3 Columns) -->
@@ -497,7 +495,7 @@
                             </div>
                             <div class="dl-info-text-col">
                                 <div class="dl-info-title-main" id="dl-info-title-text">No drama loaded</div>
-                                <div class="dl-info-platform-tag" id="dl-info-platform-badge">ALL PLATFORMS</div>
+                                <div class="dl-info-platform-tag" id="dl-info-platform-badge">HONGGUO</div>
                                 <div class="dl-info-stats-row" id="dl-info-stats-text">Episodes 0 • Locked 0 • Selected 0</div>
                             </div>
                         </div>
@@ -577,15 +575,15 @@
                     <button class="modal-close-icon-btn" onclick="closeModal('modal-settings')">✕</button>
                 </div>
                 <div class="modal-inner-body" id="settings-main-hub-view">
-                    <!-- Row 1: Studio Translation Engine (AI Providing) -->
+                    <!-- Row 1: Studio Translation Engine (Engine & Keys) -->
                     <div class="modal-nav-row-card" onclick="openAiProvidingModal()">
                         <div class="modal-card-left-col">
                             <div class="modal-icon-badge badge-engine">
-                                <span style="font-size:1.05rem;">🤖</span>
+                                <i class="fa-solid fa-server" style="font-size:1rem; color:#facc15;"></i>
                             </div>
                             <div class="modal-card-titles">
-                                <div class="modal-card-title-main">AI Providing & Key Pool</div>
-                                <div class="modal-card-desc-sub">AI translation engine, models & Gemini API key pool</div>
+                                <div class="modal-card-title-main">Studio Engine &amp; API Keys</div>
+                                <div class="modal-card-desc-sub">Translation engine, audio stem models &amp; API keys</div>
                             </div>
                         </div>
                         <i class="fa-solid fa-chevron-right modal-chevron-arrow"></i>
@@ -654,7 +652,7 @@
                         </div>
                     </div>
 
-                    <label style="font-size:0.75rem; color:#cbd5e1; margin-top:12px; display:block;">🔑 Enter / Renew VIP License Key</label>
+                    <label style="font-size:0.75rem; color:#cbd5e1; margin-top:12px; display:block;"><i class="fa-solid fa-key" style="color:#facc15; margin-right:4px;"></i> Enter / Renew VIP License Key</label>
                     <input type="text" id="input-license-key" placeholder="SN-VIP-XXXX-XXXX-XXXX-XXXX" style="background:#080603; border:1px solid var(--border-subtle); border-radius:5px; padding:8px 10px; font-size:0.75rem; color:#fff; font-family:var(--font-mono); text-transform:uppercase;">
                     <button class="dl-big-btn-yellow" style="margin-top:8px;" onclick="confirmActivateLicense()"><i class="fa-solid fa-shield-halved"></i> Update / Activate License</button>
                 </div>
@@ -692,46 +690,46 @@
                     <!-- Left Sidebar Navigation -->
                     <aside class="ai-providing-sidebar">
                         <button type="button" class="ai-sidebar-tab active" id="story-tab-btn-voice" onclick="switchStoryTab('voice')">
-                            <span class="ai-tab-icon">🎙️</span>
-                            <span class="ai-tab-label">Voice & AI</span>
+                            <i class="fa-solid fa-microphone-lines ai-tab-icon-fa" style="color:var(--gold-glow);"></i>
+                            <span class="ai-tab-label">Voice &amp; Language</span>
                         </button>
                         <button type="button" class="ai-sidebar-tab" id="story-tab-btn-video" onclick="switchStoryTab('video')">
-                            <span class="ai-tab-icon">🎬</span>
-                            <span class="ai-tab-label">Video & Look</span>
+                            <i class="fa-solid fa-film ai-tab-icon-fa" style="color:var(--gold-glow);"></i>
+                            <span class="ai-tab-label">Video &amp; Framing</span>
                         </button>
                         <button type="button" class="ai-sidebar-tab" id="story-tab-btn-audio" onclick="switchStoryTab('audio')">
-                            <span class="ai-tab-icon">🎵</span>
-                            <span class="ai-tab-label">Audio & Music</span>
+                            <i class="fa-solid fa-sliders ai-tab-icon-fa" style="color:var(--gold-glow);"></i>
+                            <span class="ai-tab-label">Audio &amp; Ducking</span>
                         </button>
                         <button type="button" class="ai-sidebar-tab" id="story-tab-btn-vocal" onclick="switchStoryTab('vocal')">
-                            <span class="ai-tab-icon">⚡</span>
+                            <i class="fa-solid fa-layer-group ai-tab-icon-fa" style="color:var(--gold-glow);"></i>
                             <span class="ai-tab-label">Vocal Separation</span>
                         </button>
                         <button type="button" class="ai-sidebar-tab" id="story-tab-btn-export" onclick="switchStoryTab('export')">
-                            <span class="ai-tab-icon">📁</span>
-                            <span class="ai-tab-label">Export & Path</span>
+                            <i class="fa-solid fa-folder-open ai-tab-icon-fa" style="color:var(--gold-glow);"></i>
+                            <span class="ai-tab-label">Export &amp; Output</span>
                         </button>
                         <button type="button" class="ai-sidebar-tab" id="story-tab-btn-dictionary" onclick="switchStoryTab('dictionary')">
-                            <span class="ai-tab-icon">📚</span>
-                            <span class="ai-tab-label">Drama Dictionary</span>
+                            <i class="fa-solid fa-book-bookmark ai-tab-icon-fa" style="color:var(--gold-glow);"></i>
+                            <span class="ai-tab-label">Drama Terminology</span>
                         </button>
                     </aside>
 
                     <!-- Right Main Content Area -->
                     <section class="ai-providing-main">
-                        <!-- TAB 1: Voice & AI -->
+                        <!-- TAB 1: Voice & Language -->
                         <div class="ai-tab-view" id="story-view-voice">
                             <div class="ai-view-header">
-                                <h2 class="ai-view-title">Voice & AI</h2>
-                                <p class="ai-view-subtitle">Dubbing voice, AI model & translation engine</p>
+                                <h2 class="ai-view-title">Voice &amp; Language</h2>
+                                <p class="ai-view-subtitle">Dubbing vocal track, whisper transcription model &amp; translation engine</p>
                             </div>
 
                             <div class="ai-card-frame">
                                 <div class="ai-field-group">
                                     <label class="ai-field-label">KHMER VOICE (ជ្រើសរើសសំឡេងបកប្រែ)</label>
                                     <select id="story-voice-select" class="ai-gold-select" onchange="onStoryVoiceChange()">
-                                        <option value="piseth" selected>Piseth (សំឡេងប្រុសទោល / Male Solo - ណែនាំ)</option>
-                                        <option value="sreymom">Sreymom (សំឡេងស្រីទោល / Female Solo)</option>
+                                        <option value="piseth" selected>Piseth (ប្រុសទោល / Male Solo - Primary Track)</option>
+                                        <option value="sreymom">Sreymom (ស្រីទោល / Female Solo - Secondary Track)</option>
                                     </select>
                                     <p id="story-voice-hint" class="ai-field-hint" style="margin-top:6px; margin-bottom:14px; color: var(--gold-glow); font-size: 0.82rem; line-height:1.45;"></p>
                                 </div>
@@ -760,10 +758,10 @@
                                 </div>
 
                                 <div class="ai-field-group">
-                                    <label class="ai-field-label">AI PROVIDER</label>
+                                    <label class="ai-field-label">TRANSLATION ENGINE</label>
                                     <div style="display:flex; justify-content:space-between; align-items:center; background:#0c0904; border:1px solid rgba(250, 204, 21, 0.25); border-radius:6px; padding:8px 12px;">
-                                        <span id="story-ai-provider-display" style="font-size:0.82rem; font-weight:600; color:#fff;">Free AI (g4f)</span>
-                                        <button type="button" class="ai-outline-action-btn" onclick="openAiProvidingModal()" style="padding:4px 12px; font-size:0.74rem;">AI Providing...</button>
+                                        <span id="story-ai-provider-display" style="font-size:0.82rem; font-weight:600; color:#fff;">Built-in Studio Engine (Standard)</span>
+                                        <button type="button" class="ai-outline-action-btn" onclick="openAiProvidingModal()" style="padding:4px 12px; font-size:0.74rem;">Studio Engine...</button>
                                     </div>
                                 </div>
                             </div>
@@ -789,9 +787,9 @@
                                 <div class="ai-field-group">
                                     <label class="ai-field-label">SUBTITLE MODE (ការបង្ហាញអក្សររត់លើវីដេអូ)</label>
                                     <select id="story-subtitle-mode" class="ai-gold-select">
-                                        <option value="none" selected>❌ No Subtitles / Hide (Dubbed Voice Only - លាក់អក្សររត់)</option>
-                                        <option value="burn">✅ Burn Subtitles into Video (Hardsub - បង្ហាញអក្សររត់)</option>
-                                        <option value="srt">📄 Export Separate .SRT Subtitle File</option>
+                                        <option value="none" selected>No Subtitles / Hide (Dubbed Voice Only - លាក់អក្សររត់)</option>
+                                        <option value="burn">Burn Subtitles into Video (Hardsub - បង្ហាញអក្សររត់)</option>
+                                        <option value="srt">Export Separate .SRT Subtitle File</option>
                                     </select>
                                 </div>
                             </div>
@@ -800,7 +798,7 @@
                         <!-- TAB 3: Audio & Music -->
                         <div class="ai-tab-view" id="story-view-audio" style="display:none;">
                             <div class="ai-view-header">
-                                <h2 class="ai-view-title">Audio & Music</h2>
+                                <h2 class="ai-view-title">Audio &amp; Ducking</h2>
                                 <p class="ai-view-subtitle">BGM ducking volume and speech clarity</p>
                             </div>
 
@@ -825,17 +823,17 @@
                                         </div>
                                         <input type="range" id="story-ducking-slider" class="ai-gold-slider" min="0" max="40" step="1" value="15" oninput="onStoryDuckingSliderChange(this.value)">
                                         <div class="ai-slider-scale-labels">
-                                            <span>🔇 0% (បិទស្ងាត់)</span>
-                                            <span class="rec">⭐ 15% (ស្តង់ដារពិរោះ)</span>
-                                            <span>🔊 40% (ភ្លេងឮខ្លាំង)</span>
+                                            <span>0% (Mute)</span>
+                                            <span class="rec">15% (Standard)</span>
+                                            <span>40% (Max)</span>
                                         </div>
                                         <div class="ai-slider-presets" id="story-ducking-presets">
-                                            <button type="button" class="ai-preset-chip" data-val="0" onclick="setDuckingPreset(0)">🔇 0% (Mute)</button>
-                                            <button type="button" class="ai-preset-chip" data-val="5" onclick="setDuckingPreset(5)">5% (ស្រាល)</button>
-                                            <button type="button" class="ai-preset-chip" data-val="10" onclick="setDuckingPreset(10)">10% (ទន់)</button>
-                                            <button type="button" class="ai-preset-chip active" data-val="15" onclick="setDuckingPreset(15)">⭐ 15% (ស្តង់ដារ)</button>
-                                            <button type="button" class="ai-preset-chip" data-val="22" onclick="setDuckingPreset(22)">22% (រាងឮ)</button>
-                                            <button type="button" class="ai-preset-chip" data-val="32" onclick="setDuckingPreset(32)">🔊 32% (ច្បាស់)</button>
+                                            <button type="button" class="ai-preset-chip" data-val="0" onclick="setDuckingPreset(0)">0% (Mute)</button>
+                                            <button type="button" class="ai-preset-chip" data-val="5" onclick="setDuckingPreset(5)">5% (Subtle)</button>
+                                            <button type="button" class="ai-preset-chip" data-val="10" onclick="setDuckingPreset(10)">10% (Soft)</button>
+                                            <button type="button" class="ai-preset-chip active" data-val="15" onclick="setDuckingPreset(15)">15% (Standard)</button>
+                                            <button type="button" class="ai-preset-chip" data-val="22" onclick="setDuckingPreset(22)">22% (Moderate)</button>
+                                            <button type="button" class="ai-preset-chip" data-val="32" onclick="setDuckingPreset(32)">32% (High)</button>
                                         </div>
                                     </div>
                                 </div>
@@ -851,16 +849,16 @@
                                         </div>
                                         <input type="range" id="story-speech-slider" class="ai-gold-slider" min="0" max="8" step="0.5" value="2.5" oninput="onStorySpeechSliderChange(this.value)">
                                         <div class="ai-slider-scale-labels">
-                                            <span>0.0 dB (ធម្មតា)</span>
-                                            <span class="rec">⭐ +2.5 dB (ណែនាំ)</span>
-                                            <span>🔥 +8.0 dB (ខ្លាំងបំផុត)</span>
+                                            <span>0.0 dB (Flat)</span>
+                                            <span class="rec">+2.5 dB (Balanced)</span>
+                                            <span>+8.0 dB (Max)</span>
                                         </div>
                                         <div class="ai-slider-presets" id="story-speech-presets">
-                                            <button type="button" class="ai-preset-chip" data-val="0" onclick="setSpeechBoostPreset(0)">0.0 dB (ធម្មតា)</button>
-                                            <button type="button" class="ai-preset-chip" data-val="1.5" onclick="setSpeechBoostPreset(1.5)">+1.5 dB (ស្រទន់)</button>
-                                            <button type="button" class="ai-preset-chip active" data-val="2.5" onclick="setSpeechBoostPreset(2.5)">⭐ +2.5 dB (ណែនាំ)</button>
-                                            <button type="button" class="ai-preset-chip" data-val="4" onclick="setSpeechBoostPreset(4.0)">+4.0 dB (ច្បាស់មាំ)</button>
-                                            <button type="button" class="ai-preset-chip" data-val="6" onclick="setSpeechBoostPreset(6.0)">🔥 +6.0 dB (ខ្លាំង)</button>
+                                            <button type="button" class="ai-preset-chip" data-val="0" onclick="setSpeechBoostPreset(0)">0.0 dB (Flat)</button>
+                                            <button type="button" class="ai-preset-chip" data-val="1.5" onclick="setSpeechBoostPreset(1.5)">+1.5 dB (Subtle)</button>
+                                            <button type="button" class="ai-preset-chip active" data-val="2.5" onclick="setSpeechBoostPreset(2.5)">+2.5 dB (Balanced)</button>
+                                            <button type="button" class="ai-preset-chip" data-val="4" onclick="setSpeechBoostPreset(4.0)">+4.0 dB (Punchy)</button>
+                                            <button type="button" class="ai-preset-chip" data-val="6" onclick="setSpeechBoostPreset(6.0)">+6.0 dB (Heavy)</button>
                                         </div>
                                     </div>
                                 </div>
@@ -871,7 +869,7 @@
                         <div class="ai-tab-view" id="story-view-vocal" style="display:none;">
                             <div class="ai-view-header">
                                 <h2 class="ai-view-title">Vocal Separation</h2>
-                                <p class="ai-view-subtitle">AI audio stem isolation engine</p>
+                                <p class="ai-view-subtitle">Multi-track acoustic stem isolation engine</p>
                             </div>
 
                             <div class="ai-card-frame">
@@ -895,7 +893,7 @@
                         <!-- TAB 5: Export & Path -->
                         <div class="ai-tab-view" id="story-view-export" style="display:none;">
                             <div class="ai-view-header">
-                                <h2 class="ai-view-title">Export & Path</h2>
+                                <h2 class="ai-view-title">Export &amp; Output</h2>
                                 <p class="ai-view-subtitle">Output directories and rendering preferences</p>
                             </div>
 
@@ -914,26 +912,26 @@
                             </div>
                         </div>
 
-                        <!-- TAB 6: Drama Dictionary & Custom Terms -->
+                        <!-- TAB 6: Drama Terminology & Custom Terms -->
                         <div class="ai-tab-view" id="story-view-dictionary" style="display:none;">
                             <div class="ai-view-header">
-                                <h2 class="ai-view-title">Drama Dictionary (វចនានុក្រមរឿង)</h2>
-                                <p class="ai-view-subtitle">Define custom character names, titles & terminology for 100% accurate translation</p>
+                                <h2 class="ai-view-title">Drama Terminology (វចនានុក្រមរឿង)</h2>
+                                <p class="ai-view-subtitle">Define custom character names, titles &amp; terminology for 100% accurate translation</p>
                             </div>
 
                             <div class="ai-card-frame">
                                 <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
-                                    <button type="button" class="ai-outline-action-btn" onclick="applyDramaDictionaryPreset('modern_ceo')" style="padding:4px 10px; font-size:12px;">🏢 CEO / Romance</button>
-                                    <button type="button" class="ai-outline-action-btn" onclick="applyDramaDictionaryPreset('family_inlaw')" style="padding:4px 10px; font-size:12px;">👨‍👩‍👧‍👦 Family &amp; In-Laws</button>
-                                    <button type="button" class="ai-outline-action-btn" onclick="applyDramaDictionaryPreset('palace_royal')" style="padding:4px 10px; font-size:12px;">👑 Royal / Palace</button>
-                                    <button type="button" class="ai-outline-action-btn" onclick="applyDramaDictionaryPreset('wuxia_martial')" style="padding:4px 10px; font-size:12px;">⚔️ Wuxia / Martial Arts</button>
+                                    <button type="button" class="ai-outline-action-btn" onclick="applyDramaDictionaryPreset('modern_ceo')" style="padding:4px 10px; font-size:12px;"><i class="fa-solid fa-briefcase"></i> Modern / CEO</button>
+                                    <button type="button" class="ai-outline-action-btn" onclick="applyDramaDictionaryPreset('family_inlaw')" style="padding:4px 10px; font-size:12px;"><i class="fa-solid fa-users"></i> Family &amp; In-Laws</button>
+                                    <button type="button" class="ai-outline-action-btn" onclick="applyDramaDictionaryPreset('palace_royal')" style="padding:4px 10px; font-size:12px;"><i class="fa-solid fa-crown"></i> Period / Palace</button>
+                                    <button type="button" class="ai-outline-action-btn" onclick="applyDramaDictionaryPreset('wuxia_martial')" style="padding:4px 10px; font-size:12px;"><i class="fa-solid fa-shield-halved"></i> Wuxia / Martial Arts</button>
                                 </div>
 
                                 <div class="ai-field-group">
                                     <label class="ai-field-label">CUSTOM MAPPINGS (ឈ្មោះចិន = ឈ្មោះខ្មែរ / ពាក្យចិន = ពាក្យខ្មែរ)</label>
                                     <textarea id="story-dictionary-textarea" class="ai-editor-textarea" style="height:170px; font-family:monospace; padding:10px; border-radius:6px; border:1px solid rgba(212,175,55,0.3); background:#0c0d10; color:#fff;" placeholder="李沐谦 = លីមូឈៀន&#10;张昭 = ចាងចាវ&#10;总裁 = លោកប្រធាន&#10;婆婆 = ម្តាយក្មេក&#10;龙胎 = កូននាគរាជ"></textarea>
                                     <div class="ai-field-hint" style="color:var(--gold-glow); margin-top:6px;">
-                                        💡 ដាក់មួយជួរមួយពាក្យ តាមទម្រង់៖ <strong>ពាក្យចិន = ពាក្យខ្មែរ</strong>។ AI នឹងបកប្រែចំៗពាក្យដែលបងចង់បាន ១០០%។
+                                        <i class="fa-solid fa-circle-info" style="color:var(--gold-glow); margin-right:4px;"></i> ដាក់មួយជួរមួយពាក្យ តាមទម្រង់៖ <strong>ពាក្យចិន = ពាក្យខ្មែរ</strong>។ ប្រព័ន្ធនឹងបកប្រែចំៗពាក្យដែលបងចង់បាន ១០០%។
                                     </div>
                                 </div>
                             </div>
@@ -959,7 +957,7 @@
         </div>
 
         <!-- ====================================================================
-             MODAL: AI PROVIDING & GEMINI KEY POOL (Exact Match to User Image 2)
+             MODAL: STUDIO ENGINE & API KEY POOL
              Theme: Obsidian Gold & Warm Amber (Matching SN Tool Theme)
              ==================================================================== -->
         <div class="modal-backdrop-overlay" id="modal-ai-providing">
@@ -967,8 +965,8 @@
                 <!-- Top Header Bar -->
                 <div class="modal-top-header">
                     <div class="modal-title">
-                        <span class="ai-header-robot-icon">🤖</span>
-                        <span class="ai-header-title-text">AI Providing</span>
+                        <i class="fa-solid fa-server" style="color:var(--gold-glow); font-size:1.05rem;"></i>
+                        <span class="ai-header-title-text" style="margin-left:4px;">Studio Engine &amp; API Keys</span>
                     </div>
                     <button class="modal-close-icon-btn" onclick="closeModal('modal-ai-providing')">✕</button>
                 </div>
@@ -978,12 +976,12 @@
                     <!-- Left Sidebar Navigation -->
                     <aside class="ai-providing-sidebar">
                         <button type="button" class="ai-sidebar-tab active" id="ai-tab-btn-provider" onclick="switchAiProvidingTab('provider')">
-                            <span class="ai-tab-icon">🤖</span>
-                            <span class="ai-tab-label">Provider Keys</span>
+                            <i class="fa-solid fa-key ai-tab-icon-fa" style="color:var(--gold-glow);"></i>
+                            <span class="ai-tab-label">Engine &amp; Keys</span>
                         </button>
                         <button type="button" class="ai-sidebar-tab" id="ai-tab-btn-models" onclick="switchAiProvidingTab('models')">
-                            <i class="fa-solid fa-bolt ai-tab-icon-fa" style="color:var(--gold-glow);"></i>
-                            <span class="ai-tab-label">Models Editor</span>
+                            <i class="fa-solid fa-sliders ai-tab-icon-fa" style="color:var(--gold-glow);"></i>
+                            <span class="ai-tab-label">Model Parameters</span>
                         </button>
                         <button type="button" class="ai-sidebar-tab" id="ai-tab-btn-backup" onclick="switchAiProvidingTab('backup')">
                             <i class="fa-solid fa-floppy-disk ai-tab-icon-fa" style="color:#f59e0b;"></i>
@@ -993,20 +991,20 @@
 
                     <!-- Right Main Content Area -->
                     <section class="ai-providing-main">
-                        <!-- TAB VIEW 1: Provider & Keys -->
+                        <!-- TAB VIEW 1: Engine & Keys -->
                         <div class="ai-tab-view" id="ai-view-provider">
                             <div class="ai-view-header">
-                                <h2 class="ai-view-title">Provider & Keys</h2>
-                                <p class="ai-view-subtitle">AI provider engine & Gemini API key pool</p>
+                                <h2 class="ai-view-title">Engine &amp; Keys</h2>
+                                <p class="ai-view-subtitle">Translation engine configuration &amp; Gemini API key pool</p>
                             </div>
 
                             <div class="ai-card-frame">
                                 <div class="ai-field-group">
-                                    <label class="ai-field-label">AI TRANSLATION ENGINE (ប្រព័ន្ធបកប្រែ)</label>
+                                    <label class="ai-field-label">TRANSLATION ENGINE (ប្រព័ន្ធបកប្រែ)</label>
                                     <select id="ai-engine-select" class="ai-gold-select" onchange="onAiEngineChange()">
-                                        <option value="auto" selected>⚡ Auto Smart (VIP Dedicated Neural Server - Built-in)</option>
-                                        <option value="gemini_pool">🤖 Custom Gemini Key Pool (Optional)</option>
-                                        <option value="local_drama">🎬 Fast Local Drama Dubbing Engine</option>
+                                        <option value="auto" selected>Auto Smart (Dedicated VIP Engine - Built-in)</option>
+                                        <option value="gemini_pool">Cloud API Engine (Gemini Key Pool)</option>
+                                        <option value="local_drama">Fast Local Drama Engine</option>
                                     </select>
                                 </div>
 
@@ -1038,16 +1036,16 @@
                             </div>
                         </div>
 
-                        <!-- TAB VIEW 2: Models Editor -->
+                        <!-- TAB VIEW 2: Model Parameters -->
                         <div class="ai-tab-view" id="ai-view-models" style="display:none;">
                             <div class="ai-view-header">
-                                <h2 class="ai-view-title">Models Editor</h2>
+                                <h2 class="ai-view-title">Model Parameters</h2>
                                 <p class="ai-view-subtitle">Configure model parameters, temperature and drama prompts</p>
                             </div>
 
                             <div class="ai-card-frame">
                                 <div class="ai-field-group">
-                                    <label class="ai-field-label">DEFAULT AI MODEL</label>
+                                    <label class="ai-field-label">TRANSLATION MODEL</label>
                                     <select id="ai-model-select" class="ai-gold-select">
                                         <option value="gemini-2.5-flash" selected>gemini-2.5-flash (Fast Asian Drama Dubbing)</option>
                                         <option value="gemini-2.5-pro">gemini-2.5-pro (Deep Drama Reasoning & Context)</option>
@@ -1063,7 +1061,7 @@
                                 </div>
 
                                 <div class="ai-field-group" style="margin-top: 14px;">
-                                    <label class="ai-field-label">DUBBING PROMPT SYSTEM</label>
+                                    <label class="ai-field-label">SYSTEM TRANSLATION GUIDELINES</label>
                                     <textarea id="ai-system-prompt-input" class="ai-gold-textarea" rows="3">You are a master Cambodian film dubbing scriptwriter and voice director specializing in Asian TV dramas. Translate dialogue lines into natural, emotional, authentic spoken Khmer film dubbing language (ពិសិដ្ឋ & ស្រីមុំ).</textarea>
                                 </div>
                             </div>
@@ -1324,7 +1322,7 @@
                     <!-- HWID Container -->
                     <div class="license-gate-hwid-card">
                         <div class="license-gate-hwid-top">
-                            <span>💻 ម៉ាស៊ីន HWID (ផ្ញើជូន Admin ប្រសិនបើទាមទារ):</span>
+                            <span><i class="fa-solid fa-desktop" style="color:#94a3b8; margin-right:4px;"></i> ម៉ាស៊ីន HWID (ផ្ញើជូន Admin ប្រសិនបើទាមទារ):</span>
                         </div>
                         <div class="license-gate-hwid-row">
                             <span class="license-gate-hwid-code" id="gate-hwid-text">FETCHING...</span>
