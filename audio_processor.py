@@ -19,6 +19,69 @@ except Exception:
 
 import pydub
 from pydub import AudioSegment
+
+
+def patch_silent_subprocess():
+    """
+    Globally suppress black CMD/console popup windows for ffmpeg, ffprobe,
+    and all background tools on Windows.
+    Preserves interactive GUI applications (Edge, Chrome, Explorer).
+    """
+    import sys
+    if sys.platform != "win32":
+        return
+    import subprocess
+    if getattr(subprocess, "_silent_patch_applied", False):
+        return
+    subprocess._silent_patch_applied = True
+
+    orig_popen_init = subprocess.Popen.__init__
+
+    def silent_popen_init(self, *args, **kwargs):
+        cmd = args[0] if args else kwargs.get("args")
+        cmd_str = ""
+        if isinstance(cmd, (list, tuple)) and cmd:
+            cmd_str = str(cmd[0]).lower()
+        elif isinstance(cmd, str):
+            cmd_str = cmd.lower()
+
+        is_gui_app = any(gui in cmd_str for gui in ("msedge", "chrome", "explorer"))
+
+        if not is_gui_app:
+            if "creationflags" not in kwargs:
+                kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+            else:
+                kwargs["creationflags"] |= subprocess.CREATE_NO_WINDOW
+
+            si = kwargs.get("startupinfo")
+            if si is None:
+                si = subprocess.STARTUPINFO()
+            si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            si.wShowWindow = 0  # SW_HIDE
+            kwargs["startupinfo"] = si
+
+        orig_popen_init(self, *args, **kwargs)
+
+    subprocess.Popen.__init__ = silent_popen_init
+
+
+def get_silent_kwargs() -> Dict[str, Any]:
+    """Return explicit subprocess creationflags and startupinfo to guarantee zero console window popup on Windows."""
+    import sys
+    if sys.platform == "win32":
+        si = subprocess.STARTUPINFO()
+        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        si.wShowWindow = 0
+        return {
+            "creationflags": subprocess.CREATE_NO_WINDOW,
+            "startupinfo": si
+        }
+    return {}
+
+
+# Auto-apply global silent patch immediately
+patch_silent_subprocess()
+
 pydub.AudioSegment.converter = FFMPEG_EXE
 pydub.AudioSegment.ffmpeg = FFMPEG_EXE
 
@@ -73,7 +136,7 @@ def load_audio_safely(file_path: str) -> AudioSegment:
         "-f", "wav",
         "-"
     ]
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **get_silent_kwargs())
     if proc.returncode != 0:
         raise RuntimeError(f"FFmpeg audio decode failed: {proc.stderr.decode('utf-8', errors='ignore')}")
     
@@ -98,7 +161,7 @@ def save_audio_safely(segment: AudioSegment, output_path: str, bitrate: str = "1
         "-b:a", bitrate,
         str(out_p)
     ]
-    proc = subprocess.run(cmd, input=wav_io.read(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.run(cmd, input=wav_io.read(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, **get_silent_kwargs())
     if proc.returncode != 0:
         raise RuntimeError(f"FFmpeg audio save failed: {proc.stderr.decode('utf-8', errors='ignore')}")
         
@@ -145,7 +208,7 @@ def enhance_voice_clarity_studio(
         "-b:a", "192k",
         str(temp_out)
     ]
-    res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **get_silent_kwargs())
     if res.returncode == 0 and temp_out.exists() and temp_out.stat().st_size > 100:
         if output_path is None or str(output_path) == str(input_path):
             if in_file.exists():
@@ -179,7 +242,7 @@ def extract_audio_from_video(video_path: str, output_audio_path: str) -> str:
         str(out_p)
     ]
     
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, **get_silent_kwargs())
     if proc.returncode != 0:
         raise RuntimeError(f"FFmpeg audio extraction failed: {proc.stderr}")
         
@@ -192,7 +255,7 @@ def get_media_duration(file_path: str) -> float:
         get_ffmpeg_path(),
         "-i", str(file_path)
     ]
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, **get_silent_kwargs())
     for line in proc.stderr.splitlines():
         if "Duration:" in line:
             parts = line.split("Duration:")[1].split(",")[0].strip()

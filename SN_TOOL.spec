@@ -8,8 +8,10 @@ import imageio_ffmpeg
 ffmpeg_binaries_dir = os.path.dirname(imageio_ffmpeg.get_ffmpeg_exe())
 
 import faster_whisper
+import huggingface_hub
 faster_whisper_dir = os.path.dirname(faster_whisper.__file__)
 faster_whisper_assets = os.path.join(faster_whisper_dir, 'assets')
+huggingface_hub_dir = os.path.dirname(huggingface_hub.__file__)
 
 a = Analysis(
     [str(ROOT_DIR / 'desktop_app.py')],
@@ -19,6 +21,8 @@ a = Analysis(
         (str(ROOT_DIR / 'static'), 'static'),
         (ffmpeg_binaries_dir, 'imageio_ffmpeg/binaries'),
         (faster_whisper_assets, 'faster_whisper/assets'),
+        (faster_whisper_dir, 'faster_whisper'),
+        (huggingface_hub_dir, 'huggingface_hub'),
     ],
     hiddenimports=[
         'edge_tts', 'pydub', 'flask', 'jinja2', 'soundfile', 'httpx',

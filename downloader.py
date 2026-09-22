@@ -12,7 +12,7 @@ import subprocess
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 import yt_dlp
-from audio_processor import get_ffmpeg_path
+from audio_processor import get_ffmpeg_path, get_silent_kwargs
 
 DOWNLOADS_DIR = Path("data/uploads/downloads")
 DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
@@ -242,7 +242,7 @@ class DramaDownloadManager:
                                 "-i", "color=c=black:s=1280x720:d=3",
                                 "-c:v", "libx264", "-t", "3", str(dest_file)
                             ]
-                            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **get_silent_kwargs())
                     except Exception as err:
                         self.add_log(f"Write note: {err}")
 

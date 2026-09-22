@@ -32,19 +32,22 @@ os.makedirs(str(APP_DIR / "data" / "projects"), exist_ok=True)
 os.makedirs(str(APP_DIR / "data" / "uploads"), exist_ok=True)
 
 import subprocess
+from audio_processor import patch_silent_subprocess, get_silent_kwargs
+
+patch_silent_subprocess()
 
 def free_port_8000():
     """Kill any stale process occupying port 8000 before starting new server."""
     if sys.platform == "win32":
         try:
-            out = subprocess.check_output('netstat -ano | findstr :8000', shell=True).decode()
+            out = subprocess.check_output('netstat -ano | findstr :8000', shell=True, **get_silent_kwargs()).decode()
             current_pid = os.getpid()
             for line in out.strip().split('\n'):
                 parts = line.strip().split()
                 if len(parts) >= 5 and 'LISTENING' in line:
                     pid = int(parts[-1])
                     if pid != current_pid and pid > 0:
-                        subprocess.run(f'taskkill /F /PID {pid}', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                        subprocess.run(f'taskkill /F /PID {pid}', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **get_silent_kwargs())
         except Exception:
             pass
 

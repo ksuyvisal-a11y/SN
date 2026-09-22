@@ -18,10 +18,16 @@ except ImportError:
     NUMPY_AVAILABLE = False
 
 try:
-    import imageio_ffmpeg
-    FFMPEG_EXE = imageio_ffmpeg.get_ffmpeg_exe()
+    from audio_processor import get_silent_kwargs, get_ffmpeg_path
+    FFMPEG_EXE = get_ffmpeg_path()
 except Exception:
-    FFMPEG_EXE = "ffmpeg"
+    def get_silent_kwargs():
+        return {}
+    try:
+        import imageio_ffmpeg
+        FFMPEG_EXE = imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        FFMPEG_EXE = "ffmpeg"
 
 try:
     from faster_whisper import WhisperModel
@@ -46,7 +52,7 @@ MALE_VOCATIVES = [
 ]
 
 
-def load_audio_samples_16k(audio_path: str) -> Tuple[Optional[np.ndarray], int]:
+def load_audio_samples_16k(audio_path: str) -> Tuple[Optional[Any], int]:
     """Load audio file as 16kHz mono float32 numpy array once into memory for ultra-fast processing."""
     if not NUMPY_AVAILABLE:
         return None, 16000
@@ -56,7 +62,7 @@ def load_audio_samples_16k(audio_path: str) -> Tuple[Optional[np.ndarray], int]:
             '-vn', '-ac', '1', '-ar', '16000',
             '-f', 'wav', '-'
         ]
-        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=180)
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=180, **get_silent_kwargs())
         with wave.open(io.BytesIO(proc.stdout), 'rb') as wf:
             nframes = wf.getnframes()
             if nframes == 0:
@@ -176,7 +182,7 @@ def analyze_segment_acoustics(audio_path: str, start_s: float, end_s: float) -> 
             '-i', str(audio_path), '-vn', '-ac', '1', '-ar', '16000',
             '-f', 'wav', '-'
         ]
-        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=4)
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=4, **get_silent_kwargs())
         with wave.open(io.BytesIO(proc.stdout), 'rb') as wf:
             nframes = wf.getnframes()
             if nframes < 600:

@@ -7,7 +7,7 @@ import time
 import subprocess
 from pathlib import Path
 from typing import Optional, List, Dict, Any
-from audio_processor import get_ffmpeg_path
+from audio_processor import get_ffmpeg_path, get_silent_kwargs
 from translator import format_srt_content
 from subtitle_styler import generate_ass_subtitles
 
@@ -16,7 +16,7 @@ def get_video_dimensions(video_path: str):
     """Extract width and height of video quickly via FFmpeg."""
     try:
         cmd = [get_ffmpeg_path(), "-i", str(video_path)]
-        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="ignore")
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="ignore", **get_silent_kwargs())
         m = re.search(r'Stream.*Video:.*?(\d{3,5})x(\d{3,5})', res.stderr)
         if m:
             return int(m.group(1)), int(m.group(2))
@@ -46,7 +46,7 @@ def generate_sample_drama_video(output_video_path: str, duration_sec: int = 15) 
         str(out_p)
     ]
 
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, **get_silent_kwargs())
     if proc.returncode != 0:
         raise RuntimeError(f"Failed to generate sample drama video: {proc.stderr}")
 
@@ -160,7 +160,7 @@ def render_dubbed_video(
                 str(out_p)
             ])
 
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, **get_silent_kwargs())
     if proc.returncode != 0:
         print(f"Render fallback triggered: {proc.stderr[:200]}")
         # Direct mux fallback with universal H.264
@@ -180,7 +180,7 @@ def render_dubbed_video(
             "-shortest",
             str(out_p)
         ]
-        subprocess.run(fallback_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        subprocess.run(fallback_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **get_silent_kwargs())
 
     # Always ensure a copy exists in data/exports for easy user access!
     try:
@@ -221,7 +221,7 @@ def merge_videos(video_paths: List[str], output_path: str) -> str:
             "-c", "copy",
             str(out_p)
         ]
-        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, **get_silent_kwargs())
         if proc.returncode != 0:
             # Re-encoding concat fallback
             inputs = []
@@ -244,7 +244,7 @@ def merge_videos(video_paths: List[str], output_path: str) -> str:
                 "-c:a", "aac",
                 str(out_p)
             ]
-            subprocess.run(cmd_reencode, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            subprocess.run(cmd_reencode, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **get_silent_kwargs())
     finally:
         if list_file.exists():
             try:
@@ -273,7 +273,7 @@ def split_video(video_path: str, chunk_duration_sec: int, output_dir: str) -> Li
         "-reset_timestamps", "1",
         out_pattern
     ]
-    subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **get_silent_kwargs())
     return [str(p) for p in sorted(out_dir.glob(f"{in_p.stem}_part*.mp4"))]
 
 
@@ -316,6 +316,6 @@ def compress_video(video_path: str, output_path: str, crf: int = 26, preset: str
         "-b:a", "128k",
         str(out_p)
     ])
-    subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **get_silent_kwargs())
     return str(out_p)
 

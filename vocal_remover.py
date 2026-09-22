@@ -3,7 +3,7 @@ import shutil
 import subprocess
 from pathlib import Path
 from typing import Dict, Any, Tuple, Optional
-from audio_processor import get_ffmpeg_path
+from audio_processor import get_ffmpeg_path, get_silent_kwargs
 
 CACHE_DIR = Path("cache/audio_separation")
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -55,7 +55,7 @@ def separate_vocals_and_bgm(
         "-ac", "2",
         str(bgm_output)
     ]
-    proc_bgm = subprocess.run(cmd_bgm, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    proc_bgm = subprocess.run(cmd_bgm, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, **get_silent_kwargs())
 
     # 2. Check if phase cancellation produced silence (common on dual-mono audio where L == R)
     need_fallback = False
@@ -84,7 +84,7 @@ def separate_vocals_and_bgm(
             "-ac", "2",
             str(bgm_output)
         ]
-        proc_fb = subprocess.run(cmd_bgm_fallback, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        proc_fb = subprocess.run(cmd_bgm_fallback, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, **get_silent_kwargs())
         if proc_fb.returncode != 0 or not bgm_output.exists():
             # Ultimate safety: copy original audio so BGM is NEVER dead silence
             import shutil
@@ -108,7 +108,7 @@ def separate_vocals_and_bgm(
         "-ac", "1",
         str(vocals_output)
     ]
-    proc_voc = subprocess.run(cmd_voc, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc_voc = subprocess.run(cmd_voc, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **get_silent_kwargs())
     if proc_voc.returncode != 0 or not vocals_output.exists() or vocals_output.stat().st_size < 1000:
         cmd_fallback = [
             get_ffmpeg_path(),
@@ -119,6 +119,6 @@ def separate_vocals_and_bgm(
             "-ar", "16000",
             str(vocals_output)
         ]
-        subprocess.run(cmd_fallback, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(cmd_fallback, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **get_silent_kwargs())
 
     return str(bgm_output), str(vocals_output)

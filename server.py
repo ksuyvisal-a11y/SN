@@ -30,7 +30,7 @@ app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="")
 from tts_engine import get_available_voices, synthesize_khmer_speech
 from translator import DramaTranslator, parse_srt_content
 from pipeline import ProjectManager, SAMPLE_DRAMAS
-from audio_processor import extract_audio_from_video, create_waveform_data, get_media_duration
+from audio_processor import extract_audio_from_video, create_waveform_data, get_media_duration, get_silent_kwargs
 from downloader import (
     download_video_from_url,
     get_supported_platforms_with_counts,
@@ -982,7 +982,8 @@ except Exception:
             [sys.executable, "-c", py_code],
             capture_output=True,
             text=True,
-            timeout=120
+            timeout=120,
+            **get_silent_kwargs()
         )
         for line in proc.stdout.splitlines():
             if line.startswith("RESULT:"):
@@ -1013,7 +1014,8 @@ except Exception:
                 ["powershell", "-NoProfile", "-Command", ps_code],
                 capture_output=True,
                 text=True,
-                timeout=120
+                timeout=120,
+                **get_silent_kwargs()
             )
             for line in proc2.stdout.splitlines():
                 if "RESULT:" in line:
