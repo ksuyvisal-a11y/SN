@@ -580,7 +580,7 @@ class ProjectManager:
             voice_label = "ពិសិដ្ឋ (Piseth Solo)"
 
         # 3. Speech-to-Text (Auto Transcribe via Faster-Whisper with word-level timestamps)
-        update_prog(45, f"៣/៧ AI កំពុងស្តាប់ និងចាប់សំឡេងចិន ({voice_label})...", "Transcribing speech...")
+        update_prog(45, f"៣/៧ AI កំពុងស្តាប់ និងចាប់សំឡេងដើម ({voice_label})...", "Transcribing speech...")
         # Use isolated vocals (clean without BGM) for ultra-accurate transcription & F0 pitch diarization
         stt_target_audio = project.get("isolated_vocals_file") or str(audio_dest)
         if not Path(stt_target_audio).exists() or Path(stt_target_audio).stat().st_size < 1000:
@@ -595,6 +595,23 @@ class ProjectManager:
         except Exception as e:
             print(f"STT Exception: {e}")
             dialogues = []
+
+        # Robust Fallback: If isolated vocals produced 0 dialogues or failed, retry directly on original audio!
+        if not dialogues and str(audio_dest) != str(stt_target_audio) and Path(audio_dest).exists():
+            print("Notice: Isolated vocals yielded 0 dialogues, falling back to original audio for STT...")
+            update_prog(48, f"៣/៧ កំពុងស្កេនសំឡេងដើមឡើងវិញ ({voice_label})...", "Retrying transcription on original audio...")
+            try:
+                dialogues = self.stt_engine.transcribe_audio(
+                    audio_path=str(audio_dest),
+                    source_lang=source_lang,
+                    voice_override=v_override,
+                    progress_callback=update_prog
+                )
+            except Exception as e2:
+                print(f"STT Fallback Exception: {e2}")
+
+        if not dialogues:
+            print("Warning: No speech segments were detected by the STT engine for this audio.")
 
         project["dialogues"] = dialogues
         self.save_project(project)

@@ -150,7 +150,10 @@ def render_dubbed_video(
             cmd.extend([
                 "-map", "0:v:0",
                 "-map", "1:a:0",
-                "-c:v", "copy",
+                "-c:v", "libx264",
+                "-preset", "veryfast",
+                "-crf", "22",
+                "-pix_fmt", "yuv420p",
                 "-c:a", "aac",
                 "-b:a", "192k",
                 "-shortest",
@@ -160,13 +163,16 @@ def render_dubbed_video(
     proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     if proc.returncode != 0:
         print(f"Render fallback triggered: {proc.stderr[:200]}")
-        # Direct mux fallback
+        # Direct mux fallback with universal H.264
         fallback_cmd = [
             get_ffmpeg_path(),
             "-y",
             "-i", str(original_video_path),
             "-i", str(mixed_audio_path),
-            "-c:v", "copy",
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-crf", "22",
+            "-pix_fmt", "yuv420p",
             "-c:a", "aac",
             "-b:a", "192k",
             "-map", "0:v:0",

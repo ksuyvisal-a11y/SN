@@ -13,7 +13,7 @@ echo.
 
 :: 1. If compiled native app exists in dist, launch it directly
 if exist "%~dp0dist\SN_TOOL\SN_TOOL.exe" (
-    start "" "%~dp0dist\SN_TOOL\SN_TOOL.exe" %*
+    start "" /d "%~dp0dist\SN_TOOL" "%~dp0dist\SN_TOOL\SN_TOOL.exe" %*
     exit /b 0
 )
 
