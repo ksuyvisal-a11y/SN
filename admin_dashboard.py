@@ -51,12 +51,12 @@ def main():
     try:
         import webview
         window = webview.create_window(
-            title="⚡ SN TOOL - Admin License Key Generator Dashboard",
+            title="SN TOOL - STUDIO PRO (Admin License Key Generator)",
             url=admin_url,
             width=680,
-            height=790,
+            height=820,
             resizable=True,
-            background_color="#040811"
+            background_color="#090a0e"
         )
         webview.start()
     except Exception as e:
