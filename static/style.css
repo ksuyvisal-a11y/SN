@@ -3501,4 +3501,340 @@ button, input, select, textarea {
     box-shadow: 0 0 24px rgba(250, 204, 21, 0.75);
 }
 
+/* ==========================================================================
+   PREMIUM CYBER-GOLD VIP LICENSE ACTIVATION GATE
+   ========================================================================== */
+.license-gate-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 999999;
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    background: radial-gradient(ellipse at 50% 25%, rgba(250, 204, 21, 0.14) 0%, rgba(7, 8, 12, 0.96) 72%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.license-gate-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.license-gate-card {
+    width: 520px;
+    max-width: 95vw;
+    background: #0d0f16;
+    border: 1px solid rgba(250, 204, 21, 0.35);
+    border-radius: 18px;
+    box-shadow: 
+        0 0 60px rgba(250, 204, 21, 0.22),
+        0 25px 65px rgba(0, 0, 0, 0.95),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transform: scale(0.95) translateY(15px);
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.license-gate-overlay.active .license-gate-card {
+    transform: scale(1) translateY(0);
+}
+
+.license-gate-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 26px 24px 18px 24px;
+    background: linear-gradient(180deg, rgba(250, 204, 21, 0.08) 0%, transparent 100%);
+    border-bottom: 1px solid rgba(250, 204, 21, 0.16);
+    position: relative;
+    gap: 8px;
+}
+
+.license-gate-logo-wrap {
+    width: 68px;
+    height: 68px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    filter: drop-shadow(0 0 18px rgba(250, 204, 21, 0.5));
+    transition: transform 0.3s ease;
+    margin-bottom: 2px;
+}
+
+.license-gate-logo-wrap:hover {
+    transform: scale(1.08);
+}
+
+.license-gate-logo-wrap img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.license-gate-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.license-gate-brand-name {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: 1.45rem;
+    letter-spacing: 1px;
+    background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 16px rgba(250, 204, 21, 0.3);
+}
+
+.license-gate-tag {
+    background: rgba(250, 204, 21, 0.14);
+    border: 1px solid rgba(250, 204, 21, 0.40);
+    color: #facc15;
+    font-size: 0.68rem;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.7px;
+    box-shadow: 0 0 10px rgba(250, 204, 21, 0.2);
+}
+
+.license-gate-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, rgba(250, 204, 21, 0.12) 0%, rgba(217, 119, 6, 0.14) 100%);
+    border: 1px solid rgba(250, 204, 21, 0.30);
+    border-radius: 20px;
+    padding: 3px 12px;
+    color: #facc15;
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.license-gate-subtitle {
+    font-size: 0.80rem;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+
+.license-gate-body {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* HWID Panel */
+.license-gate-hwid-card {
+    background: rgba(14, 16, 23, 0.85);
+    border: 1px solid rgba(250, 204, 21, 0.22);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.license-gate-hwid-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    color: #94a3b8;
+    font-weight: 600;
+}
+
+.license-gate-hwid-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: #07080d;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 10px 14px;
+}
+
+.license-gate-hwid-code {
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #facc15;
+    letter-spacing: 2px;
+    text-shadow: 0 0 12px rgba(250, 204, 21, 0.4);
+    overflow-x: auto;
+    white-space: nowrap;
+}
+
+.license-gate-btn-copy {
+    background: #141721;
+    border: 1px solid rgba(250, 204, 21, 0.30);
+    color: #facc15;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.license-gate-btn-copy:hover {
+    background: #facc15;
+    color: #07080a;
+    box-shadow: 0 0 14px rgba(250, 204, 21, 0.45);
+}
+
+/* Key Input Group */
+.license-gate-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.license-gate-input-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.license-gate-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.license-gate-input-field {
+    flex: 1;
+    background: #07080d;
+    border: 1.5px solid rgba(250, 204, 21, 0.35);
+    border-radius: 10px;
+    padding: 13px 16px;
+    font-size: 0.92rem;
+    color: #ffffff;
+    font-family: var(--font-mono);
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    outline: none;
+    transition: all 0.2s ease;
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.license-gate-input-field:focus {
+    border-color: #facc15;
+    box-shadow: 0 0 18px rgba(250, 204, 21, 0.35), inset 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.license-gate-input-field::placeholder {
+    color: #475569;
+    letter-spacing: 1.5px;
+    font-weight: 600;
+}
+
+.license-gate-btn-paste {
+    background: #141721;
+    border: 1px solid rgba(250, 204, 21, 0.30);
+    color: #cbd5e1;
+    border-radius: 10px;
+    padding: 13px 16px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.license-gate-btn-paste:hover {
+    background: #1c2130;
+    border-color: #facc15;
+    color: #facc15;
+    box-shadow: 0 0 14px rgba(250, 204, 21, 0.30);
+}
+
+/* Status Alert Message */
+.license-gate-status-msg {
+    display: none;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-align: center;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+}
+
+/* Big Gold Activation Button */
+.license-gate-btn-activate {
+    width: 100%;
+    background: linear-gradient(135deg, #facc15 0%, #eab308 50%, #ca8a04 100%);
+    color: #07080a;
+    border: none;
+    border-radius: 10px;
+    padding: 14px 20px;
+    font-size: 0.95rem;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    box-shadow: 0 4px 25px rgba(250, 204, 21, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    transition: all 0.22s ease;
+    margin-top: 4px;
+}
+
+.license-gate-btn-activate:hover {
+    background: linear-gradient(135deg, #fde047 0%, #facc15 100%);
+    box-shadow: 0 6px 35px rgba(250, 204, 21, 0.65);
+    transform: translateY(-2px);
+}
+
+.license-gate-btn-activate:active {
+    transform: translateY(1px);
+}
+
+/* Footer Guarantee */
+.license-gate-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 4px;
+    font-size: 0.74rem;
+    color: #64748b;
+    line-height: 1.45;
+    margin-top: 2px;
+}
+
+.license-gate-footer-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #94a3b8;
+    font-weight: 600;
+}
+
+
 

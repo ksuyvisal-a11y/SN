@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=6.3">
+    <link rel="stylesheet" href="style.css?v=6.5">
 </head>
 <body>
     <div class="unich-app-container">
@@ -1299,41 +1299,69 @@
         </div>
 
         <!-- MODAL 7: LICENSE ACTIVATION GATE (Cyber-Gold Lock Screen) -->
-        <div class="modal-backdrop-overlay" id="modal-license-gate" style="z-index: 99999; backdrop-filter: blur(20px); background: rgba(8, 6, 3, 0.94);">
-            <div class="modal-content-card" style="width: 480px; max-width: 95vw; border: 1px solid rgba(250, 204, 21, 0.4); box-shadow: 0 0 40px rgba(250, 204, 21, 0.2), 0 20px 50px rgba(0,0,0,0.9); background: #0c0905;">
-                <div class="modal-top-header" style="justify-content: center; position: relative; padding: 18px 20px; border-bottom: 1px solid rgba(250, 204, 21, 0.15);">
-                    <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                        <img src="logo.png" alt="SN Logo" style="height: 48px; width: auto; object-fit: contain; filter: drop-shadow(0 0 12px rgba(250, 204, 21, 0.6));">
-                        <div style="font-size: 1.05rem; font-weight: 800; color: #facc15; letter-spacing: 1px; text-transform: uppercase;">SN STUDIO ACTIVATION</div>
-                        <div style="font-size: 0.75rem; color: #94a3b8;">សូមបញ្ចូល License Key ដើម្បីបើកដំណើរការកម្មវិធី</div>
+        <div class="license-gate-overlay" id="modal-license-gate">
+            <div class="license-gate-card">
+                <!-- Header -->
+                <div class="license-gate-header">
+                    <div class="license-gate-logo-wrap">
+                        <img src="logo.png" alt="SN Logo">
+                    </div>
+                    <div class="license-gate-brand">
+                        <span class="license-gate-brand-name">SN TOOL</span>
+                        <span class="license-gate-tag">STUDIO PRO</span>
+                    </div>
+                    <div class="license-gate-badge">
+                        <i class="fa-solid fa-crown" style="color:#facc15;"></i>
+                        <span>VIP LICENSE ACTIVATION</span>
+                    </div>
+                    <div class="license-gate-subtitle">
+                        សូមបញ្ចូល License Key របស់អ្នកដើម្បីបើកដំណើរការកម្មវិធី
                     </div>
                 </div>
-                <div class="modal-inner-body" style="padding: 20px;">
-                    <!-- HWID Box -->
-                    <div style="background: rgba(250, 204, 21, 0.05); border: 1px dashed rgba(250, 204, 21, 0.3); border-radius: 8px; padding: 12px; margin-bottom: 14px;">
-                        <div style="font-size: 0.72rem; color: #94a3b8; margin-bottom: 4px;">💻 ម៉ាស៊ីន HWID របស់អ្នក (ផ្ញើជូន Admin ប្រសិនបើទាមទារ):</div>
-                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-                            <code id="gate-hwid-text" style="font-size: 0.88rem; color: #facc15; font-weight: 700; letter-spacing: 1.5px; font-family: var(--font-mono);">FETCHING...</code>
-                            <button type="button" onclick="copyHwid('gate-hwid-text')" style="background: rgba(250,204,21,0.18); border: 1px solid rgba(250,204,21,0.4); color: #facc15; border-radius: 5px; padding: 4px 10px; font-size: 0.72rem; cursor: pointer; display: flex; align-items: center; gap: 5px; font-weight: 600;">
+
+                <!-- Body -->
+                <div class="license-gate-body">
+                    <!-- HWID Container -->
+                    <div class="license-gate-hwid-card">
+                        <div class="license-gate-hwid-top">
+                            <span>💻 ម៉ាស៊ីន HWID (ផ្ញើជូន Admin ប្រសិនបើទាមទារ):</span>
+                        </div>
+                        <div class="license-gate-hwid-row">
+                            <span class="license-gate-hwid-code" id="gate-hwid-text">FETCHING...</span>
+                            <button type="button" class="license-gate-btn-copy" onclick="copyHwid('gate-hwid-text')">
                                 <i class="fa-solid fa-copy"></i> Copy HWID
                             </button>
                         </div>
                     </div>
 
-                    <!-- License Input -->
-                    <label style="font-size: 0.75rem; color: #e2e8f0; font-weight: 600; margin-bottom: 6px; display: block;">🔑 បញ្ចូល LICENSE KEY (ទទួលបានពី Admin):</label>
-                    <input type="text" id="gate-license-input" placeholder="SN-VIP-XXXX-XXXX-XXXX-XXXX" style="width: 100%; background: #060402; border: 1.5px solid #facc15; border-radius: 8px; padding: 12px 14px; font-size: 0.88rem; color: #ffffff; font-family: var(--font-mono); font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; outline: none; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);">
+                    <!-- Key Input -->
+                    <div class="license-gate-input-group">
+                        <label class="license-gate-input-label" for="gate-license-input">
+                            <i class="fa-solid fa-key" style="color:#facc15;"></i> បញ្ចូល VIP LICENSE KEY (ទទួលបានពី Admin):
+                        </label>
+                        <div class="license-gate-input-wrap">
+                            <input type="text" id="gate-license-input" class="license-gate-input-field" placeholder="SN-VIP-XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false" onkeyup="if(event.key==='Enter') submitGateLicense()">
+                            <button type="button" class="license-gate-btn-paste" onclick="pasteGateLicense()">
+                                <i class="fa-solid fa-paste"></i> Paste
+                            </button>
+                        </div>
+                    </div>
 
-                    <div id="gate-status-msg" style="display:none; font-size: 0.78rem; margin-top: 8px; text-align: center; padding: 6px; border-radius: 4px;"></div>
+                    <!-- Status Alert Message -->
+                    <div id="gate-status-msg" class="license-gate-status-msg"></div>
 
                     <!-- Activate Button -->
-                    <button class="dl-big-btn-yellow" onclick="submitGateLicense()" style="width: 100%; margin-top: 14px; padding: 12px; font-size: 0.9rem; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                        <i class="fa-solid fa-unlock-keyhole"></i> 🔓 បើកដំណើរការ (ACTIVATE NOW)
+                    <button type="button" class="license-gate-btn-activate" onclick="submitGateLicense()">
+                        <i class="fa-solid fa-unlock-keyhole"></i> បើកដំណើរការ (ACTIVATE NOW)
                     </button>
 
-                    <div style="margin-top: 16px; font-size: 0.72rem; color: #64748b; text-align: center; line-height: 1.4;">
-                        🛡️ ប្រព័ន្ធការពារសុវត្ថិភាព SN TOOL VIP Security Engine<br>
-                        ទំនាក់ទំនង Admin ដើម្បីទិញ ឬទទួល License Key
+                    <!-- Footer Note -->
+                    <div class="license-gate-footer">
+                        <div class="license-gate-footer-badge">
+                            <i class="fa-solid fa-shield-halved" style="color:#facc15;"></i>
+                            <span>SN TOOL VIP Security Engine • v6.3</span>
+                        </div>
+                        <div>ទំនាក់ទំនង Admin (Telegram / Facebook) ដើម្បីទទួលបាន License Key ផ្លូវការ</div>
                     </div>
                 </div>
             </div>
@@ -1343,6 +1371,6 @@
         <div class="unich-toast-box" id="toast"></div>
     </div>
 
-    <script src="app.js?v=6.0"></script>
+    <script src="app.js?v=6.5"></script>
 </body>
 </html>

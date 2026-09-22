@@ -3252,6 +3252,22 @@ function copyHwid(elemId = 'settings-hwid-text') {
     }
 }
 
+async function pasteGateLicense() {
+    try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+            const input = document.getElementById('gate-license-input');
+            if (input) {
+                input.value = text.trim();
+                input.focus();
+            }
+            showToast("📋 បានបិទភ្ជាប់ (Pasted) License Key!");
+        }
+    } catch (e) {
+        showToast("⚠️ សូមចុច Ctrl+V ដើម្បី Paste");
+    }
+}
+
 // ==========================================================================
 // UTILITIES
 // ==========================================================================

@@ -14,6 +14,11 @@ cache/
 data/uploads/
 data/projects/
 data/exports/
+dist/**/cache/
+dist/**/data/
+dist/**/license.key
+dist/**/admin_key_history.json
+dist/**/generated_keys_log.txt
 *.tmp
 *.log
 
