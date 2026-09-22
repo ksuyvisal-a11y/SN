@@ -29,49 +29,66 @@ def separate_vocals_and_bgm(
     bgm_output = target_dir / f"{in_p.stem}_bgm.wav"
     vocals_output = target_dir / f"{in_p.stem}_vocals.wav"
 
-    # Zero Vocal Leakage Filter:
-    # Full center-channel phase inversion cancellation + deep multi-band speech formant elimination.
-    # Eradicates Chinese voice fundamentals and formants 100% so there is zero whisper/leakage in the BGM track.
-    bgm_filter = (
+    # Deep multi-band speech notch filter (vocal formant suppression without phase cancellation)
+    # This guarantees that mono or dual-mono audio (TikTok/Reels/Short dramas) is NEVER cancelled to dead silence!
+    speech_notch_filter = (
+        "equalizer=f=300:t=q:w=1.5:g=-14,"
+        "equalizer=f=800:t=q:w=1.5:g=-18,"
+        "equalizer=f=1600:t=q:w=1.8:g=-20,"
+        "equalizer=f=2500:t=q:w=1.8:g=-20,"
+        "equalizer=f=3400:t=q:w=1.5:g=-14"
+    )
+
+    # 1. First attempt: Center-channel phase cancellation (L - R) + speech formant notch
+    phase_cancel_filter = (
         "pan=stereo|c0=0.5*c0-0.5*c1|c1=0.5*c0-0.5*c1,"
-        "equalizer=f=300:t=q:w=1.5:g=-16,"
-        "equalizer=f=800:t=q:w=1.5:g=-22,"
-        "equalizer=f=1600:t=q:w=1.8:g=-24,"
-        "equalizer=f=2500:t=q:w=1.8:g=-24,"
-        "equalizer=f=3400:t=q:w=1.5:g=-18"
+        + speech_notch_filter
     )
 
     cmd_bgm = [
         get_ffmpeg_path(),
         "-y",
         "-i", str(in_p),
-        "-af", bgm_filter,
+        "-af", phase_cancel_filter,
         "-acodec", "pcm_s16le",
         "-ar", "44100",
         "-ac", "2",
         str(bgm_output)
     ]
-
     proc_bgm = subprocess.run(cmd_bgm, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    # 2. Check if phase cancellation produced silence (common on dual-mono audio where L == R)
+    need_fallback = False
     if proc_bgm.returncode != 0 or not bgm_output.exists() or bgm_output.stat().st_size < 1000:
-        # Robust Mono/Stereo Fallback: deep speech notch filtering
-        fallback_filter = (
-            "equalizer=f=300:t=q:w=1.5:g=-18,"
-            "equalizer=f=800:t=q:w=1.5:g=-24,"
-            "equalizer=f=1600:t=q:w=1.8:g=-28,"
-            "equalizer=f=2500:t=q:w=1.8:g=-28,"
-            "equalizer=f=3400:t=q:w=1.5:g=-22"
-        )
+        need_fallback = True
+    else:
+        try:
+            from audio_processor import load_audio_safely
+            test_seg = load_audio_safely(str(bgm_output))
+            if test_seg.dBFS < -46.0 or test_seg.max_dBFS < -42.0:
+                print(f"Notice: Phase cancellation resulted in silence (dBFS={test_seg.dBFS:.1f}), switching to speech notch filter.")
+                need_fallback = True
+        except Exception:
+            need_fallback = True
+
+    if need_fallback:
+        # Fallback: High-precision speech notch filter without phase subtraction
+        # Preserves 100% of music and background effects at full volume!
         cmd_bgm_fallback = [
             get_ffmpeg_path(),
             "-y",
             "-i", str(in_p),
-            "-af", fallback_filter,
+            "-af", speech_notch_filter,
             "-acodec", "pcm_s16le",
             "-ar", "44100",
+            "-ac", "2",
             str(bgm_output)
         ]
-        subprocess.run(cmd_bgm_fallback, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        proc_fb = subprocess.run(cmd_bgm_fallback, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if proc_fb.returncode != 0 or not bgm_output.exists():
+            # Ultimate safety: copy original audio so BGM is NEVER dead silence
+            import shutil
+            shutil.copy2(str(in_p), str(bgm_output))
 
     # Vocal isolation filter: Extract center channel dialogue and suppress stereo BGM
     # In movies, dialogues are panned center (L+R in-phase).

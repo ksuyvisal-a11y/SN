@@ -31,52 +31,99 @@ os.makedirs(str(APP_DIR / "cache" / "audio_cache"), exist_ok=True)
 os.makedirs(str(APP_DIR / "data" / "projects"), exist_ok=True)
 os.makedirs(str(APP_DIR / "data" / "uploads"), exist_ok=True)
 
+import subprocess
+
+def free_port_8000():
+    """Kill any stale process occupying port 8000 before starting new server."""
+    if sys.platform == "win32":
+        try:
+            out = subprocess.check_output('netstat -ano | findstr :8000', shell=True).decode()
+            current_pid = os.getpid()
+            for line in out.strip().split('\n'):
+                parts = line.strip().split()
+                if len(parts) >= 5 and 'LISTENING' in line:
+                    pid = int(parts[-1])
+                    if pid != current_pid and pid > 0:
+                        subprocess.run(f'taskkill /F /PID {pid}', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+
 from server import app
 
 def start_server():
     """Run Flask server in background thread."""
-    # Suppress verbose logging in desktop mode
     import logging
     log = logging.getLogger('werkzeug')
     log.setLevel(logging.ERROR)
     app.run(host="127.0.0.1", port=8000, debug=False, use_reloader=False)
 
-def main():
-    print("========================================================")
-    print(" 🎬 កំពុងចាប់ផ្តើម Khmer AI Drama Voice Studio Desktop...")
-    print(" 🎙️ សំឡេងខ្មែរផ្លូវការ: ពិសិដ្ឋ (Piseth) & ស្រីមុំ (Sreymom)")
-    print("========================================================")
-
-    # 1. Start server in daemon thread
-    server_thread = threading.Thread(target=start_server, daemon=True)
-    server_thread.start()
-    time.sleep(1.0)
-
-    # 2. Try launching Native Desktop Window via pywebview
-    launched_native = False
+def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PRO"):
+    """
+    Open application in a dedicated standalone native desktop window:
+    1. Try pywebview (Edge WebView2 native embed)
+    2. Try Standalone App Window Mode via Microsoft Edge or Google Chrome (--app=)
+    3. Fallback to default browser
+    """
+    # 1. Try pywebview
     try:
         import webview
-        launched_native = True
         window = webview.create_window(
-            title="SN TOOL - STUDIO PRO",
-            url="http://127.0.0.1:8000",
+            title=title,
+            url=url,
             width=1360,
             height=860,
             min_size=(1024, 680),
             background_color="#08090d"
         )
         webview.start()
+        return
     except Exception as e:
-        print(f"Note: pywebview native window note ({e}), falling back to browser window.")
-        import webbrowser
-        webbrowser.open("http://127.0.0.1:8000")
-        
-        # Keep server running
-        try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            print("\nExiting...")
+        print(f"pywebview notice: {e}")
+
+    # 2. Try Native Desktop App Mode via Edge or Chrome (Standalone window, zero browser chrome/tabs)
+    app_browsers = [
+        os.path.expandvars(r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"),
+        os.path.expandvars(r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"),
+        os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\Edge\Application\msedge.exe"),
+        os.path.expandvars(r"%ProgramFiles%\Google\Chrome\Application\chrome.exe"),
+        os.path.expandvars(r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"),
+        os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
+    ]
+    for exe in app_browsers:
+        if os.path.exists(exe):
+            try:
+                cmd = [exe, f"--app={url}", "--window-size=1360,860"]
+                proc = subprocess.Popen(cmd)
+                proc.wait()
+                return
+            except Exception as e:
+                print(f"App window mode notice: {e}")
+
+    # 3. Fallback to default browser
+    import webbrowser
+    webbrowser.open(url)
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        pass
+
+def main():
+    print("========================================================")
+    print(" 🎬 កំពុងចាប់ផ្តើម SN TOOL - STUDIO PRO (Native Desktop App)...")
+    print(" 🎙️ សំឡេងខ្មែរផ្លូវការ: ពិសិដ្ឋ (Piseth) & ស្រីមុំ (Sreymom)")
+    print("========================================================")
+
+    # 1. Clean port 8000
+    free_port_8000()
+
+    # 2. Start server in daemon thread
+    server_thread = threading.Thread(target=start_server, daemon=True)
+    server_thread.start()
+    time.sleep(1.0)
+
+    # 3. Launch native window
+    launch_native_window()
 
 if __name__ == "__main__":
     main()

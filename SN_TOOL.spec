@@ -1,14 +1,27 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
+import sys
+from pathlib import Path
+
+ROOT_DIR = Path(SPECPATH).resolve()
+import imageio_ffmpeg
+ffmpeg_binaries_dir = os.path.dirname(imageio_ffmpeg.get_ffmpeg_exe())
 
 a = Analysis(
-    ['D:/folder My Project/SN/desktop_app.py'],
-    pathex=[],
+    [str(ROOT_DIR / 'desktop_app.py')],
+    pathex=[str(ROOT_DIR)],
     binaries=[],
     datas=[
-        ('D:/folder My Project/SN/static', 'static'),
-        ('C:/Users/TUF/AppData/Local/Programs/Python/Python312/Lib/site-packages/imageio_ffmpeg/binaries', 'imageio_ffmpeg/binaries')
+        (str(ROOT_DIR / 'static'), 'static'),
+        (ffmpeg_binaries_dir, 'imageio_ffmpeg/binaries'),
     ],
-    hiddenimports=['edge_tts', 'pydub', 'flask', 'jinja2', 'soundfile', 'httpx', 'webview', 'clr_loader', 'pythonnet', 'license_engine', 'video_processor', 'downloader', 'tts_engine', 'translator', 'pipeline', 'recap_engine', 'batch_engine'],
+    hiddenimports=[
+        'edge_tts', 'pydub', 'flask', 'jinja2', 'soundfile', 'httpx',
+        'webview', 'clr_loader', 'pythonnet', 'license_engine',
+        'video_processor', 'downloader', 'tts_engine', 'translator',
+        'pipeline', 'recap_engine', 'batch_engine', 'audio_processor',
+        'vocal_remover', 'server'
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -17,6 +30,8 @@ a = Analysis(
     optimize=0,
 )
 pyz = PYZ(a.pure)
+
+icon_path = str(ROOT_DIR / 'icon.ico') if (ROOT_DIR / 'icon.ico').exists() else None
 
 exe = EXE(
     pyz,
@@ -34,7 +49,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['D:/folder My Project/SN/icon.ico'],
+    icon=[icon_path] if icon_path else None,
 )
 coll = COLLECT(
     exe,
@@ -45,3 +60,4 @@ coll = COLLECT(
     upx_exclude=[],
     name='SN_TOOL',
 )
+

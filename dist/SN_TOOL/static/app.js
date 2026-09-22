@@ -245,6 +245,8 @@ function togglePlayPreview(e) {
 
         if (mainVideo && mainVideo.src) {
             mainVideo.style.display = 'block';
+            mainVideo.muted = false;
+            mainVideo.volume = 1.0;
             mainVideo.play().catch(() => {});
         }
 
@@ -280,6 +282,15 @@ function togglePlayPreview(e) {
         }
         resetVuMetersToIdle();
     }
+}
+
+function toggleAudioTrack() {
+    const mainVideo = document.getElementById('main-video');
+    if (mainVideo && mainVideo.src) {
+        mainVideo.muted = false;
+        mainVideo.volume = 1.0;
+    }
+    showToast("🎙️ កំពុងដំណើរការសំឡេងខ្មែរ: ពិសិដ្ឋ (Piseth) & ស្រីមុំ (Sreymom) - Master Audio Bed");
 }
 
 function handleSeekClick(e) {

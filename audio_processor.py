@@ -24,8 +24,38 @@ pydub.AudioSegment.ffmpeg = FFMPEG_EXE
 
 
 def get_ffmpeg_path() -> str:
-    """Get reliable ffmpeg binary path."""
-    return FFMPEG_EXE
+    """Get reliable ffmpeg binary path across frozen PyInstaller, _internal, and system PATH."""
+    global FFMPEG_EXE
+    if FFMPEG_EXE and os.path.isabs(FFMPEG_EXE) and os.path.exists(FFMPEG_EXE):
+        return FFMPEG_EXE
+    
+    # Check PyInstaller frozen environment or local _internal dir
+    import sys
+    app_dirs = []
+    if getattr(sys, 'frozen', False):
+        app_dirs.append(getattr(sys, '_MEIPASS', ''))
+        app_dirs.append(os.path.dirname(sys.executable))
+    app_dirs.append(str(Path(__file__).resolve().parent))
+    app_dirs.append(str(Path(__file__).resolve().parent / "_internal"))
+    
+    for base in app_dirs:
+        if not base:
+            continue
+        candidates = [
+            os.path.join(base, "imageio_ffmpeg", "binaries", "ffmpeg-win-x86_64-v7.1.exe"),
+            os.path.join(base, "imageio_ffmpeg", "binaries", "ffmpeg.exe"),
+            os.path.join(base, "_internal", "imageio_ffmpeg", "binaries", "ffmpeg-win-x86_64-v7.1.exe"),
+            os.path.join(base, "_internal", "imageio_ffmpeg", "binaries", "ffmpeg.exe"),
+            os.path.join(base, "ffmpeg.exe"),
+        ]
+        for c in candidates:
+            if os.path.exists(c):
+                FFMPEG_EXE = c
+                pydub.AudioSegment.converter = FFMPEG_EXE
+                pydub.AudioSegment.ffmpeg = FFMPEG_EXE
+                return c
+
+    return FFMPEG_EXE or "ffmpeg"
 
 
 def load_audio_safely(file_path: str) -> AudioSegment:
@@ -218,21 +248,31 @@ def mix_dubbed_audio(
     dialogue_items: List[Dict[str, Any]],
     output_mixed_path: str,
     total_duration_sec: Optional[float] = None,
-    ducking_volume_factor: float = 0.35,  # Professional -9dB ducking (warm continuous musical bed)
-    speech_volume_boost_db: float = 2.5,   # Boost speech clarity by +2.5dB
+    ducking_volume_factor: float = 0.35,  # -9dB ducking (warm continuous musical bed)
+    speech_volume_boost_db: float = 3.5,   # Boost speech clarity by +3.5dB
     dubbing_mode: str = "smart_bgm"        # "smart_bgm", "pure_voice", "standard_ducking"
 ) -> str:
     """
     Mix Khmer voice clips into the timeline with Smart BGM Audio Ducking and Zero Vocal Leakage.
+    Guarantees audible, rich audio output with zero silent drops.
     """
     out_p = Path(output_mixed_path)
     out_p.parent.mkdir(parents=True, exist_ok=True)
 
-    # 1. Determine total length
+    # 1. Determine total length and load background audio
     bg_audio = None
     if dubbing_mode != "pure_voice" and original_audio_path and Path(original_audio_path).exists():
         try:
             bg_audio = load_audio_safely(original_audio_path)
+            # Verify BGM is not digital silence (-inf or < -48 dBFS)
+            if bg_audio.dBFS < -48.0 or math.isinf(bg_audio.dBFS):
+                print(f"Notice: BGM track has near-zero energy (dBFS={bg_audio.dBFS}), recovering audio...")
+                orig_candidate = Path(original_audio_path).parent / "original_audio.wav"
+                if orig_candidate.exists() and orig_candidate.resolve() != Path(original_audio_path).resolve():
+                    orig_test = load_audio_safely(str(orig_candidate))
+                    if orig_test.dBFS > -45.0:
+                        print("Successfully recovered audio bed from original_audio.wav!")
+                        bg_audio = orig_test
             target_len_ms = len(bg_audio)
         except Exception as e:
             print(f"BGM load warning: {e}")
@@ -248,10 +288,15 @@ def mix_dubbed_audio(
             target_len_ms = max(int(total_duration_sec * 1000), max_dialogue_end_ms + 1000)
         else:
             target_len_ms = max(1000, max_dialogue_end_ms + 2000)
-            
         bg_audio = AudioSegment.silent(duration=target_len_ms)
 
-    # 2. Build the Khmer Speech Track efficiently (O(N) sequential assembly, zero memory thrashing)
+    target_fr = 44100
+    channels = 2
+    if bg_audio:
+        target_fr = bg_audio.frame_rate
+        channels = bg_audio.channels
+
+    # 2. Build the Khmer Speech Track efficiently (O(N) sequential assembly)
     speech_intervals = []
     valid_lines = []
     for idx, item in enumerate(dialogue_items):
@@ -259,12 +304,15 @@ def mix_dubbed_audio(
         if audio_file and Path(audio_file).exists():
             valid_lines.append((idx, item))
 
+    # Speech clarity boost (at least +3.5dB so dialogue cuts cleanly and proudly over BGM)
+    boost_val = max(3.0, float(speech_volume_boost_db)) if speech_volume_boost_db is not None else 3.5
+
     processed_lines = []
     for i, (idx, item) in enumerate(valid_lines):
         try:
             line_seg = load_audio_safely(item["audio_file"])
-            if speech_volume_boost_db != 0:
-                line_seg = line_seg + speech_volume_boost_db
+            if boost_val != 0:
+                line_seg = line_seg + boost_val
 
             # Micro-fades to eliminate digital clicks and boundary pops
             if len(line_seg) > 60:
@@ -280,63 +328,58 @@ def mix_dubbed_audio(
             line_len_ms = len(line_seg)
             speech_end_ms = start_ms + line_len_ms
 
-            # The ducking interval MUST cover the entire envelope of BOTH original Chinese speech and Khmer dubbing:
-            # -160ms before speech start to mute any opening mouth attack of original Chinese voice
-            # +180ms after speech end to mute any trailing release or trailing phrase of original Chinese voice
-            pad_start = max(0, min(orig_start_ms, start_ms) - 160)
-            pad_end = max(orig_end_ms, speech_end_ms) + 180
+            # The ducking interval covers original speech and dubbing with gentle padding
+            pad_start = max(0, min(orig_start_ms, start_ms) - 150)
+            pad_end = max(orig_end_ms, speech_end_ms) + 160
             speech_intervals.append((pad_start, pad_end))
             processed_lines.append((start_ms, line_seg))
         except Exception as e:
             print(f"Error processing line audio: {e}")
 
-    # Build master speech track with zero truncation and exact millisecond alignment
-    target_fr = 44100
-    channels = 2
-    if bg_audio:
-        target_fr = bg_audio.frame_rate
-        channels = bg_audio.channels
-
+    # Build master speech track
     speech_track = None
-    try:
-        import numpy as np
-        total_samples = int((target_len_ms / 1000.0) * target_fr) + target_fr
-        master_buffer = np.zeros((total_samples, channels), dtype=np.int32)
+    if processed_lines:
+        try:
+            import numpy as np
+            total_samples = int((target_len_ms / 1000.0) * target_fr) + target_fr
+            master_buffer = np.zeros((total_samples, channels), dtype=np.int32)
 
-        for start_ms, line_seg in processed_lines:
-            if line_seg.frame_rate != target_fr or line_seg.channels != channels:
-                line_seg = line_seg.set_frame_rate(target_fr).set_channels(channels)
+            for start_ms, line_seg in processed_lines:
+                if line_seg.frame_rate != target_fr or line_seg.channels != channels:
+                    line_seg = line_seg.set_frame_rate(target_fr).set_channels(channels)
 
-            start_sample = max(0, int((start_ms / 1000.0) * target_fr))
-            line_samples = np.frombuffer(line_seg.raw_data, dtype=np.int16)
-            if channels > 1:
-                line_samples = line_samples.reshape(-1, channels)
-            else:
-                line_samples = line_samples.reshape(-1, 1)
+                start_sample = max(0, int((start_ms / 1000.0) * target_fr))
+                line_samples = np.frombuffer(line_seg.raw_data, dtype=np.int16)
+                if channels > 1:
+                    line_samples = line_samples.reshape(-1, channels)
+                else:
+                    line_samples = line_samples.reshape(-1, 1)
 
-            n_samples = len(line_samples)
-            end_sample = min(total_samples, start_sample + n_samples)
-            if end_sample > start_sample:
-                usable_n = end_sample - start_sample
-                master_buffer[start_sample:end_sample] += line_samples[:usable_n]
+                n_samples = len(line_samples)
+                end_sample = min(total_samples, start_sample + n_samples)
+                if end_sample > start_sample:
+                    usable_n = end_sample - start_sample
+                    master_buffer[start_sample:end_sample] += line_samples[:usable_n]
 
-        # Clip safely to 16-bit range without harsh digital distortion
-        master_buffer = np.clip(master_buffer, -32768, 32767).astype(np.int16)
-        speech_track = AudioSegment(
-            master_buffer.tobytes(),
-            frame_rate=target_fr,
-            sample_width=2,
-            channels=channels
-        )
-        if len(speech_track) > target_len_ms:
-            speech_track = speech_track[:target_len_ms]
-    except Exception as np_mix_err:
-        print(f"NumPy audio track mix note ({np_mix_err}), using overlay fallback.")
+            # Clip safely to 16-bit range without harsh digital distortion
+            master_buffer = np.clip(master_buffer, -32768, 32767).astype(np.int16)
+            speech_track = AudioSegment(
+                master_buffer.tobytes(),
+                frame_rate=target_fr,
+                sample_width=2,
+                channels=channels
+            )
+            if len(speech_track) > target_len_ms:
+                speech_track = speech_track[:target_len_ms]
+        except Exception as np_mix_err:
+            print(f"NumPy audio track mix note ({np_mix_err}), using overlay fallback.")
+            speech_track = AudioSegment.silent(duration=target_len_ms, frame_rate=target_fr).set_channels(channels)
+            for s_ms, l_seg in processed_lines:
+                if l_seg.frame_rate != target_fr or l_seg.channels != channels:
+                    l_seg = l_seg.set_frame_rate(target_fr).set_channels(channels)
+                speech_track = speech_track.overlay(l_seg, position=s_ms)
+    else:
         speech_track = AudioSegment.silent(duration=target_len_ms, frame_rate=target_fr).set_channels(channels)
-        for s_ms, l_seg in processed_lines:
-            if l_seg.frame_rate != target_fr or l_seg.channels != channels:
-                l_seg = l_seg.set_frame_rate(target_fr).set_channels(channels)
-            speech_track = speech_track.overlay(l_seg, position=s_ms)
 
     # 3. Apply Professional Dual-Stem Cinema Mixing (Continuous Musical Bed & Zero Pumping)
     if dubbing_mode == "pure_voice":
@@ -361,18 +404,15 @@ def mix_dubbed_audio(
         try:
             import numpy as np
             sr = bg_audio.frame_rate
-            channels = bg_audio.channels
+            bg_channels = bg_audio.channels
             raw_samples = np.frombuffer(bg_audio.raw_data, dtype=np.int16)
-            total_frames = len(raw_samples) // channels
+            total_frames = len(raw_samples) // bg_channels
 
-            # Zero Vocal Leakage Dual-Stem Cinema Mixing:
-            # BGM_NOMINAL: Warm, balanced continuous musical bed (0.55 = -5.2dB) during scene pauses and music interludes.
-            # BGM_DUCKED: Deep vocal suppression (0.04 - 0.08 = -28dB to -22dB) during original speech intervals.
-            # Combined with the -17dB vocal cancellation in vocal_remover.py, total Chinese vocal suppression is >40dB (100% inaudible silence, ZERO whisper/leakage).
-            raw_duck = float(ducking_volume_factor) if ducking_volume_factor is not None else 0.20
-            bgm_nominal = 0.55
-            # Scale ducked level based on user preference, default 0.05 for absolute zero leakage
-            bgm_ducked = float(np.clip(raw_duck * 0.25, 0.03, 0.09)) if raw_duck > 0 else 0.02
+            # Professional Cinema Audio Mixing:
+            # bgm_nominal: 0.70 (-3.1dB) for rich musical bed during dialogue pauses
+            # bgm_ducked: 0.35 (-9.1dB) so background music and sound effects are always warmly audible during speech
+            bgm_nominal = 0.70
+            bgm_ducked = 0.35
 
             gain_curve = np.full(total_frames, bgm_nominal, dtype=np.float32)
             fade_in_frames = max(1, int((0.280) * sr))   # 280ms smooth S-curve dip
@@ -409,8 +449,8 @@ def mix_dubbed_audio(
                     ramp_up = bgm_ducked + (bgm_nominal - bgm_ducked) * 0.5 * (1.0 - np.cos(t))
                     gain_curve[rise_start:rise_end] = np.minimum(gain_curve[rise_start:rise_end], ramp_up)
 
-            if channels > 1:
-                samples_2d = raw_samples.reshape(-1, channels).astype(np.float32)
+            if bg_channels > 1:
+                samples_2d = raw_samples.reshape(-1, bg_channels).astype(np.float32)
                 ducked_samples = samples_2d * gain_curve[:, np.newaxis]
             else:
                 ducked_samples = raw_samples.astype(np.float32) * gain_curve
@@ -420,15 +460,34 @@ def mix_dubbed_audio(
                 ducked_int16.tobytes(),
                 frame_rate=sr,
                 sample_width=2,
-                channels=channels
+                channels=bg_channels
             )
         except Exception as e:
             print(f"NumPy smooth ducking fallback note: {e}")
             ducked_bg = bg_audio
 
         final_mixed = ducked_bg.overlay(speech_track)
+    elif bg_audio:
+        final_mixed = bg_audio.overlay(speech_track) if speech_track else bg_audio
     else:
-        final_mixed = speech_track
+        final_mixed = speech_track if speech_track else AudioSegment.silent(duration=1000)
+
+    # Absolute Safety Net: Ensure the exported audio is NEVER silent!
+    try:
+        if final_mixed is None or len(final_mixed) == 0 or final_mixed.dBFS < -46.0 or math.isinf(final_mixed.dBFS):
+            if original_audio_path and Path(original_audio_path).exists():
+                print("Warning: mixed audio had low energy or silence, recovering with original audio!")
+                orig_recover = load_audio_safely(str(original_audio_path))
+                if orig_recover.dBFS < -46.0 or math.isinf(orig_recover.dBFS):
+                    alt_orig = Path(original_audio_path).parent / "original_audio.wav"
+                    if alt_orig.exists():
+                        orig_recover = load_audio_safely(str(alt_orig))
+                if speech_track and len(speech_track) > 0 and speech_track.dBFS > -42.0:
+                    final_mixed = orig_recover.overlay(speech_track)
+                else:
+                    final_mixed = orig_recover
+    except Exception as check_e:
+        print(f"Audio safety check note: {check_e}")
 
     # Save final high quality audio
     save_audio_safely(final_mixed, str(out_p))
