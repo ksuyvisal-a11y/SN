@@ -942,91 +942,217 @@ def system_default_paths_endpoint():
     })
 
 
+def open_native_windows_folder_dialog(initial_dir: str = "", title: str = "ជ្រើសរើស Folder រឿងភាគ (Select Drama Series Folder)") -> Optional[str]:
+    """
+    Open native Windows folder picker safely using PowerShell -STA -EncodedCommand.
+    Runs in an isolated PowerShell process with a TopMost owner form so it appears on top.
+    Guaranteed: NEVER calls sys.executable, avoiding PyInstaller child restarts and taskkill issues.
+    """
+    if not initial_dir or not os.path.exists(initial_dir):
+        initial_dir = "D:/" if os.path.exists("D:/") else "C:/"
+    init_dir_esc = str(Path(initial_dir).resolve()).replace("'", "''")
+    title_esc = str(title).replace("'", "''")
+
+    ps_code = f"""
+Add-Type -AssemblyName System.Windows.Forms
+$f = New-Object System.Windows.Forms.FolderBrowserDialog
+$f.Description = '{title_esc}'
+$f.ShowNewFolderButton = $false
+$initDir = '{init_dir_esc}'
+if (Test-Path $initDir) {{
+    $f.SelectedPath = $initDir
+}}
+$topForm = New-Object System.Windows.Forms.Form
+$topForm.TopMost = $true
+$topForm.Width = 1
+$topForm.Height = 1
+$topForm.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
+$res = $f.ShowDialog($topForm)
+if ($res -eq [System.Windows.Forms.DialogResult]::OK) {{
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    Write-Output ("RESULT:" + $f.SelectedPath)
+}} else {{
+    Write-Output "CANCELLED"
+}}
+$topForm.Dispose()
+$f.Dispose()
+"""
+    try:
+        import base64
+        encoded = base64.b64encode(ps_code.encode("utf-16le")).decode("ascii")
+        proc = subprocess.run(
+            ["powershell.exe", "-STA", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=300,
+            **get_silent_kwargs()
+        )
+        for line in proc.stdout.splitlines():
+            line = line.strip()
+            if line.startswith("RESULT:"):
+                chosen = line[7:].strip().replace("\\", "/")
+                if os.path.exists(chosen):
+                    return chosen
+    except Exception as e:
+        print(f"Native folder dialog note: {e}")
+    return None
+
+
+def open_native_windows_files_dialog(initial_dir: str = "", title: str = "ជ្រើសរើសវីដេអូរឿងភាគ (Select Drama Videos)") -> List[str]:
+    """
+    Open native Windows multi-file picker safely using PowerShell -STA -EncodedCommand.
+    Guaranteed safe across all Windows environments without invoking sys.executable.
+    """
+    if not initial_dir or not os.path.exists(initial_dir):
+        initial_dir = "D:/" if os.path.exists("D:/") else "C:/"
+    init_dir_esc = str(Path(initial_dir).resolve()).replace("'", "''")
+    title_esc = str(title).replace("'", "''")
+
+    ps_code = f"""
+Add-Type -AssemblyName System.Windows.Forms
+$f = New-Object System.Windows.Forms.OpenFileDialog
+$f.Title = '{title_esc}'
+$f.Filter = 'Video Files (*.mp4;*.mkv;*.mov;*.avi;*.webm;*.flv;*.ts;*.m4v)|*.mp4;*.mkv;*.mov;*.avi;*.webm;*.flv;*.ts;*.m4v|All Files (*.*)|*.*'
+$f.Multiselect = $true
+$initDir = '{init_dir_esc}'
+if (Test-Path $initDir) {{
+    $f.InitialDirectory = $initDir
+}}
+$topForm = New-Object System.Windows.Forms.Form
+$topForm.TopMost = $true
+$topForm.Width = 1
+$topForm.Height = 1
+$topForm.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
+$res = $f.ShowDialog($topForm)
+if ($res -eq [System.Windows.Forms.DialogResult]::OK) {{
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    $json = ConvertTo-Json -Compress @($f.FileNames)
+    Write-Output ("RESULT:" + $json)
+}} else {{
+    Write-Output "CANCELLED"
+}}
+$topForm.Dispose()
+$f.Dispose()
+"""
+    try:
+        import base64
+        encoded = base64.b64encode(ps_code.encode("utf-16le")).decode("ascii")
+        proc = subprocess.run(
+            ["powershell.exe", "-STA", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=300,
+            **get_silent_kwargs()
+        )
+        for line in proc.stdout.splitlines():
+            line = line.strip()
+            if line.startswith("RESULT:"):
+                raw_json = line[7:].strip()
+                parsed = json.loads(raw_json)
+                files = [parsed] if isinstance(parsed, str) else list(parsed)
+                return [f.replace("\\", "/") for f in files if os.path.exists(f)]
+    except Exception as e:
+        print(f"Native file dialog note: {e}")
+    return []
+
+
 @app.route("/api/system/select-folder", methods=["POST", "GET"])
+@app.route("/api/downloader/select-folder", methods=["POST", "GET"])
 def system_select_folder_endpoint():
     """Pop native Windows folder picker dialog and return selected path."""
     data = {}
     if request.is_json:
         data = request.get_json(silent=True) or {}
     initial_dir = data.get("initial_dir", "")
-    if not initial_dir or not os.path.exists(initial_dir):
-        initial_dir = "D:/" if os.path.exists("D:/") else "C:/"
-        
-    chosen_path = None
-    
-    # Try subprocess Tkinter picker (clean, foreground topmost window)
-    try:
-        py_code = f"""
-import os, sys
-try:
-    import tkinter as tk
-    from tkinter import filedialog
-    root = tk.Tk()
-    root.withdraw()
-    root.attributes('-topmost', True)
-    init_dir = r'''{initial_dir}'''
-    if not os.path.exists(init_dir):
-        init_dir = 'D:/' if os.path.exists('D:/') else 'C:/'
-    folder = filedialog.askdirectory(
-        parent=root,
-        title="Select Download Save Folder (Drive C: or Drive D:)",
-        initialdir=init_dir
-    )
-    root.destroy()
-    if folder:
-        print("RESULT:" + folder)
-except Exception:
-    pass
-"""
-        proc = subprocess.run(
-            [sys.executable, "-c", py_code],
-            capture_output=True,
-            text=True,
-            timeout=120,
-            **get_silent_kwargs()
-        )
-        for line in proc.stdout.splitlines():
-            if line.startswith("RESULT:"):
-                chosen_path = line[7:].strip().replace("\\", "/")
-                break
-    except Exception:
-        pass
-
-    # Fallback to PowerShell FolderBrowserDialog if Tkinter didn't return
-    if not chosen_path and sys.platform == "win32":
-        try:
-            ps_code = f"""
-            Add-Type -AssemblyName System.Windows.Forms
-            $f = New-Object System.Windows.Forms.FolderBrowserDialog
-            $f.Description = 'Select Download Save Folder (Drive C: or Drive D:)'
-            $f.ShowNewFolderButton = $true
-            if (Test-Path '{initial_dir}') {{
-                $f.SelectedPath = '{initial_dir}'
-            }}
-            $owner = New-Object System.Windows.Forms.NativeWindow
-            $owner.AssignHandle([System.Diagnostics.Process]::GetCurrentProcess().MainWindowHandle)
-            $res = $f.ShowDialog($owner)
-            if ($res -eq [System.Windows.Forms.DialogResult]::OK) {{
-                Write-Output ("RESULT:" + $f.SelectedPath)
-            }}
-            """
-            proc2 = subprocess.run(
-                ["powershell", "-NoProfile", "-Command", ps_code],
-                capture_output=True,
-                text=True,
-                timeout=120,
-                **get_silent_kwargs()
-            )
-            for line in proc2.stdout.splitlines():
-                if "RESULT:" in line:
-                    chosen_path = line.split("RESULT:", 1)[1].strip().replace("\\", "/")
-                    break
-        except Exception:
-            pass
-
+    chosen_path = open_native_windows_folder_dialog(initial_dir, title="Select Download Save Folder (Drive C: or Drive D:)")
     if chosen_path:
         return jsonify({"success": True, "path": chosen_path})
     return jsonify({"success": False, "cancelled": True})
+
+
+@app.route("/api/system/select-media-files", methods=["POST", "GET"])
+def system_select_media_files_endpoint():
+    """Pop native Windows file picker dialog allowing multi-select of video files."""
+    data = {}
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+    initial_dir = data.get("initial_dir", "")
+
+    chosen_files = open_native_windows_files_dialog(initial_dir, title="ជ្រើសរើសវីដេអូរឿងភាគ (Select Drama Videos)")
+
+    if chosen_files:
+        valid_exts = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".flv", ".ts", ".m4v", ".wmv"}
+        meta_files = []
+        for fp in chosen_files:
+            p = Path(fp)
+            if p.exists() and p.is_file() and p.suffix.lower() in valid_exts:
+                sz = p.stat().st_size
+                meta_files.append({
+                    "filepath": str(p.resolve()).replace("\\", "/"),
+                    "filename": p.name,
+                    "size": sz,
+                    "size_mb": f"{sz / (1024 * 1024):.1f}"
+                })
+
+        def natural_sort_key(s):
+            return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', s["filename"])]
+
+        meta_files.sort(key=natural_sort_key)
+        return jsonify({"success": True, "files": meta_files, "count": len(meta_files)})
+
+    return jsonify({"success": False, "cancelled": True, "files": []})
+
+
+@app.route("/api/system/select-media-folder", methods=["POST", "GET"])
+def system_select_media_folder_endpoint():
+    """Pop native Windows folder picker dialog, scanning and naturally sorting all drama episodes."""
+    data = {}
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+    initial_dir = data.get("initial_dir", "")
+
+    chosen_folder = open_native_windows_folder_dialog(initial_dir, title="ជ្រើសរើស Folder រឿងភាគ (Select Drama Series Folder)")
+
+    if not chosen_folder or not os.path.exists(chosen_folder):
+        return jsonify({"success": False, "cancelled": True, "files": []})
+
+    folder_p = Path(chosen_folder)
+    valid_exts = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".flv", ".ts", ".m4v", ".wmv"}
+
+    found_paths = []
+    for item in folder_p.iterdir():
+        if item.is_file() and item.suffix.lower() in valid_exts:
+            found_paths.append(item)
+        elif item.is_dir():
+            for sub in item.iterdir():
+                if sub.is_file() and sub.suffix.lower() in valid_exts:
+                    found_paths.append(sub)
+
+    meta_files = []
+    for p in found_paths:
+        sz = p.stat().st_size
+        meta_files.append({
+            "filepath": str(p.resolve()).replace("\\", "/"),
+            "filename": p.name,
+            "size": sz,
+            "size_mb": f"{sz / (1024 * 1024):.1f}"
+        })
+
+    def natural_sort_key(s):
+        return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', s["filename"])]
+
+    meta_files.sort(key=natural_sort_key)
+
+    series_title = folder_p.name
+    return jsonify({
+        "success": True,
+        "folder": str(folder_p).replace("\\", "/"),
+        "series_title": series_title,
+        "files": meta_files,
+        "count": len(meta_files)
+    })
 
 
 @app.route("/api/system/open-folder", methods=["POST"])

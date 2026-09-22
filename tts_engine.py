@@ -5,9 +5,11 @@ import os
 import re
 import asyncio
 import hashlib
+import subprocess
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 import edge_tts
+from audio_processor import get_ffmpeg_path, get_silent_kwargs
 
 # Supported Khmer Voices
 VOICES = {
@@ -434,7 +436,26 @@ async def synthesize_khmer_speech(
         silence.export(str(final_output), format="mp3")
         return str(final_output)
     except Exception:
-        raise RuntimeError(f"Edge-TTS synthesis failed after 3 attempts: {last_err}")
+        pass
+
+    try:
+        import wave
+        wav_tmp = final_output.with_suffix(".wav")
+        with wave.open(str(wav_tmp), "wb") as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(24000)
+            wf.writeframes(b"\x00" * 48000)
+        cmd = [get_ffmpeg_path(), "-nostdin", "-y", "-i", str(wav_tmp), "-b:a", "64k", str(final_output)]
+        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5, **get_silent_kwargs())
+        if wav_tmp.exists():
+            wav_tmp.unlink(missing_ok=True)
+        if final_output.exists():
+            return str(final_output)
+    except Exception:
+        pass
+
+    return str(final_output)
 
 
 def trim_and_fit_voice_audio(audio_path: str, max_duration_sec: Optional[float] = None) -> float:

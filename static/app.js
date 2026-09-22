@@ -2430,12 +2430,40 @@ async function saveAiProvidingConfig() {
 
 function openImportModal() { openModal('modal-import'); }
 
-function triggerFileSelect() {
+async function triggerFileSelect() {
+    try {
+        const res = await fetch("/api/system/select-media-files", { method: "POST" });
+        const data = await res.json();
+        if (data.success && data.files && data.files.length > 0) {
+            closeModal('modal-import');
+            handleSelectedFiles(data.files);
+            return;
+        } else if (data.cancelled) {
+            closeModal('modal-import');
+            return;
+        }
+    } catch (e) {
+        console.warn("Native file picker note, falling back to HTML input:", e);
+    }
     const input = document.getElementById('batch-files-input');
     if (input) input.click();
 }
 
-function triggerFolderSelect() {
+async function triggerFolderSelect() {
+    try {
+        const res = await fetch("/api/system/select-media-folder", { method: "POST" });
+        const data = await res.json();
+        if (data.success && data.files && data.files.length > 0) {
+            closeModal('modal-import');
+            handleSelectedFiles(data.files, data.series_title);
+            return;
+        } else if (data.cancelled) {
+            closeModal('modal-import');
+            return;
+        }
+    } catch (e) {
+        console.warn("Native folder picker note, falling back to HTML input:", e);
+    }
     const input = document.getElementById('batch-folder-input');
     if (input) input.click();
 }
@@ -2451,15 +2479,21 @@ function setStagedVideo(file) {
     stagedVideoFile = file;
     stagedBatchFiles = null;
 
-    // Preview video immediately in left monitor
+    const fileName = file.name || file.filename || "drama_video.mp4";
+    const fileSizeMB = file.size_mb ? file.size_mb : (file.size ? (file.size / (1024 * 1024)).toFixed(1) : "0.0");
+
+    // Preview video in left monitor (support both native filepath and browser File blob)
     const mainVideo = document.getElementById('main-video');
     if (mainVideo) {
         try {
-            const blobUrl = URL.createObjectURL(file);
-            mainVideo.src = blobUrl;
+            if (file.filepath) {
+                mainVideo.src = `/media/${file.filepath.replace(/\\/g, '/')}`;
+            } else {
+                mainVideo.src = URL.createObjectURL(file);
+            }
             mainVideo.style.display = 'block';
             mainVideo.load();
-            
+
             const handleMeta = () => {
                 if (mainVideo.duration && !isNaN(mainVideo.duration) && isFinite(mainVideo.duration) && mainVideo.duration > 0) {
                     totalDurationSeconds = mainVideo.duration;
@@ -2470,7 +2504,7 @@ function setStagedVideo(file) {
                     const durS = Math.floor(totalDurationSeconds % 60);
                     const durFormatted = `${String(durM).padStart(2,'0')}:${String(durS).padStart(2,'0')}`;
                     const stagedMeta = document.getElementById('staged-file-meta');
-                    if (stagedMeta) stagedMeta.textContent = `${(file.size / (1024 * 1024)).toFixed(1)} MB • Duration: ${durFormatted} • ត្រៀមបកប្រែជាសំឡេងខ្មែរ`;
+                    if (stagedMeta) stagedMeta.textContent = `${fileSizeMB} MB • Duration: ${durFormatted} • ត្រៀមបកប្រែជាសំឡេងខ្មែរ`;
                 }
             };
             mainVideo.onloadedmetadata = handleMeta;
@@ -2478,23 +2512,25 @@ function setStagedVideo(file) {
             mainVideo.oncanplay = handleMeta;
             mainVideo.onloadeddata = handleMeta;
         } catch (e) {
-            console.warn("Blob preview error:", e);
+            console.warn("Video preview load note:", e);
         }
     }
 
-    // Auto detect real video duration probe immediately
-    autoDetectVideoDuration(file, (dur) => {
-        totalDurationSeconds = dur;
-        playheadSeconds = 0;
-        updateScrubberUI();
-
-        const durM = Math.floor(dur / 60);
-        const durS = Math.floor(dur % 60);
-        const durFormatted = `${String(durM).padStart(2,'0')}:${String(durS).padStart(2,'0')}`;
-        const stagedMeta = document.getElementById('staged-file-meta');
-        if (stagedMeta) refreshStagedCardVoiceMeta();
-        appendLiveTerminalLine(`Media imported: "${file.name}" • Duration: ${durFormatted} (${dur.toFixed(1)}s)`, "[Video 1/1]", "info");
-    });
+    if (!file.filepath) {
+        autoDetectVideoDuration(file, (dur) => {
+            totalDurationSeconds = dur;
+            playheadSeconds = 0;
+            updateScrubberUI();
+            const durM = Math.floor(dur / 60);
+            const durS = Math.floor(dur % 60);
+            const durFormatted = `${String(durM).padStart(2,'0')}:${String(durS).padStart(2,'0')}`;
+            const stagedMeta = document.getElementById('staged-file-meta');
+            if (stagedMeta) refreshStagedCardVoiceMeta();
+            appendLiveTerminalLine(`Media imported: "${fileName}" • Duration: ${durFormatted} (${dur.toFixed(1)}s)`, "[Video 1/1]", "info");
+        });
+    } else {
+        appendLiveTerminalLine(`Media imported: "${fileName}" (${fileSizeMB} MB) • Native Direct Link`, "[Video 1/1]", "info");
+    }
 
     // Update Clean Source View to Staged Ready State
     const importPrompt = document.getElementById('clean-import-prompt');
@@ -2506,15 +2542,13 @@ function setStagedVideo(file) {
     if (importPrompt) importPrompt.style.display = 'none';
     if (stagedCard) stagedCard.style.display = 'flex';
     if (sourceLabel) sourceLabel.style.display = 'none';
-    if (stagedTitle) stagedTitle.textContent = file.name;
+    if (stagedTitle) stagedTitle.textContent = fileName;
     refreshStagedCardVoiceMeta();
     syncStagedCardControls();
 
-    // Highlight / Pulse top Export button
     const exportBtn = document.getElementById('btn-tab-export');
     if (exportBtn) exportBtn.classList.add('export-ready-pulse');
 
-    // Update Engine Monitor pill
     const pill = document.getElementById('monitor-engine-status-pill');
     const dot = document.getElementById('monitor-pulse-dot');
     const text = document.getElementById('monitor-engine-status-text');
@@ -2523,11 +2557,11 @@ function setStagedVideo(file) {
     if (text) text.textContent = 'READY FOR EXPORT';
 
     updateScrubberUI();
-    showToast("📁 បានផ្ទុកវីដេអូជោគជ័យ! សូមចុចប៊ូតុង \"Export\" ដើម្បីចាប់ផ្តើមបកប្រែ។");
-    appendTerminalLine(`[Ready] Video "${file.name}" staged. Click [Export] to begin AI Dubbing.`);
+    showToast(`📁 បានផ្ទុក "${fileName}" ជោគជ័យ! សូមចុច Export ដើម្បីចាប់ផ្តើមបកប្រែ។`);
+    appendTerminalLine(`[Ready] Video "${fileName}" staged. Click [Export] to begin AI Dubbing.`);
 }
 
-function setStagedBatchFiles(files) {
+function setStagedBatchFiles(files, folderTitle = "") {
     stagedBatchFiles = files;
     stagedVideoFile = null;
 
@@ -2536,19 +2570,17 @@ function setStagedBatchFiles(files) {
         const mainVideo = document.getElementById('main-video');
         if (mainVideo) {
             try {
-                const blobUrl = URL.createObjectURL(firstFile);
-                mainVideo.src = blobUrl;
+                if (firstFile.filepath) {
+                    mainVideo.src = `/media/${firstFile.filepath.replace(/\\/g, '/')}`;
+                } else {
+                    mainVideo.src = URL.createObjectURL(firstFile);
+                }
                 mainVideo.style.display = 'block';
                 mainVideo.load();
             } catch (e) {
-                console.warn("Batch preview blob error:", e);
+                console.warn("Batch preview load note:", e);
             }
         }
-        autoDetectVideoDuration(firstFile, (dur) => {
-            totalDurationSeconds = dur;
-            playheadSeconds = 0;
-            updateScrubberUI();
-        });
     }
 
     const importPrompt = document.getElementById('clean-import-prompt');
@@ -2561,8 +2593,8 @@ function setStagedBatchFiles(files) {
     if (stagedCard) stagedCard.style.display = 'flex';
     if (sourceLabel) sourceLabel.style.display = 'none';
 
-    let folderName = "";
-    if (files[0] && files[0].webkitRelativePath) {
+    let folderName = folderTitle || "";
+    if (!folderName && files[0] && files[0].webkitRelativePath) {
         const parts = files[0].webkitRelativePath.split('/');
         if (parts.length > 1) folderName = parts[0];
     }
@@ -2580,7 +2612,10 @@ function setStagedBatchFiles(files) {
     clearLiveTerminal();
     appendLiveTerminalLine(`Folder / Series Staged: ${files.length} episodes loaded in story order.`, "[Batch Ready]", "info");
     for (let i = 0; i < Math.min(files.length, 5); i++) {
-        appendLiveTerminalLine(`  • Episode ${i+1}: "${files[i].name}" (${(files[i].size / (1024*1024)).toFixed(1)} MB)`, "[Episode List]", "info");
+        const f = files[i];
+        const fName = f.name || f.filename || `Episode ${i+1}`;
+        const fMB = f.size_mb || (f.size ? (f.size / (1024*1024)).toFixed(1) : "?");
+        appendLiveTerminalLine(`  • Episode ${i+1}: "${fName}" (${fMB} MB)`, "[Episode List]", "info");
     }
     if (files.length > 5) {
         appendLiveTerminalLine(`  ... និង ${files.length - 5} ភាគទៀត`, "[Episode List]", "info");
@@ -2602,13 +2637,13 @@ function clearStagedFiles() {
     if (sourceLabel) sourceLabel.style.display = 'block';
 }
 
-function handleSelectedFiles(files) {
+function handleSelectedFiles(files, folderTitle = "") {
     if (!files || files.length === 0) return;
     closeModal('modal-import');
 
     const validExts = ['.mp4', '.mkv', '.mov', '.avi', '.webm', '.flv', '.ts', '.m4v', '.wmv'];
     const fileList = Array.from(files).filter(f => {
-        const n = (f.name || '').toLowerCase();
+        const n = (f.name || f.filename || '').toLowerCase();
         return validExts.some(ext => n.endsWith(ext)) || (f.type && f.type.startsWith('video/'));
     });
 
@@ -2618,30 +2653,36 @@ function handleSelectedFiles(files) {
     }
 
     // Natural numerical sorting: Episode 1, Episode 2, Episode 10 in true story order!
-    fileList.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+    fileList.sort((a, b) => {
+        const nameA = a.name || a.filename || "";
+        const nameB = b.name || b.filename || "";
+        return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+    });
 
     if (fileList.length === 1) {
         setStagedVideo(fileList[0]);
     } else {
-        setStagedBatchFiles(fileList);
+        setStagedBatchFiles(fileList, folderTitle);
     }
 }
 
 async function startAutoDubbingPipeline(file) {
-    showToast(`🚀 កំពុង Upload និងចាប់ផ្តើមបកប្រែវីដេអូ: ${file.name}`);
-    
+    const fileName = file.name || file.filename || "drama_video.mp4";
+    const fileSizeMB = file.size_mb ? file.size_mb : (file.size ? (file.size / (1024*1024)).toFixed(1) : "?");
+    showToast(`🚀 កំពុងរៀបចំ និងចាប់ផ្តើមបកប្រែវីដេអូ: ${fileName}`);
+
     // Output initial console startup sequence matching Image 2
     clearLiveTerminal();
     appendLiveTerminalLine(`Job initiated: AI Video Dubbing & Translation Pipeline`, "[Video 1/1]", "info");
-    appendLiveTerminalLine(`Source media: ${file.name} (${(file.size / (1024*1024)).toFixed(1)} MB)...`, "[Video 1/1]", "info");
+    appendLiveTerminalLine(`Source media: ${fileName} (${fileSizeMB} MB)...`, "[Video 1/1]", "info");
     appendLiveTerminalLine(`AI voice removal: extracting audio...`, "[Video 1/1]", "info");
     appendLiveTerminalLine(`AI voice removal: preparing the separation engine...`, "[Video 1/1]", "info");
     appendLiveTerminalLine(`AI voice removal: running on GPU (CUDA / DirectML)...`, "[Video 1/1]", "info");
     appendLiveTerminalLine(`AI voice removal: using the built-in model.`, "[Video 1/1]", "info");
-    
+
     // Keep clean source view active (uncluttered layout)
     showCleanSourceView();
-    
+
     // Set Engine Monitor to Active Encoding State
     const pill = document.getElementById('monitor-engine-status-pill');
     const dot = document.getElementById('monitor-pulse-dot');
@@ -2650,11 +2691,9 @@ async function startAutoDubbingPipeline(file) {
     if (dot) dot.className = 'pulse-indicator';
     if (text) text.textContent = 'AI DUBBING IN PROGRESS';
 
-    updateExportProgressUI(5, 0, 90, "១/៦ កំពុង Upload វីដេអូទៅកាន់ម៉ាស៊ីន Studio...");
+    updateExportProgressUI(5, 0, 90, "១/៦ កំពុងភ្ជាប់វីដេអូទៅកាន់ម៉ាស៊ីន Studio...");
 
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("drama_mode", currentStudioPreset === "narration" ? "movie_recap" : "drama_dubbing");
+    const activeDramaMode = currentStudioPreset === "narration" ? "movie_recap" : "drama_dubbing";
     const activeSourceLang = currentStoryConfig.source_lang || "auto";
     const activeVoiceOverride = (currentStoryConfig.auto_multi_voice || currentStoryConfig.khmer_voice === "multi") 
         ? "multi" 
@@ -2662,16 +2701,35 @@ async function startAutoDubbingPipeline(file) {
     const activeAspectRatio = currentStoryConfig.aspect_ratio || "9:16";
     const activeBurnSubs = (currentStoryConfig.subtitle_mode === "burn") ? "true" : "false";
 
-    formData.append("source_lang", activeSourceLang);
-    formData.append("voice_override", activeVoiceOverride);
-    formData.append("aspect_ratio", activeAspectRatio);
-    formData.append("burn_subtitles", activeBurnSubs);
-
     try {
-        const res = await fetch("/api/projects/auto-dub-video", {
-            method: "POST",
-            body: formData
-        });
+        let res;
+        if (file.filepath) {
+            res = await fetch("/api/projects/auto-dub-video", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    filepath: file.filepath,
+                    drama_mode: activeDramaMode,
+                    source_lang: activeSourceLang,
+                    voice_override: activeVoiceOverride,
+                    aspect_ratio: activeAspectRatio,
+                    burn_subtitles: activeBurnSubs
+                })
+            });
+        } else {
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("drama_mode", activeDramaMode);
+            formData.append("source_lang", activeSourceLang);
+            formData.append("voice_override", activeVoiceOverride);
+            formData.append("aspect_ratio", activeAspectRatio);
+            formData.append("burn_subtitles", activeBurnSubs);
+
+            res = await fetch("/api/projects/auto-dub-video", {
+                method: "POST",
+                body: formData
+            });
+        }
         const data = await res.json();
         if (!data.success || !data.task_id) {
             showToast(`❌ បរាជ័យ: ${data.error || "មិនអាចចាប់ផ្តើមបានទេ"}`);
@@ -2842,19 +2900,19 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
     for (let i = 0; i < totalBatchCount; i++) {
         const file = files[i];
         const epNum = i + 1;
+        const fileName = file.name || file.filename || `Episode_${epNum}.mp4`;
+        const fileSizeMb = file.size_mb !== undefined ? file.size_mb : (file.size ? (file.size / (1024 * 1024)).toFixed(1) : "?");
 
         if (text) text.textContent = `BATCH DUBBING (${epNum} / ${totalBatchCount})`;
 
         appendLiveTerminalLine(`------------------------------------------------------------------------`, `[Ep ${epNum}/${totalBatchCount}]`, "info");
-        appendLiveTerminalLine(`▶ Starting Episode ${epNum}/${totalBatchCount}: "${file.name}" (${(file.size / (1024 * 1024)).toFixed(1)} MB)...`, `[Ep ${epNum}/${totalBatchCount}]`, "info");
-        appendLiveTerminalLine(`AI voice removal: extracting audio & isolating Chinese vocals...`, `[Ep ${epNum}/${totalBatchCount}]`, "info");
+        appendLiveTerminalLine(`▶ Starting Episode ${epNum}/${totalBatchCount}: "${fileName}" (${fileSizeMb} MB)...`, `[Ep ${epNum}/${totalBatchCount}]`, "info");
+        appendLiveTerminalLine(`AI voice removal: extracting audio & isolating vocals...`, `[Ep ${epNum}/${totalBatchCount}]`, "info");
 
         const basePct = Math.round((i / totalBatchCount) * 100);
-        updateExportProgressUI(basePct, totalElapsedSeconds, 60 * (totalBatchCount - i), `ភាគ ${epNum}/${totalBatchCount}: ${file.name} - កំពុងផ្ញើទៅ Studio...`);
+        updateExportProgressUI(basePct, totalElapsedSeconds, 60 * (totalBatchCount - i), `ភាគ ${epNum}/${totalBatchCount}: ${fileName} - កំពុងផ្ញើទៅ Studio...`);
 
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("drama_mode", currentStudioPreset === "narration" ? "movie_recap" : "drama_dubbing");
+        const dramaMode = currentStudioPreset === "narration" ? "movie_recap" : "drama_dubbing";
         const activeSourceLang = currentStoryConfig.source_lang || "auto";
         const activeVoiceOverride = (currentStoryConfig.auto_multi_voice || currentStoryConfig.khmer_voice === "multi") 
             ? "multi" 
@@ -2862,17 +2920,37 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
         const activeAspectRatio = currentStoryConfig.aspect_ratio || "9:16";
         const activeBurnSubs = (currentStoryConfig.subtitle_mode === "burn") ? "true" : "false";
 
-        formData.append("source_lang", activeSourceLang);
-        formData.append("voice_override", activeVoiceOverride);
-        formData.append("aspect_ratio", activeAspectRatio);
-        formData.append("burn_subtitles", activeBurnSubs);
-
         let taskId = null;
         try {
-            const res = await fetch("/api/projects/auto-dub-video", {
-                method: "POST",
-                body: formData
-            });
+            let res;
+            if (file.filepath) {
+                res = await fetch("/api/projects/auto-dub-video", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        filepath: file.filepath,
+                        filename: fileName,
+                        drama_mode: dramaMode,
+                        source_lang: activeSourceLang,
+                        voice_override: activeVoiceOverride,
+                        aspect_ratio: activeAspectRatio,
+                        burn_subtitles: activeBurnSubs
+                    })
+                });
+            } else {
+                const formData = new FormData();
+                formData.append("file", file);
+                formData.append("drama_mode", dramaMode);
+                formData.append("source_lang", activeSourceLang);
+                formData.append("voice_override", activeVoiceOverride);
+                formData.append("aspect_ratio", activeAspectRatio);
+                formData.append("burn_subtitles", activeBurnSubs);
+
+                res = await fetch("/api/projects/auto-dub-video", {
+                    method: "POST",
+                    body: formData
+                });
+            }
             const data = await res.json();
             if (!data.success || !data.task_id) {
                 appendLiveTerminalLine(`❌ Episode ${epNum} skipped: ${data.error || 'Upload error'}`, `[Ep ${epNum}/${totalBatchCount}]`, "error");
@@ -2951,7 +3029,7 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
                             mainVideo.load();
                         }
 
-                        appendLiveTerminalLine(`✓ Episode ${epNum}/${totalBatchCount} finished: "${sData.project.output_video_file || file.name}"`, `[Ep ${epNum}/${totalBatchCount}]`, "success");
+                        appendLiveTerminalLine(`✓ Episode ${epNum}/${totalBatchCount} finished: "${sData.project.output_video_file || fileName}"`, `[Ep ${epNum}/${totalBatchCount}]`, "success");
                         showToast(`✅ ភាគ ${epNum}/${totalBatchCount} បកប្រែរួចរាល់!`);
                         resolve(true);
                     } else if (sData.status === "failed") {

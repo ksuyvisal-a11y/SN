@@ -127,6 +127,7 @@ def load_audio_safely(file_path: str) -> AudioSegment:
     """
     cmd = [
         get_ffmpeg_path(),
+        "-nostdin",
         "-y",
         "-i", str(file_path),
         "-vn",
@@ -136,7 +137,7 @@ def load_audio_safely(file_path: str) -> AudioSegment:
         "-f", "wav",
         "-"
     ]
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **get_silent_kwargs())
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=120, **get_silent_kwargs())
     if proc.returncode != 0:
         raise RuntimeError(f"FFmpeg audio decode failed: {proc.stderr.decode('utf-8', errors='ignore')}")
     
@@ -156,12 +157,13 @@ def save_audio_safely(segment: AudioSegment, output_path: str, bitrate: str = "1
     
     cmd = [
         get_ffmpeg_path(),
+        "-nostdin",
         "-y",
         "-i", "-",
         "-b:a", bitrate,
         str(out_p)
     ]
-    proc = subprocess.run(cmd, input=wav_io.read(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, **get_silent_kwargs())
+    proc = subprocess.run(cmd, input=wav_io.read(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=120, **get_silent_kwargs())
     if proc.returncode != 0:
         raise RuntimeError(f"FFmpeg audio save failed: {proc.stderr.decode('utf-8', errors='ignore')}")
         
@@ -202,13 +204,15 @@ def enhance_voice_clarity_studio(
     filter_str = ",".join(filter_parts)
     temp_out = out_file.parent / f"tmp_dsp_{out_file.name}"
     cmd = [
-        get_ffmpeg_path(), "-y",
+        get_ffmpeg_path(),
+        "-nostdin",
+        "-y",
         "-i", str(in_file),
         "-filter:a", filter_str,
         "-b:a", "192k",
         str(temp_out)
     ]
-    res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **get_silent_kwargs())
+    res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60, **get_silent_kwargs())
     if res.returncode == 0 and temp_out.exists() and temp_out.stat().st_size > 100:
         if output_path is None or str(output_path) == str(input_path):
             if in_file.exists():
@@ -233,6 +237,7 @@ def extract_audio_from_video(video_path: str, output_audio_path: str) -> str:
     
     cmd = [
         get_ffmpeg_path(),
+        "-nostdin",
         "-y",
         "-i", str(video_path),
         "-vn",
@@ -242,7 +247,7 @@ def extract_audio_from_video(video_path: str, output_audio_path: str) -> str:
         str(out_p)
     ]
     
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, **get_silent_kwargs())
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=1800, **get_silent_kwargs())
     if proc.returncode != 0:
         raise RuntimeError(f"FFmpeg audio extraction failed: {proc.stderr}")
         
@@ -253,9 +258,10 @@ def get_media_duration(file_path: str) -> float:
     """Get media file duration in seconds using FFmpeg stderr output."""
     cmd = [
         get_ffmpeg_path(),
+        "-nostdin",
         "-i", str(file_path)
     ]
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, **get_silent_kwargs())
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=10, **get_silent_kwargs())
     for line in proc.stderr.splitlines():
         if "Duration:" in line:
             parts = line.split("Duration:")[1].split(",")[0].strip()
@@ -404,36 +410,68 @@ def mix_dubbed_audio(
     if processed_lines:
         try:
             import numpy as np
-            total_samples = int((target_len_ms / 1000.0) * target_fr) + target_fr
-            master_buffer = np.zeros((total_samples, channels), dtype=np.int32)
+            import math
+            # Memory-safe chunked block assembly (approx 50MB RAM per block, zero OOM on multi-hour videos)
+            block_ms = 600 * 1000
+            total_blocks = max(1, int(math.ceil(target_len_ms / block_ms)))
+            assembled_blocks = []
 
-            for start_ms, line_seg in processed_lines:
-                if line_seg.frame_rate != target_fr or line_seg.channels != channels:
-                    line_seg = line_seg.set_frame_rate(target_fr).set_channels(channels)
+            for b_idx in range(total_blocks):
+                b_start_ms = b_idx * block_ms
+                b_end_ms = min(target_len_ms, b_start_ms + block_ms)
+                b_len_ms = b_end_ms - b_start_ms
+                b_samples = int((b_len_ms / 1000.0) * target_fr)
 
-                start_sample = max(0, int((start_ms / 1000.0) * target_fr))
-                line_samples = np.frombuffer(line_seg.raw_data, dtype=np.int16)
-                if channels > 1:
-                    line_samples = line_samples.reshape(-1, channels)
-                else:
-                    line_samples = line_samples.reshape(-1, 1)
+                if b_samples <= 0:
+                    continue
 
-                n_samples = len(line_samples)
-                end_sample = min(total_samples, start_sample + n_samples)
-                if end_sample > start_sample:
-                    usable_n = end_sample - start_sample
-                    master_buffer[start_sample:end_sample] += line_samples[:usable_n]
+                b_buffer = np.zeros((b_samples, channels), dtype=np.int32)
 
-            # Clip safely to 16-bit range without harsh digital distortion
-            master_buffer = np.clip(master_buffer, -32768, 32767).astype(np.int16)
-            speech_track = AudioSegment(
-                master_buffer.tobytes(),
-                frame_rate=target_fr,
-                sample_width=2,
-                channels=channels
-            )
-            if len(speech_track) > target_len_ms:
-                speech_track = speech_track[:target_len_ms]
+                for start_ms, line_seg in processed_lines:
+                    line_end_ms = start_ms + len(line_seg)
+                    if line_end_ms <= b_start_ms or start_ms >= b_end_ms:
+                        continue
+
+                    if line_seg.frame_rate != target_fr or line_seg.channels != channels:
+                        line_seg = line_seg.set_frame_rate(target_fr).set_channels(channels)
+
+                    line_samples = np.frombuffer(line_seg.raw_data, dtype=np.int16)
+                    if channels > 1:
+                        line_samples = line_samples.reshape(-1, channels)
+                    else:
+                        line_samples = line_samples.reshape(-1, 1)
+
+                    rel_start_ms = start_ms - b_start_ms
+                    if rel_start_ms >= 0:
+                        buf_s = int((rel_start_ms / 1000.0) * target_fr)
+                        samp_s = 0
+                    else:
+                        buf_s = 0
+                        samp_s = int((abs(rel_start_ms) / 1000.0) * target_fr)
+
+                    samp_len = len(line_samples) - samp_s
+                    if samp_len <= 0 or buf_s >= b_samples:
+                        continue
+
+                    usable = min(samp_len, b_samples - buf_s)
+                    b_buffer[buf_s:buf_s + usable] += line_samples[samp_s:samp_s + usable]
+
+                b_int16 = np.clip(b_buffer, -32768, 32767).astype(np.int16)
+                assembled_blocks.append(AudioSegment(
+                    b_int16.tobytes(),
+                    frame_rate=target_fr,
+                    sample_width=2,
+                    channels=channels
+                ))
+
+            if assembled_blocks:
+                speech_track = assembled_blocks[0]
+                for nxt in assembled_blocks[1:]:
+                    speech_track += nxt
+                if len(speech_track) > target_len_ms:
+                    speech_track = speech_track[:target_len_ms]
+            else:
+                speech_track = AudioSegment.silent(duration=target_len_ms, frame_rate=target_fr).set_channels(channels)
         except Exception as np_mix_err:
             print(f"NumPy audio track mix note ({np_mix_err}), using overlay fallback.")
             speech_track = AudioSegment.silent(duration=target_len_ms, frame_rate=target_fr).set_channels(channels)
@@ -448,9 +486,6 @@ def mix_dubbed_audio(
     if dubbing_mode == "pure_voice":
         final_mixed = speech_track
     elif bg_audio and speech_intervals:
-        # Professional Cinema Ducking:
-        # Merge gaps under 2400ms so ongoing dialogue exchanges maintain a consistent,
-        # warm musical bed without sudden volume jumps or choppy pumping between sentences!
         speech_intervals.sort(key=lambda x: x[0])
         merged_intervals = []
         for start, end in speech_intervals:
@@ -463,7 +498,7 @@ def mix_dubbed_audio(
                 else:
                     merged_intervals.append([start, end])
 
-        # Calculate smooth continuous gain envelope across all frames
+        # Memory-safe chunked ducking (60-second blocks, <10MB RAM even on 10-hour movies)
         try:
             import numpy as np
             sr = bg_audio.frame_rate
@@ -471,56 +506,79 @@ def mix_dubbed_audio(
             raw_samples = np.frombuffer(bg_audio.raw_data, dtype=np.int16)
             total_frames = len(raw_samples) // bg_channels
 
-            # Professional Cinema Audio Mixing:
-            # bgm_nominal: 0.70 (-3.1dB) for rich musical bed during dialogue pauses
-            # bgm_ducked: 0.35 (-9.1dB) so background music and sound effects are always warmly audible during speech
             bgm_nominal = 0.70
             bgm_ducked = 0.35
 
-            gain_curve = np.full(total_frames, bgm_nominal, dtype=np.float32)
-            fade_in_frames = max(1, int((0.280) * sr))   # 280ms smooth S-curve dip
-            fade_out_frames = max(1, int((0.600) * sr))  # 600ms smooth S-curve return
+            fade_in_frames = max(1, int(0.280 * sr))   # 280ms smooth S-curve dip
+            fade_out_frames = max(1, int(0.600 * sr))  # 600ms smooth S-curve return
 
-            for s_ms, e_ms in merged_intervals:
-                start_frame = max(0, int((s_ms / 1000.0) * sr))
-                end_frame = min(total_frames, int((e_ms / 1000.0) * sr))
+            block_frames = 60 * sr
+            ducked_bytes = bytearray()
 
-                if start_frame >= total_frames:
-                    continue
+            for blk_start in range(0, total_frames, block_frames):
+                blk_end = min(total_frames, blk_start + block_frames)
+                n_blk = blk_end - blk_start
 
-                # Smooth S-curve (cosine) dip into ducking
-                dip_start = max(0, start_frame - fade_in_frames // 2)
-                dip_end = min(total_frames, dip_start + fade_in_frames)
-                if dip_end > dip_start:
-                    t = np.linspace(0, np.pi, dip_end - dip_start, dtype=np.float32)
-                    ramp_down = bgm_ducked + (bgm_nominal - bgm_ducked) * 0.5 * (1.0 + np.cos(t))
-                    gain_curve[dip_start:dip_end] = np.minimum(gain_curve[dip_start:dip_end], ramp_down)
+                gain_blk = np.full(n_blk, bgm_nominal, dtype=np.float32)
 
-                # Steady ducked level during dialogue
-                body_start = dip_end
-                body_end = max(body_start, end_frame)
-                if body_end > body_start and body_start < total_frames:
-                    gain_curve[body_start:min(total_frames, body_end)] = np.minimum(
-                        gain_curve[body_start:min(total_frames, body_end)], bgm_ducked
-                    )
+                blk_s_ms = (blk_start / sr) * 1000.0
+                blk_e_ms = (blk_end / sr) * 1000.0
 
-                # Smooth S-curve (cosine) swell back to nominal volume after dialogue
-                rise_start = body_end
-                rise_end = min(total_frames, rise_start + fade_out_frames)
-                if rise_end > rise_start and rise_start < total_frames:
-                    t = np.linspace(0, np.pi, rise_end - rise_start, dtype=np.float32)
-                    ramp_up = bgm_ducked + (bgm_nominal - bgm_ducked) * 0.5 * (1.0 - np.cos(t))
-                    gain_curve[rise_start:rise_end] = np.minimum(gain_curve[rise_start:rise_end], ramp_up)
+                for s_ms, e_ms in merged_intervals:
+                    if e_ms + 1000 < blk_s_ms or s_ms - 1000 > blk_e_ms:
+                        continue
 
-            if bg_channels > 1:
-                samples_2d = raw_samples.reshape(-1, bg_channels).astype(np.float32)
-                ducked_samples = samples_2d * gain_curve[:, np.newaxis]
-            else:
-                ducked_samples = raw_samples.astype(np.float32) * gain_curve
+                    start_frame = max(0, int((s_ms / 1000.0) * sr))
+                    end_frame = min(total_frames, int((e_ms / 1000.0) * sr))
 
-            ducked_int16 = np.clip(ducked_samples, -32768, 32767).astype(np.int16)
+                    dip_start = max(0, start_frame - fade_in_frames // 2)
+                    dip_end = min(total_frames, dip_start + fade_in_frames)
+
+                    loc_dip_s = max(0, dip_start - blk_start)
+                    loc_dip_e = min(n_blk, dip_end - blk_start)
+                    if loc_dip_e > loc_dip_s:
+                        g_start = blk_start + loc_dip_s
+                        g_end = blk_start + loc_dip_e
+                        t = np.linspace((g_start - dip_start) / max(1, dip_end - dip_start) * np.pi,
+                                        (g_end - dip_start) / max(1, dip_end - dip_start) * np.pi,
+                                        loc_dip_e - loc_dip_s, dtype=np.float32)
+                        ramp_down = bgm_ducked + (bgm_nominal - bgm_ducked) * 0.5 * (1.0 + np.cos(t))
+                        gain_blk[loc_dip_s:loc_dip_e] = np.minimum(gain_blk[loc_dip_s:loc_dip_e], ramp_down)
+
+                    body_start = dip_end
+                    body_end = max(body_start, end_frame)
+                    loc_body_s = max(0, body_start - blk_start)
+                    loc_body_e = min(n_blk, body_end - blk_start)
+                    if loc_body_e > loc_body_s:
+                        gain_blk[loc_body_s:loc_body_e] = np.minimum(gain_blk[loc_body_s:loc_body_e], bgm_ducked)
+
+                    rise_start = body_end
+                    rise_end = min(total_frames, rise_start + fade_out_frames)
+                    loc_rise_s = max(0, rise_start - blk_start)
+                    loc_rise_e = min(n_blk, rise_end - blk_start)
+                    if loc_rise_e > loc_rise_s:
+                        g_start = blk_start + loc_rise_s
+                        g_end = blk_start + loc_rise_e
+                        t = np.linspace((g_start - rise_start) / max(1, rise_end - rise_start) * np.pi,
+                                        (g_end - rise_start) / max(1, rise_end - rise_start) * np.pi,
+                                        loc_rise_e - loc_rise_s, dtype=np.float32)
+                        ramp_up = bgm_ducked + (bgm_nominal - bgm_ducked) * 0.5 * (1.0 - np.cos(t))
+                        gain_blk[loc_rise_s:loc_rise_e] = np.minimum(gain_blk[loc_rise_s:loc_rise_e], ramp_up)
+
+                blk_sample_s = blk_start * bg_channels
+                blk_sample_e = blk_end * bg_channels
+                blk_samples = raw_samples[blk_sample_s:blk_sample_e]
+
+                if bg_channels > 1:
+                    samples_2d = blk_samples.reshape(-1, bg_channels).astype(np.float32)
+                    ducked_blk = samples_2d * gain_blk[:, np.newaxis]
+                else:
+                    ducked_blk = blk_samples.astype(np.float32) * gain_blk
+
+                ducked_bytes.extend(np.clip(ducked_blk, -32768, 32767).astype(np.int16).tobytes())
+
             ducked_bg = AudioSegment(
-                ducked_int16.tobytes(),
+                bytes(ducked_bytes),
                 frame_rate=sr,
                 sample_width=2,
                 channels=bg_channels

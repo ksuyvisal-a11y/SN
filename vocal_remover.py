@@ -47,6 +47,7 @@ def separate_vocals_and_bgm(
 
     cmd_bgm = [
         get_ffmpeg_path(),
+        "-nostdin",
         "-y",
         "-i", str(in_p),
         "-af", phase_cancel_filter,
@@ -55,7 +56,7 @@ def separate_vocals_and_bgm(
         "-ac", "2",
         str(bgm_output)
     ]
-    proc_bgm = subprocess.run(cmd_bgm, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, **get_silent_kwargs())
+    proc_bgm = subprocess.run(cmd_bgm, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=3600, **get_silent_kwargs())
 
     # 2. Check if phase cancellation produced silence (common on dual-mono audio where L == R)
     need_fallback = False
@@ -63,19 +64,38 @@ def separate_vocals_and_bgm(
         need_fallback = True
     else:
         try:
-            from audio_processor import load_audio_safely
-            test_seg = load_audio_safely(str(bgm_output))
-            if test_seg.dBFS < -46.0 or test_seg.max_dBFS < -42.0:
-                print(f"Notice: Phase cancellation resulted in silence (dBFS={test_seg.dBFS:.1f}), switching to speech notch filter.")
+            # Fast check on a 5-second sample instead of decoding the entire file into memory
+            probe_cmd = [
+                get_ffmpeg_path(),
+                "-nostdin",
+                "-ss", "5",
+                "-t", "5",
+                "-i", str(bgm_output),
+                "-af", "volumedetect",
+                "-f", "null",
+                "-"
+            ]
+            p_res = subprocess.run(probe_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, timeout=15, **get_silent_kwargs())
+            m_db = -50.0
+            for line in p_res.stderr.splitlines():
+                if "mean_volume:" in line:
+                    try:
+                        m_db = float(line.split("mean_volume:")[1].split("dB")[0].strip())
+                        break
+                    except Exception:
+                        pass
+            if m_db < -46.0:
+                print(f"Notice: Phase cancellation resulted in silence (mean_volume={m_db:.1f}dB), switching to speech notch filter.")
                 need_fallback = True
         except Exception:
-            need_fallback = True
+            pass
 
     if need_fallback:
         # Fallback: High-precision speech notch filter without phase subtraction
         # Preserves 100% of music and background effects at full volume!
         cmd_bgm_fallback = [
             get_ffmpeg_path(),
+            "-nostdin",
             "-y",
             "-i", str(in_p),
             "-af", speech_notch_filter,
@@ -84,14 +104,12 @@ def separate_vocals_and_bgm(
             "-ac", "2",
             str(bgm_output)
         ]
-        proc_fb = subprocess.run(cmd_bgm_fallback, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, **get_silent_kwargs())
+        proc_fb = subprocess.run(cmd_bgm_fallback, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=3600, **get_silent_kwargs())
         if proc_fb.returncode != 0 or not bgm_output.exists():
-            # Ultimate safety: copy original audio so BGM is NEVER dead silence
             import shutil
             shutil.copy2(str(in_p), str(bgm_output))
 
     # Vocal isolation filter: Extract center channel dialogue and suppress stereo BGM
-    # In movies, dialogues are panned center (L+R in-phase).
     vocal_filter = (
         "pan=1c|c0=0.5*c0+0.5*c1,"
         "highpass=f=80,lowpass=f=4500,"
@@ -100,6 +118,7 @@ def separate_vocals_and_bgm(
     )
     cmd_voc = [
         get_ffmpeg_path(),
+        "-nostdin",
         "-y",
         "-i", str(in_p),
         "-af", vocal_filter,
@@ -108,10 +127,11 @@ def separate_vocals_and_bgm(
         "-ac", "1",
         str(vocals_output)
     ]
-    proc_voc = subprocess.run(cmd_voc, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **get_silent_kwargs())
+    proc_voc = subprocess.run(cmd_voc, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=3600, **get_silent_kwargs())
     if proc_voc.returncode != 0 or not vocals_output.exists() or vocals_output.stat().st_size < 1000:
         cmd_fallback = [
             get_ffmpeg_path(),
+            "-nostdin",
             "-y",
             "-i", str(in_p),
             "-af", "highpass=f=80,lowpass=f=4500",
@@ -119,6 +139,6 @@ def separate_vocals_and_bgm(
             "-ar", "16000",
             str(vocals_output)
         ]
-        subprocess.run(cmd_fallback, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **get_silent_kwargs())
+        subprocess.run(cmd_fallback, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=3600, **get_silent_kwargs())
 
     return str(bgm_output), str(vocals_output)

@@ -523,13 +523,9 @@ class ProjectManager:
         proj_dir = Path(f"data/projects/{proj_id}")
         proj_dir.mkdir(parents=True, exist_ok=True)
 
-        # 1. Copy Video & Extract Audio
+        # 1. Video & Audio Preparation (Direct zero-copy referencing for ultra-fast processing)
         update_prog(12, "១/៧ កំពុងទាញយកសំឡេងពីវីដេអូ...", "Extracting audio from video...")
-        import shutil
-        dest_video = proj_dir / f"source_media{src_file.suffix.lower()}"
-        if src_file.resolve() != dest_video.resolve():
-            shutil.copy2(str(src_file), str(dest_video))
-        
+        dest_video = src_file
         audio_dest = proj_dir / "original_audio.wav"
         extract_audio_from_video(str(dest_video), str(audio_dest))
         

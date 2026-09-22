@@ -58,11 +58,11 @@ def load_audio_samples_16k(audio_path: str) -> Tuple[Optional[Any], int]:
         return None, 16000
     try:
         cmd = [
-            FFMPEG_EXE, '-i', str(audio_path),
+            FFMPEG_EXE, '-nostdin', '-y', '-i', str(audio_path),
             '-vn', '-ac', '1', '-ar', '16000',
             '-f', 'wav', '-'
         ]
-        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=180, **get_silent_kwargs())
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=1800, **get_silent_kwargs())
         with wave.open(io.BytesIO(proc.stdout), 'rb') as wf:
             nframes = wf.getnframes()
             if nframes == 0:
@@ -178,11 +178,11 @@ def analyze_segment_acoustics(audio_path: str, start_s: float, end_s: float) -> 
         return default_res
     try:
         cmd = [
-            FFMPEG_EXE, '-ss', str(start_s), '-t', str(dur_s),
+            FFMPEG_EXE, '-nostdin', '-y', '-ss', str(start_s), '-t', str(dur_s),
             '-i', str(audio_path), '-vn', '-ac', '1', '-ar', '16000',
             '-f', 'wav', '-'
         ]
-        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=4, **get_silent_kwargs())
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=15, **get_silent_kwargs())
         with wave.open(io.BytesIO(proc.stdout), 'rb') as wf:
             nframes = wf.getnframes()
             if nframes < 600:
@@ -206,16 +206,34 @@ class SpeechToTextEngine:
 
     def _get_model(self):
         if self._model is None and FASTER_WHISPER_AVAILABLE:
+            device = "cpu"
+            compute_type = "int8"
+            threads = min(4, os.cpu_count() or 4)
             try:
-                # Use int8 compute on CPU for fast, lightweight, and accurate transcription
-                self._model = WhisperModel(self.model_size, device="cpu", compute_type="int8")
+                import ctranslate2
+                if "cuda" in ctranslate2.get_supported_compute_types("cuda"):
+                    device = "cuda"
+                    compute_type = "float16"
+            except Exception:
+                pass
+
+            target_model = self.model_size
+            # On CPU, prevent medium or large from freezing Windows! Default to base
+            if device == "cpu" and target_model in ("medium", "large", "large-v3"):
+                target_model = "base"
+
+            try:
+                self._model = WhisperModel(target_model, device=device, compute_type=compute_type, cpu_threads=threads)
             except Exception as e:
-                print(f"Faster-whisper model load note: {e}")
+                print(f"Faster-whisper model load note ({target_model}): {e}")
                 try:
-                    self._model = WhisperModel("tiny", device="cpu", compute_type="int8")
-                except Exception as e2:
-                    print(f"Faster-whisper fallback failed: {e2}")
-                    self._model = None
+                    self._model = WhisperModel("base", device="cpu", compute_type="int8", cpu_threads=threads)
+                except Exception:
+                    try:
+                        self._model = WhisperModel("tiny", device="cpu", compute_type="int8", cpu_threads=threads)
+                    except Exception as e2:
+                        print(f"Faster-whisper fallback failed: {e2}")
+                        self._model = None
         return self._model
 
     def transcribe_audio(
@@ -241,17 +259,16 @@ class SpeechToTextEngine:
         if lang_code in ("zh", "chinese", "mandarin"):
             lang_code = "zh"
 
-        # Highly Sensitive VAD parameters tuned for Asian TV Dramas:
-        # threshold=0.32: captures quiet, whispered, and rapid speech lines
-        # min_speech_duration_ms=100: catches short exclamations ("站住!", "谁?", "走!", "救命!")
-        # speech_pad_ms=180: preserves the initial vowel/consonant when mouth first opens
-        # min_silence_duration_ms=350: ensures speech segments start and end exactly with dialogue
-        # Drama Contextual Initial Prompt to prime Whisper decoder on Chinese character names & idioms
+        # Clean generic prompt ONLY for Chinese, NO hardcoded character names from other dramas!
         initial_prompt = None
-        if lang_code in ("zh", None):
-            initial_prompt = "以下是中文现代都市短剧、总裁豪门、家庭争斗对话，包含人物李沐谦、林早早、沈曼琳、张昭，台词包含白痴、看你脸上写着白痴、龙胎、双胞胎、按摩店、怀孕、孩子、少爷、总裁。"
+        if lang_code == "zh":
+            initial_prompt = "以下是影视剧对话，台词清晰，标点符号完整。"
 
-        # condition_on_previous_text=False: CRITICAL to eliminate repetition/hallucination freezes
+        # Balanced VAD parameters tuned for Asian TV Dramas with Background Music:
+        # threshold=0.45: cleanly differentiates speech from background strings and music
+        # min_speech_duration_ms=100: catches short exclamations ("站住!", "谁?", "走!", "救命!")
+        # max_speech_duration_s=8.0: prevents oversized runaway monologue chunks
+        # min_silence_duration_ms=280: tight speech boundary detection
         segments_gen, info = model.transcribe(
             audio_path,
             language=lang_code,
@@ -264,10 +281,10 @@ class SpeechToTextEngine:
             word_timestamps=True,
             vad_filter=True,
             vad_parameters=dict(
-                threshold=0.28,
-                min_speech_duration_ms=80,
-                max_speech_duration_s=10.0,
-                min_silence_duration_ms=250,
+                threshold=0.45,
+                min_speech_duration_ms=100,
+                max_speech_duration_s=8.0,
+                min_silence_duration_ms=280,
                 speech_pad_ms=80
             )
         )
@@ -279,30 +296,86 @@ class SpeechToTextEngine:
             if not text:
                 continue
 
-            if not segment.words:
-                raw_segments.append({
-                    "start": round(segment.start, 2),
-                    "end": round(segment.end, 2),
-                    "text": text
-                })
-                continue
-
-            # Word-level timestamp precision:
-            # Anchor start to the first actual spoken word (eliminates chunk pre-silence lag)
-            # Anchor end to the last spoken word (eliminates lingering past mouth-close)
             words = getattr(segment, "words", None)
-            if words and len(words) > 0:
-                seg_start = round(words[0].start, 2)
-                seg_end = round(words[-1].end, 2)
-            else:
-                seg_start = round(segment.start, 2)
-                seg_end = round(segment.end, 2)
+            if not words:
+                # If no word-level timestamps, split text by sentence punctuation if long
+                sub_sentences = [s.strip() for s in re.split(r'([。！？!?\n]+)', text) if s.strip()]
+                combined_sentences = []
+                curr_sent = ""
+                for part in sub_sentences:
+                    curr_sent += part
+                    if re.search(r'[。！？!?\n]', part):
+                        combined_sentences.append(curr_sent.strip())
+                        curr_sent = ""
+                if curr_sent.strip():
+                    combined_sentences.append(curr_sent.strip())
 
-            raw_segments.append({
-                "start": seg_start,
-                "end": max(round(seg_start + 0.35, 2), seg_end),
-                "text": text
-            })
+                if len(combined_sentences) <= 1:
+                    raw_segments.append({
+                        "start": round(segment.start, 2),
+                        "end": round(segment.end, 2),
+                        "text": text
+                    })
+                else:
+                    total_chars = max(1, sum(len(s) for s in combined_sentences))
+                    seg_dur = max(0.4, segment.end - segment.start)
+                    cur_t = segment.start
+                    for s in combined_sentences:
+                        p_dur = (len(s) / total_chars) * seg_dur
+                        p_start = round(cur_t, 2)
+                        p_end = round(cur_t + p_dur, 2)
+                        raw_segments.append({
+                            "start": p_start,
+                            "end": max(round(p_start + 0.35, 2), p_end),
+                            "text": s
+                        })
+                        cur_t += p_dur
+            else:
+                # Word-level timestamp precision: Group words into individual dialogue lines!
+                curr_words = []
+                for w_idx, w in enumerate(words):
+                    curr_words.append(w)
+                    w_txt = getattr(w, "word", "") or ""
+
+                    # Check split triggers:
+                    # 1. Punctuation in word (ending marks)
+                    has_punct = bool(re.search(r'[。！？!?；;\n]', w_txt))
+
+                    # 2. Pause between this word and next word >= 0.65s (dialogue pause / turn-taking)
+                    has_pause = False
+                    if w_idx + 1 < len(words):
+                        next_w = words[w_idx + 1]
+                        if (next_w.start - w.end) >= 0.65:
+                            has_pause = True
+
+                    # 3. Accumulated length >= 6.5 seconds (prevents runaway sentences)
+                    span = curr_words[-1].end - curr_words[0].start
+                    is_too_long = span >= 6.5 and len(curr_words) >= 4
+
+                    if (has_punct or has_pause or is_too_long) and len(curr_words) > 0:
+                        line_txt = "".join(getattr(cw, "word", "") for cw in curr_words).strip()
+                        if line_txt:
+                            l_start = round(curr_words[0].start, 2)
+                            l_end = round(curr_words[-1].end, 2)
+                            raw_segments.append({
+                                "start": l_start,
+                                "end": max(round(l_start + 0.35, 2), l_end),
+                                "text": line_txt
+                            })
+                        curr_words = []
+
+                # Any trailing words
+                if curr_words:
+                    line_txt = "".join(getattr(cw, "word", "") for cw in curr_words).strip()
+                    if line_txt:
+                        l_start = round(curr_words[0].start, 2)
+                        l_end = round(curr_words[-1].end, 2)
+                        raw_segments.append({
+                            "start": l_start,
+                            "end": max(round(l_start + 0.35, 2), l_end),
+                            "text": line_txt
+                        })
+
             if progress_callback and tot_dur > 0:
                 p_cur = 45 + int(min(15, (segment.end / tot_dur) * 15))
                 m_curr = int(segment.end // 60)
@@ -440,4 +513,10 @@ class SpeechToTextEngine:
             item["pitch_hz"] = 0
 
         return consolidated
+
+
+def transcribe_audio(audio_path: str, source_lang: str = "auto", **kwargs) -> List[Dict[str, Any]]:
+    """Module-level convenience wrapper for SpeechToTextEngine.transcribe_audio."""
+    engine = SpeechToTextEngine()
+    return engine.transcribe_audio(audio_path, source_lang=source_lang, **kwargs)
 

@@ -19,6 +19,7 @@ a = Analysis(
     binaries=[],
     datas=[
         (str(ROOT_DIR / 'static'), 'static'),
+        (str(ROOT_DIR / 'data' / 'story_config.json'), 'data'),
         (ffmpeg_binaries_dir, 'imageio_ffmpeg/binaries'),
         (faster_whisper_assets, 'faster_whisper/assets'),
         (faster_whisper_dir, 'faster_whisper'),

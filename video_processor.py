@@ -15,8 +15,8 @@ from subtitle_styler import generate_ass_subtitles
 def get_video_dimensions(video_path: str):
     """Extract width and height of video quickly via FFmpeg."""
     try:
-        cmd = [get_ffmpeg_path(), "-i", str(video_path)]
-        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="ignore", **get_silent_kwargs())
+        cmd = [get_ffmpeg_path(), "-nostdin", "-i", str(video_path)]
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="ignore", timeout=10, **get_silent_kwargs())
         m = re.search(r'Stream.*Video:.*?(\d{3,5})x(\d{3,5})', res.stderr)
         if m:
             return int(m.group(1)), int(m.group(2))
@@ -88,6 +88,7 @@ def render_dubbed_video(
     # 3. Construct FFmpeg command
     cmd = [
         get_ffmpeg_path(),
+        "-nostdin",
         "-y",
         "-i", str(original_video_path),
         "-i", str(mixed_audio_path)
@@ -105,7 +106,7 @@ def render_dubbed_video(
         filter_complex = (
             "[0:v]split[bg][fg];"
             "[bg]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=12:1[bg_blur];"
-            "[fg]scale=1080:-1[fg_scaled];"
+            "[fg]scale=1080:-2[fg_scaled];"
             "[bg_blur][fg_scaled]overlay=(W-w)/2:(H-h)/2"
         )
         current_pad = "[v_padded]"
@@ -131,44 +132,33 @@ def render_dubbed_video(
             str(out_p)
         ])
     else:
-        # 16:9, original aspect ratio, or already vertical video
-        if simple_filters:
-            cmd.extend([
-                "-vf", ",".join(simple_filters),
-                "-map", "0:v:0",
-                "-map", "1:a:0",
-                "-c:v", "libx264",
-                "-preset", "veryfast",
-                "-crf", "22",
-                "-pix_fmt", "yuv420p",
-                "-c:a", "aac",
-                "-b:a", "192k",
-                "-shortest",
-                str(out_p)
-            ])
-        else:
-            cmd.extend([
-                "-map", "0:v:0",
-                "-map", "1:a:0",
-                "-c:v", "libx264",
-                "-preset", "veryfast",
-                "-crf", "22",
-                "-pix_fmt", "yuv420p",
-                "-c:a", "aac",
-                "-b:a", "192k",
-                "-shortest",
-                str(out_p)
-            ])
+        # 16:9, original aspect ratio, or already vertical video (ensure even dimensions)
+        all_vfs = ["scale=trunc(iw/2)*2:trunc(ih/2)*2"] + simple_filters
+        cmd.extend([
+            "-vf", ",".join(all_vfs),
+            "-map", "0:v:0",
+            "-map", "1:a:0",
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-crf", "22",
+            "-pix_fmt", "yuv420p",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-shortest",
+            str(out_p)
+        ])
 
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, **get_silent_kwargs())
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=7200, **get_silent_kwargs())
     if proc.returncode != 0:
         print(f"Render fallback triggered: {proc.stderr[:200]}")
-        # Direct mux fallback with universal H.264
+        # Direct mux fallback with universal H.264 and even dimension scaling
         fallback_cmd = [
             get_ffmpeg_path(),
+            "-nostdin",
             "-y",
             "-i", str(original_video_path),
             "-i", str(mixed_audio_path),
+            "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",
             "-c:v", "libx264",
             "-preset", "veryfast",
             "-crf", "22",
@@ -180,7 +170,7 @@ def render_dubbed_video(
             "-shortest",
             str(out_p)
         ]
-        subprocess.run(fallback_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **get_silent_kwargs())
+        subprocess.run(fallback_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=7200, **get_silent_kwargs())
 
     # Always ensure a copy exists in data/exports for easy user access!
     try:
@@ -214,6 +204,7 @@ def merge_videos(video_paths: List[str], output_path: str) -> str:
 
         cmd = [
             get_ffmpeg_path(),
+            "-nostdin",
             "-y",
             "-f", "concat",
             "-safe", "0",
@@ -221,7 +212,7 @@ def merge_videos(video_paths: List[str], output_path: str) -> str:
             "-c", "copy",
             str(out_p)
         ]
-        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, **get_silent_kwargs())
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=7200, **get_silent_kwargs())
         if proc.returncode != 0:
             # Re-encoding concat fallback
             inputs = []
@@ -233,6 +224,7 @@ def merge_videos(video_paths: List[str], output_path: str) -> str:
             filter_complex = f"{''.join(filter_parts)}concat=n={len(video_paths)}:v=1:a=1[v][a]"
             cmd_reencode = [
                 get_ffmpeg_path(),
+                "-nostdin",
                 "-y",
                 *inputs,
                 "-filter_complex", filter_complex,
@@ -244,7 +236,7 @@ def merge_videos(video_paths: List[str], output_path: str) -> str:
                 "-c:a", "aac",
                 str(out_p)
             ]
-            subprocess.run(cmd_reencode, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **get_silent_kwargs())
+            subprocess.run(cmd_reencode, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=7200, **get_silent_kwargs())
     finally:
         if list_file.exists():
             try:
@@ -264,6 +256,7 @@ def split_video(video_path: str, chunk_duration_sec: int, output_dir: str) -> Li
     out_pattern = str(out_dir / f"{in_p.stem}_part%03d.mp4")
     cmd = [
         get_ffmpeg_path(),
+        "-nostdin",
         "-y",
         "-i", str(in_p),
         "-c", "copy",
@@ -273,7 +266,7 @@ def split_video(video_path: str, chunk_duration_sec: int, output_dir: str) -> Li
         "-reset_timestamps", "1",
         out_pattern
     ]
-    subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **get_silent_kwargs())
+    subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=600, **get_silent_kwargs())
     return [str(p) for p in sorted(out_dir.glob(f"{in_p.stem}_part*.mp4"))]
 
 
@@ -301,6 +294,7 @@ def compress_video(video_path: str, output_path: str, crf: int = 26, preset: str
 
     cmd = [
         get_ffmpeg_path(),
+        "-nostdin",
         "-y",
         "-i", str(in_p)
     ]
@@ -316,6 +310,6 @@ def compress_video(video_path: str, output_path: str, crf: int = 26, preset: str
         "-b:a", "128k",
         str(out_p)
     ])
-    subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **get_silent_kwargs())
+    subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=600, **get_silent_kwargs())
     return str(out_p)
 

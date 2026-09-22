@@ -6,7 +6,15 @@ import sys
 import os
 import time
 import threading
+import multiprocessing
 from pathlib import Path
+
+# Required for PyInstaller frozen applications on Windows
+multiprocessing.freeze_support()
+
+# Protect against any accidental child process execution
+if len(sys.argv) > 1 and sys.argv[1] in ("-c", "--help", "-h"):
+    sys.exit(0)
 
 # Enable utf-8 output in Windows terminal
 if sys.platform == "win32":
@@ -37,9 +45,15 @@ from audio_processor import patch_silent_subprocess, get_silent_kwargs
 patch_silent_subprocess()
 
 def free_port_8000():
-    """Kill any stale process occupying port 8000 before starting new server."""
+    """Clean stale listener on port 8000 before starting new server."""
     if sys.platform == "win32":
         try:
+            import socket
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                in_use = (s.connect_ex(('127.0.0.1', 8000)) == 0)
+            if not in_use:
+                return
+
             out = subprocess.check_output('netstat -ano | findstr :8000', shell=True, **get_silent_kwargs()).decode()
             current_pid = os.getpid()
             for line in out.strip().split('\n'):

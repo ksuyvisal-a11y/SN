@@ -1332,9 +1332,14 @@ Return ONLY valid JSON array with keys: id, start, end, text_original, text_km, 
                     "pitch_hz": v_info["pitch_hz"]
                 }
 
-        tasks = [_translate_single(item, idx) for idx, item in enumerate(dialogues)]
-        results = await asyncio.gather(*tasks)
-        return list(results)
+        all_translated = []
+        batch_chunk = 40
+        for b_start in range(0, len(dialogues), batch_chunk):
+            b_items = dialogues[b_start:b_start + batch_chunk]
+            tasks = [_translate_single(item, b_start + idx) for idx, item in enumerate(b_items)]
+            chunk_results = await asyncio.gather(*tasks)
+            all_translated.extend(chunk_results)
+        return all_translated
 
 
 def parse_srt_content(srt_text: str) -> List[Dict[str, Any]]:
