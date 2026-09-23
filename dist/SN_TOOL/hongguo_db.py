@@ -341,7 +341,9 @@ def get_drama_by_id(drama_id: str) -> Optional[Dict[str, Any]]:
 
 def generate_episodes_for_drama(drama: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Generate detailed episode metadata list for a drama."""
-    total = drama.get("total_episodes", 80)
+    total = int(drama.get("total_episodes") or 80)
+    if total <= 0:
+        total = 80
     title = drama.get("title_cn") or drama.get("title", "Drama")
     drama_id = drama.get("id", "hg_00001")
     episodes = []
@@ -351,11 +353,12 @@ def generate_episodes_for_drama(drama: Dict[str, Any]) -> List[Dict[str, Any]]:
             "id": f"{drama_id}_ep_{i:03d}",
             "drama_id": drama_id,
             "episode_number": i,
+            "episode_num": i,
             "title": f"Episode {i:02d} - {title}",
             "duration": "01:54",
             "duration_sec": 114,
             "resolution": "1080p Full HD",
-            "file_size": "24.5 MB",
+            "file_size": "46.2 MB",
             "status": "Ready",
             "progress": 0,
             "download_url": f"https://cdn.hongguo.com/{drama_id}/ep_{i}.mp4",

@@ -37,7 +37,7 @@ from downloader import (
     DRAMA_CATALOG,
     get_drama_episodes,
     drama_downloader,
-    find_sample_video_source
+    find_authentic_episode_video
 )
 import hongguo_db
 from recap_engine import RecapEngine, VIRAL_KHMER_HOOKS
@@ -920,19 +920,95 @@ def downloader_drama_detail_endpoint(drama_id):
 
 @app.route("/api/downloader/preview/<drama_id>", methods=["GET"])
 def downloader_preview_endpoint(drama_id):
-    """Get preview video for a drama to play directly in 9:16 monitor."""
+    """Get authentic preview video for a drama to play directly in 9:16 monitor."""
     ep_num = request.args.get("ep", 1, type=int)
     drama = hongguo_db.get_drama_by_id(drama_id)
-    sample_src = find_sample_video_source(ep_num)
-    if sample_src and sample_src.exists():
+    if not drama and drama_downloader.current_drama:
+        if str(drama_downloader.current_drama.get("id")) == str(drama_id):
+            drama = drama_downloader.current_drama
+
+    # 1. Check if active episodes manifest has a genuine video file for this episode
+    if drama_downloader.episodes:
+        for ep in drama_downloader.episodes:
+            if ep.get("episode_number") == ep_num or ep.get("episode_num") == ep_num:
+                if ep.get("video_url") and ep.get("filepath") and Path(ep["filepath"]).exists():
+                    return jsonify({
+                        "success": True,
+                        "video_url": ep["video_url"],
+                        "title": ep.get("title") or (drama.get("title") if drama else f"Episode {ep_num}"),
+                        "poster": drama.get("poster") if drama else "posters/poster_sample_ceo.jpg",
+                        "episode": ep_num
+                    })
+
+    # 2. Check if authentic video file exists in save location or imported folder
+    auth_src = find_authentic_episode_video(drama, ep_num)
+    if auth_src and auth_src.exists():
+        rel_or_abs = str(auth_src.resolve()).replace("\\", "/")
         return jsonify({
             "success": True,
-            "video_url": f"/media/{str(sample_src).replace('\\', '/')}",
+            "video_url": f"/media/{rel_or_abs}",
             "title": drama.get("title") if drama else "Hongguo Short Drama",
             "poster": drama.get("poster") if drama else "posters/poster_sample_ceo.jpg",
             "episode": ep_num
         })
-    return jsonify({"success": False, "error": "Preview video not found"}), 404
+
+    # Do NOT return a fake/unrelated video!
+    return jsonify({
+        "success": False,
+        "error": "no_video",
+        "message": f"មិនទាន់មានវីដេអូសម្រាប់ភាគ {ep_num} នៅលើកុំព្យូទ័រទេ",
+        "poster": drama.get("poster") if drama else "posters/poster_sample_ceo.jpg",
+        "episode": ep_num
+    }), 404
+
+
+@app.route("/api/downloader/import-folder", methods=["POST", "GET"])
+def downloader_import_folder_endpoint():
+    """
+    Import an authentic local short drama folder containing downloaded episode video files.
+    If folder_path is not provided, opens native Windows folder chooser dialog.
+    """
+    folder_path = ""
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+        folder_path = data.get("folder_path", "").strip()
+    elif request.form.get("folder_path"):
+        folder_path = request.form.get("folder_path", "").strip()
+
+    if not folder_path:
+        folder_path = open_native_windows_folder_dialog(
+            title="ជ្រើសរើស Folder រឿងភាគដែលបានទាញយក (Select Downloaded Drama Folder)"
+        )
+        if not folder_path:
+            return jsonify({"success": False, "cancelled": True, "message": "បានបោះបង់ការជ្រើសរើស Folder"})
+
+    res = drama_downloader.import_drama_from_folder(folder_path)
+    return jsonify(res)
+
+
+@app.route("/api/downloader/send-to-studio", methods=["POST"])
+def downloader_send_to_studio_endpoint():
+    """Send an authentic downloaded or imported episode video directly to AI Studio Dubber."""
+    data = request.get_json(force=True) or {}
+    filepath = data.get("filepath", "").strip()
+    filename = data.get("filename", "")
+    drama_title = data.get("drama_title", "")
+
+    if not filepath or not Path(filepath).exists():
+        return jsonify({"success": False, "error": "Video file path does not exist on disk"}), 400
+
+    p = Path(filepath)
+    sz = p.stat().st_size
+    sz_mb = f"{sz / (1024 * 1024):.1f}"
+
+    return jsonify({
+        "success": True,
+        "filepath": str(p.resolve()).replace("\\", "/"),
+        "filename": filename or p.name,
+        "size_mb": sz_mb,
+        "drama_title": drama_title or p.stem,
+        "video_url": f"/media/{str(p.resolve()).replace(chr(92), '/')}"
+    })
 
 
 @app.route("/api/downloader/download-episodes", methods=["POST"])
@@ -940,7 +1016,7 @@ def downloader_download_episodes_endpoint():
     """Start batch download for selected episodes."""
     data = request.get_json(force=True) or {}
     episode_ids = data.get("episode_ids", [])
-    save_location = data.get("save_location", "data/exports")
+    save_location = data.get("save_location") or ("D:/SN_Dramas" if os.path.exists("D:/") else "C:/SN_Dramas")
     save_poster = data.get("save_poster", True)
     
     res = drama_downloader.start_download_batch(episode_ids, save_location, save_poster)
@@ -955,8 +1031,42 @@ def downloader_status_endpoint():
         "drama": drama_downloader.current_drama,
         "episodes": drama_downloader.episodes,
         "logs": drama_downloader.logs,
-        "stats": drama_downloader.stats
+        "stats": drama_downloader.stats,
+        "last_download_dir": drama_downloader.last_download_dir
     })
+
+
+@app.route("/api/downloader/open-folder", methods=["POST", "GET"])
+def downloader_open_folder_endpoint():
+    """Open drama download folder directly in Windows File Explorer."""
+    data = {}
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+    else:
+        data = request.args
+    
+    target_folder = data.get("folder") or drama_downloader.last_download_dir
+    if not target_folder:
+        if drama_downloader.current_drama:
+            raw_title = drama_downloader.current_drama.get("title_cn") or drama_downloader.current_drama.get("title", "Drama")
+            safe_title = re.sub(r'[\\/*?:"<>|《》]', "_", raw_title).strip() or "Hongguo_Drama"
+            base_dir = "D:/SN_Dramas" if os.path.exists("D:/") else "C:/SN_Dramas"
+            target_folder = os.path.join(base_dir, safe_title)
+        else:
+            target_folder = "D:/SN_Dramas" if os.path.exists("D:/") else "C:/SN_Dramas"
+
+    p = Path(target_folder)
+    p.mkdir(parents=True, exist_ok=True)
+
+    try:
+        resolved_str = str(p.resolve()).replace("/", "\\")
+        if sys.platform == "win32":
+            os.startfile(resolved_str)
+        else:
+            subprocess.Popen(["xdg-open", resolved_str])
+        return jsonify({"success": True, "path": resolved_str})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
 
 
 @app.route("/api/downloader/stop", methods=["POST"])

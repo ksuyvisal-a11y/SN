@@ -1565,7 +1565,7 @@ async function selectDramaCard(dramaId, openQueueMode = false) {
         const data = await res.json();
         if (data.success) {
             dlCurrentDrama = data.drama;
-            dlEpisodesList = data.episodes || [];
+            dlEpisodesList = (data.episodes || []).map(ep => ({ ...ep, is_selected: true }));
 
             // Highlight card in grid
             document.querySelectorAll('.dl-card-item').forEach(c => c.classList.remove('active'));
@@ -1579,17 +1579,39 @@ async function selectDramaCard(dramaId, openQueueMode = false) {
             const stats = document.getElementById('dl-info-stats-text');
             const desc = document.getElementById('dl-info-desc-text');
 
+            const totalEps = data.drama.total_episodes || dlEpisodesList.length || 80;
+
             if (title) title.textContent = data.drama.title;
             if (posterImg) posterImg.src = data.drama.poster || 'posters/poster_sample_ceo.jpg';
             if (badge) badge.textContent = `${data.drama.platform.toUpperCase()} • ${data.drama.rating || '9.8'} ★`;
-            if (stats) stats.textContent = `Episodes ${data.drama.total_episodes} • Locked 0 • Selected ${data.drama.total_episodes}`;
+            if (stats) stats.textContent = `Episodes ${totalEps} • Locked 0 • Selected ${totalEps}`;
             if (desc) desc.textContent = data.drama.description || "Hongguo Short Drama Series Manifest.";
+
+            // Update Full Series Download button in DRAMA INFO
+            const catDlBtnText = document.getElementById('dl-catalog-dl-all-text');
+            if (catDlBtnText) {
+                catDlBtnText.textContent = `ទាញយកគ្រប់ភាគទាំងអស់ (Download All EP 1 - ${totalEps})`;
+            }
+
+            // Update Queue download all button text
+            const qDlBtnText = document.getElementById('dl-q-download-all-text');
+            if (qDlBtnText) {
+                qDlBtnText.textContent = `ទាញយកគ្រប់ភាគទាំងអស់ (Download All EP 1 - ${totalEps})`;
+            }
+
+            // Update Left Column Batch Download button
+            const leftDlBtn = document.getElementById('btn-dl-start-batch');
+            if (leftDlBtn) {
+                const span = leftDlBtn.querySelector('span');
+                if (span) span.textContent = `Download All (${totalEps} EPs)`;
+            }
 
             if (activeCard) {
                 const sub = activeCard.querySelector('.dl-card-subtitle-line');
-                if (sub) sub.textContent = `${data.drama.total_episodes} Episodes • 1080p HD`;
+                if (sub) sub.textContent = `${totalEps} Episodes • 1080p HD`;
             }
 
+            updateDramaSavePathDisplay();
             renderEpisodesChecklist(dlEpisodesList);
             updateDownloaderStats(data.stats);
 
@@ -1755,9 +1777,14 @@ function renderQueueViewForCurrentDrama() {
     }
 
     // Update Episodes Count
+    const totalCount = dlEpisodesList.length || dlCurrentDrama.total_episodes || 80;
     const epsCountBold = document.getElementById('dl-q-eps-count-bold');
     if (epsCountBold) {
-        epsCountBold.textContent = dlEpisodesList.length || dlCurrentDrama.total_episodes || 80;
+        epsCountBold.textContent = totalCount;
+    }
+    const qDlBtnText = document.getElementById('dl-q-download-all-text');
+    if (qDlBtnText) {
+        qDlBtnText.textContent = `ទាញយកគ្រប់ភាគទាំងអស់ (Download All EP 1 - ${totalCount})`;
     }
 
     // Render Table Rows
@@ -1876,7 +1903,7 @@ async function playQueueEpisode(epNum) {
     if (nowTitle) nowTitle.textContent = epTitleText;
     if (epIndicator) epIndicator.textContent = `EPISODE ${epNum} / ${totalEps}`;
     if (dropdown) dropdown.value = epNum;
-    if (dlBtnText) dlBtnText.textContent = `Download EP ${epNum}`;
+    if (dlBtnText) dlBtnText.textContent = `Download Only EP ${epNum}`;
 
     // Load Video
     const video = document.getElementById('dl-q-video-elem');
@@ -1886,6 +1913,24 @@ async function playQueueEpisode(epNum) {
 
     if (!video) return;
 
+    // A. Check if the episode object already has an authentic video URL (e.g. from folder import or completed download)
+    if (epObj && epObj.video_url) {
+        video.src = epObj.video_url;
+        video.poster = dlCurrentDrama?.poster || 'posters/poster_sample_ceo.jpg';
+        video.currentTime = 0;
+        video.play().then(() => {
+            if (playOverlay) playOverlay.classList.add('hidden');
+            if (playBtnText) playBtnText.textContent = 'Pause';
+            if (playBtnIcon) playBtnIcon.className = 'fa-solid fa-pause';
+        }).catch(() => {
+            if (playOverlay) playOverlay.classList.remove('hidden');
+            if (playBtnText) playBtnText.textContent = 'Play';
+            if (playBtnIcon) playBtnIcon.className = 'fa-solid fa-play';
+        });
+        return;
+    }
+
+    // B. Fetch authentic preview from backend
     try {
         const res = await fetch(`/api/downloader/preview/${dlCurrentDrama.id}?ep=${epNum}`);
         const data = await res.json();
@@ -1903,12 +1948,26 @@ async function playQueueEpisode(epNum) {
                 if (playBtnIcon) playBtnIcon.className = 'fa-solid fa-play';
             });
             return;
+        } else {
+            // Authentic video not yet downloaded / imported
+            video.pause();
+            video.removeAttribute('src');
+            video.load();
+            if (dlCurrentDrama && dlCurrentDrama.poster) {
+                video.poster = dlCurrentDrama.poster;
+            }
+            if (playOverlay) playOverlay.classList.remove('hidden');
+            if (playBtnText) playBtnText.textContent = 'Play';
+            if (playBtnIcon) playBtnIcon.className = 'fa-solid fa-play';
+            showToast(`ភាគទី ${epNum} មិនទាន់មានវីដេអូនៅលើកុំព្យូទ័រទេ — សូមចុច Download ឬ 'នាំចូល Folder'`);
+            return;
         }
-    } catch (e) {}
-
-    // Fallback poster
-    if (dlCurrentDrama.poster) {
-        video.poster = dlCurrentDrama.poster;
+    } catch (e) {
+        video.pause();
+        if (dlCurrentDrama && dlCurrentDrama.poster) {
+            video.poster = dlCurrentDrama.poster;
+        }
+        if (playOverlay) playOverlay.classList.remove('hidden');
     }
 }
 
@@ -2017,19 +2076,221 @@ function queueToggleMute() {
     }
 }
 
+let dlUserSaveLocation = 'D:/SN_Dramas';
+
+function getComputedDramaFolder() {
+    let base = dlUserSaveLocation || 'D:/SN_Dramas';
+    base = base.replace(/\\/g, '/').replace(/\/+$/, '');
+    let folderName = 'Drama_Series';
+    if (dlCurrentDrama) {
+        const rawTitle = dlCurrentDrama.title_cn || dlCurrentDrama.title || 'Drama';
+        folderName = rawTitle.replace(/[\\/*?:"<>|《》]/g, '_').trim() || 'Hongguo_Drama';
+    }
+    return `${base}/${folderName}`;
+}
+
+function updateDramaSavePathDisplay(customFolder = '') {
+    let folder = customFolder;
+    if (!folder) {
+        folder = getComputedDramaFolder();
+    }
+    const winPath = folder.replace(/\//g, '\\') + (folder.endsWith('/') || folder.endsWith('\\') ? '' : '\\');
+    
+    const catElem = document.getElementById('dl-catalog-save-folder-path');
+    if (catElem) catElem.textContent = winPath;
+
+    const qElem = document.getElementById('dl-q2-save-folder-path');
+    if (qElem) qElem.textContent = winPath;
+}
+
+async function openCurrentDramaFolder(specificFolder = '') {
+    const target = specificFolder || getComputedDramaFolder();
+    showToast(`📂 កំពុងបើក Folder ក្នុងកុំព្យូទ័រ (Opening in File Explorer)...`);
+    try {
+        const res = await fetch('/api/downloader/open-folder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ folder: target })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`📂 បានបើក Folder រឿងក្នុងកុំព្យូទ័រ: ${data.path}`);
+            appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Opened in Windows Explorer: ${data.path}`);
+        } else {
+            showToast(`មិនអាចបើក Folder បានទេ: ${data.error || 'Unknown error'}`);
+        }
+    } catch (e) {
+        showToast("Error opening folder in Explorer");
+    }
+}
+
+async function selectCustomDownloadFolder() {
+    try {
+        const res = await fetch('/api/downloader/select-folder', { method: 'POST' });
+        const data = await res.json();
+        if (data.success && data.path) {
+            dlUserSaveLocation = data.path.replace(/\\/g, '/');
+            const inputElem = document.getElementById('dl-save-path-input');
+            if (inputElem) inputElem.value = dlUserSaveLocation;
+            updateDramaSavePathDisplay();
+            showToast(`📁 បានប្តូរទីតាំងរក្សាទុក: ${data.path}`);
+            appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Selected save location: ${data.path}`);
+        }
+    } catch (e) {
+        showToast("Dialog cancelled or error selecting folder");
+    }
+}
+
+async function downloadAllQueueEpisodes() {
+    if (!dlCurrentDrama) {
+        showToast("សូមជ្រើសរើសរឿងភាគជាមុនសិន");
+        return;
+    }
+
+    const total = dlEpisodesList.length || dlCurrentDrama.total_episodes || 80;
+    const title = (dlCurrentDrama.title_cn || dlCurrentDrama.title || '').replace(/[《》]/g, '').split(' - ')[0].trim();
+
+    // Select all episodes
+    dlEpisodesList.forEach(e => { e.is_selected = true; });
+
+    // Update UI checkmarks in Queue table
+    document.querySelectorAll('.dl-q2-capsule-toggle').forEach(t => t.classList.add('checked'));
+
+    const path = dlUserSaveLocation || document.getElementById('dl-save-path-input')?.value.trim() || 'D:/SN_Dramas';
+    const computedDir = getComputedDramaFolder().replace(/\//g, '\\');
+    showToast(`កំពុងទាញយកគ្រប់ភាគទាំងអស់ (${total} ភាគ) ទៅកាន់ ${computedDir}...`);
+    appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Starting FULL SERIES download: EP 1 to EP ${total} for '${title}' into '${computedDir}'...`);
+
+    const posterElem = document.getElementById('dl-save-poster-check');
+    const savePoster = posterElem ? posterElem.checked : true;
+
+    // Button feedback
+    const btnAll = document.getElementById('btn-q-download-all');
+    const originalText = btnAll ? btnAll.innerHTML : '';
+    if (btnAll) {
+        btnAll.disabled = true;
+        btnAll.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>កំពុងទាញយកគ្រប់ភាគ (EP 1 - ${total})...</span>`;
+    }
+
+    const catBtnAll = document.getElementById('btn-dl-catalog-all');
+    if (catBtnAll) {
+        catBtnAll.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>កំពុងទាញយក (${total} ភាគ)...</span>`;
+    }
+
+    try {
+        const res = await fetch('/api/downloader/download-episodes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                episode_ids: ["all"],
+                save_location: path,
+                save_poster: savePoster
+            })
+        });
+        const data = await res.json();
+
+        // Start active polling
+        if (dlPollTimer) clearInterval(dlPollTimer);
+        dlPollTimer = setInterval(async () => {
+            try {
+                const sRes = await fetch('/api/downloader/status');
+                const sData = await sRes.json();
+                if (sData) {
+                    if (sData.last_download_dir) {
+                        updateDramaSavePathDisplay(sData.last_download_dir);
+                    }
+                    if (sData.episodes && sData.episodes.length > 0) {
+                        dlEpisodesList = sData.episodes;
+                        sData.episodes.forEach(ep => {
+                            const epNum = ep.episode_num || ep.episode_number;
+                            const fill = document.getElementById(`dl-q-fill-${epNum}`);
+                            const text = document.getElementById(`dl-q-text-${epNum}`);
+                            const row = document.getElementById(`dl-q-row-${epNum}`);
+                            if (fill) fill.style.width = `${ep.progress || 0}%`;
+                            if (text) text.textContent = `${ep.progress || 0}%`;
+                            if (row) {
+                                const pill = row.querySelector('.dl-q2-status-pill');
+                                if (pill) {
+                                    pill.textContent = ep.status || 'Ready';
+                                    if (ep.status === 'Completed') {
+                                        pill.style.color = '#4ade80';
+                                        pill.style.borderColor = '#4ade80';
+                                    } else if (ep.status === 'Downloading') {
+                                        pill.style.color = '#facc15';
+                                        pill.style.borderColor = '#facc15';
+                                    }
+                                }
+                            }
+                        });
+                        renderEpisodesChecklist(dlEpisodesList);
+                    }
+                    updateDownloaderStats(sData.stats);
+
+                    if (!sData.is_downloading) {
+                        clearInterval(dlPollTimer);
+                        dlPollTimer = null;
+                        if (btnAll) {
+                            btnAll.disabled = false;
+                            btnAll.innerHTML = `<i class="fa-solid fa-circle-check" style="color:#4ade80;"></i> <span>ទាញយកបានគ្រប់ភាគ ${total}/${total} ដោយជោគជ័យ</span>`;
+                            setTimeout(() => {
+                                btnAll.innerHTML = originalText || `<i class="fa-solid fa-cloud-arrow-down"></i> <span id="dl-q-download-all-text">ទាញយកគ្រប់ភាគទាំងអស់ (Download All EP 1 - ${total})</span>`;
+                            }, 5000);
+                        }
+                        if (catBtnAll) {
+                            catBtnAll.innerHTML = `<i class="fa-solid fa-circle-check" style="color:#4ade80;"></i> <span>ទាញយកបានគ្រប់ ${total} ភាគជោគជ័យ</span>`;
+                            setTimeout(() => {
+                                catBtnAll.innerHTML = `<i class="fa-solid fa-cloud-arrow-down"></i> <span id="dl-catalog-dl-all-text">ទាញយកគ្រប់ភាគទាំងអស់ (Download Full Series)</span>`;
+                            }, 5000);
+                        }
+                        showToast(`🎉 បានទាញយកចប់សព្វគ្រប់ ១០០%! កំពុងបើក Folder រឿងក្នុងកុំព្យូទ័រ...`);
+                        appendDownloaderLog(`[${new Date().toLocaleTimeString()}] All ${total} episodes completed 100%. Opening folder in Explorer...`);
+
+                        // Auto-open download folder in Windows File Explorer
+                        setTimeout(() => {
+                            openCurrentDramaFolder(sData.last_download_dir);
+                        }, 500);
+
+                        if (dlQueueActiveEpisodeNum) {
+                            playQueueEpisode(dlQueueActiveEpisodeNum);
+                        }
+                    }
+                }
+            } catch (e) {}
+        }, 400);
+    } catch (e) {
+        showToast("បញ្ហាក្នុងការចាប់ផ្តើមទាញយក");
+        if (btnAll) {
+            btnAll.disabled = false;
+            btnAll.innerHTML = originalText;
+        }
+    }
+}
+
+function downloadCurrentDramaFullSeries() {
+    if (!dlCurrentDrama) {
+        showToast("សូមជ្រើសរើសរឿងភាគជាមុនសិន");
+        return;
+    }
+    switchDlViewMode('queue');
+    downloadAllQueueEpisodes();
+}
+
 async function downloadCurrentQueueEpisode() {
     if (!dlCurrentDrama) return;
     const epNum = dlQueueActiveEpisodeNum;
     showToast(`Downloading EP ${epNum}...`);
     appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Downloading EP ${epNum} of '${dlCurrentDrama.title}'...`);
 
-    const path = document.getElementById('dl-save-path-input')?.value.trim() || 'D:/SN_Dramas';
+    const path = dlUserSaveLocation || document.getElementById('dl-save-path-input')?.value.trim() || 'D:/SN_Dramas';
+    const epObj = dlEpisodesList.find(e => (e.episode_num || e.episode_number || e.id) == epNum);
+    const targetId = epObj ? epObj.id : `ep_${epNum}`;
+
     try {
         const res = await fetch('/api/downloader/download-episodes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                episode_ids: [`ep_${epNum}`],
+                episode_ids: [targetId],
                 save_location: path,
                 save_poster: true
             })
@@ -2046,7 +2307,10 @@ async function downloadCurrentQueueEpisode() {
                 if (text) text.textContent = `${prog}%`;
                 if (prog >= 100) {
                     clearInterval(timer);
-                    showToast(`EP ${epNum} completed! Saved in ${path}`);
+                    showToast(`EP ${epNum} completed! Opening folder...`);
+                    setTimeout(() => {
+                        openCurrentDramaFolder();
+                    }, 500);
                 }
             }, 300);
         }
@@ -2206,6 +2470,111 @@ async function openSaveLocationInExplorer() {
     }
 }
 
+async function importLocalDramaFolder(folderPath = '') {
+    showToast("កំពុងបើកផ្ទាំងជ្រើសរើស Folder រឿងភាគ...");
+    appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Opening Windows folder chooser to import drama series...`);
+
+    try {
+        const res = await fetch('/api/downloader/import-folder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ folder_path: folderPath })
+        });
+        const data = await res.json();
+        if (data.success && data.drama) {
+            dlCurrentDrama = data.drama;
+            dlEpisodesList = data.episodes || [];
+            
+            renderDramaInfo(data.drama);
+            renderEpisodesChecklist(dlEpisodesList);
+            renderQueueTable(dlEpisodesList);
+            updateDownloaderStats(data.stats);
+
+            switchDlViewMode('queue');
+            playQueueEpisode(1);
+
+            showToast(`🎉 នាំចូលរឿង '${data.drama.title}' (${dlEpisodesList.length} ភាគ) ដោយជោគជ័យ!`);
+            appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Successfully imported ${dlEpisodesList.length} authentic episodes from: ${data.folder || folderPath}`);
+        } else if (data.cancelled) {
+            showToast("បានបោះបង់ការជ្រើសរើស Folder");
+        } else {
+            showToast(data.error || "មិនអាចនាំចូល Folder រឿងបានទេ");
+        }
+    } catch (e) {
+        console.error("Import folder error:", e);
+        showToast("កំហុសក្នុងការនាំចូល Folder រឿង");
+    }
+}
+
+async function sendCurrentQueueToStudio() {
+    if (!dlEpisodesList || dlEpisodesList.length === 0) {
+        showToast("មិនមានភាគរឿងដើម្បីបញ្ជូនទៅស្ទូឌីយោទេ");
+        return;
+    }
+
+    const epNum = dlQueueActiveEpisodeNum || 1;
+    const epObj = dlEpisodesList.find(e => (e.episode_num || e.episode_number || e.id) == epNum) || dlEpisodesList[0];
+
+    if (!epObj) {
+        showToast("រកមិនឃើញភាគរឿងដែលបានជ្រើសរើសទេ");
+        return;
+    }
+
+    if (!epObj.filepath) {
+        showToast(`ភាគទី ${epNum} មិនទាន់មានវីដេអូនៅលើកុំព្យូទ័រទេ — សូមចុច Download ឬ 'នាំចូល Folder' ជាមុនសិន`);
+        return;
+    }
+
+    showToast(`កំពុងបញ្ជូន "${epObj.filename || 'ភាគ ' + epNum}" ទៅកាន់ស្ទូឌីយោ...`);
+    try {
+        const res = await fetch('/api/downloader/send-to-studio', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                filepath: epObj.filepath,
+                filename: epObj.filename,
+                drama_title: dlCurrentDrama ? (dlCurrentDrama.title_cn || dlCurrentDrama.title) : ''
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            setStagedVideo({
+                filepath: data.filepath,
+                filename: data.filename,
+                size_mb: data.size_mb
+            });
+            switchMainTab('translate');
+            showToast(`🎙️ បានផ្ទុក "${data.filename}" ចូលទៅក្នុងស្ទូឌីយោ! ចុច Export ដើម្បីចាប់ផ្តើមបកប្រែ។`);
+            appendTerminalLine(`[Ready] Video "${data.filename}" transferred from Hongguo Downloader. Ready for 1-Click Khmer Dubbing.`);
+        } else {
+            showToast(data.error || "មិនអាចបញ្ជូនវីដេអូទៅស្ទូឌីយោបានទេ");
+        }
+    } catch (e) {
+        console.error("Send to studio error:", e);
+        showToast("កំហុសក្នុងការបញ្ជូនវីដេអូទៅស្ទូឌីយោ");
+    }
+}
+
+async function sendAllQueueToStudio() {
+    if (!dlEpisodesList || dlEpisodesList.length === 0) {
+        showToast("មិនមានភាគរឿងដើម្បីបញ្ជូនទៅស្ទូឌីយោទេ");
+        return;
+    }
+
+    const availableEps = dlEpisodesList.filter(e => e.is_selected && e.filepath);
+    if (availableEps.length === 0) {
+        showToast("មិនទាន់មានភាគដែលមានវីដេអូនៅលើកុំព្យូទ័រត្រូវបានជ្រើសរើសទេ");
+        return;
+    }
+
+    showToast(`កំពុងបញ្ជូន ${availableEps.length} ភាគទៅកាន់ស្ទូឌីយោ...`);
+    const dramaTitle = dlCurrentDrama ? (dlCurrentDrama.title_cn || dlCurrentDrama.title) : 'Drama_Series';
+    setStagedBatchFiles(availableEps, dramaTitle);
+    switchMainTab('translate');
+    showToast(`🎙️ បានផ្ទុក ${availableEps.length} ភាគចូលទៅក្នុងស្ទូឌីយោ! ចុច Export ដើម្បីចាប់ផ្តើមបកប្រែ។`);
+    appendTerminalLine(`[Ready] Batch of ${availableEps.length} episodes transferred from Downloader. Ready for studio dubbing.`);
+}
+
 async function previewLoadedDrama() {
     if (!dlCurrentDrama) return;
     switchDlViewMode('queue');
@@ -2218,16 +2587,23 @@ function previewDramaVideoDirect(dramaId) {
 }
 
 async function startBatchDownload() {
-    const selected = dlEpisodesList.filter(e => e.is_selected);
+    let selected = dlEpisodesList.filter(e => e.is_selected);
     if (selected.length === 0) {
-        showToast("Please select at least one episode");
+        if (dlEpisodesList.length === 0 && dlCurrentDrama) {
+            showToast("កំពុងរៀបចំភាគរឿងទាំងអស់...");
+        }
+        dlEpisodesList.forEach(e => { e.is_selected = true; });
+        selected = dlEpisodesList;
+    }
+    if (selected.length === 0) {
+        showToast("សូមជ្រើសរើសរឿងភាគជាមុនសិន");
         return;
     }
 
-    showToast(`Downloading ${selected.length} episodes...`);
+    showToast(`កំពុងទាញយកគ្រប់ភាគ (${selected.length} ភាគ)...`);
     appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Starting batch queue for ${selected.length} episodes...`);
 
-    const path = document.getElementById('dl-save-path-input').value.trim();
+    const path = document.getElementById('dl-save-path-input').value.trim() || 'D:/SN_Dramas';
     const posterElem = document.getElementById('dl-save-poster-check');
     const savePoster = posterElem ? posterElem.checked : true;
 
@@ -2251,18 +2627,36 @@ async function startBatchDownload() {
                 if (sData) {
                     if (sData.episodes) {
                         dlEpisodesList = sData.episodes;
+                        sData.episodes.forEach(ep => {
+                            const epNum = ep.episode_num || ep.episode_number;
+                            const fill = document.getElementById(`dl-q-fill-${epNum}`);
+                            const text = document.getElementById(`dl-q-text-${epNum}`);
+                            const row = document.getElementById(`dl-q-row-${epNum}`);
+                            if (fill) fill.style.width = `${ep.progress || 0}%`;
+                            if (text) text.textContent = `${ep.progress || 0}%`;
+                            if (row) {
+                                const pill = row.querySelector('.dl-q2-status-pill');
+                                if (pill && ep.status) pill.textContent = ep.status;
+                            }
+                        });
                         renderEpisodesChecklist(dlEpisodesList);
                     }
                     updateDownloaderStats(sData.stats);
                     if (!sData.is_downloading) {
                         clearInterval(dlPollTimer);
                         dlPollTimer = null;
-                        showToast("Download batch completed!");
+                        showToast(`🎉 បានទាញយកគ្រប់ភាគទាំងអស់ (${selected.length} ភាគ) ដោយជោគជ័យ 100%! កំពុងបើក Folder...`);
+                        appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Batch download finished: ${selected.length} episodes ready in ${path}`);
+                        setTimeout(() => {
+                            openCurrentDramaFolder(sData.last_download_dir);
+                        }, 500);
                     }
                 }
             } catch (e) {}
-        }, 500);
-    } catch (e) {}
+        }, 400);
+    } catch (e) {
+        showToast("កំហុសក្នុងការចាប់ផ្តើមទាញយក");
+    }
 }
 
 async function stopBatchDownload() {

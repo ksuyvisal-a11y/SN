@@ -469,9 +469,12 @@
                             </div>
                         </div>
                         <div class="dl-input-analyze-row">
-                            <input type="text" class="dl-link-input-box" id="dl-link-url-input" placeholder="Paste a Hongguo URL..." onkeydown="handleDlLinkKey(event)">
+                            <input type="text" class="dl-link-input-box" id="dl-link-url-input" placeholder="Paste online link (Douyin, TikTok, YouTube...) or search 49,509 dramas..." onkeydown="handleDlLinkKey(event)">
                             <button class="dl-btn-analyze-yellow" onclick="analyzeEnteredLink()">
                                 <i class="fa-solid fa-magnifying-glass"></i> Analyze
+                            </button>
+                            <button type="button" class="dl-btn-import-folder" onclick="importLocalDramaFolder()" title="នាំចូល Folder រឿងភាគដែលបានទាញយក (Select Folder of Downloaded Short Drama Episodes)">
+                                <i class="fa-solid fa-folder-open"></i> <span>នាំចូល Folder រឿង</span>
                             </button>
                         </div>
                     </div>
@@ -528,6 +531,32 @@
                             </div>
                         </div>
                         <button class="dl-btn-preview-wide" onclick="previewLoadedDrama()">Preview Video</button>
+                        <button class="dl-btn-preview-wide dl-catalog-dl-all-btn" id="btn-dl-catalog-all" onclick="downloadCurrentDramaFullSeries()">
+                            <i class="fa-solid fa-cloud-arrow-down" style="font-size:1.15rem;"></i>
+                            <span id="dl-catalog-dl-all-text">ទាញយកគ្រប់ភាគទាំងអស់ (Download Full Series)</span>
+                        </button>
+                        <!-- Dedicated Folder Destination & Explorer Manager -->
+                        <div class="dl-folder-manager-box">
+                            <div class="dl-fmb-header">
+                                <div class="dl-fmb-title">
+                                    <i class="fa-solid fa-folder-tree"></i>
+                                    <span>ទីតាំងទុកក្នុងកុំព្យូទ័រ</span>
+                                </div>
+                                <button type="button" class="dl-fmb-browse-btn" onclick="selectCustomDownloadFolder()" title="ជ្រើសរើស Folder ថ្មីនៅលើកុំព្យូទ័រ (Browse Folder)">
+                                    <i class="fa-solid fa-folder-open"></i>
+                                    <span>ប្តូរ Folder</span>
+                                </button>
+                            </div>
+                            <div class="dl-fmb-path-bar" onclick="selectCustomDownloadFolder()" title="ចុចទីនេះដើម្បីជ្រើសរើសទីតាំង Folder លើកុំព្យូទ័រ">
+                                <i class="fa-solid fa-hard-drive dl-fmb-drive-icon"></i>
+                                <span class="dl-fmb-path-text" id="dl-catalog-save-folder-path">D:\SN_Dramas\东北话事人\</span>
+                                <span class="dl-fmb-edit-badge"><i class="fa-solid fa-pen"></i> រើស</span>
+                            </div>
+                            <button type="button" class="dl-fmb-open-btn" onclick="openCurrentDramaFolder()" title="បើកមើល Folder រឿងក្នុងកុំព្យូទ័រ (Open in File Explorer)">
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                <span>បើកមើល Folder រឿងក្នុងកុំព្យូទ័រ</span>
+                            </button>
+                        </div>
                         <div class="dl-info-synopsis-snippet" id="dl-info-desc-text">
                             Paste a supported URL to inspect its episode catalog and prepare the download queue.
                         </div>
@@ -572,12 +601,16 @@
                         </div>
                         <div class="dl-q2-input-row">
                             <div class="dl-q2-input-wrap">
-                                <input type="text" class="dl-q2-input-field" id="dl-qview-url-input" placeholder="https://hongguoduanju.com/detail?series_id=..." onkeydown="handleDlLinkKey(event)">
+                                <input type="text" class="dl-q2-input-field" id="dl-qview-url-input" placeholder="Paste online link (Douyin, TikTok, YouTube, Hongguo...) or search..." onkeydown="handleDlLinkKey(event)">
                                 <button type="button" class="dl-q2-clear-icon" onclick="clearDlUrlInput()" title="Clear link">✕</button>
                             </div>
                             <button type="button" class="dl-q2-btn-analyze" onclick="analyzeEnteredLink()">
                                 <i class="fa-solid fa-magnifying-glass"></i>
                                 <span>Analyze</span>
+                            </button>
+                            <button type="button" class="dl-btn-import-folder" onclick="importLocalDramaFolder()" title="នាំចូល Folder រឿងភាគដែលបានទាញយក (Select Folder of Downloaded Short Drama Episodes)">
+                                <i class="fa-solid fa-folder-open"></i>
+                                <span>នាំចូល Folder</span>
                             </button>
                         </div>
                     </div>
@@ -667,11 +700,50 @@
                             </div>
                         </div>
 
-                        <!-- Big Download Episode Button -->
-                        <div class="dl-q2-download-wrap">
-                            <button type="button" class="dl-q2-download-btn" id="btn-q-download-current" onclick="downloadCurrentQueueEpisode()">
+                        <!-- Download Full Series & Single Episode Buttons -->
+                        <div class="dl-q2-download-wrap" style="display:flex; flex-direction:column; gap:8px;">
+                            <button type="button" class="dl-q2-download-btn dl-btn-download-all" id="btn-q-download-all" onclick="downloadAllQueueEpisodes()">
+                                <i class="fa-solid fa-cloud-arrow-down" style="font-size:1.15rem;"></i>
+                                <span id="dl-q-download-all-text">ទាញយកគ្រប់ភាគទាំងអស់ (Download All EP 1 - 80)</span>
+                            </button>
+                            <button type="button" class="dl-q2-secondary-btn" id="btn-q-download-current" onclick="downloadCurrentQueueEpisode()" style="font-size:0.76rem; justify-content:center; padding:7px 0;">
                                 <i class="fa-solid fa-download"></i>
-                                <span id="dl-q-download-btn-text">Download EP 1</span>
+                                <span id="dl-q-download-btn-text">Download Only Current EP</span>
+                            </button>
+
+                            <!-- Dedicated Folder Destination & Explorer Manager -->
+                            <div class="dl-folder-manager-box">
+                                <div class="dl-fmb-header">
+                                    <div class="dl-fmb-title">
+                                        <i class="fa-solid fa-folder-tree"></i>
+                                        <span>ទីតាំងទុកក្នុងកុំព្យូទ័រ (Save Folder)</span>
+                                    </div>
+                                    <button type="button" class="dl-fmb-browse-btn" onclick="selectCustomDownloadFolder()" title="ជ្រើសរើស Folder ថ្មីនៅលើកុំព្យូទ័រ (Browse Folder)">
+                                        <i class="fa-solid fa-folder-open"></i>
+                                        <span>ប្តូរ Folder</span>
+                                    </button>
+                                </div>
+                                <div class="dl-fmb-path-bar" onclick="selectCustomDownloadFolder()" title="ចុចទីនេះដើម្បីជ្រើសរើសទីតាំង Folder លើកុំព្យូទ័រ">
+                                    <i class="fa-solid fa-hard-drive dl-fmb-drive-icon"></i>
+                                    <span class="dl-fmb-path-text" id="dl-q2-save-folder-path">D:\SN_Dramas\东北话事人\</span>
+                                    <span class="dl-fmb-edit-badge"><i class="fa-solid fa-pen"></i> រើស</span>
+                                </div>
+                                <button type="button" class="dl-fmb-open-btn" onclick="openCurrentDramaFolder()" title="បើកមើល Folder រឿងក្នុងកុំព្យូទ័រ (Open in File Explorer)">
+                                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                    <span>បើកមើល Folder រឿងក្នុងកុំព្យូទ័រ</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 1-Click Send to AI Studio Dubber -->
+                        <div class="dl-q2-dubber-wrap">
+                            <button type="button" class="dl-q2-dubber-btn" id="btn-q-send-to-studio" onclick="sendCurrentQueueToStudio()" title="បញ្ជូនភាគនេះទៅកាន់ Studio ដើម្បីបញ្ចូលសំឡេងខ្មែរ">
+                                <i class="fa-solid fa-microphone-lines"></i>
+                                <span>🎙️ បញ្ចូលសំឡេងខ្មែរ (Send to Studio)</span>
+                            </button>
+                            <button type="button" class="dl-q2-dubber-all-btn" id="btn-q-send-all-to-studio" onclick="sendAllQueueToStudio()" title="បញ្ជូនគ្រប់ភាគដែលបានជ្រើសរើសទៅកាន់ស្ទូឌីយោដើម្បីបញ្ចូលសំឡេងខ្មែរ">
+                                <i class="fa-solid fa-layer-group"></i>
+                                <span>Dub All Selected Episodes</span>
                             </button>
                         </div>
 
