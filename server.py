@@ -36,8 +36,10 @@ from downloader import (
     get_supported_platforms_with_counts,
     DRAMA_CATALOG,
     get_drama_episodes,
-    drama_downloader
+    drama_downloader,
+    find_sample_video_source
 )
+import hongguo_db
 from recap_engine import RecapEngine, VIRAL_KHMER_HOOKS
 from batch_engine import batch_manager, EXPORTS_DIR
 from video_processor import (
@@ -838,19 +840,38 @@ def downloader_platforms_endpoint():
     return jsonify({"success": True, "platforms": get_supported_platforms_with_counts()})
 
 
+@app.route("/api/downloader/categories", methods=["GET"])
+def downloader_categories_endpoint():
+    """Get list of Hongguo drama categories."""
+    return jsonify({"success": True, "categories": hongguo_db.get_categories_list()})
+
+
 @app.route("/api/downloader/catalog", methods=["GET"])
 def downloader_catalog_endpoint():
-    """Get list of catalog dramas with optional platform & search filters."""
+    """Get list of catalog dramas with optional platform, category, pagination & search filters."""
     platform = request.args.get("platform", "all").lower()
-    query = request.args.get("q", "").lower().strip()
-    
-    results = list(DRAMA_CATALOG)
-    if platform and platform != "all":
-        results = [d for d in results if d.get("platform_id") == platform]
-    if query:
-        results = [d for d in results if query in d.get("title", "").lower() or query in d.get("description", "").lower()]
-        
-    return jsonify({"success": True, "dramas": results, "total_count": len(results)})
+    category = request.args.get("category", "all").lower()
+    query = request.args.get("q", "").strip()
+    page = int(request.args.get("page", 1))
+    limit = int(request.args.get("limit", 60))
+    offset = max(0, (page - 1) * limit)
+
+    dramas, total_count = hongguo_db.query_dramas(
+        category=category if category != "all" else None,
+        query=query if query else None,
+        platform=platform if platform != "all" else None,
+        limit=limit,
+        offset=offset
+    )
+
+    return jsonify({
+        "success": True,
+        "dramas": dramas,
+        "total_count": total_count,
+        "page": page,
+        "limit": limit,
+        "has_more": (offset + len(dramas)) < total_count
+    })
 
 
 @app.route("/api/downloader/analyze", methods=["POST"])
@@ -860,7 +881,7 @@ def downloader_analyze_endpoint():
     url = data.get("url", "").strip()
     if not url:
         return jsonify({"success": False, "error": "URL cannot be empty."}), 400
-        
+
     try:
         res = drama_downloader.analyze_url(url)
         return jsonify(res)
@@ -870,11 +891,16 @@ def downloader_analyze_endpoint():
 
 @app.route("/api/downloader/drama/<drama_id>", methods=["GET"])
 def downloader_drama_detail_endpoint(drama_id):
-    """Get single drama details with full episodes."""
-    drama = next((d for d in DRAMA_CATALOG if d["id"] == drama_id), None)
+    """Get single drama details with full episodes and rich story profile."""
+    drama = hongguo_db.get_drama_by_id(drama_id)
+    if not drama:
+        drama = next((d for d in DRAMA_CATALOG if d.get("id") == drama_id), None)
+    if not drama and drama_downloader.current_drama and drama_downloader.current_drama.get("id") == drama_id:
+        drama = drama_downloader.current_drama
+
     if not drama:
         return jsonify({"success": False, "error": "Drama not found"}), 404
-        
+
     episodes = get_drama_episodes(drama)
     drama_downloader.current_drama = drama
     drama_downloader.episodes = episodes
@@ -883,15 +909,30 @@ def downloader_drama_detail_endpoint(drama_id):
     drama_downloader.stats["completed"] = 0
     drama_downloader.stats["failed"] = 0
     drama_downloader.stats["locked"] = 0
-    drama_downloader.stats["progress_percent"] = 0
-    drama_downloader.add_log(f"Selected drama: '{drama['title']}' ({len(episodes)} episodes loaded).")
-    
+
     return jsonify({
         "success": True,
         "drama": drama,
         "episodes": episodes,
         "stats": drama_downloader.stats
     })
+
+
+@app.route("/api/downloader/preview/<drama_id>", methods=["GET"])
+def downloader_preview_endpoint(drama_id):
+    """Get preview video for a drama to play directly in 9:16 monitor."""
+    ep_num = request.args.get("ep", 1, type=int)
+    drama = hongguo_db.get_drama_by_id(drama_id)
+    sample_src = find_sample_video_source(ep_num)
+    if sample_src and sample_src.exists():
+        return jsonify({
+            "success": True,
+            "video_url": f"/media/{str(sample_src).replace('\\', '/')}",
+            "title": drama.get("title") if drama else "Hongguo Short Drama",
+            "poster": drama.get("poster") if drama else "posters/poster_sample_ceo.jpg",
+            "episode": ep_num
+        })
+    return jsonify({"success": False, "error": "Preview video not found"}), 404
 
 
 @app.route("/api/downloader/download-episodes", methods=["POST"])

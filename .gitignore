@@ -21,6 +21,9 @@ dist/**/admin_key_history.json
 dist/**/generated_keys_log.txt
 *.tmp
 *.log
+*.db
+*.sqlite
+*.sqlite3
 
 # Environments
 .env

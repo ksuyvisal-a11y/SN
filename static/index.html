@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=6.5">
+    <link rel="stylesheet" href="style.css?v=7.5">
 </head>
 <body>
     <div class="unich-app-container">
@@ -415,9 +415,11 @@
             <!-- ================================================================
                  VIEW 2: DOWNLOADER STUDIO (`DL` Tab)
                  ================================================================ -->
-            <div class="dl-studio-3col-layout" id="view-downloader-workspace" style="display:none;">
-                <!-- LEFT COLUMN: Platforms List & Save Location -->
-                <div class="dl-col-left">
+            <div class="dl-workspace-root" id="view-downloader-workspace" style="display:none;">
+                <!-- 1. CATALOG 3-COLUMN MODE -->
+                <div class="dl-studio-3col-layout" id="dl-catalog-view-wrapper">
+                    <!-- LEFT COLUMN: Platforms List & Save Location -->
+                    <div class="dl-col-left" id="dl-col-platforms">
                     <div class="dl-section-header-title">PLATFORMS</div>
                     <div class="dl-platforms-scroll-list" id="dl-platforms-list">
                         <!-- Populated dynamically via JS -->
@@ -457,7 +459,7 @@
                 </div>
 
                 <!-- CENTER COLUMN: Analyzer & Drama Cards Grid -->
-                <div class="dl-col-center">
+                <div class="dl-col-center" id="dl-col-catalog">
                     <div class="dl-center-top-analyzer">
                         <div class="dl-analyzer-header-row">
                             <span class="dl-analyzer-heading-text">PASTE A DRAMA OR MEDIA LINK</span>
@@ -474,24 +476,50 @@
                         </div>
                     </div>
 
-                    <div class="dl-catalog-count-badge" id="dl-catalog-count-label">
-                        <img src="hongguo_logo.png" class="dl-platform-icon-img" style="vertical-align:middle; margin-right:6px;" alt=""> Hongguo (0)
+                    <div class="dl-catalog-top-header-row">
+                        <div class="dl-catalog-count-badge" id="dl-catalog-count-label">
+                            <span class="dl-clapper-emoji">🎬</span> Top 100 on 红果 right now (49,509)
+                        </div>
+                        <div class="dl-header-actions-right" style="display:flex; align-items:center; gap:8px;">
+                            <span class="dl-header-tip-text">Tip: click any poster to preview and open episode player</span>
+                            <button type="button" class="dl-saved-badge-btn" id="btn-dl-saved-badge" onclick="showSavedFavoritesModal()" title="View your saved list">
+                                <span style="color:#ef4444; margin-right:4px;">♥</span> Saved <b id="dl-saved-counter" style="margin-left:2px; color:#f8fafc;">0</b>
+                            </button>
+                            <button type="button" class="dl-catalog-refresh-btn" id="btn-dl-refresh-catalog" onclick="refreshDramaCatalog()" title="Refresh Catalog">
+                                <i class="fa-solid fa-arrows-rotate"></i> Refresh
+                            </button>
+                            <button type="button" class="dl-toggle-ep-panel-btn" id="btn-toggle-ep-panel" onclick="toggleEpisodesPanel()" title="Toggle Episodes & Drama Details Panel">
+                                <i class="fa-solid fa-list-ul"></i> Episodes
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Category Pills Navigation (Matching Image 3) -->
+                    <div class="dl-catalog-filter-tags-scroll" id="dl-category-chips-bar">
+                        <!-- Populated dynamically via JS -->
                     </div>
 
                     <!-- Drama Cards Grid (3 Columns) -->
                     <div class="dl-drama-cards-grid" id="dl-drama-cards-container">
                         <!-- Populated dynamically via JS -->
                     </div>
+
+                    <!-- Load More Dramas Button -->
+                    <div class="dl-load-more-wrap" id="dl-load-more-wrap" style="display:none; text-align:center; padding:14px 0 24px 0;">
+                        <button type="button" class="dl-btn-load-more" id="btn-dl-load-more" onclick="loadMoreDramas()">
+                            <i class="fa-solid fa-angles-down"></i> <span>Load More Dramas (+60)</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- RIGHT COLUMN: Drama Info, Episodes & Activity Log -->
-                <div class="dl-col-right">
+                <div class="dl-col-right" id="dl-col-details">
                     <!-- Drama Info -->
                     <div class="dl-drama-info-container">
                         <div class="dl-section-header-title">DRAMA INFO</div>
                         <div class="dl-info-main-content">
                             <div class="dl-info-poster-box">
-                                <img src="logo.png" alt="SN Logo" style="width:100%; height:100%; object-fit:contain; padding:4px;">
+                                <img id="dl-info-poster-img" src="posters/poster_yan_lu.jpg" alt="Drama Poster" style="width:100%; height:100%; object-fit:cover; border-radius:6px;">
                             </div>
                             <div class="dl-info-text-col">
                                 <div class="dl-info-title-main" id="dl-info-title-text">No drama loaded</div>
@@ -525,8 +553,138 @@
                         <div class="dl-activity-terminal-box" id="dl-activity-terminal-box"></div>
                     </div>
                 </div>
-            </div>
-        </main>
+            </div> <!-- END 1. CATALOG 3-COL MODE (#dl-catalog-view-wrapper) -->
+
+            <!-- ================================================================
+                 2. DEDICATED QUEUE & 9:16 EPISODE PLAYER WORKSPACE (Exact Match to Image 2, Cyber-Gold Theme)
+                 ================================================================ -->
+            <div class="dl-queue-view-container" id="dl-queue-player-view" style="display:none;">
+                <!-- LEFT SIDE: Top Analyzer Card + Episode Queue Card -->
+                <div class="dl-q2-left-stack">
+                    <!-- Top Analyzer Card -->
+                    <div class="dl-q2-card dl-q2-analyzer-card">
+                        <div class="dl-q2-card-header-row">
+                            <span class="dl-q2-card-heading">PASTE A DRAMA OR MEDIA LINK</span>
+                            <div class="dl-q2-tab-toggles">
+                                <button type="button" class="dl-q2-tab-pill" id="btn-qview-catalog" onclick="switchDlViewMode('catalog')">Catalog</button>
+                                <button type="button" class="dl-q2-tab-pill active" id="btn-qview-queue" onclick="switchDlViewMode('queue')">Queue</button>
+                            </div>
+                        </div>
+                        <div class="dl-q2-input-row">
+                            <div class="dl-q2-input-wrap">
+                                <input type="text" class="dl-q2-input-field" id="dl-qview-url-input" placeholder="https://hongguoduanju.com/detail?series_id=..." onkeydown="handleDlLinkKey(event)">
+                                <button type="button" class="dl-q2-clear-icon" onclick="clearDlUrlInput()" title="Clear link">✕</button>
+                            </div>
+                            <button type="button" class="dl-q2-btn-analyze" onclick="analyzeEnteredLink()">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                                <span>Analyze</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Episode Queue Card -->
+                    <div class="dl-q2-card dl-q2-table-card">
+                        <div class="dl-q2-queue-header">
+                            <span class="dl-q2-queue-title">Episode queue <b id="dl-q-eps-count-bold">0</b> episodes loaded</span>
+                            <button type="button" class="dl-q2-select-all-btn" id="btn-q-select-all" onclick="toggleSelectAllQueueEpisodes()">Select all</button>
+                        </div>
+                        <div class="dl-q2-table-frame">
+                            <div class="dl-q2-thead">
+                                <div class="dl-q2-th-ep">EPISODE</div>
+                                <div class="dl-q2-th-status">ACCESS / STATUS</div>
+                                <div class="dl-q2-th-prog">PROGRESS</div>
+                            </div>
+                            <div class="dl-q2-tbody" id="dl-queue-tbody">
+                                <!-- Populated dynamically via JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RIGHT SIDE: Dedicated 9:16 Video Player & Episode Controls Card -->
+                <div class="dl-q2-card dl-q2-player-card">
+                    <!-- 9:16 Video Stage Frame (Left sub-col) -->
+                    <div class="dl-q2-stage-frame">
+                        <div class="dl-q2-stage-inner" id="dl-q-monitor-screen" onclick="toggleQueuePlay()">
+                            <video id="dl-q-video-elem" playsinline preload="metadata" ontimeupdate="onQueueVideoTimeUpdate()" onended="onQueueVideoEnded()"></video>
+                            <div class="dl-q2-video-subtitles" id="dl-q-video-subtitles" style="display:none;"></div>
+                            <div class="dl-q2-center-play-glow" id="dl-q-center-play">
+                                <i class="fa-solid fa-play"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Controls Sidebar (Right sub-col) -->
+                    <div class="dl-q2-controls-col">
+                        <!-- Top: Platform Badge + Close X -->
+                        <div class="dl-q2-ctrl-header">
+                            <span class="dl-q2-platform-badge" id="dl-q-platform-badge">HONGGUO</span>
+                            <button type="button" class="dl-q2-close-btn" onclick="switchDlViewMode('catalog')" title="Close preview (Esc)">✕</button>
+                        </div>
+
+                        <!-- Now Playing Info -->
+                        <div class="dl-q2-now-section">
+                            <div class="dl-q2-ep-name" id="dl-q-now-title">EP01 - រឿងភាគ</div>
+                            <div class="dl-q2-now-label">NOW PLAYING</div>
+                            <div class="dl-q2-ep-badge" id="dl-q-now-ep-indicator">EPISODE 1 / 80</div>
+                            <div class="dl-q2-dropdown-wrap">
+                                <select class="dl-q2-select" id="dl-q-select-dropdown" onchange="jumpToQueueEpisode(parseInt(this.value))"></select>
+                            </div>
+                        </div>
+
+                        <!-- Playback Section -->
+                        <div class="dl-q2-playback-section">
+                            <div class="dl-q2-section-label">PLAYBACK</div>
+                            <div class="dl-q2-timecode" id="dl-q-timecode">00:00 / 00:00</div>
+                            <div class="dl-q2-slider-wrap">
+                                <input type="range" class="dl-q2-range" id="dl-q-seek-slider" min="0" max="100" value="0" step="0.1" oninput="handleQueueScrubber(this.value)">
+                            </div>
+
+                            <!-- Big Play Button -->
+                            <button type="button" class="dl-q2-play-btn" id="dl-q-play-pause-btn" onclick="toggleQueuePlay()">
+                                <i class="fa-solid fa-play" id="dl-q-play-icon"></i>
+                                <span id="dl-q-play-text">Play</span>
+                            </button>
+
+                            <!-- Nav: Prev / Next -->
+                            <div class="dl-q2-btn-row">
+                                <button type="button" class="dl-q2-secondary-btn" onclick="queuePrevEpisode()">
+                                    <i class="fa-solid fa-arrow-left"></i> Prev
+                                </button>
+                                <button type="button" class="dl-q2-secondary-btn" onclick="queueNextEpisode()">
+                                    Next <i class="fa-solid fa-arrow-right"></i>
+                                </button>
+                            </div>
+
+                            <!-- Actions: Stop / Mute -->
+                            <div class="dl-q2-btn-row">
+                                <button type="button" class="dl-q2-secondary-btn" onclick="queueStopVideo()">
+                                    <i class="fa-solid fa-stop"></i> Stop
+                                </button>
+                                <button type="button" class="dl-q2-secondary-btn" id="dl-q-mute-btn" onclick="queueToggleMute()">
+                                    <i class="fa-solid fa-volume-high" id="dl-q-mute-icon"></i> Mute
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Big Download Episode Button -->
+                        <div class="dl-q2-download-wrap">
+                            <button type="button" class="dl-q2-download-btn" id="btn-q-download-current" onclick="downloadCurrentQueueEpisode()">
+                                <i class="fa-solid fa-download"></i>
+                                <span id="dl-q-download-btn-text">Download EP 1</span>
+                            </button>
+                        </div>
+
+                        <!-- Keyboard Shortcuts -->
+                        <div class="dl-q2-shortcuts">
+                            <div class="dl-q2-shortcut-row"><span class="dl-q2-key">Space</span> Play/Pause</div>
+                            <div class="dl-q2-shortcut-row"><span class="dl-q2-key">Esc</span> Close preview</div>
+                        </div>
+                    </div>
+                </div>
+            </div> <!-- END dl-queue-player-view -->
+        </div> <!-- END #view-downloader-workspace -->
+    </main>
 
         <!-- ====================================================================
              BOTTOM STATUS FOOTER
@@ -546,14 +704,12 @@
         <!-- Footer 2: Downloader Stats Footer (Exact Match to Image 2) -->
         <footer class="dl-bottom-stats-bar" id="footer-dl-stats" style="display:none;">
             <div class="dl-stats-group">
-                <div class="dl-stat-dot-item"><span class="dot-purple">●</span> Total <strong id="dl-stat-total" style="color:#fff;">0</strong></div>
-                <div class="dl-stat-dot-item"><span class="dot-red">●</span> Selected <strong id="dl-stat-selected" style="color:#fff;">0</strong></div>
-                <div class="dl-stat-dot-item"><span class="dot-green">●</span> Completed <strong id="dl-stat-completed" style="color:#fff;">0</strong></div>
-                <div class="dl-stat-dot-item"><span class="dot-red">●</span> Failed <strong id="dl-stat-failed" style="color:#fff;">0</strong></div>
-                <div class="dl-stat-dot-item"><span class="dot-yellow">●</span> Locked <strong id="dl-stat-locked" style="color:#fff;">0</strong></div>
+                <div class="dl-stat-pill-item"><span class="dot-green">●</span> Completed <strong id="dl-stat-completed">0</strong></div>
+                <div class="dl-stat-pill-item"><span class="dot-red">●</span> Failed <strong id="dl-stat-failed">0</strong></div>
+                <div class="dl-stat-pill-item"><span class="dot-yellow">●</span> Locked <strong id="dl-stat-locked">0</strong></div>
             </div>
             <div class="dl-overall-progress-box">
-                <span>Overall <strong id="dl-stat-overall-percent" style="color:#fff;">0%</strong></span>
+                <span class="dl-overall-text">Overall <strong id="dl-stat-overall-percent">0%</strong></span>
             </div>
         </footer>
 
@@ -1369,6 +1525,6 @@
         <div class="unich-toast-box" id="toast"></div>
     </div>
 
-    <script src="app.js?v=6.5"></script>
+    <script src="app.js?v=7.5"></script>
 </body>
 </html>

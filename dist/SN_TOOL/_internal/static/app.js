@@ -8,9 +8,14 @@ let playheadSeconds = 0;
 let totalDurationSeconds = 114; // 01:54
 let playbackTimer = null;
 let dlSelectedPlatform = "hongguo";
+let dlSelectedCategory = "all";
 let dlCurrentDrama = null;
 let dlEpisodesList = [];
 let dlPollTimer = null;
+let dlCurrentPage = 1;
+let dlTotalDramasCount = 49509;
+let dlSearchQuery = "";
+let dlIsLoadingMore = false;
 let currentHwid = "";
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -21,7 +26,8 @@ async function initApp() {
     setupOutsideClickHandlers();
     checkDeviceLicenseStatus();
     loadDownloaderPlatforms();
-    loadDramaCatalog("all");
+    loadDownloaderCategories();
+    loadDramaCatalog("hongguo");
     initStudioWorkspace();
     initSaveLocationPaths();
     setupDragAndDropSupport();
@@ -155,10 +161,11 @@ function switchMainTab(tabKey) {
     if (tabKey === 'dl') {
         // Switch to Downloader Studio (Exact Match to Image 2)
         if (studioView) studioView.style.display = 'none';
-        if (dlView) dlView.style.display = 'grid';
+        if (dlView) dlView.style.display = 'flex';
         if (studioFooter) studioFooter.style.display = 'none';
         if (dlFooter) dlFooter.style.display = 'flex';
 
+        switchDlViewMode(dlCurrentViewMode || 'catalog');
         loadDramaCatalog(dlSelectedPlatform);
     } else {
         // Return to Main Studio View (Exact Match to Image 1)
@@ -1224,21 +1231,145 @@ async function loadDownloaderPlatforms() {
     } catch (e) {}
 }
 
+async function loadDownloaderCategories() {
+    const bar = document.getElementById('dl-category-chips-bar');
+    if (!bar) return;
+    try {
+        const res = await fetch('/api/downloader/categories');
+        const data = await res.json();
+        if (data.success && data.categories) {
+            bar.innerHTML = '';
+            data.categories.forEach(cat => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                const isActive = (cat.id === dlSelectedCategory) || (!dlSelectedCategory && cat.id === 'all');
+                btn.className = `dl-category-chip-btn ${isActive ? 'active' : ''}`;
+                btn.textContent = cat.badge || cat.name;
+                btn.dataset.catId = cat.id;
+                btn.title = cat.name_kh ? `${cat.name} (${cat.name_kh})` : cat.name;
+                btn.onclick = () => selectCategoryChip(cat.id);
+                bar.appendChild(btn);
+            });
+        }
+    } catch (e) {
+        console.error('Error loading downloader categories:', e);
+    }
+}
+
+function selectCategoryChip(catId) {
+    dlSelectedCategory = catId;
+    const chips = document.querySelectorAll('.dl-category-chip-btn');
+    chips.forEach(c => {
+        if (c.dataset.catId === catId || (catId === 'all' && c.dataset.catId === 'all')) {
+            c.classList.add('active');
+        } else {
+            c.classList.remove('active');
+        }
+    });
+    loadDramaCatalog(dlSelectedPlatform, dlSearchQuery, dlSelectedCategory, false);
+}
+
+function getSavedFavorites() {
+    try {
+        return JSON.parse(localStorage.getItem('sn_saved_dramas') || '{}') || {};
+    } catch (e) {
+        return {};
+    }
+}
+
+function updateSavedCountUI() {
+    const favs = getSavedFavorites();
+    const counter = document.getElementById('dl-saved-counter');
+    if (counter) counter.textContent = Object.keys(favs).length;
+}
+
+function isDramaFavorite(id) {
+    const favs = getSavedFavorites();
+    return !!favs[id];
+}
+
+function toggleDramaFavorite(id, title) {
+    const favs = getSavedFavorites();
+    if (favs[id]) {
+        delete favs[id];
+        showToast(`Removed '${title}' from saved`);
+    } else {
+        favs[id] = { id, title, time: Date.now() };
+        showToast(`Saved '${title}' ♥`);
+    }
+    localStorage.setItem('sn_saved_dramas', JSON.stringify(favs));
+    updateSavedCountUI();
+
+    const card = document.getElementById(`dl-card-${id}`);
+    if (card) {
+        const btn = card.querySelector('.bz-fav-btn');
+        if (btn) btn.classList.toggle('on', !!favs[id]);
+    }
+}
+
+function copyDramaTitle(title) {
+    if (!title) return;
+    navigator.clipboard.writeText(title).then(() => {
+        showToast(`Copied title: ${title}`);
+    }).catch(() => {
+        showToast(`Copied: ${title}`);
+    });
+}
+
+function copyDramaTag(title) {
+    if (!title) return;
+    const tag = `《${title}》`;
+    navigator.clipboard.writeText(tag).then(() => {
+        showToast(`Copied tag: ${tag}`);
+    }).catch(() => {});
+
+    // Automatically paste tag into the Hongguo URL/Search input box
+    const input = document.getElementById('dl-link-url-input');
+    if (input) {
+        input.value = tag;
+        input.focus();
+    }
+}
+
+function showSavedFavoritesModal() {
+    const favs = getSavedFavorites();
+    const count = Object.keys(favs).length;
+    if (count === 0) {
+        showToast("No saved dramas yet. Tap ♥ on any drama to build your saved list!");
+        return;
+    }
+    const titles = Object.values(favs).map(f => f.title).join('\n');
+    navigator.clipboard.writeText(titles).then(() => {
+        showToast(`Copied all ${count} saved drama titles to clipboard!`);
+    }).catch(() => {});
+}
+
+function refreshDramaCatalog() {
+    const btn = document.getElementById('btn-dl-refresh-catalog');
+    if (btn) {
+        btn.innerHTML = '<i class="fa-solid fa-arrows-rotate fa-spin"></i> Refresh';
+    }
+    loadDramaCatalog(dlSelectedPlatform, dlSearchQuery, dlSelectedCategory, false).finally(() => {
+        if (btn) {
+            btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Refresh';
+        }
+    });
+}
+
 function filterByPlatform(platId, platName, totalCount, platLogo) {
     dlSelectedPlatform = platId;
     loadDownloaderPlatforms();
 
     const countLabel = document.getElementById('dl-catalog-count-label');
     if (countLabel) {
-        const iconPart = platLogo 
-            ? `<img src="${platLogo}" class="dl-platform-icon-img" style="vertical-align:middle; margin-right:6px;" alt="">` 
-            : `<i class="fa-solid fa-globe"></i>`;
-        countLabel.innerHTML = `${iconPart} ${escapeHtml(platName)} (${totalCount !== undefined ? totalCount : 0})`;
+        const countDisplay = totalCount ? totalCount.toLocaleString() : (platId === 'hongguo' ? '49,509' : '30');
+        const headerTitle = platId === 'hongguo' ? 'Top 100 on 红果 right now' : `Top Dramas on ${escapeHtml(platName)}`;
+        countLabel.innerHTML = `<span class="dl-clapper-emoji">🎬</span> ${headerTitle} (${countDisplay})`;
     }
 
     const input = document.getElementById('dl-link-url-input');
     if (input) {
-        input.placeholder = `Paste a ${escapeHtml(platName)} URL...`;
+        input.placeholder = platId === 'reelshort' ? 'Paste a ReelShort URL or search...' : 'Paste a Hongguo URL or search...';
     }
 
     const badge = document.getElementById('dl-info-platform-badge');
@@ -1246,62 +1377,189 @@ function filterByPlatform(platId, platName, totalCount, platLogo) {
         badge.textContent = platName.toUpperCase();
     }
 
-    loadDramaCatalog(platId);
+    loadDramaCatalog(platId, dlSearchQuery, dlSelectedCategory, false);
 }
 
-async function loadDramaCatalog(platformId = "all", query = "") {
+// Favorites & Action Helpers (Matching Image 2)
+function getDramaFavorites() {
+    try {
+        return JSON.parse(localStorage.getItem('sn_saved_dramas') || '[]');
+    } catch (e) {
+        return [];
+    }
+}
+
+function isDramaFavorite(id) {
+    const list = getDramaFavorites();
+    return list.some(item => (typeof item === 'string' ? item === id : item.id === id));
+}
+
+function toggleDramaFavorite(id, title) {
+    let list = getDramaFavorites();
+    const existingIdx = list.findIndex(item => (typeof item === 'string' ? item === id : item.id === id));
+    if (existingIdx >= 0) {
+        list.splice(existingIdx, 1);
+        showToast(`Removed from saved: ${title}`);
+    } else {
+        list.push({ id, title, time: Date.now() });
+        showToast(`Saved to favorites: ${title}`);
+    }
+    localStorage.setItem('sn_saved_dramas', JSON.stringify(list));
+    updateSavedCountUI();
+    const btn = document.querySelector(`#dl-card-${id} .bz-fav-btn`);
+    if (btn) btn.classList.toggle('on', existingIdx < 0);
+}
+
+function updateSavedCountUI() {
+    const counter = document.getElementById('dl-saved-counter');
+    if (counter) {
+        const list = getDramaFavorites();
+        counter.textContent = list.length;
+    }
+}
+
+function copyDramaTitle(title) {
+    if (!title) return;
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(title).catch(() => {});
+    }
+    showToast(`Copied title: ${title}`);
+}
+
+function copyDramaTag(title, dramaId) {
+    const cleanId = (dramaId || '').replace(/^hg_/, '');
+    const pasteUrl = cleanId && !cleanId.startsWith('top_')
+        ? `https://hongguodownloader.com/drama/${cleanId}`
+        : `《${title}》`;
+
+    const input = document.getElementById('dl-link-url-input');
+    if (input) {
+        input.value = pasteUrl;
+        input.focus();
+    }
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(pasteUrl).catch(() => {});
+    }
+    showToast(`Pasted to analyzer: ${title}`);
+}
+
+function toggleEpisodesPanel(forceState) {
+    const layout = document.getElementById('dl-catalog-view-wrapper') || document.getElementById('view-downloader-workspace');
+    const btn = document.getElementById('btn-toggle-ep-panel');
+    if (!layout) return;
+    const isCollapsed = layout.classList.contains('episodes-collapsed');
+    const targetCollapsed = forceState !== undefined ? !forceState : !isCollapsed;
+    layout.classList.toggle('episodes-collapsed', targetCollapsed);
+    if (btn) {
+        btn.classList.toggle('active', !targetCollapsed);
+        btn.innerHTML = targetCollapsed
+            ? '<i class="fa-solid fa-list-ul"></i> Episodes'
+            : '<i class="fa-solid fa-chevron-right"></i> Hide Panel';
+    }
+}
+
+function showSavedFavoritesModal() {
+    const list = getDramaFavorites();
+    if (!list || list.length === 0) {
+        showToast("No saved dramas yet. Click ♥ on any card to save!");
+        return;
+    }
+    const names = list.map(item => (typeof item === 'string' ? item : item.title)).join(', ');
+    showToast(`Saved (${list.length}): ${names.substring(0, 80)}...`);
+}
+
+async function loadDramaCatalog(platformId = "hongguo", query = "", category = "all", append = false) {
     const container = document.getElementById('dl-drama-cards-container');
+    const loadMoreWrap = document.getElementById('dl-load-more-wrap');
     if (!container) return;
 
+    if (!append) {
+        dlCurrentPage = 1;
+        const platTitle = platformId === 'reelshort' ? 'ReelShort' : 'Hongguo';
+        container.innerHTML = `<div style="grid-column: 1 / -1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding: 48px; color: #38bdf8;"><i class="fa-solid fa-spinner fa-spin" style="font-size: 1.8rem; margin-bottom:12px;"></i><div style="font-size:0.85rem; font-weight:600; color:#e2e8f0;">កំពុងទាញបញ្ជីរឿង ${platTitle}...</div></div>`;
+    }
+
     try {
-        const res = await fetch(`/api/downloader/catalog?platform=${platformId}&q=${encodeURIComponent(query)}`);
+        const res = await fetch(`/api/downloader/catalog?platform=${platformId}&category=${category}&q=${encodeURIComponent(query)}&page=${dlCurrentPage}&limit=50`);
         const data = await res.json();
-        container.innerHTML = '';
+
+        if (!append) container.innerHTML = '';
+
         if (data.success && data.dramas && data.dramas.length > 0) {
-            data.dramas.forEach(drama => {
+            dlTotalDramasCount = data.total_count || data.dramas.length;
+            const countLabel = document.getElementById('dl-catalog-count-label');
+            if (countLabel) {
+                let headerTitle = category === 'all'
+                    ? (platformId === 'reelshort' ? 'Top Dramas on ReelShort' : 'Top 100 on 红果 right now')
+                    : `${platformId === 'reelshort' ? 'ReelShort' : 'Category'}: ${category.toUpperCase()}`;
+                countLabel.innerHTML = `<span class="dl-clapper-emoji">🎬</span> ${headerTitle} (${dlTotalDramasCount.toLocaleString()})`;
+            }
+
+            updateSavedCountUI();
+
+            data.dramas.forEach((drama, idx) => {
                 const card = document.createElement('div');
                 card.className = `dl-card-item ${dlCurrentDrama && dlCurrentDrama.id === drama.id ? 'active' : ''}`;
-                card.onclick = () => selectDramaCard(drama.id);
+                card.id = `dl-card-${drama.id}`;
+                card.onclick = () => selectDramaCard(drama.id, true);
+
+                // Clean title matching Image 2 (e.g. 东北话事人)
+                const displayTitle = (drama.title_cn || drama.title || '').replace(/[《》]/g, '').split(' - ')[0].trim();
+                const posterUrl = drama.poster || 'posters/poster_sample_ceo.jpg';
+                const rank = drama.rank_num || (idx + 1);
+                const isTopRank = rank <= 3;
+                const ratingBadge = drama.rating ? `<span class="lb-score">★ ${escapeHtml(drama.rating)}</span>` : '';
+                const heatBadge = `<span class="lb-eps">${drama.heat ? '🔥 ' + escapeHtml(drama.heat) : (drama.total_episodes ? drama.total_episodes + ' eps' : '')}</span>`;
+                const isFav = isDramaFavorite(drama.id);
+
                 card.innerHTML = `
                     <div class="dl-card-thumb-wrap">
-                        <img src="${drama.poster || 'vertical_drama_sample.jpg'}" alt="${escapeHtml(drama.title)}">
-                        <div class="dl-card-platform-pill">${escapeHtml(drama.platform)}</div>
-                        <button class="dl-card-preview-overlay-btn" onclick="event.stopPropagation(); previewDramaVideoDirect('${drama.id}')">Preview</button>
+                        <span class="lb-rank ${isTopRank ? 'top' : ''}">${rank}</span>
+                        ${ratingBadge}
+                        <img src="${posterUrl}" alt="${escapeHtml(displayTitle)}" loading="lazy" onerror="this.onerror=null; this.src='posters/poster_sample_ceo.jpg';">
+                        ${heatBadge}
                     </div>
                     <div class="dl-card-details-box">
-                        <div class="dl-card-title-line" title="${escapeHtml(drama.title)}">${escapeHtml(drama.title)}</div>
-                        <div class="dl-card-ep-count">EP 1-${drama.total_episodes}</div>
+                        <div class="dl-card-title-line" title="${escapeHtml(displayTitle)}">${escapeHtml(displayTitle)}</div>
                     </div>
                 `;
                 container.appendChild(card);
             });
 
-            if (!dlCurrentDrama) {
-                selectDramaCard(data.dramas[0].id);
+            if (!append && !dlCurrentDrama) {
+                selectDramaCard(data.dramas[0].id, false);
             }
-        } else {
+
+            if (loadMoreWrap) {
+                loadMoreWrap.style.display = data.has_more ? 'block' : 'none';
+            }
+        } else if (!append) {
             container.innerHTML = `
                 <div style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 20px; color: #716655; text-align: center;">
-                    <i class="fa-solid fa-cloud-arrow-down" style="font-size: 2rem; color: #ca8a04; margin-bottom: 12px;"></i>
-                    <div style="font-size: 0.85rem; font-weight: 600; color: #cbd5e1;">មិនទាន់មានរឿងភាគនៅក្នុងបញ្ជី (No Series Loaded)</div>
-                    <div style="font-size: 0.72rem; color: #716655; margin-top: 6px;">សូមបិទភ្ជាប់ Link រឿងភាគនៅក្នុងប្រអប់ខាងលើ រួចចុច Analyze ដើម្បីទាញយកភាគរឿង។</div>
+                    <i class="fa-solid fa-magnifying-glass" style="font-size: 2rem; color: #38bdf8; margin-bottom: 12px;"></i>
+                    <div style="font-size: 0.85rem; font-weight: 600; color: #cbd5e1;">រកមិនឃើញរឿងភាគតាមការស្វែងរក</div>
+                    <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 6px;">សូមសាកល្បងស្វែងរកជាមួយពាក្យគន្លឹះផ្សេងទៀត ឬចុច All ដើម្បីមើលឡើងវិញ។</div>
                 </div>
             `;
-            // Reset right drama info panel
-            dlCurrentDrama = null;
-            dlEpisodesList = [];
-            const title = document.getElementById('dl-info-title-text');
-            const stats = document.getElementById('dl-info-stats-text');
-            const desc = document.getElementById('dl-info-desc-text');
-            if (title) title.textContent = "No drama loaded";
-            if (stats) stats.textContent = "Episodes 0 • Locked 0 • Selected 0";
-            if (desc) desc.textContent = "Paste a supported URL to inspect its episode catalog and prepare the download queue.";
-            renderEpisodesChecklist([]);
+            if (loadMoreWrap) loadMoreWrap.style.display = 'none';
         }
-    } catch (e) {}
+    } catch (e) {
+        if (!append) container.innerHTML = '<div style="grid-column: 1 / -1; color:#ef4444; padding:30px; text-align:center;">Network error loading catalog.</div>';
+    }
 }
 
-async function selectDramaCard(dramaId) {
+async function loadMoreDramas() {
+    if (dlIsLoadingMore) return;
+    dlIsLoadingMore = true;
+    const btn = document.getElementById('btn-dl-load-more');
+    if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading...';
+    dlCurrentPage++;
+    await loadDramaCatalog(dlSelectedPlatform, dlSearchQuery, dlSelectedCategory, true);
+    if (btn) btn.innerHTML = '<i class="fa-solid fa-angles-down"></i> <span>Load More Dramas (+60)</span>';
+    dlIsLoadingMore = false;
+}
+
+async function selectDramaCard(dramaId, openQueueMode = false) {
     try {
         const res = await fetch(`/api/downloader/drama/${dramaId}`);
         const data = await res.json();
@@ -1309,19 +1567,36 @@ async function selectDramaCard(dramaId) {
             dlCurrentDrama = data.drama;
             dlEpisodesList = data.episodes || [];
 
+            // Highlight card in grid
+            document.querySelectorAll('.dl-card-item').forEach(c => c.classList.remove('active'));
+            const activeCard = document.getElementById(`dl-card-${dramaId}`);
+            if (activeCard) activeCard.classList.add('active');
+
             // Update Right DRAMA INFO Box
             const title = document.getElementById('dl-info-title-text');
+            const posterImg = document.getElementById('dl-info-poster-img');
             const badge = document.getElementById('dl-info-platform-badge');
             const stats = document.getElementById('dl-info-stats-text');
             const desc = document.getElementById('dl-info-desc-text');
 
             if (title) title.textContent = data.drama.title;
-            if (badge) badge.textContent = data.drama.platform.toUpperCase();
+            if (posterImg) posterImg.src = data.drama.poster || 'posters/poster_sample_ceo.jpg';
+            if (badge) badge.textContent = `${data.drama.platform.toUpperCase()} • ${data.drama.rating || '9.8'} ★`;
             if (stats) stats.textContent = `Episodes ${data.drama.total_episodes} • Locked 0 • Selected ${data.drama.total_episodes}`;
-            if (desc) desc.textContent = data.drama.description || "Short drama series manifest fetched.";
+            if (desc) desc.textContent = data.drama.description || "Hongguo Short Drama Series Manifest.";
+
+            if (activeCard) {
+                const sub = activeCard.querySelector('.dl-card-subtitle-line');
+                if (sub) sub.textContent = `${data.drama.total_episodes} Episodes • 1080p HD`;
+            }
 
             renderEpisodesChecklist(dlEpisodesList);
             updateDownloaderStats(data.stats);
+
+            // Open Image 2 Queue / Episode Player View if requested
+            if (openQueueMode) {
+                switchDlViewMode('queue');
+            }
         }
     } catch (e) {}
 }
@@ -1375,10 +1650,21 @@ async function analyzeEnteredLink() {
     const input = document.getElementById('dl-link-url-input');
     const url = input ? input.value.trim() : "";
     if (!url) {
-        showToast("Please enter a drama URL");
+        dlSearchQuery = "";
+        await loadDramaCatalog(dlSelectedPlatform, "", dlSelectedCategory, false);
         return;
     }
 
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+        // Search query mode across 49,509 dramas
+        dlSearchQuery = url;
+        showToast(`កំពុងស្វែងរក: "${url}"...`);
+        appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Searching 49,509 catalog for: "${url}"`);
+        await loadDramaCatalog(dlSelectedPlatform, dlSearchQuery, dlSelectedCategory, false);
+        return;
+    }
+
+    // URL link analysis mode
     showToast("Analyzing drama link...");
     appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Analyzing drama manifest from URL: ${url}`);
 
@@ -1392,7 +1678,7 @@ async function analyzeEnteredLink() {
         if (data.success && data.drama) {
             dlCurrentDrama = data.drama;
             dlEpisodesList = data.episodes || [];
-            await loadDramaCatalog();
+            await loadDramaCatalog(dlSelectedPlatform, "", "all", false);
             selectDramaCard(data.drama.id);
             showToast(`Found: ${data.drama.title} (${dlEpisodesList.length} EP)`);
         } else {
@@ -1403,12 +1689,384 @@ async function analyzeEnteredLink() {
     }
 }
 
+let dlCurrentViewMode = "catalog";
+let dlQueueActiveEpisodeNum = 1;
+
 function switchDlViewMode(mode) {
+    dlCurrentViewMode = mode;
+    const catalogWrapper = document.getElementById('dl-catalog-view-wrapper');
+    const queueView = document.getElementById('dl-queue-player-view');
+
     const catBtn = document.getElementById('btn-mode-catalog');
     const qBtn = document.getElementById('btn-mode-queue');
-    if (catBtn) catBtn.classList.toggle('active', mode === 'catalog');
-    if (qBtn) qBtn.classList.toggle('active', mode === 'queue');
+    const qvCatBtn = document.getElementById('btn-qview-catalog');
+    const qvQBtn = document.getElementById('btn-qview-queue');
+
+    if (mode === 'queue') {
+        if (catalogWrapper) catalogWrapper.style.display = 'none';
+        if (queueView) queueView.style.display = 'grid';
+
+        if (catBtn) catBtn.classList.remove('active');
+        if (qBtn) qBtn.classList.add('active');
+        if (qvCatBtn) qvCatBtn.classList.remove('active');
+        if (qvQBtn) qvQBtn.classList.add('active');
+
+        if (dlCurrentDrama) {
+            renderQueueViewForCurrentDrama();
+        }
+    } else {
+        if (catalogWrapper) catalogWrapper.style.display = 'grid';
+        if (queueView) {
+            queueView.style.display = 'none';
+            const vid = document.getElementById('dl-q-video-elem');
+            if (vid) vid.pause();
+        }
+
+        if (catBtn) catBtn.classList.add('active');
+        if (qBtn) qBtn.classList.remove('active');
+        if (qvCatBtn) qvCatBtn.classList.add('active');
+        if (qvQBtn) qvQBtn.classList.remove('active');
+    }
 }
+
+function clearDlUrlInput() {
+    const inp1 = document.getElementById('dl-link-url-input');
+    const inp2 = document.getElementById('dl-qview-url-input');
+    if (inp1) inp1.value = '';
+    if (inp2) inp2.value = '';
+}
+
+function renderQueueViewForCurrentDrama() {
+    if (!dlCurrentDrama) return;
+
+    // Update Top URL input
+    const urlInput = document.getElementById('dl-qview-url-input');
+    if (urlInput) {
+        const cleanId = (dlCurrentDrama.id || '').replace(/^hg_/, '');
+        urlInput.value = dlCurrentDrama.series_id
+            ? `https://hongguoduanju.com/detail?series_id=${dlCurrentDrama.series_id}`
+            : (cleanId && !cleanId.startsWith('top_') ? `https://hongguodownloader.com/drama/${cleanId}` : `《${dlCurrentDrama.title}》`);
+    }
+
+    // Update Platform Badge
+    const platBadge = document.getElementById('dl-q-platform-badge');
+    if (platBadge) {
+        platBadge.textContent = (dlCurrentDrama.platform || 'HONGGUO').toUpperCase();
+    }
+
+    // Update Episodes Count
+    const epsCountBold = document.getElementById('dl-q-eps-count-bold');
+    if (epsCountBold) {
+        epsCountBold.textContent = dlEpisodesList.length || dlCurrentDrama.total_episodes || 80;
+    }
+
+    // Render Table Rows
+    const tbody = document.getElementById('dl-queue-tbody');
+    const dropdown = document.getElementById('dl-q-select-dropdown');
+    if (tbody) tbody.innerHTML = '';
+    if (dropdown) dropdown.innerHTML = '';
+
+    const dramaTitle = (dlCurrentDrama?.title_cn || dlCurrentDrama?.title || '').replace(/[《》]/g, '').split(' - ')[0].trim();
+
+    dlEpisodesList.forEach((ep, idx) => {
+        const epNum = ep.episode_num || (idx + 1);
+        const epTitle = ep.title || dramaTitle || `Episode ${epNum}`;
+        const displayEpTitle = `EP${String(epNum).padStart(2, '0')} - ${epTitle}`;
+        const isSelected = ep.is_selected !== false;
+
+        // Table Row
+        if (tbody) {
+            const row = document.createElement('div');
+            row.className = `dl-q2-tr ${epNum === dlQueueActiveEpisodeNum ? 'active' : ''}`;
+            row.id = `dl-q-row-${epNum}`;
+            row.onclick = () => playQueueEpisode(epNum);
+
+            row.innerHTML = `
+                <div class="dl-q2-col-ep">
+                    <div class="dl-q2-capsule-toggle ${isSelected ? 'checked' : ''}" onclick="event.stopPropagation(); toggleQueueEpisodeSelect(${epNum})"></div>
+                    <div class="dl-q2-ep-title" title="${escapeHtml(displayEpTitle)}">
+                        <b>EP ${epNum}</b> &nbsp; ${escapeHtml(displayEpTitle)}
+                    </div>
+                </div>
+                <div class="dl-q2-status-pill">Ready</div>
+                <div class="dl-q2-prog-group">
+                    <div class="dl-q2-prog-track">
+                        <div class="dl-q2-prog-fill" id="dl-q-fill-${epNum}" style="width: ${ep.progress || 0}%;"></div>
+                    </div>
+                    <span class="dl-q2-prog-val" id="dl-q-text-${epNum}">${ep.progress || 0}%</span>
+                </div>
+            `;
+            tbody.appendChild(row);
+        }
+
+        // Dropdown Option
+        if (dropdown) {
+            const opt = document.createElement('option');
+            opt.value = epNum;
+            opt.textContent = `EP ${epNum}`;
+            dropdown.appendChild(opt);
+        }
+    });
+
+    // Start playback for active episode
+    playQueueEpisode(dlQueueActiveEpisodeNum || 1);
+}
+
+function toggleQueueEpisodeSelect(epNum) {
+    const ep = dlEpisodesList.find(e => (e.episode_num || e.id) == epNum);
+    if (ep) {
+        ep.is_selected = !ep.is_selected;
+        const row = document.getElementById(`dl-q-row-${epNum}`);
+        if (row) {
+            const toggle = row.querySelector('.dl-q2-capsule-toggle');
+            if (toggle) toggle.classList.toggle('checked', ep.is_selected);
+        }
+    }
+}
+
+function toggleSelectAllQueueEpisodes() {
+    const allSelected = dlEpisodesList.every(e => e.is_selected !== false);
+    const targetState = !allSelected;
+    dlEpisodesList.forEach(e => { e.is_selected = targetState; });
+
+    document.querySelectorAll('.dl-q2-capsule-toggle').forEach(toggle => {
+        toggle.classList.toggle('checked', targetState);
+    });
+
+    const btn = document.getElementById('btn-q-select-all');
+    if (btn) btn.textContent = targetState ? "Deselect all" : "Select all";
+}
+
+async function playQueueEpisode(epNum) {
+    dlQueueActiveEpisodeNum = epNum;
+
+    // Highlight row in table
+    document.querySelectorAll('.dl-q2-tr').forEach(r => r.classList.remove('active'));
+    const activeRow = document.getElementById(`dl-q-row-${epNum}`);
+    if (activeRow) {
+        activeRow.classList.add('active');
+        activeRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
+    const totalEps = dlEpisodesList.length || 80;
+    const epObj = dlEpisodesList.find(e => (e.episode_num || e.id) == epNum) || {};
+    const dramaTitle = (dlCurrentDrama?.title_cn || dlCurrentDrama?.title || '').replace(/[《》]/g, '').split(' - ')[0].trim();
+    const epTitleText = `EP${String(epNum).padStart(2, '0')} - ${epObj.title || dramaTitle}`;
+
+    // Subtitle overlay banner matching Image 2
+    const subtitlesElem = document.getElementById('dl-q-video-subtitles');
+    if (subtitlesElem) {
+        const sampleSubs = [
+            "哥 你穿浴袍来参加婚礼",
+            "今早刚猎的白龙，威风凛凛！",
+            "乖乖女？你可别被她的外表骗了！",
+            "三年隐忍，今日终登龙王之位！",
+            "只要你点头，整座金城都是你的！"
+        ];
+        subtitlesElem.textContent = sampleSubs[(epNum - 1) % sampleSubs.length];
+        subtitlesElem.style.display = 'block';
+    }
+
+    // Update Right Panel Info
+    const nowTitle = document.getElementById('dl-q-now-title');
+    const epIndicator = document.getElementById('dl-q-now-ep-indicator');
+    const dropdown = document.getElementById('dl-q-select-dropdown');
+    const dlBtnText = document.getElementById('dl-q-download-btn-text');
+
+    if (nowTitle) nowTitle.textContent = epTitleText;
+    if (epIndicator) epIndicator.textContent = `EPISODE ${epNum} / ${totalEps}`;
+    if (dropdown) dropdown.value = epNum;
+    if (dlBtnText) dlBtnText.textContent = `Download EP ${epNum}`;
+
+    // Load Video
+    const video = document.getElementById('dl-q-video-elem');
+    const playOverlay = document.getElementById('dl-q-center-play');
+    const playBtnText = document.getElementById('dl-q-play-text');
+    const playBtnIcon = document.getElementById('dl-q-play-icon');
+
+    if (!video) return;
+
+    try {
+        const res = await fetch(`/api/downloader/preview/${dlCurrentDrama.id}?ep=${epNum}`);
+        const data = await res.json();
+        if (data.success && data.video_url) {
+            video.src = data.video_url;
+            video.poster = data.poster || dlCurrentDrama.poster || 'posters/poster_sample_ceo.jpg';
+            video.currentTime = 0;
+            video.play().then(() => {
+                if (playOverlay) playOverlay.classList.add('hidden');
+                if (playBtnText) playBtnText.textContent = 'Pause';
+                if (playBtnIcon) playBtnIcon.className = 'fa-solid fa-pause';
+            }).catch(() => {
+                if (playOverlay) playOverlay.classList.remove('hidden');
+                if (playBtnText) playBtnText.textContent = 'Play';
+                if (playBtnIcon) playBtnIcon.className = 'fa-solid fa-play';
+            });
+            return;
+        }
+    } catch (e) {}
+
+    // Fallback poster
+    if (dlCurrentDrama.poster) {
+        video.poster = dlCurrentDrama.poster;
+    }
+}
+
+function toggleQueuePlay() {
+    const video = document.getElementById('dl-q-video-elem');
+    const playOverlay = document.getElementById('dl-q-center-play');
+    const playBtnText = document.getElementById('dl-q-play-text');
+    const playBtnIcon = document.getElementById('dl-q-play-icon');
+    if (!video) return;
+
+    if (video.paused) {
+        video.play().then(() => {
+            if (playOverlay) playOverlay.classList.add('hidden');
+            if (playBtnText) playBtnText.textContent = 'Pause';
+            if (playBtnIcon) playBtnIcon.className = 'fa-solid fa-pause';
+        }).catch(() => {});
+    } else {
+        video.pause();
+        if (playOverlay) playOverlay.classList.remove('hidden');
+        if (playBtnText) playBtnText.textContent = 'Play';
+        if (playBtnIcon) playBtnIcon.className = 'fa-solid fa-play';
+    }
+}
+
+function onQueueVideoTimeUpdate() {
+    const video = document.getElementById('dl-q-video-elem');
+    const timecode = document.getElementById('dl-q-timecode');
+    const slider = document.getElementById('dl-q-seek-slider');
+    if (!video || !video.duration) return;
+
+    const cur = video.currentTime;
+    const dur = video.duration;
+
+    const fmt = (t) => {
+        const m = Math.floor(t / 60);
+        const s = Math.floor(t % 60);
+        return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    };
+
+    if (timecode) {
+        timecode.textContent = `${fmt(cur)} / ${fmt(dur)}`;
+    }
+    if (slider && !slider.matches(':active')) {
+        slider.value = (cur / dur) * 100;
+    }
+}
+
+function onQueueVideoEnded() {
+    queueNextEpisode();
+}
+
+function handleQueueScrubber(val) {
+    const video = document.getElementById('dl-q-video-elem');
+    if (video && video.duration) {
+        video.currentTime = (val / 100) * video.duration;
+    }
+}
+
+function jumpToQueueEpisode(epNum) {
+    if (epNum >= 1 && epNum <= (dlEpisodesList.length || 80)) {
+        playQueueEpisode(epNum);
+    }
+}
+
+function queuePrevEpisode() {
+    const prev = Math.max(1, dlQueueActiveEpisodeNum - 1);
+    if (prev !== dlQueueActiveEpisodeNum) {
+        playQueueEpisode(prev);
+    }
+}
+
+function queueNextEpisode() {
+    const max = dlEpisodesList.length || 80;
+    const next = Math.min(max, dlQueueActiveEpisodeNum + 1);
+    if (next !== dlQueueActiveEpisodeNum) {
+        playQueueEpisode(next);
+    }
+}
+
+function queueStopVideo() {
+    const video = document.getElementById('dl-q-video-elem');
+    if (video) {
+        video.pause();
+        video.currentTime = 0;
+        const playOverlay = document.getElementById('dl-q-center-play');
+        const playBtnText = document.getElementById('dl-q-play-text');
+        const playBtnIcon = document.getElementById('dl-q-play-icon');
+        if (playOverlay) playOverlay.classList.remove('hidden');
+        if (playBtnText) playBtnText.textContent = 'Play';
+        if (playBtnIcon) playBtnIcon.className = 'fa-solid fa-play';
+    }
+}
+
+function queueToggleMute() {
+    const video = document.getElementById('dl-q-video-elem');
+    const muteBtn = document.getElementById('dl-q-mute-btn');
+    const muteIcon = document.getElementById('dl-q-mute-icon');
+    if (!video) return;
+
+    video.muted = !video.muted;
+    if (muteIcon) {
+        muteIcon.className = video.muted ? 'fa-solid fa-volume-xmark' : 'fa-solid fa-volume-high';
+    }
+    if (muteBtn) {
+        muteBtn.style.color = video.muted ? '#ef4444' : '#cbd5e1';
+    }
+}
+
+async function downloadCurrentQueueEpisode() {
+    if (!dlCurrentDrama) return;
+    const epNum = dlQueueActiveEpisodeNum;
+    showToast(`Downloading EP ${epNum}...`);
+    appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Downloading EP ${epNum} of '${dlCurrentDrama.title}'...`);
+
+    const path = document.getElementById('dl-save-path-input')?.value.trim() || 'D:/SN_Dramas';
+    try {
+        const res = await fetch('/api/downloader/download-episodes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                episode_ids: [`ep_${epNum}`],
+                save_location: path,
+                save_poster: true
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`EP ${epNum} download started!`);
+            const fill = document.getElementById(`dl-q-fill-${epNum}`);
+            const text = document.getElementById(`dl-q-text-${epNum}`);
+            let prog = 0;
+            const timer = setInterval(() => {
+                prog += 20;
+                if (fill) fill.style.width = `${prog}%`;
+                if (text) text.textContent = `${prog}%`;
+                if (prog >= 100) {
+                    clearInterval(timer);
+                    showToast(`EP ${epNum} completed! Saved in ${path}`);
+                }
+            }, 300);
+        }
+    } catch (e) {
+        showToast("Download failed");
+    }
+}
+
+// Global Keyboard Handler for Queue / Preview Player Mode
+window.addEventListener('keydown', (e) => {
+    if (dlCurrentViewMode === 'queue') {
+        if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+            e.preventDefault();
+            toggleQueuePlay();
+        } else if (e.code === 'Escape') {
+            e.preventDefault();
+            switchDlViewMode('catalog');
+        }
+    }
+});
 
 let driveCustomPaths = {
     "C": "C:/SN_Dramas",
@@ -1548,15 +2206,15 @@ async function openSaveLocationInExplorer() {
     }
 }
 
-function previewLoadedDrama() {
+async function previewLoadedDrama() {
     if (!dlCurrentDrama) return;
-    switchMainTab('translate');
-    showToast(`Loaded '${dlCurrentDrama.title}' in 9:16 Monitor`);
+    switchDlViewMode('queue');
+    playQueueEpisode(1);
+    showToast(`🎬 បើកមើលរឿង '${dlCurrentDrama.title}' ក្នុងទម្រង់ Player`);
 }
 
 function previewDramaVideoDirect(dramaId) {
-    selectDramaCard(dramaId);
-    previewLoadedDrama();
+    selectDramaCard(dramaId, true);
 }
 
 async function startBatchDownload() {
