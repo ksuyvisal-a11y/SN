@@ -3378,13 +3378,25 @@ async function openAiProvidingModal() {
         txtPrompt.value = currentAiConfig.prompt_style;
     }
 
+    // Load SpeechGen config
+    try {
+        const scResp = await fetch('/api/story-config');
+        const scData = await scResp.json();
+        if (scData.success && scData.config) {
+            const tokenInput = document.getElementById('speechgen-token-input');
+            const emailInput = document.getElementById('speechgen-email-input');
+            if (tokenInput) tokenInput.value = scData.config.speechgen_token || '';
+            if (emailInput) emailInput.value = scData.config.speechgen_email || '';
+        }
+    } catch (e) {}
+
     handleAiKeysInput();
     switchAiProvidingTab('provider');
     openModal('modal-ai-providing');
 }
 
 function switchAiProvidingTab(tabKey) {
-    const tabs = ['provider', 'models', 'backup'];
+    const tabs = ['provider', 'models', 'speechgen', 'backup'];
     tabs.forEach(t => {
         const btn = document.getElementById(`ai-tab-btn-${t}`);
         const view = document.getElementById(`ai-view-${t}`);
@@ -3576,7 +3588,17 @@ async function saveAiProvidingConfig() {
         const resData = await resp.json();
         if (resData.success) {
             currentAiConfig = resData.config;
-            showToast(`បានរក្សាទុកការកំណត់ Engine និង Keys (${keysList.length} គ្រាប់) ដោយជោគជ័យ!`);
+
+            // Save SpeechGen token and email
+            const spToken = document.getElementById('speechgen-token-input') ? document.getElementById('speechgen-token-input').value.trim() : '';
+            const spEmail = document.getElementById('speechgen-email-input') ? document.getElementById('speechgen-email-input').value.trim() : '';
+            fetch('/api/story-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ speechgen_token: spToken, speechgen_email: spEmail })
+            }).catch(() => {});
+
+            showToast(`បានរក្សាទុកការកំណត់ Engine, SpeechGen និង Keys ដោយជោគជ័យ!`);
             closeModal('modal-ai-providing');
         } else {
             showToast(`${resData.message || 'Error saving settings'}`);

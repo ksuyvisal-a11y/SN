@@ -640,6 +640,36 @@ def drama_dictionary_endpoint():
     return jsonify({"success": True, "dictionary": {}})
 
 
+@app.route("/api/story-config", methods=["GET", "POST"])
+def story_config_endpoint():
+    cfg_file = Path("data/story_config.json")
+    if request.method == "POST":
+        data = request.get_json(force=True) or {}
+        cfg = {}
+        if cfg_file.exists():
+            try:
+                with open(cfg_file, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+            except Exception:
+                pass
+        cfg.update(data)
+        cfg_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(cfg_file, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, ensure_ascii=False, indent=2)
+        return jsonify({"success": True, "config": cfg})
+
+    # GET
+    cfg = {}
+    if cfg_file.exists():
+        try:
+            with open(cfg_file, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+        except Exception:
+            pass
+    return jsonify({"success": True, "config": cfg})
+
+
+
 @app.route("/api/check-keys", methods=["POST"])
 def check_keys_live_endpoint():
     data = request.get_json(force=True) or {}

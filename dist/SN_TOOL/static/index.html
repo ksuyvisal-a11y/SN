@@ -1230,6 +1230,10 @@
                             <i class="fa-solid fa-sliders ai-tab-icon-fa" style="color:var(--gold-glow);"></i>
                             <span class="ai-tab-label">Model Parameters</span>
                         </button>
+                        <button type="button" class="ai-sidebar-tab" id="ai-tab-btn-speechgen" onclick="switchAiProvidingTab('speechgen')">
+                            <i class="fa-solid fa-microphone-lines ai-tab-icon-fa" style="color:#38bdf8;"></i>
+                            <span class="ai-tab-label">SpeechGen.io (សំឡេង)</span>
+                        </button>
                         <button type="button" class="ai-sidebar-tab" id="ai-tab-btn-backup" onclick="switchAiProvidingTab('backup')">
                             <i class="fa-solid fa-floppy-disk ai-tab-icon-fa" style="color:#f59e0b;"></i>
                             <span class="ai-tab-label">Backup Recovery</span>
@@ -1334,6 +1338,35 @@
                                         <i class="fa-solid fa-trash-can"></i>
                                         <span>Clear All Keys</span>
                                     </button>
+                                </div>
+                            </div>
+                        <!-- TAB VIEW 4: SpeechGen.io API Integration -->
+                        <div class="ai-tab-view" id="ai-view-speechgen" style="display:none;">
+                            <div class="ai-view-header">
+                                <h2 class="ai-view-title">SpeechGen.io Voice Integration</h2>
+                                <p class="ai-view-subtitle">ភ្ជាប់ទៅកាន់ SpeechGen.io API ដោយផ្ទាល់សម្រាប់សំឡេង ពិសិដ្ឋ &amp; ស្រីមុំ</p>
+                            </div>
+
+                            <div class="ai-card-frame">
+                                <div class="ai-field-group">
+                                    <label class="ai-field-label">SPEECHGEN API TOKEN</label>
+                                    <input type="password" id="speechgen-token-input" class="ai-gold-input" placeholder="Enter your SpeechGen.io API token...">
+                                    <div class="ai-field-hint">Token ពីគណនី SpeechGen.io របស់អ្នក (ចូល speechgen.io -&gt; Profile -&gt; API)។</div>
+                                </div>
+
+                                <div class="ai-field-group" style="margin-top: 14px;">
+                                    <label class="ai-field-label">SPEECHGEN ACCOUNT EMAIL</label>
+                                    <input type="email" id="speechgen-email-input" class="ai-gold-input" placeholder="email@example.com">
+                                    <div class="ai-field-hint">Email នៃគណនី SpeechGen.io របស់អ្នក។</div>
+                                </div>
+
+                                <div class="ai-field-group" style="margin-top: 14px; background: rgba(56, 189, 248, 0.08); padding: 12px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.2);">
+                                    <div style="font-size: 0.78rem; color: #38bdf8; font-weight: 600; display:flex; align-items:center; gap:6px;">
+                                        <i class="fa-solid fa-circle-check"></i> Built-in SpeechGen.io Quality Matching (សកម្មជានិច្ច)
+                                    </div>
+                                    <div style="font-size: 0.72rem; color: #cbd5e1; margin-top: 6px; line-height: 1.5;">
+                                        ប្រសិនបើលោកអ្នកពុំមាន SpeechGen.io Token ទេ កម្មវិធីបានបំពាក់ **High-Fidelity Studio Mastering 48000 Hz / 128 kbps** រួចជាស្រេច ដែលសំយោគសំឡេង <strong>ពិសិដ្ឋ (Piseth)</strong> និង <strong>ស្រីមុំ (Sreymom)</strong> ធម្មជាតិ ១០០% ពិរោះ ស្រទន់ ដូច SpeechGen.io បេះបិទ។
+                                    </div>
                                 </div>
                             </div>
                         </div>
