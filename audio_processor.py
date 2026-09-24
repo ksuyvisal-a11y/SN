@@ -123,7 +123,7 @@ def get_ffmpeg_path() -> str:
 
 def load_audio_safely(file_path: str) -> AudioSegment:
     """
-    Robust audio loader that decodes MP3/AAC/WAV/etc directly via FFmpeg binary.
+    Robust audio loader that decodes MP3/AAC/WAV/etc directly via FFmpeg binary at 48kHz stereo.
     """
     cmd = [
         get_ffmpeg_path(),
@@ -132,7 +132,7 @@ def load_audio_safely(file_path: str) -> AudioSegment:
         "-i", str(file_path),
         "-vn",
         "-acodec", "pcm_s16le",
-        "-ar", "44100",
+        "-ar", "48000",
         "-ac", "2",
         "-f", "wav",
         "-"
@@ -146,11 +146,16 @@ def load_audio_safely(file_path: str) -> AudioSegment:
 
 def save_audio_safely(segment: AudioSegment, output_path: str, bitrate: str = "192k") -> str:
     """
-    Save AudioSegment to MP3/WAV safely using FFmpeg.
+    Save AudioSegment to MP3/WAV safely using FFmpeg with guaranteed studio 48kHz stereo.
     """
     out_p = Path(output_path)
     out_p.parent.mkdir(parents=True, exist_ok=True)
     
+    if segment.frame_rate != 48000:
+        segment = segment.set_frame_rate(48000)
+    if segment.channels != 2:
+        segment = segment.set_channels(2)
+
     wav_io = io.BytesIO()
     segment.export(wav_io, format="wav")
     wav_io.seek(0)
@@ -160,6 +165,8 @@ def save_audio_safely(segment: AudioSegment, output_path: str, bitrate: str = "1
         "-nostdin",
         "-y",
         "-i", "-",
+        "-ar", "48000",
+        "-ac", "2",
         "-b:a", bitrate,
         str(out_p)
     ]
@@ -209,6 +216,8 @@ def enhance_voice_clarity_studio(
         "-y",
         "-i", str(in_file),
         "-filter:a", filter_str,
+        "-ar", "48000",
+        "-ac", "2",
         "-b:a", "192k",
         str(temp_out)
     ]
@@ -231,7 +240,7 @@ def enhance_voice_clarity_studio(
 
 
 def extract_audio_from_video(video_path: str, output_audio_path: str) -> str:
-    """Extract audio track from video file as 16-bit 44.1kHz WAV for mixing."""
+    """Extract audio track from video file as 16-bit 48kHz stereo WAV for mixing."""
     out_p = Path(output_audio_path)
     out_p.parent.mkdir(parents=True, exist_ok=True)
     
@@ -242,7 +251,7 @@ def extract_audio_from_video(video_path: str, output_audio_path: str) -> str:
         "-i", str(video_path),
         "-vn",
         "-acodec", "pcm_s16le",
-        "-ar", "44100",
+        "-ar", "48000",
         "-ac", "2",
         str(out_p)
     ]
@@ -357,13 +366,13 @@ def mix_dubbed_audio(
             target_len_ms = max(int(total_duration_sec * 1000), max_dialogue_end_ms + 1000)
         else:
             target_len_ms = max(1000, max_dialogue_end_ms + 2000)
-        bg_audio = AudioSegment.silent(duration=target_len_ms)
+        bg_audio = AudioSegment.silent(duration=target_len_ms, frame_rate=48000).set_channels(2)
 
-    target_fr = 44100
+    target_fr = 48000
     channels = 2
     if bg_audio:
-        target_fr = bg_audio.frame_rate
-        channels = bg_audio.channels
+        if bg_audio.frame_rate != target_fr or bg_audio.channels != channels:
+            bg_audio = bg_audio.set_frame_rate(target_fr).set_channels(channels)
 
     # 2. Build the Khmer Speech Track efficiently (O(N) sequential assembly)
     speech_intervals = []
@@ -414,7 +423,6 @@ def mix_dubbed_audio(
     if processed_lines:
         try:
             import numpy as np
-            import math
             # Memory-safe chunked block assembly (approx 50MB RAM per block, zero OOM on multi-hour videos)
             block_ms = 600 * 1000
             total_blocks = max(1, int(math.ceil(target_len_ms / block_ms)))
@@ -587,15 +595,23 @@ def mix_dubbed_audio(
                 sample_width=2,
                 channels=bg_channels
             )
+            if ducked_bg.frame_rate != target_fr or ducked_bg.channels != channels:
+                ducked_bg = ducked_bg.set_frame_rate(target_fr).set_channels(channels)
         except Exception as e:
             print(f"NumPy smooth ducking fallback note: {e}")
             ducked_bg = bg_audio
 
+        if speech_track and (speech_track.frame_rate != target_fr or speech_track.channels != channels):
+            speech_track = speech_track.set_frame_rate(target_fr).set_channels(channels)
         final_mixed = ducked_bg.overlay(speech_track)
     elif bg_audio:
+        if bg_audio.frame_rate != target_fr or bg_audio.channels != channels:
+            bg_audio = bg_audio.set_frame_rate(target_fr).set_channels(channels)
+        if speech_track and (speech_track.frame_rate != target_fr or speech_track.channels != channels):
+            speech_track = speech_track.set_frame_rate(target_fr).set_channels(channels)
         final_mixed = bg_audio.overlay(speech_track) if speech_track else bg_audio
     else:
-        final_mixed = speech_track if speech_track else AudioSegment.silent(duration=1000)
+        final_mixed = speech_track if speech_track else AudioSegment.silent(duration=1000, frame_rate=target_fr).set_channels(channels)
 
     # Absolute Safety Net: Ensure the exported audio is NEVER silent!
     try:

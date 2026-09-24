@@ -128,6 +128,8 @@ def render_dubbed_video(
             "-pix_fmt", "yuv420p",
             "-c:a", "aac",
             "-b:a", "192k",
+            "-ar", "48000",
+            "-ac", "2",
             "-shortest",
             str(out_p)
         ])
@@ -144,6 +146,8 @@ def render_dubbed_video(
             "-pix_fmt", "yuv420p",
             "-c:a", "aac",
             "-b:a", "192k",
+            "-ar", "48000",
+            "-ac", "2",
             "-shortest",
             str(out_p)
         ])
@@ -165,6 +169,8 @@ def render_dubbed_video(
             "-pix_fmt", "yuv420p",
             "-c:a", "aac",
             "-b:a", "192k",
+            "-ar", "48000",
+            "-ac", "2",
             "-map", "0:v:0",
             "-map", "1:a:0",
             "-shortest",

@@ -540,8 +540,8 @@ async def synthesize_khmer_speech(
     print(f"Warning: Edge-TTS synthesis failed for line '{cleaned_text[:30]}...': {last_err}. Using fallback audio.")
     try:
         from pydub import AudioSegment
-        silence = AudioSegment.silent(duration=1200)
-        silence.export(str(final_output), format="mp3")
+        silence = AudioSegment.silent(duration=1200, frame_rate=48000).set_channels(2)
+        save_audio_safely(silence, str(final_output))
         return str(final_output)
     except Exception:
         pass
@@ -550,11 +550,11 @@ async def synthesize_khmer_speech(
         import wave
         wav_tmp = final_output.with_suffix(".wav")
         with wave.open(str(wav_tmp), "wb") as wf:
-            wf.setnchannels(1)
+            wf.setnchannels(2)
             wf.setsampwidth(2)
-            wf.setframerate(24000)
-            wf.writeframes(b"\x00" * 48000)
-        cmd = [get_ffmpeg_path(), "-nostdin", "-y", "-i", str(wav_tmp), "-b:a", "64k", str(final_output)]
+            wf.setframerate(48000)
+            wf.writeframes(b"\x00" * (48000 * 4))
+        cmd = [get_ffmpeg_path(), "-nostdin", "-y", "-i", str(wav_tmp), "-ar", "48000", "-ac", "2", "-b:a", "128k", str(final_output)]
         subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5, **get_silent_kwargs())
         if wav_tmp.exists():
             wav_tmp.unlink(missing_ok=True)
