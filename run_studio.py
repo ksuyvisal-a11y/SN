@@ -71,9 +71,11 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
         if os.path.exists(exe):
             try:
                 cmd = [exe, f"--app={url}", "--window-size=1360,860"]
+                t0 = time.time()
                 proc = subprocess.Popen(cmd)
                 proc.wait()
-                return
+                if time.time() - t0 > 3.0:
+                    return
             except Exception as e:
                 print(f"App window mode notice: {e}")
 
@@ -90,6 +92,7 @@ if __name__ == "__main__":
     print("\n========================================================")
     print(" 🎬 កំពុងដំណើរការ SN TOOL - STUDIO PRO (Native Desktop App)...")
     print(" 🎙️ សំឡេងខ្មែរផ្លូវការ: ពិសិដ្ឋ (Piseth) & ស្រីមុំ (Sreymom)")
+    print(" 🌐 Server Address: http://127.0.0.1:8000")
     print("========================================================\n")
 
     # Run server in daemon thread
@@ -98,3 +101,10 @@ if __name__ == "__main__":
 
     # Launch native desktop application window
     launch_native_window()
+
+    print("\n[INFO] កម្មវិធីកំពុងដំណើរការ! (ចុច Ctrl+C ដើម្បីបិទកម្មវិធី)\n")
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("\nកំពុងបិទកម្មវិធី...")

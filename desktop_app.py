@@ -123,25 +123,23 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
         if os.path.exists(exe):
             try:
                 cmd = [exe, f"--app={url}", "--window-size=1360,860"]
+                t0 = time.time()
                 proc = subprocess.Popen(cmd)
                 proc.wait()
-                return
+                if time.time() - t0 > 3.0:
+                    return
             except Exception as e:
                 print(f"App window mode notice: {e}")
 
     # 3. Fallback to default browser
     import webbrowser
     webbrowser.open(url)
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        pass
 
 def main():
     print("========================================================")
     print(" 🎬 កំពុងចាប់ផ្តើម SN TOOL - STUDIO PRO (Native Desktop App)...")
     print(" 🎙️ សំឡេងខ្មែរផ្លូវការ: ពិសិដ្ឋ (Piseth) & ស្រីមុំ (Sreymom)")
+    print(" 🌐 Server Address: http://127.0.0.1:8000")
     print("========================================================")
 
     # 1. Clean port 8000
@@ -154,6 +152,14 @@ def main():
 
     # 3. Launch native window
     launch_native_window()
+
+    # 4. Keep server alive until user closes or presses Ctrl+C
+    print("\n[INFO] កម្មវិធីកំពុងដំណើរការ! (ចុច Ctrl+C ដើម្បីបិទកម្មវិធី)\n")
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("\nកំពុងបិទកម្មវិធី...")
 
 if __name__ == "__main__":
     main()
