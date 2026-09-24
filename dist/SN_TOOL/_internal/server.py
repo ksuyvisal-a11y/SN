@@ -952,7 +952,22 @@ def downloader_preview_endpoint(drama_id):
             "episode": ep_num
         })
 
-    # Do NOT return a fake/unrelated video!
+    # 3. If authentic live stream is available, provide direct stream URL for 9:16 preview
+    if drama_downloader.episodes:
+        for ep in drama_downloader.episodes:
+            if ep.get("episode_number") == ep_num or ep.get("episode_num") == ep_num:
+                s_url = ep.get("stream_url") or ep.get("download_url")
+                if s_url and str(s_url).startswith("http"):
+                    return jsonify({
+                        "success": True,
+                        "video_url": s_url,
+                        "stream_url": s_url,
+                        "is_live_stream": True,
+                        "title": ep.get("title") or (drama.get("title") if drama else f"Episode {ep_num}"),
+                        "poster": drama.get("poster") if drama else "posters/poster_sample_ceo.jpg",
+                        "episode": ep_num
+                    })
+
     return jsonify({
         "success": False,
         "error": "no_video",

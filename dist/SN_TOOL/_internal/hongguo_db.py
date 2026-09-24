@@ -361,7 +361,7 @@ def generate_episodes_for_drama(drama: Dict[str, Any]) -> List[Dict[str, Any]]:
             "file_size": "46.2 MB",
             "status": "Ready",
             "progress": 0,
-            "download_url": f"https://cdn.hongguo.com/{drama_id}/ep_{i}.mp4",
+            "download_url": "",
             "is_selected": True
         })
     return episodes

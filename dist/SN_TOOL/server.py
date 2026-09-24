@@ -952,7 +952,22 @@ def downloader_preview_endpoint(drama_id):
             "episode": ep_num
         })
 
-    # Do NOT return a fake/unrelated video!
+    # 3. If authentic live stream is available, provide direct stream URL for 9:16 preview
+    if drama_downloader.episodes:
+        for ep in drama_downloader.episodes:
+            if ep.get("episode_number") == ep_num or ep.get("episode_num") == ep_num:
+                s_url = ep.get("stream_url") or ep.get("download_url")
+                if s_url and str(s_url).startswith("http"):
+                    return jsonify({
+                        "success": True,
+                        "video_url": s_url,
+                        "stream_url": s_url,
+                        "is_live_stream": True,
+                        "title": ep.get("title") or (drama.get("title") if drama else f"Episode {ep_num}"),
+                        "poster": drama.get("poster") if drama else "posters/poster_sample_ceo.jpg",
+                        "episode": ep_num
+                    })
+
     return jsonify({
         "success": False,
         "error": "no_video",
@@ -1031,8 +1046,42 @@ def downloader_status_endpoint():
         "drama": drama_downloader.current_drama,
         "episodes": drama_downloader.episodes,
         "logs": drama_downloader.logs,
-        "stats": drama_downloader.stats
+        "stats": drama_downloader.stats,
+        "last_download_dir": drama_downloader.last_download_dir
     })
+
+
+@app.route("/api/downloader/open-folder", methods=["POST", "GET"])
+def downloader_open_folder_endpoint():
+    """Open drama download folder directly in Windows File Explorer."""
+    data = {}
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+    else:
+        data = request.args
+    
+    target_folder = data.get("folder") or drama_downloader.last_download_dir
+    if not target_folder:
+        if drama_downloader.current_drama:
+            raw_title = drama_downloader.current_drama.get("title_cn") or drama_downloader.current_drama.get("title", "Drama")
+            safe_title = re.sub(r'[\\/*?:"<>|《》]', "_", raw_title).strip() or "Hongguo_Drama"
+            base_dir = "D:/SN_Dramas" if os.path.exists("D:/") else "C:/SN_Dramas"
+            target_folder = os.path.join(base_dir, safe_title)
+        else:
+            target_folder = "D:/SN_Dramas" if os.path.exists("D:/") else "C:/SN_Dramas"
+
+    p = Path(target_folder)
+    p.mkdir(parents=True, exist_ok=True)
+
+    try:
+        resolved_str = str(p.resolve()).replace("/", "\\")
+        if sys.platform == "win32":
+            os.startfile(resolved_str)
+        else:
+            subprocess.Popen(["xdg-open", resolved_str])
+        return jsonify({"success": True, "path": resolved_str})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
 
 
 @app.route("/api/downloader/stop", methods=["POST"])

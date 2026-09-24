@@ -575,11 +575,11 @@ const studioPresetsData = {
         badge: `<i class="fa-solid fa-clapperboard"></i> Drama Dubbing Mode (16:9 / 9:16)`,
         name: "Drama Dubbing Mode (16:9 / 9:16)",
         dialogues: [
-            { id: 1, tcIn: "00:00:01.200", tcOut: "00:00:04.850", speaker: "Piseth", speakerClass: "speaker-piseth", orig: "今天你必须给我一个合理的解释！", khmer: "ថ្ងៃនេះឯងត្រូវតែផ្ដល់ការពន្យល់ដ៏សមរម្យមួយមកកាន់ខ្ញុំ!" },
-            { id: 2, tcIn: "00:00:05.100", tcOut: "00:00:08.400", speaker: "Sreymom", speakerClass: "speaker-sreymom", orig: "我做的一切，都是为了保住我们家族的秘密。", khmer: "អ្វីៗគ្រប់យ៉ាងដែលខ្ញុំធ្វើ គឺដើម្បីតែរក្សាការសម្ងាត់របស់ត្រកូលយើងប៉ុណ្ណោះ។" },
-            { id: 3, tcIn: "00:00:09.000", tcOut: "00:00:13.250", speaker: "Piseth", speakerClass: "speaker-piseth", orig: "难道你觉得这样就能瞒得过所有人吗？", khmer: "តើឯងគិតថាធ្វើបែបនេះអាចបិទបាំងមនុស្សគ្រប់គ្នាបានរហូតមែនទេ?" },
-            { id: 4, tcIn: "00:00:13.800", tcOut: "00:00:17.900", speaker: "Sreymom", speakerClass: "speaker-sreymom", orig: "既然你已经知道了，那我也无话可说了。", khmer: "ក្នុងពេលដែលលោកបានដឹងរឿងអស់ហើយ ខ្ញុំក៏គ្មានអ្វីត្រូវនិយាយទៀតដែរ។" },
-            { id: 5, tcIn: "00:00:18.500", tcOut: "00:00:22.300", speaker: "Piseth", speakerClass: "speaker-piseth", orig: "把真相告诉我，这是你最后的机会。", khmer: "ប្រាប់ការពិតមកកាន់ខ្ញុំមក នេះគឺជាឱកាសចុងក្រោយរបស់ឯងហើយ។" }
+            { id: 1, tcIn: "00:00:01.200", tcOut: "00:00:04.850", speaker: "Piseth", voice: "piseth", speakerClass: "speaker-piseth", orig: "今天你必须给我一个合理的解释！", khmer: "ថ្ងៃនេះឯងត្រូវតែផ្ដល់ការពន្យល់ដ៏សមរម្យមួយមកកាន់ខ្ញុំ!" },
+            { id: 2, tcIn: "00:00:05.100", tcOut: "00:00:08.400", speaker: "Sreymom", voice: "sreymom", speakerClass: "speaker-sreymom", orig: "我做的一切，都是为了保住我们家族的秘密。", khmer: "អ្វីៗគ្រប់យ៉ាងដែលខ្ញុំធ្វើ គឺដើម្បីតែរក្សាការសម្ងាត់របស់ត្រកូលយើងប៉ុណ្ណោះ។" },
+            { id: 3, tcIn: "00:00:09.000", tcOut: "00:00:13.250", speaker: "Piseth", voice: "piseth", speakerClass: "speaker-piseth", orig: "难道你觉得这样就能瞒得过所有人吗？", khmer: "តើឯងគិតថាធ្វើបែបនេះអាចបិទបាំងមនុស្សគ្រប់គ្នាបានរហូតមែនទេ?" },
+            { id: 4, tcIn: "00:00:13.800", tcOut: "00:00:17.900", speaker: "Sreymom", voice: "sreymom", speakerClass: "speaker-sreymom", orig: "既然你已经知道了，那我也无话可说了。", khmer: "ក្នុងពេលដែលលោកបានដឹងរឿងអស់ហើយ ខ្ញុំក៏គ្មានអ្វីត្រូវនិយាយទៀតដែរ។" },
+            { id: 5, tcIn: "00:00:18.500", tcOut: "00:00:22.300", speaker: "Piseth", voice: "piseth", speakerClass: "speaker-piseth", orig: "把真相告诉我，这是你最后的机会。", khmer: "ប្រាប់ការពិតមកកាន់ខ្ញុំមក នេះគឺជាឱកាសចុងក្រោយរបស់ឯងហើយ។" }
         ]
     },
     narration: {
@@ -587,9 +587,9 @@ const studioPresetsData = {
         badge: `<i class="fa-solid fa-microphone-lines"></i> Voiceover Narration (Piseth / Sreymom Audio)`,
         name: "Voiceover Narration (Piseth / Sreymom Audio)",
         dialogues: [
-            { id: 1, tcIn: "00:00:00.800", tcOut: "00:00:05.200", speaker: "Piseth", speakerClass: "speaker-piseth", orig: "在繁华都市的阴影下，一段尘封已久的秘密悄然揭开...", khmer: "នៅក្រោមកូនស្រមោលនៃទីក្រុងដ៏អ៊ូអរ អាថ៌កំបាំងដែលកប់ទុកជាយូរមកហើយក៏ត្រូវបានលាតត្រដាងឡើង..." },
-            { id: 2, tcIn: "00:00:05.600", tcOut: "00:00:09.800", speaker: "Sreymom", speakerClass: "speaker-sreymom", orig: "无人知晓，那个雨夜改变了所有人的命运。", khmer: "គ្មាននរណាម្នាក់ដឹងឡើយ ថាយប់ភ្លៀងធ្លាក់មួយនោះបានផ្លាស់ប្ដូរជោគវាសនារបស់មនុស្សគ្រប់គ្នា។" },
-            { id: 3, tcIn: "00:00:10.200", tcOut: "00:00:14.500", speaker: "Piseth", speakerClass: "speaker-piseth", orig: "他独自一人走向那座庄园，心中早已有决断。", khmer: "គាត់បានដើរទៅកាន់វិមាននោះតែម្នាក់ឯង នៅក្នុងចិត្តក៏មានការសម្រេចចិត្តរួចជាស្រេច។" }
+            { id: 1, tcIn: "00:00:00.800", tcOut: "00:00:05.200", speaker: "Piseth", voice: "piseth", speakerClass: "speaker-piseth", orig: "在繁华都市的阴影下，一段尘封已久的秘密悄然揭开...", khmer: "នៅក្រោមកូនស្រមោលនៃទីក្រុងដ៏អ៊ូអរ អាថ៌កំបាំងដែលកប់ទុកជាយូរមកហើយក៏ត្រូវបានលាតត្រដាងឡើង..." },
+            { id: 2, tcIn: "00:00:05.600", tcOut: "00:00:09.800", speaker: "Sreymom", voice: "sreymom", speakerClass: "speaker-sreymom", orig: "无人知晓，那个雨夜改变了所有人的命运。", khmer: "គ្មាននរណាម្នាក់ដឹងឡើយ ថាយប់ភ្លៀងធ្លាក់មួយនោះបានផ្លាស់ប្ដូរជោគវាសនារបស់មនុស្សគ្រប់គ្នា។" },
+            { id: 3, tcIn: "00:00:10.200", tcOut: "00:00:14.500", speaker: "Piseth", voice: "piseth", speakerClass: "speaker-piseth", orig: "他独自一人走向那座庄园，心中早已有决断。", khmer: "គាត់បានដើរទៅកាន់វិមាននោះតែម្នាក់ឯង នៅក្នុងចិត្តក៏មានការសម្រេចចិត្តរួចជាស្រេច។" }
         ]
     },
     subtitle: {
@@ -597,9 +597,9 @@ const studioPresetsData = {
         badge: `<i class="fa-solid fa-closed-captioning"></i> Subtitle Extraction & Khmer Sync`,
         name: "Subtitle Extraction & Khmer Sync",
         dialogues: [
-            { id: 1, tcIn: "00:00:01.000", tcOut: "00:00:03.500", speaker: "Piseth", speakerClass: "speaker-piseth", orig: "快点离开这里，危险！", khmer: "ឆាប់ចាកចេញពីទីនេះទៅ មានគ្រោះថ្នាក់!" },
-            { id: 2, tcIn: "00:00:04.000", tcOut: "00:00:06.800", speaker: "Sreymom", speakerClass: "speaker-sreymom", orig: "我不能丢下你一个人！", khmer: "ខ្ញុំមិនអាចទុកលោកចោលតែម្នាក់ឯងបានទេ!" },
-            { id: 3, tcIn: "00:00:07.200", tcOut: "00:00:11.000", speaker: "Piseth", speakerClass: "speaker-piseth", orig: "相信我，我一定会安全回来的。", khmer: "ជឿជាក់លើខ្ញុំចុះ ខ្ញុំប្រាកដជាត្រឡប់មកវិញដោយសុវត្ថិភាព។" }
+            { id: 1, tcIn: "00:00:01.000", tcOut: "00:00:03.500", speaker: "Piseth", voice: "piseth", speakerClass: "speaker-piseth", orig: "快点离开这里，危险！", khmer: "ឆាប់ចាកចេញពីទីនេះទៅ មានគ្រោះថ្នាក់!" },
+            { id: 2, tcIn: "00:00:04.000", tcOut: "00:00:06.800", speaker: "Sreymom", voice: "sreymom", speakerClass: "speaker-sreymom", orig: "我不能丢下你一个人！", khmer: "ខ្ញុំមិនអាចទុកលោកចោលតែម្នាក់ឯងបានទេ!" },
+            { id: 3, tcIn: "00:00:07.200", tcOut: "00:00:11.000", speaker: "Piseth", voice: "piseth", speakerClass: "speaker-piseth", orig: "相信我，我一定会安全回来的。", khmer: "ជឿជាក់លើខ្ញុំចុះ ខ្ញុំប្រាកដជាត្រឡប់មកវិញដោយសុវត្ថិភាព។" }
         ]
     }
 };
@@ -852,12 +852,21 @@ async function playDialogueSnippet(id) {
     // Fallback on-the-fly synthesize preview if not yet cached
     if (item && (item.text_km || item.khmer)) {
         try {
+            let voiceTarget = "piseth";
+            if (item.voice) {
+                voiceTarget = item.voice.toLowerCase().includes("sreymom") ? "sreymom" : "piseth";
+            } else if (item.speaker) {
+                const spkLow = item.speaker.toLowerCase();
+                if (spkLow.includes("sreymom") || spkLow.includes("ស្រី") || spkLow.includes("female")) {
+                    voiceTarget = "sreymom";
+                }
+            }
             const resp = await fetch('/api/voices/preview', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     text: item.text_km || item.khmer,
-                    voice: item.voice || (item.speaker && item.speaker.includes('sreymom') ? 'sreymom' : 'piseth')
+                    voice: voiceTarget
                 })
             });
             const data = await resp.json();
@@ -1864,6 +1873,23 @@ function toggleSelectAllQueueEpisodes() {
     if (btn) btn.textContent = targetState ? "Deselect all" : "Select all";
 }
 
+let dlHlsInstance = null;
+
+function loadVideoWithHls(video, url, posterUrl) {
+    if (dlHlsInstance) {
+        dlHlsInstance.destroy();
+        dlHlsInstance = null;
+    }
+    if (posterUrl) video.poster = posterUrl;
+    if (url && (url.includes('.m3u8') || url.includes('/hls/')) && window.Hls && Hls.isSupported()) {
+        dlHlsInstance = new Hls({ enableWorker: true });
+        dlHlsInstance.loadSource(url);
+        dlHlsInstance.attachMedia(video);
+    } else {
+        video.src = url;
+    }
+}
+
 async function playQueueEpisode(epNum) {
     dlQueueActiveEpisodeNum = epNum;
 
@@ -1914,9 +1940,9 @@ async function playQueueEpisode(epNum) {
     if (!video) return;
 
     // A. Check if the episode object already has an authentic video URL (e.g. from folder import or completed download)
-    if (epObj && epObj.video_url) {
-        video.src = epObj.video_url;
-        video.poster = dlCurrentDrama?.poster || 'posters/poster_sample_ceo.jpg';
+    const rawUrl = epObj?.video_url || epObj?.stream_url;
+    if (rawUrl) {
+        loadVideoWithHls(video, rawUrl, dlCurrentDrama?.poster || 'posters/poster_sample_ceo.jpg');
         video.currentTime = 0;
         video.play().then(() => {
             if (playOverlay) playOverlay.classList.add('hidden');
@@ -1930,13 +1956,13 @@ async function playQueueEpisode(epNum) {
         return;
     }
 
-    // B. Fetch authentic preview from backend
+    // B. Fetch authentic preview or stream from backend
     try {
         const res = await fetch(`/api/downloader/preview/${dlCurrentDrama.id}?ep=${epNum}`);
         const data = await res.json();
-        if (data.success && data.video_url) {
-            video.src = data.video_url;
-            video.poster = data.poster || dlCurrentDrama.poster || 'posters/poster_sample_ceo.jpg';
+        const vUrl = data.video_url || data.stream_url;
+        if (data.success && vUrl) {
+            loadVideoWithHls(video, vUrl, data.poster || dlCurrentDrama.poster || 'posters/poster_sample_ceo.jpg');
             video.currentTime = 0;
             video.play().then(() => {
                 if (playOverlay) playOverlay.classList.add('hidden');
@@ -1950,6 +1976,10 @@ async function playQueueEpisode(epNum) {
             return;
         } else {
             // Authentic video not yet downloaded / imported
+            if (dlHlsInstance) {
+                dlHlsInstance.destroy();
+                dlHlsInstance = null;
+            }
             video.pause();
             video.removeAttribute('src');
             video.load();
@@ -1959,7 +1989,7 @@ async function playQueueEpisode(epNum) {
             if (playOverlay) playOverlay.classList.remove('hidden');
             if (playBtnText) playBtnText.textContent = 'Play';
             if (playBtnIcon) playBtnIcon.className = 'fa-solid fa-play';
-            showToast(`ភាគទី ${epNum} មិនទាន់មានវីដេអូនៅលើកុំព្យូទ័រទេ — សូមចុច Download ឬ 'នាំចូល Folder'`);
+            showToast(`ភាគទី ${epNum} មិនទាន់មានវីដេអូនៅលើកុំព្យូទ័រទេ — សូមចុច Download ដើម្បីទាញយក`);
             return;
         }
     } catch (e) {
@@ -2764,6 +2794,9 @@ let currentStoryConfig = {
 };
 
 function getStoryVoiceDisplayLabel() {
+    if (currentStoryConfig.auto_multi_voice || currentStoryConfig.khmer_voice === 'multi') {
+        return "Piseth & Sreymom (ប្រុស & ស្រីតាមតួអង្គ)";
+    }
     if (currentStoryConfig.khmer_voice === 'sreymom') {
         return "Sreymom (Female Solo - អ្នកបញ្ចូលសំឡេងស្រី)";
     }
@@ -2790,11 +2823,16 @@ function refreshStagedCardVoiceMeta() {
 
 function syncStagedCardControls() {
     // 1. Sync voice chip active state
-    let activeKey = 'piseth';
-    if (currentStoryConfig.khmer_voice === 'sreymom') {
+    let activeKey = 'multi';
+    if (currentStoryConfig.auto_multi_voice || currentStoryConfig.khmer_voice === 'multi') {
+        activeKey = 'multi';
+    } else if (currentStoryConfig.khmer_voice === 'sreymom') {
         activeKey = 'sreymom';
+    } else {
+        activeKey = 'piseth';
     }
-    ['piseth', 'sreymom'].forEach(k => {
+
+    ['multi', 'piseth', 'sreymom'].forEach(k => {
         const chip = document.getElementById(`voice-chip-${k}`);
         if (chip) {
             if (k === activeKey) chip.classList.add('active');
@@ -2804,7 +2842,8 @@ function syncStagedCardControls() {
 
     const vBadge = document.getElementById('staged-voice-status-badge');
     if (vBadge) {
-        if (activeKey === 'sreymom') vBadge.textContent = "Sreymom (ស្រីទោល)";
+        if (activeKey === 'multi') vBadge.textContent = "Piseth & Sreymom (ប្រុស & ស្រី)";
+        else if (activeKey === 'sreymom') vBadge.textContent = "Sreymom (ស្រីទោល)";
         else vBadge.textContent = "Piseth (ប្រុសទោល)";
     }
 
@@ -2838,6 +2877,9 @@ async function selectQuickVoice(voiceKey) {
     if (voiceKey === 'sreymom') {
         currentStoryConfig.khmer_voice = 'sreymom';
         currentStoryConfig.auto_multi_voice = false;
+    } else if (voiceKey === 'multi') {
+        currentStoryConfig.khmer_voice = 'multi';
+        currentStoryConfig.auto_multi_voice = true;
     } else {
         currentStoryConfig.khmer_voice = 'piseth';
         currentStoryConfig.auto_multi_voice = false;
@@ -2847,6 +2889,7 @@ async function selectQuickVoice(voiceKey) {
     refreshStagedCardVoiceMeta();
 
     const voiceLabels = {
+        'multi': 'ពិសិដ្ឋ & ស្រីមុំ (Dual Voice - បញ្ចូលសំឡេងតាមតួប្រុស/ស្រី)',
         'piseth': 'ពិសិដ្ឋ (Piseth - តួប្រុស/អ្នកនិទានរឿងទោល)',
         'sreymom': 'ស្រីមុំ (Sreymom - តួស្រី/អ្នកនិទានរឿងទោល)'
     };
@@ -2863,7 +2906,7 @@ async function selectQuickVoice(voiceKey) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 khmer_voice: currentStoryConfig.khmer_voice,
-                auto_multi_voice: false
+                auto_multi_voice: currentStoryConfig.auto_multi_voice
             })
         });
     } catch (e) {

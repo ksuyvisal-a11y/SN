@@ -21,16 +21,11 @@ except ImportError:
 DRAMA_PROMPT_SYSTEM = """You are a master Cambodian film dubbing scriptwriter and voice director specializing in Asian TV dramas (Chinese, Korean, Thai).
 Translate dialogue lines into deeply emotional, authentic, captivating, natural spoken Khmer film dubbing language (ភាសាបញ្ចូលសំឡេងរឿងភាគទូរទស្សន៍ខ្មែរអាជីព).
 
-STRICT CHARACTER PERSONA, VOICE & EMOTION MODULATION RULES:
-1. Multi-Voice Persona Separation:
-   Assign 'voice' ('sreymom' for females, 'piseth' for males), 'speaker_role', 'emotion', 'pitch_hz', and 'rate_percent':
-   - Female Lead (តួឯកស្រី e.g. 林早早): voice='sreymom', speaker_role='female_lead', pitch_hz=+0 to +4, rate_percent=+3 to +8 (sweet, emotional, earnest).
-   - Villainess / Sarcastic Sister-in-law (ស្រីកំណាច / ឌឺដង e.g. 沈曼琳, 恶毒配角): voice='sreymom', speaker_role='villainess', pitch_hz=+16 to +22 (piercing, sharp, haughty), rate_percent=+14 to +18 (fast, sneering).
-   - Mother-in-Law / Elder Female (ម្តាយក្មេក e.g. 婆婆, 夫人, 恶婆婆): voice='sreymom', speaker_role='mother_in_law', pitch_hz=-16 to -22 (heavy, deep, stern), rate_percent=-4 to -8 (authoritative, measured).
-   - Male Lead / CEO (តួឯកប្រុស / លោកប្រធាន e.g. 李沐谦): voice='piseth', speaker_role='male_lead', pitch_hz=-8 to -14 (deep, commanding, rich resonance), rate_percent=+0 to +4.
-   - Furious / Shouting Male (ឈុតឈ្លោះ / ស្រែកគំហក): voice='piseth', speaker_role='male_angry', pitch_hz=+12 to +16, rate_percent=+18 to +24 (aggressive, intense).
-   - Elder Male / Butler / Father (ឪពុក / 伯父 / 爷爷): voice='piseth', speaker_role='male_elder', pitch_hz=-18 to -24, rate_percent=-6 to -10.
-   - Subordinate / Assistant (ជំនួយការ / 张昭 / 保安): voice='piseth', speaker_role='subordinate', pitch_hz=0, rate_percent=+5.
+STRICT VOICE RULES (Piseth & Sreymom - Natural Voice):
+- There are strictly TWO professional Cambodian voices:
+  1. 'piseth' for ALL Male characters (Male Lead, CEO, Father, Brother, Officers, Supporting Males).
+  2. 'sreymom' for ALL Female characters (Female Lead, Mother, Sister, Mistress, Supporting Females).
+- NEVER alter pitch or rate. Both voices must remain 100% clean, sweet, natural, and standard: pitch_hz=0, rate_percent=0. No artificial pitch shifting or frequency modulation.
 
 2. CRITICAL TRANSLATION ACCURACY & DRAMA IDIOMS:
    - "看你脸上写着白痴" ➔ "មើលមុខឯងទៅ ដូចមានចារអក្សរថាល្ងង់អញ្ចឹង!" (NEVER translate as "កង្វល់" or "កំប្លែង"!).
@@ -500,8 +495,9 @@ def enrich_khmer_drama_dialogue(
     if not res:
         return ""
 
-    # Normalize zero-width spaces (\u200b) from Google Translate into standard spacing
-    res = re.sub(r'[\s\u200b]+', ' ', res).strip()
+    # Remove zero-width spaces (\u200b) and preserve natural continuous Khmer phrasing
+    res = res.replace('\u200b', '')
+    res = re.sub(r'[ \t]{2,}', ' ', res).strip()
 
     # 0. Direct drama dictionary matching
     if zh_text:
@@ -601,14 +597,15 @@ def enrich_khmer_drama_dialogue(
         elif clean_no_punct in ("ដឹងហើយ", "ដឹង"):
             res = "ដឹងហើយ!"
 
-    # 6. Single Continuous Breath Flow (១ ដង្ហើមជាប់គ្នា):
-    # Strip internal mid-sentence commas and pauses so speech flows in 1 uninterrupted breath
-    res = re.sub(r'[,，、:：;；—–_~]+', ' ', res)
+    # 6. Natural Dialogue Cadence and Emotional Breath Flow:
+    # Preserve natural pauses and punctuation for sweet, expressive human speech
+    res = re.sub(r'[,，、]', ', ', res)
+    res = re.sub(r'[:：;；—–_~]+', ' ', res)
     res = re.sub(r'[（）\(\)\[\]{}"“\'”`]+', ' ', res)
-    res = re.sub(r'\s*([!！?？។.])\s*', r'\1 ', res)
+    res = re.sub(r'\s*([!！?？។.,])\s*', r'\1 ', res)
     res = re.sub(r'\s{2,}', ' ', res).strip()
 
-    # 7. Advanced Phonetic Articulation & Spacing Pre-Processing:
+    # 7. Clean phonetic preparation
     try:
         from tts_engine import prepare_khmer_phonetic_for_speech
         res = prepare_khmer_phonetic_for_speech(res)
@@ -752,76 +749,37 @@ def infer_drama_persona_acoustics(
         pitch = 0
         rate = 0
 
-    # Dynamic Acoustic Persona Assignment
-    if pitch == 0 and rate == 0:
-        if assigned_voice == "sreymom":
-            if is_villainess:
-                pitch = 18
-                rate = 15
-                speaker_desc = "ស្រីមុំ (Sreymom - តួកាច/ឌឺដង)"
-            elif is_elder_female:
-                pitch = -18
-                rate = -8
-                speaker_desc = "ស្រីមុំ (Sreymom - ម្តាយក្មេក/លោកស្រី)"
-            elif is_heroine:
-                pitch = 4
-                rate = 2
-                speaker_desc = "ស្រីមុំ (Sreymom - តួឯកស្រីស្លូត)"
-            else:
-                pitch = 2
-                rate = 4
-                speaker_desc = "ស្រីមុំ (Sreymom - តួស្រី)"
-        else:  # piseth
-            if is_angry_male:
-                pitch = 14
-                rate = 18
-                speaker_desc = "ពិសិដ្ឋ (Piseth - តួប្រុសខឹង)"
-            elif is_elder_male:
-                pitch = -20
-                rate = -10
-                speaker_desc = "ពិសិដ្ឋ (Piseth - លោកតា/ចាស់ទុំ)"
-            elif is_male_lead:
-                pitch = -10
-                rate = 2
-                speaker_desc = "ពិសិដ្ឋ (Piseth - តួឯកប្រុស/លោកប្រធាន)"
-            else:
-                pitch = -2
-                rate = 2
-                speaker_desc = "ពិសិដ្ឋ (Piseth - តួប្រុស)"
+    # Pure Natural Voice Enforcement (100% Authentic Piseth & Sreymom):
+    # Strictly pitch_hz = 0 and rate_percent = 0 so the voice model retains its pure, natural, sweet clarity!
+    pitch = 0
+    rate = 0
 
-        # In Single Voice Mode: apply cross-gender pitch modulation
-        if not is_multi:
-            if chosen_single_voice == "piseth":
-                if is_elder_female:
-                    pitch = -12
-                    rate = -8
-                    speaker_desc = "ពិសិដ្ឋ (Piseth - ម្តាយក្មេក)"
-                elif is_villainess or is_heroine or "female" in speaker_clean or "ស្រី" in speaker_clean:
-                    pitch = 28
-                    rate = 6
-                    speaker_desc = "ពិសិដ្ឋ (Piseth - បញ្ចូលសំឡេងតួស្រី)"
-            elif chosen_single_voice == "sreymom":
-                if is_elder_male:
-                    pitch = -26
-                    rate = -10
-                    speaker_desc = "ស្រីមុំ (Sreymom - លោកតា/ចាស់ទុំ)"
-                elif is_angry_male or is_male_lead or "male" in speaker_clean.replace("female", "") or "ប្រុស" in speaker_clean:
-                    pitch = -24
-                    rate = -4
-                    speaker_desc = "ស្រីមុំ (Sreymom - បញ្ចូលសំឡេងតួប្រុស)"
+    if not is_multi:
+        speaker_desc = "ស្រីមុំ (Sreymom Solo)" if assigned_voice == "sreymom" else "ពិសិដ្ឋ (Piseth Solo)"
     else:
-        pitch = max(-35, min(35, pitch))
-        rate = max(-20, min(30, rate))
-        old_spk = str(item.get("speaker") or "")
-        if "solo" in old_spk.lower() or (assigned_voice == "sreymom" and "piseth" in old_spk.lower()) or (assigned_voice == "piseth" and "sreymom" in old_spk.lower()):
-            speaker_desc = "ស្រីមុំ (Sreymom)" if assigned_voice == "sreymom" else "ពិសិដ្ឋ (Piseth)"
-        else:
-            speaker_desc = old_spk or ("ស្រីមុំ (Sreymom)" if assigned_voice == "sreymom" else "ពិសិដ្ឋ (Piseth)")
+        if assigned_voice == "sreymom":
+            if is_heroine:
+                speaker_desc = "ស្រីមុំ (Sreymom - តួឯកស្រី)"
+            elif is_villainess:
+                speaker_desc = "ស្រីមុំ (Sreymom - តួកាច)"
+            elif is_elder_female:
+                speaker_desc = "ស្រីមុំ (Sreymom - ម្តាយ)"
+            else:
+                speaker_desc = "ស្រីមុំ (Sreymom)"
+        else:  # piseth
+            if is_male_lead:
+                speaker_desc = "ពិសិដ្ឋ (Piseth - តួឯកប្រុស)"
+            elif is_angry_male:
+                speaker_desc = "ពិសិដ្ឋ (Piseth - តួប្រុស)"
+            elif is_elder_male:
+                speaker_desc = "ពិសិដ្ឋ (Piseth - លោកតា/ឪពុក)"
+            else:
+                speaker_desc = "ពិសិដ្ឋ (Piseth)"
 
     return {
         "voice": assigned_voice,
-        "pitch_hz": pitch,
-        "rate_percent": rate,
+        "pitch_hz": 0,
+        "rate_percent": 0,
         "speaker": speaker_desc
     }
 
@@ -928,7 +886,8 @@ class DramaTranslator:
 
     def _post_polish_khmer(self, km_text: str, zh_text: str = "", voice: str = "piseth") -> str:
         """Polish translated Khmer into lively Cambodian TV drama dubbing dialogue."""
-        res = re.sub(r'[\s\u200b]+', ' ', km_text.strip()).strip()
+        res = km_text.replace('\u200b', '')
+        res = re.sub(r'[ \t]{2,}', ' ', res).strip()
         return enrich_khmer_drama_dialogue(res, zh_text, voice)
 
     async def translate_text_free(self, text: str, source_lang: str = "auto", voice: str = "piseth") -> str:

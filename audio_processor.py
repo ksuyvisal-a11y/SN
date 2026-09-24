@@ -380,8 +380,12 @@ def mix_dubbed_audio(
     for i, (idx, item) in enumerate(valid_lines):
         try:
             line_seg = load_audio_safely(item["audio_file"])
+            # Safe studio headroom gain: boost speech clearly without digital clipping (target peak -1.5 dBFS)
             if boost_val != 0:
-                line_seg = line_seg + boost_val
+                max_peak = line_seg.max_dBFS
+                safe_gain = min(boost_val, max(0.0, -1.5 - max_peak)) if max_peak > -12.0 else boost_val
+                if safe_gain > 0:
+                    line_seg = line_seg + safe_gain
 
             # Micro-fades to eliminate digital clicks and boundary pops
             if len(line_seg) > 60:

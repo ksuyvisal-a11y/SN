@@ -119,35 +119,6 @@ PHONETIC_ACRONYMS = [
     (r'\b(?:THANK|Thank|THANKS|Thanks|thank you)\b', 'អរគុណ'),
 ]
 
-# Syllable and word spacing rules for crisp, clear Khmer articulation in Edge-TTS
-PHONETIC_ARTICULATION_RULES = [
-    # Character names
-    (r'លីនចាវចាវ|លីន​ចាវចាវ|Lin Zaozao|LinZaozao', 'លីន ចាវចាវ'),
-    (r'លីមូឈាន|លី​មូឈាន|Li Muqian|LiMuqian', 'លី មូឈាន'),
-    (r'សិនម៉ាន់លីង|ស៊ិនម៉ាន់លីន|Shen Manlin|ShenManlin', 'សិន ម៉ាន់លីង'),
-    (r'ចាងចាវ|ចាង​ចាវ|Zhang Zhao|ZhangZhao', 'ចាង ចាវ'),
-    (r'បងថ្លៃស្រីលីន|បងថ្លៃស្រី​លីន', 'បងថ្លៃស្រី លីន'),
-
-    # Frequent drama compounds that sound muffled when attached
-    (r'មនុស្សល្ងង់', 'មនុស្ស ល្ងង់'),
-    (r'កូនក្នុងពោះ', 'កូន ក្នុងពោះ'),
-    (r'កូននាគរាជ', 'កូន នាគរាជ'),
-    (r'ហាងម៉ាស្សា', 'ហាង ម៉ាស្សា'),
-    (r'បិទមាត់', 'បិទ មាត់'),
-    (r'ឈប់ភ្លាម', 'ឈប់ ភ្លាម'),
-    (r'ចេញទៅ', 'ចេញ ទៅ'),
-    (r'សុំទោស', 'សុំ ទោស'),
-    (r'អរគុណ', 'អរ គុណ'),
-    (r'កុំបារម្ភ', 'កុំ បារម្ភ'),
-    (r'ជួយផង', 'ជួយ ផង'),
-    (r'ពិតមែនទេ', 'ពិត មែនទេ'),
-    (r'ស្អីគេហ្នឹង', 'ស្អីគេ ហ្នឹង'),
-    (r'យ៉ាងម៉េចដែរ', 'យ៉ាងម៉េច ដែរ'),
-    (r'ម៉ាក់ក្មេក', 'ម៉ាក់ ក្មេក'),
-    (r'ម្តាយក្មេក', 'ម្តាយ ក្មេក'),
-    (r'ឪពុកក្មេក', 'ឪពុក ក្មេក'),
-    (r'លោកប្រធាន', 'លោក ប្រធាន'),
-]
 
 def int_to_khmer_words(n: int) -> str:
     """Converts positive integer up to trillions into natural spoken Khmer words."""
@@ -285,16 +256,15 @@ def convert_numbers_in_text(text: str) -> str:
 
 def prepare_khmer_phonetic_for_speech(text: str) -> str:
     """
-    Advanced Phonetic Pre-Processor for Edge-TTS (Piseth & Sreymom):
-    1. Expands English acronyms & loanwords (CEO, VIP, DNA, KTV) into natural Khmer phonetic speech.
-    2. Converts all numbers (formatted integers, decimals, currencies, percentages) into spoken Khmer words.
-    3. Applies word boundary and syllable spacing rules so Edge-TTS articulates each word crisply without slurring.
-    4. Enforces SINGLE CONTINUOUS BREATH (១ ដង្ហើមជាប់គ្នា): Strips all internal commas & mid-sentence pauses.
-    5. Formats exactly ONE expressive ending mark (?!, ?, !, or ។) for confident, natural vocal delivery.
+    Natural Phonetic Pre-Processor for Edge-TTS (Piseth & Sreymom):
+    1. Expands English acronyms & loanwords (CEO, VIP, DNA, KTV) into natural Khmer spoken terms.
+    2. Converts numbers into spoken Khmer words.
+    3. Retains natural Khmer spelling and punctuation (commas, exclamation, question marks, and full stops)
+       without artificial syllable splitting or distortion, allowing Piseth & Sreymom to speak with 100% natural prosody.
     """
     if not text:
         return ""
-    res = text.strip()
+    res = text.strip().replace('\u200b', '')
 
     # 1. Expand English Acronyms & Loanwords (CEO, VIP, DNA, KTV, etc.)
     for pat, repl in PHONETIC_ACRONYMS:
@@ -303,31 +273,11 @@ def prepare_khmer_phonetic_for_speech(text: str) -> str:
     # 2. Convert Arabic & Khmer numbers, decimals, currencies to spoken Khmer words
     res = convert_numbers_in_text(res)
 
-    # 3. Apply Phonetic Word & Syllable Spacing Rules for crystal-clear articulation
-    for pat, repl in PHONETIC_ARTICULATION_RULES:
-        res = re.sub(pat, f" {repl} ", res)
+    # 3. Clean up excessive whitespace
+    res = re.sub(r'[ \t]{2,}', ' ', res).strip()
 
-    # 4. SINGLE CONTINUOUS BREATH ENFORCEMENT (១ ដង្ហើមជាប់គ្នា):
-    # Strip all internal mid-sentence commas, pauses, brackets, and quotes
-    # so the voice actor delivers the entire line in ONE seamless, uninterrupted breath!
-    res = re.sub(r'[,，、:：;；—–_~]+', ' ', res)
-    res = re.sub(r'[（）\(\)\[\]{}"“\'”`]+', ' ', res)
-
-    # Detect emotional punctuation intent from text
-    has_question = any(q in res for q in ['?', '？', 'មែនទេ', 'ស្អី', 'អ្វី', 'នរណា', 'អ្នកណា', 'ម៉េច', 'យ៉ាងម៉េច', 'រឿងអី', 'ឯណា'])
-    is_exclamation = any(e in res for e in ['!', '！', 'ភ្លាម', 'ឆាប់', 'ឈប់', 'រត់', 'កុំ', 'ជួយ', 'ហ៊ាន', 'ងាប់', 'បិទមាត់', 'ចេញ'])
-
-    # Strip any internal or trailing punctuation marks and normalize whitespace
-    res = re.sub(r'[!！?？។.\s]+', ' ', res).strip()
-
-    # Append exactly ONE final ending punctuation for the entire single-breath utterance
-    if has_question and is_exclamation:
-        res += '?!'
-    elif has_question:
-        res += '?'
-    elif is_exclamation:
-        res += '!'
-    else:
+    # Ensure sentence ends with natural punctuation if missing
+    if res and res[-1] not in ('។', '!', '?', '？', '！', '…', '.'):
         res += '។'
 
     return res
@@ -460,51 +410,33 @@ async def synthesize_khmer_speech(
 
 def trim_and_fit_voice_audio(audio_path: str, max_duration_sec: Optional[float] = None) -> float:
     """
-    Strip leading/trailing dead silence with zero attack latency, apply studio vocal mastering (EQ/compressor),
-    and time-fit audio to dialogue window so speech finishes in sync with character mouth closure.
+    Strip leading/trailing dead silence while preserving natural consonants.
+    Leaves the complete, natural Khmer speech intact with zero vocal distortion.
+    Maintains 100% natural timbre and sweet acoustic clarity of Piseth and Sreymom.
     """
     try:
         from audio_processor import (
             load_audio_safely,
             save_audio_safely,
-            enhance_voice_clarity_studio,
             get_ffmpeg_path
         )
         from pydub.silence import detect_leading_silence
 
         seg = load_audio_safely(audio_path)
-        # Tight -38dB threshold so speech attacks at 0.0s immediately with zero lag
-        s_trim = detect_leading_silence(seg, silence_threshold=-38.0)
-        e_trim = detect_leading_silence(seg.reverse(), silence_threshold=-38.0)
+        s_trim = detect_leading_silence(seg, silence_threshold=-42.0)
+        e_trim = detect_leading_silence(seg.reverse(), silence_threshold=-42.0)
         dur = len(seg)
         if (s_trim + e_trim) < dur:
-            start_pos = s_trim  # Zero attack latency: audio starts instantly with character!
-            end_pos = min(dur, dur - e_trim + 15)
+            start_pos = max(0, s_trim - 15)  # 15ms headroom preserves initial breath/consonant
+            end_pos = min(dur, dur - e_trim + 25)  # 25ms headroom preserves ending consonant
             trimmed = seg[start_pos:end_pos]
         else:
             trimmed = seg
 
-        trimmed_sec = len(trimmed) / 1000.0
         save_audio_safely(trimmed, str(audio_path))
-
-        # Precision time-fitting: Clamp speed_ratio to max 1.18 to eliminate panicked/rushed speech ("ស្លន់ស្លោ")
-        speed_ratio = 1.0
-        if max_duration_sec and max_duration_sec > 0.3 and trimmed_sec > max_duration_sec:
-            speed_ratio = min(1.18, max(0.95, trimmed_sec / max_duration_sec))
-
-        # Apply Studio Vocal EQ, Highpass, and Broadcast Compression Chain
-        enhance_voice_clarity_studio(str(audio_path), speed_ratio=speed_ratio)
-
-        final_res = load_audio_safely(audio_path)
-        # Clean soft fade-out if audio slightly overruns character's speaking window
-        if max_duration_sec and len(final_res) > int((max_duration_sec + 0.06) * 1000):
-            target_ms = int((max_duration_sec + 0.06) * 1000)
-            final_res = final_res[:target_ms].fade_out(35)
-            save_audio_safely(final_res, str(audio_path))
-
-        return len(final_res) / 1000.0
+        return len(trimmed) / 1000.0
     except Exception as e:
-        print(f"Voice trim/fit note: {e}")
+        print(f"Voice trim note: {e}")
         return 0.0
 
 
@@ -514,8 +446,8 @@ async def batch_synthesize(
     default_voice: str = "piseth"
 ) -> List[Dict[str, Any]]:
     """
-    Synthesize dialogue items with dynamic rate estimation, studio vocal mastering,
-    and tight lip-sync alignment so speech strictly matches the characters.
+    Synthesize dialogue items using authentic, natural Piseth & Sreymom neural voices.
+    Pure natural voice, zero pitch shifting, zero artificial rate changes.
     """
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
@@ -523,56 +455,30 @@ async def batch_synthesize(
 
     async def _process_item(item: Dict[str, Any], index: int) -> Dict[str, Any]:
         async with semaphore:
-            # Smooth network pacing to prevent Edge-TTS socket resets at line 46/86
             if index > 0 and index % 10 == 0:
                 await asyncio.sleep(0.15)
             item_id = item.get("id", index)
             text = (item.get("text_km") or item.get("text", "")).strip()
             voice = item.get("voice") or default_voice
             rate = int(item.get("rate_percent", 0))
-            pitch = int(item.get("pitch_hz", 0))
+            # Strictly force pitch to 0 for pure natural, clear voice
+            pitch = 0
 
-            # Calculate target dialogue window anchored strictly to character speaking duration
             start = float(item.get("start", 0.0))
             end = float(item.get("end", start + 2.0))
-            char_dur = max(0.4, end - start)
-
-            if index + 1 < len(dialogue_items):
-                next_start = float(dialogue_items[index + 1].get("start", end + 1.0))
-                # Lip-sync: anchor strictly to character duration, never exceed next_start
-                target_window = min(max(0.4, next_start - start - 0.04), char_dur)
-            else:
-                target_window = char_dur
-
-            # Dynamic Speech Rate Pre-calculation (CPS: characters per second):
-            # Pre-set native Edge-TTS synthesis speed based on dialogue density
-            if len(text) > 0 and char_dur > 0:
-                cps = len(text) / char_dur
-                if cps >= 15.0:
-                    rate = max(rate, 18)   # +18% fast urgent dialogue
-                elif cps >= 12.5:
-                    rate = max(rate, 12)   # +12% brisk dialogue
-                elif cps >= 10.5:
-                    rate = max(rate, 6)    # +6% lively dialogue
-                elif cps <= 6.0 and char_dur >= 2.0 and rate == 0:
-                    rate = -4              # -4% calm measured pace
-
-            # Auto-calculate dynamic speed so Khmer speech finishes inside target window
-            calculated_rate = calculate_optimal_tts_rate(text, target_window)
-            effective_rate = rate if rate != 0 else calculated_rate
 
             line_audio_path = out_path / f"line_{index:04d}_{item_id}.mp3"
             try:
                 audio_file = await synthesize_khmer_speech(
                     text=text,
                     voice=voice,
-                    rate_percent=effective_rate,
+                    rate_percent=rate,
                     pitch_hz=pitch,
                     output_path=str(line_audio_path)
                 )
 
-                # Strip dead silence, apply studio vocal DSP, and time-fit to character window!
-                final_dur = trim_and_fit_voice_audio(audio_file, target_window)
+                # Strip dead silence while preserving full sentence articulation
+                final_dur = trim_and_fit_voice_audio(audio_file)
 
                 item_copy = dict(item)
                 item_copy["audio_file"] = audio_file
@@ -584,6 +490,7 @@ async def batch_synthesize(
                 item_copy["orig_start"] = start
                 item_copy["orig_end"] = orig_end
                 if index + 1 < len(dialogue_items):
+                    next_start = float(dialogue_items[index + 1].get("start", end + 1.0))
                     item_copy["end"] = min(calculated_end, round(next_start - 0.04, 2))
                 else:
                     item_copy["end"] = calculated_end
