@@ -19,17 +19,17 @@ TARGET_DRAMA_COUNT = 49509
 EXPLORER_API_BASE = "https://explorer.hongguodownloader.com"
 
 CATEGORIES = [
-    {"id": "all", "name": "All", "name_kh": "ទាំងអស់ (49,509)", "badge": "🔥 All", "genre": ""},
-    {"id": "urban_revenge", "name": "Revenge", "name_kh": "រឿងសងសឹក (16,813)", "badge": "⚡ Revenge", "genre": "逆袭"},
-    {"id": "billionaire_ceo", "name": "CEO", "name_kh": "រឿងចៅហ្វាយនាយ (4,072)", "badge": "💎 CEO", "genre": "总裁"},
-    {"id": "god_of_war", "name": "War God", "name_kh": "រឿងទេពចម្បាំង (4,652)", "badge": "⚔ War God", "genre": "大男主"},
-    {"id": "rebirth_travel", "name": "Rebirth", "name_kh": "រឿងកើតឡើងវិញ (3,604)", "badge": "🌀 Rebirth", "genre": "重生"},
-    {"id": "sweet_romance", "name": "Romance", "name_kh": "រឿងស្នេហា (4,856)", "badge": "💖 Romance", "genre": "恋爱"},
-    {"id": "divine_doctor", "name": "Doctor", "name_kh": "រឿងគ្រូពេទ្យទេវតា", "badge": "🌿 Doctor", "genre": "都市"},
-    {"id": "palace_historical", "name": "Palace", "name_kh": "រឿងរាជវាំងបុរាណ (8,969)", "badge": "👑 Palace", "genre": "古代"},
-    {"id": "action_suspense", "name": "Action", "name_kh": "រឿងសកម្មភាព (14,016)", "badge": "🎯 Action", "genre": "剧情"},
-    {"id": "ai_drama", "name": "AI", "name_kh": "រឿង AI កំពូល (13,460)", "badge": "🤖 AI", "genre": "AI"},
-    {"id": "animated_drama", "name": "Animated", "name_kh": "រឿងគំនូរជីវចល (15,790)", "badge": "🎨 Animated", "genre": "Animated"}
+    {"id": "all", "name": "All", "name_kh": "ទាំងអស់ (51,907)", "badge": "🔥 All", "genre": ""},
+    {"id": "ai_drama", "name": "AI", "name_kh": "រឿង AI កំពូល (7,377)", "badge": "🤖 AI", "genre": "AI"},
+    {"id": "urban_revenge", "name": "Revenge", "name_kh": "រឿងសងសឹក (5,745)", "badge": "⚡ Revenge", "genre": "逆袭"},
+    {"id": "billionaire_ceo", "name": "CEO", "name_kh": "រឿងចៅហ្វាយនាយ (6,654)", "badge": "💎 CEO", "genre": "总裁"},
+    {"id": "sweet_romance", "name": "Romance", "name_kh": "រឿងស្នេហា (8,609)", "badge": "💖 Romance", "genre": "恋爱"},
+    {"id": "palace_historical", "name": "Palace", "name_kh": "រឿងរាជវាំងបុរាណ (7,181)", "badge": "👑 Palace", "genre": "古代"},
+    {"id": "animated_drama", "name": "Animated", "name_kh": "រឿងគំនូរជីវចល (5,735)", "badge": "🎨 Animated", "genre": "Animated"},
+    {"id": "god_of_war", "name": "War God", "name_kh": "រឿងទេពចម្បាំង (5,166)", "badge": "⚔ War God", "genre": "大男主"},
+    {"id": "action_suspense", "name": "Action", "name_kh": "រឿងសកម្មភាព (5,083)", "badge": "🎯 Action", "genre": "剧情"},
+    {"id": "rebirth_travel", "name": "Rebirth", "name_kh": "រឿងកើតឡើងវិញ (3,750)", "badge": "🌀 Rebirth", "genre": "重生"},
+    {"id": "divine_doctor", "name": "Doctor", "name_kh": "រឿងគ្រូពេទ្យទេវតា (259)", "badge": "🌿 Doctor", "genre": "都市"},
 ]
 
 POSTER_FALLBACK_POOL = [
@@ -332,7 +332,7 @@ def query_dramas(category: Optional[str] = None, query: Optional[str] = None, pl
         count_sql = f"SELECT count(*) FROM hongguo_dramas{where_stmt}"
         cur.execute(count_sql, params)
         total_count = cur.fetchone()[0]
-        if (not plat_lower or plat_lower in ("all", "hongguo")) and (not cat_lower or cat_lower in ("all", "")) and not query:
+        if plat_lower == "hongguo" and (not cat_lower or cat_lower in ("all", "")) and not query:
             total_count = TARGET_DRAMA_COUNT
 
         # Order by rank_num ASC for leaderboard (Ranks 1 to 100), then ID

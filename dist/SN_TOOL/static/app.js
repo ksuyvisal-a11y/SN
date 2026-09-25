@@ -1371,14 +1371,24 @@ function filterByPlatform(platId, platName, totalCount, platLogo) {
 
     const countLabel = document.getElementById('dl-catalog-count-label');
     if (countLabel) {
-        const countDisplay = totalCount ? totalCount.toLocaleString() : (platId === 'hongguo' ? '49,509' : (platId === 'reelshort' ? '1,249' : '50,840'));
-        const headerTitle = platId === 'hongguo' ? 'Top 100 on 红果 right now' : (platId === 'reelshort' ? 'Top 100 on ReelShort right now' : `Top Dramas on ${escapeHtml(platName)}`);
+        const countDisplay = totalCount ? totalCount.toLocaleString() : (platId === 'hongguo' ? '49,509' : (platId === 'reelshort' ? '1,156' : (platId === 'ai_drama' ? '1,160' : '51,907')));
+        let headerTitle = `Top Dramas on ${escapeHtml(platName)}`;
+        if (platId === 'hongguo') headerTitle = 'Top 100 on 红果 right now';
+        else if (platId === 'reelshort') headerTitle = 'Top Authentic Stories on ReelShort';
+        else if (platId === 'ai_drama') headerTitle = 'Top Authentic Chinese AI Short Dramas (AI漫剧)';
+        else if (platId === 'all') headerTitle = 'Top Dramas Across All Platforms';
         countLabel.innerHTML = `<span class="dl-clapper-emoji">🎬</span> ${headerTitle} (${countDisplay})`;
     }
 
     const input = document.getElementById('dl-link-url-input');
     if (input) {
-        input.placeholder = platId === 'reelshort' ? 'Paste a ReelShort URL or search...' : 'Paste a Hongguo URL or search...';
+        if (platId === 'reelshort') {
+            input.placeholder = 'Paste a ReelShort URL or search 1,156 stories...';
+        } else if (platId === 'ai_drama') {
+            input.placeholder = 'Search Chinese AI short dramas (រឿង AI ចិន)...';
+        } else {
+            input.placeholder = 'Paste a Hongguo URL or search 51,907 dramas...';
+        }
     }
 
     const badge = document.getElementById('dl-info-platform-badge');
@@ -1484,7 +1494,7 @@ async function loadDramaCatalog(platformId = "hongguo", query = "", category = "
 
     if (!append) {
         dlCurrentPage = 1;
-        const platTitle = platformId === 'reelshort' ? 'ReelShort' : 'Hongguo';
+        const platTitle = platformId === 'reelshort' ? 'ReelShort' : (platformId === 'ai_drama' ? 'AI Dramas' : 'Hongguo');
         container.innerHTML = `<div style="grid-column: 1 / -1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding: 48px; color: #38bdf8;"><i class="fa-solid fa-spinner fa-spin" style="font-size: 1.8rem; margin-bottom:12px;"></i><div style="font-size:0.85rem; font-weight:600; color:#e2e8f0;">កំពុងទាញបញ្ជីរឿង ${platTitle}...</div></div>`;
     }
 
@@ -1499,8 +1509,8 @@ async function loadDramaCatalog(platformId = "hongguo", query = "", category = "
             const countLabel = document.getElementById('dl-catalog-count-label');
             if (countLabel) {
                 let headerTitle = category === 'all'
-                    ? (platformId === 'reelshort' ? 'Top Dramas on ReelShort' : 'Top 100 on 红果 right now')
-                    : `${platformId === 'reelshort' ? 'ReelShort' : 'Category'}: ${category.toUpperCase()}`;
+                    ? (platformId === 'reelshort' ? 'Top Stories on ReelShort' : (platformId === 'ai_drama' ? 'Top Chinese AI Dramas' : 'Top 100 on 红果 right now'))
+                    : `${platformId === 'reelshort' ? 'ReelShort' : (platformId === 'ai_drama' ? 'Chinese AI' : 'Category')}: ${category.toUpperCase()}`;
                 countLabel.innerHTML = `<span class="dl-clapper-emoji">🎬</span> ${headerTitle} (${dlTotalDramasCount.toLocaleString()})`;
             }
 

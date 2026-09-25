@@ -31,9 +31,10 @@ DRAMA_CATALOG: List[Dict[str, Any]] = []
 
 # Dynamic platform registry matching user preferences
 SUPPORTED_PLATFORMS: List[Dict[str, Any]] = [
-    {"id": "all", "name": "All platforms", "icon": "fa-solid fa-globe", "count": 49509},
+    {"id": "all", "name": "All platforms", "icon": "fa-solid fa-globe", "count": 51907},
     {"id": "hongguo", "name": "Hongguo", "logo": "hongguo_logo.png", "icon": "fa-solid fa-play", "count": 49509},
-    {"id": "reelshort", "name": "Reelshort", "logo": "reelshort_logo.png", "icon": "fa-solid fa-film", "count": 1280},
+    {"id": "reelshort", "name": "Reelshort", "logo": "reelshort_logo.png", "icon": "fa-solid fa-film", "count": 1156},
+    {"id": "ai_drama", "name": "AI Dramas", "icon": "fa-solid fa-robot", "count": 1160},
 ]
 
 
@@ -45,14 +46,12 @@ def get_supported_platforms_with_counts() -> List[Dict[str, Any]]:
         p_data = dict(p)
         if p["id"] == "all":
             p_data["count"] = total_dramas
-        elif p["id"] == "hongguo":
-            p_data["count"] = 49509
-        elif p["id"] == "reelshort":
+        else:
             try:
-                cnt = hongguo_db.get_platform_drama_count("reelshort")
-                p_data["count"] = cnt if cnt > 0 else 1280
+                cnt = hongguo_db.get_platform_drama_count(p["id"])
+                p_data["count"] = cnt if cnt > 0 else p.get("count", 0)
             except Exception:
-                p_data["count"] = 1280
+                pass
         platforms_copy.append(p_data)
     return platforms_copy
 
@@ -78,6 +77,47 @@ def get_drama_episodes(drama: Dict[str, Any]) -> List[Dict[str, Any]]:
     drama_id = drama.get("id", "hg_00001")
 
     total_expected = int(drama.get("total_episodes") or 0)
+
+    # Tier 1.5: Special handler for Chinese AI short dramas
+    is_ai_drama = drama.get("platform_id") == "ai_drama" or str(drama_id).startswith("ai_")
+    if is_ai_drama:
+        ai_cache_file = Path("data/ai_dramas_streams.json")
+        play_url_raw = ""
+        if ai_cache_file.exists():
+            try:
+                with open(ai_cache_file, "r", encoding="utf-8") as f:
+                    ai_c = json.load(f)
+                if drama_id in ai_c:
+                    play_url_raw = ai_c[drama_id].get("play_url", "")
+            except Exception:
+                pass
+
+        if play_url_raw:
+            parsed_eps = parse_vod_play_url(play_url_raw, "AI Stream Cluster")
+            if parsed_eps:
+                episodes = []
+                for it in parsed_eps:
+                    ep_num = it.get("episode_num", 1)
+                    s_url = it.get("stream_url", "")
+                    episodes.append({
+                        "id": f"{drama_id}_ep_{ep_num:03d}",
+                        "drama_id": drama_id,
+                        "episode_number": ep_num,
+                        "episode_num": ep_num,
+                        "title": f"Episode {ep_num:02d} ({it.get('title', '')})",
+                        "duration": "02:30",
+                        "duration_sec": 150,
+                        "resolution": "1080p Full HD",
+                        "file_size": "45.0 MB",
+                        "status": "Ready",
+                        "progress": 0,
+                        "stream_url": s_url,
+                        "download_url": s_url,
+                        "source": "Chinese AI HD Stream",
+                        "is_online_stream": bool(s_url),
+                        "is_selected": True
+                    })
+                return episodes
 
     # Tier 1: Check authentic multi-VOD live stream cluster (Jinying, Baofen, FFm3u8, Modu, Ikun, KuaiChe)
     stream_eps = resolve_short_drama_stream_cluster(raw_title)
@@ -109,29 +149,21 @@ def get_drama_episodes(drama: Dict[str, Any]) -> List[Dict[str, Any]]:
             })
         return episodes
 
-    # Tier 2.5: Special handler for ReelShort dramas
+    # Tier 2.5: Special handler for ReelShort dramas (Authentic story series, zero ads)
     is_reelshort = drama.get("platform_id") == "reelshort" or str(drama_id).startswith("rs_")
     if is_reelshort:
         clean_title = re.sub(r'[《》]', '', raw_title).strip()
         total_eps = int(drama.get("total_episodes") or 60)
         if total_eps <= 0:
             total_eps = 60
-        
-        # Check if ReelShort movie or full episode is found online
-        yt_stream_url = ""
-        try:
-            ydl_opts = {'quiet': True, 'extract_flat': True}
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(f"ytsearch1:{clean_title} ReelShort full movie", download=False)
-                entries = info.get('entries', [])
-                if entries and entries[0].get('url'):
-                    yt_stream_url = entries[0].get('url')
-        except Exception:
-            pass
+
+        # Query short drama cluster for genuine episode streams (avoid youtube ads/trailers)
+        cluster_eps = resolve_short_drama_stream_cluster(clean_title)
+        cluster_map = {e.get("episode_num"): e.get("stream_url") for e in cluster_eps if e.get("stream_url")}
 
         episodes = []
         for i in range(1, total_eps + 1):
-            ep_url = yt_stream_url if (i == 1 and yt_stream_url) else ""
+            ep_url = cluster_map.get(i) or ""
             episodes.append({
                 "id": f"{drama_id}_ep_{i:03d}",
                 "drama_id": drama_id,
@@ -146,7 +178,7 @@ def get_drama_episodes(drama: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "progress": 0,
                 "stream_url": ep_url,
                 "download_url": ep_url,
-                "source": "ReelShort Official",
+                "source": "ReelShort Story Stream" if ep_url else "ReelShort Official",
                 "is_online_stream": bool(ep_url),
                 "is_selected": True
             })

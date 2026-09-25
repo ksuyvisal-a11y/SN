@@ -36,8 +36,24 @@ SHELVES = [
     ("pregnancy_babies", "51002897", "https://www.reelshort.com/shelf/pregnancy-babies-short-movies-dramas-51002897"),
     ("interactives", "51002898", "https://www.reelshort.com/shelf/reelshort-interactives-short-movies-dramas-51002898"),
     ("young_love", "51002899", "https://www.reelshort.com/shelf/young-love-short-movies-dramas-51002899"),
-    ("reeltalk", "51002900", "https://www.reelshort.com/shelf/reeltalk-short-movies-dramas-51002900"),
 ]
+
+PROMO_KEYWORDS = [
+    "reeltalk", "blooper", "backstage", "interview", "challenge",
+    "trailer", "bts", "red carpet", "bonus clip", "teaser", "behind the scene",
+    "promo", "commercial", "contest", "making of", "clip", "preview"
+]
+
+def is_junk_promo(title: str, shelf: str, eps: int) -> bool:
+    """Strictly filter out advertisements, talk shows, behind-the-scenes and non-story clips."""
+    if shelf == "reeltalk":
+        return True
+    t_lower = (title or "").lower().strip()
+    if any(k in t_lower for k in PROMO_KEYWORDS):
+        return True
+    if eps < 5:  # Authentic series have at least 15-80 episodes
+        return True
+    return False
 
 SEARCH_KEYWORDS = [
     'ceo', 'billionaire', 'alpha', 'revenge', 'mafia', 'wolf', 'baby', 'marriage',
@@ -149,13 +165,22 @@ def fetch_all_reelshort():
             except Exception:
                 pass
 
-    print(f"\n🎉 TOTAL UNIQUE REELSHORT DRAMAS GATHERED: {len(all_dramas)}")
+    # Filter out all commercials, bloopers, trailers, talk shows, and non-story clips
+    clean_dramas = {}
+    for bid, b in all_dramas.items():
+        title = (b.get('book_title') or b.get('title') or '').strip()
+        shelf = b.get('source_shelf', '')
+        eps = int(b.get('chapter_count') or 0)
+        if not is_junk_promo(title, shelf, eps):
+            clean_dramas[bid] = b
+
+    print(f"\n🎉 TOTAL AUTHENTIC REELSHORT DRAMA STORIES: {len(clean_dramas)} (Filtered out {len(all_dramas) - len(clean_dramas)} promos/ads)")
 
     # 4. Save to JSON cache for instant recovery
     CACHE_JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(CACHE_JSON_PATH, "w", encoding="utf-8") as f:
-        json.dump(list(all_dramas.values()), f, ensure_ascii=False, indent=2)
-    print(f"  ✔ Saved raw catalog to {CACHE_JSON_PATH}")
+        json.dump(list(clean_dramas.values()), f, ensure_ascii=False, indent=2)
+    print(f"  ✔ Saved clean authentic catalog to {CACHE_JSON_PATH}")
 
     # 5. Populate SQLite Database
     print("\n[Phase 4] Inserting into SQLite Database (hongguo_catalog.db)...")
@@ -205,7 +230,7 @@ def fetch_all_reelshort():
     cat_records = []
 
     # Sort dramas with top shelf items first
-    drama_list = list(all_dramas.values())
+    drama_list = list(clean_dramas.values())
     drama_list.sort(key=lambda d: 0 if d.get('source_shelf') == 'top' else (1 if d.get('source_shelf') == 'reel_original' else 2))
 
     for rank, b in enumerate(drama_list, 1):
