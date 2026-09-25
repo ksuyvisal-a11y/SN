@@ -45,7 +45,8 @@ from downloader import (
     get_drama_episodes,
     drama_downloader,
     find_authentic_episode_video,
-    merge_downloaded_drama_episodes
+    merge_downloaded_drama_episodes,
+    get_hongguo_episode_real_stream_url
 )
 import hongguo_db
 from recap_engine import RecapEngine, VIRAL_KHMER_HOOKS
@@ -995,6 +996,11 @@ def downloader_preview_endpoint(drama_id):
         for ep in drama_downloader.episodes:
             if ep.get("episode_number") == ep_num or ep.get("episode_num") == ep_num:
                 s_url = ep.get("stream_url") or ep.get("download_url")
+                if (not s_url or not str(s_url).startswith("http")) and ep.get("vid") and ep.get("series_id"):
+                    s_url = get_hongguo_episode_real_stream_url(ep["series_id"], ep["vid"])
+                    if s_url:
+                        ep["stream_url"] = s_url
+                        ep["download_url"] = s_url
                 if s_url and str(s_url).startswith("http"):
                     return jsonify({
                         "success": True,
