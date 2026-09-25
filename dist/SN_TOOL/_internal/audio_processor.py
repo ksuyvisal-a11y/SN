@@ -60,6 +60,14 @@ def patch_silent_subprocess():
             si.wShowWindow = 0  # SW_HIDE
             kwargs["startupinfo"] = si
 
+        # Force UTF-8 and errors="replace" for any text-mode subprocess invocation
+        # Prevents Windows charmap / cp1252 UnicodeDecodeError crashes when tools output UTF-8
+        if kwargs.get("text") or kwargs.get("universal_newlines") or "encoding" in kwargs:
+            if not kwargs.get("encoding"):
+                kwargs["encoding"] = "utf-8"
+            if not kwargs.get("errors"):
+                kwargs["errors"] = "replace"
+
         orig_popen_init(self, *args, **kwargs)
 
     subprocess.Popen.__init__ = silent_popen_init
@@ -256,9 +264,19 @@ def extract_audio_from_video(video_path: str, output_audio_path: str) -> str:
         str(out_p)
     ]
     
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=1800, **get_silent_kwargs())
+    proc = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=1800,
+        **get_silent_kwargs()
+    )
     if proc.returncode != 0:
-        raise RuntimeError(f"FFmpeg audio extraction failed: {proc.stderr}")
+        err_out = proc.stderr or ""
+        raise RuntimeError(f"FFmpeg audio extraction failed: {err_out}")
         
     return str(out_p)
 
@@ -270,12 +288,25 @@ def get_media_duration(file_path: str) -> float:
         "-nostdin",
         "-i", str(file_path)
     ]
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=10, **get_silent_kwargs())
-    for line in proc.stderr.splitlines():
-        if "Duration:" in line:
-            parts = line.split("Duration:")[1].split(",")[0].strip()
-            h, m, s = parts.split(":")
-            return float(h) * 3600 + float(m) * 60 + float(s)
+    try:
+        proc = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=15,
+            **get_silent_kwargs()
+        )
+        stderr_text = proc.stderr or ""
+        for line in stderr_text.splitlines():
+            if "Duration:" in line:
+                parts = line.split("Duration:")[1].split(",")[0].strip()
+                h, m, s = parts.split(":")
+                return float(h) * 3600 + float(m) * 60 + float(s)
+    except Exception as e:
+        print(f"FFmpeg get_media_duration note: {e}")
             
     try:
         seg = load_audio_safely(file_path)
@@ -319,6 +350,44 @@ def create_waveform_data(audio_path: str, num_samples: int = 120) -> List[float]
     except Exception as e:
         print(f"Waveform generation note: {e}")
         return [round(abs(math.sin(i * 0.2) * 0.7 + 0.2), 2) for i in range(num_samples)]
+
+
+def time_stretch_audio_segment(seg: AudioSegment, speed: float) -> AudioSegment:
+    """
+    High-quality time-stretch (tempo adjustment without pitch shifting) using FFmpeg atempo filter.
+    Guarantees natural voice timbre while compressing or expanding duration to fit lip-sync slots.
+    """
+    if abs(speed - 1.0) < 0.03 or len(seg) < 200:
+        return seg
+    speed = max(0.5, min(2.0, float(speed)))
+    try:
+        wav_io = io.BytesIO()
+        seg.export(wav_io, format="wav")
+        cmd = [
+            get_ffmpeg_path(),
+            "-nostdin",
+            "-y",
+            "-f", "wav",
+            "-i", "pipe:0",
+            "-filter:a", f"atempo={speed:.3f}",
+            "-f", "wav",
+            "pipe:1"
+        ]
+        proc = subprocess.run(
+            cmd,
+            input=wav_io.getvalue(),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            timeout=15,
+            **get_silent_kwargs()
+        )
+        if proc.returncode == 0 and len(proc.stdout) > 44:
+            stretched = AudioSegment.from_file(io.BytesIO(proc.stdout), format="wav")
+            if len(stretched) > 0:
+                return stretched
+    except Exception as e:
+        print(f"Audio time-stretch note: {e}")
+    return seg
 
 
 def mix_dubbed_audio(
@@ -386,6 +455,9 @@ def mix_dubbed_audio(
     boost_val = max(3.0, float(speech_volume_boost_db)) if speech_volume_boost_db is not None else 3.5
 
     processed_lines = []
+    min_dialogue_gap_ms = 120  # Minimum 120ms acoustic breathing space between consecutive speakers
+    prev_end_ms = 0
+
     for i, (idx, item) in enumerate(valid_lines):
         try:
             line_seg = load_audio_safely(item["audio_file"])
@@ -406,9 +478,42 @@ def mix_dubbed_audio(
             orig_start_ms = max(0, int(orig_s * 1000))
             orig_end_ms = max(0, int(orig_e * 1000))
 
-            start_ms = max(0, int(item.get("start", 0) * 1000))
+            # 1. Lip-Sync & Anti-Overlap Dynamic Time-Stretch:
+            # Synchronize speech duration with actor's mouth movement window (orig_end_ms - orig_start_ms)
+            # and prevent overrunning into the next dialogue turn.
+            target_mouth_window_ms = max(400, orig_end_ms - orig_start_ms)
+            if i + 1 < len(valid_lines):
+                next_item = valid_lines[i + 1][1]
+                next_orig_s = float(next_item.get("orig_start", next_item.get("start", 0.0)))
+                next_start_ms = max(0, int(next_orig_s * 1000))
+                available_window_ms = max(350, next_start_ms - orig_start_ms - min_dialogue_gap_ms)
+                # Bounded by mouth closure with small natural buffer, or by next speaker
+                target_window_ms = min(target_mouth_window_ms + 250, available_window_ms)
+            else:
+                target_window_ms = target_mouth_window_ms + 250
+
+            cur_dur_ms = len(line_seg)
+            if cur_dur_ms > target_window_ms and target_window_ms >= 350:
+                needed_speed = cur_dur_ms / max(300, target_window_ms)
+                # Apply speedup up to 1.35x to sync tightly with mouth movement
+                speed_to_apply = min(1.35, max(1.04, needed_speed))
+                if speed_to_apply >= 1.05:
+                    line_seg = time_stretch_audio_segment(line_seg, speed_to_apply)
+
+            # 2. Strict Sequential Anti-Collision Placement:
+            # Guarantees that line i NEVER starts while line i-1 is still talking!
+            if prev_end_ms > 0:
+                start_ms = max(orig_start_ms, prev_end_ms + min_dialogue_gap_ms)
+            else:
+                start_ms = orig_start_ms
+
             line_len_ms = len(line_seg)
             speech_end_ms = start_ms + line_len_ms
+            prev_end_ms = speech_end_ms
+
+            # Synchronize item start/end so subtitles and visual timelines match 100%
+            item["start"] = round(start_ms / 1000.0, 2)
+            item["end"] = round(speech_end_ms / 1000.0, 2)
 
             # The ducking interval covers original speech and dubbing with gentle padding
             pad_start = max(0, min(orig_start_ms, start_ms) - 150)

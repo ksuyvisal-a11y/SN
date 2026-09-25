@@ -46,9 +46,9 @@ def generate_sample_drama_video(output_video_path: str, duration_sec: int = 15) 
         str(out_p)
     ]
 
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, **get_silent_kwargs())
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", **get_silent_kwargs())
     if proc.returncode != 0:
-        raise RuntimeError(f"Failed to generate sample drama video: {proc.stderr}")
+        raise RuntimeError(f"Failed to generate sample drama video: {proc.stderr or ''}")
 
     return str(out_p)
 
@@ -152,9 +152,10 @@ def render_dubbed_video(
             str(out_p)
         ])
 
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=7200, **get_silent_kwargs())
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", timeout=7200, **get_silent_kwargs())
     if proc.returncode != 0:
-        print(f"Render fallback triggered: {proc.stderr[:200]}")
+        err_prev = (proc.stderr or '')[:200]
+        print(f"Render fallback triggered: {err_prev}")
         # Direct mux fallback with universal H.264 and even dimension scaling
         fallback_cmd = [
             get_ffmpeg_path(),
@@ -218,7 +219,7 @@ def merge_videos(video_paths: List[str], output_path: str) -> str:
             "-c", "copy",
             str(out_p)
         ]
-        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=7200, **get_silent_kwargs())
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", timeout=7200, **get_silent_kwargs())
         if proc.returncode != 0:
             # Re-encoding concat fallback
             inputs = []

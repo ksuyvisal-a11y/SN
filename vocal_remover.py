@@ -56,7 +56,7 @@ def separate_vocals_and_bgm(
         "-ac", "2",
         str(bgm_output)
     ]
-    proc_bgm = subprocess.run(cmd_bgm, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=3600, **get_silent_kwargs())
+    proc_bgm = subprocess.run(cmd_bgm, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", timeout=3600, **get_silent_kwargs())
 
     # 2. Check if phase cancellation produced silence (common on dual-mono audio where L == R)
     need_fallback = False
@@ -75,9 +75,9 @@ def separate_vocals_and_bgm(
                 "-f", "null",
                 "-"
             ]
-            p_res = subprocess.run(probe_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, timeout=15, **get_silent_kwargs())
+            p_res = subprocess.run(probe_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", timeout=15, **get_silent_kwargs())
             m_db = -50.0
-            for line in p_res.stderr.splitlines():
+            for line in (p_res.stderr or "").splitlines():
                 if "mean_volume:" in line:
                     try:
                         m_db = float(line.split("mean_volume:")[1].split("dB")[0].strip())
@@ -104,7 +104,7 @@ def separate_vocals_and_bgm(
             "-ac", "2",
             str(bgm_output)
         ]
-        proc_fb = subprocess.run(cmd_bgm_fallback, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=3600, **get_silent_kwargs())
+        proc_fb = subprocess.run(cmd_bgm_fallback, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", timeout=3600, **get_silent_kwargs())
         if proc_fb.returncode != 0 or not bgm_output.exists():
             import shutil
             shutil.copy2(str(in_p), str(bgm_output))

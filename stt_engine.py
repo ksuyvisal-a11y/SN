@@ -277,15 +277,15 @@ class SpeechToTextEngine:
             best_of=1,
             condition_on_previous_text=False,
             compression_ratio_threshold=2.4,
-            no_speech_threshold=0.6,
+            no_speech_threshold=0.75,
             word_timestamps=True,
             vad_filter=True,
             vad_parameters=dict(
-                threshold=0.45,
-                min_speech_duration_ms=100,
-                max_speech_duration_s=8.0,
-                min_silence_duration_ms=280,
-                speech_pad_ms=80
+                threshold=0.30,
+                min_speech_duration_ms=80,
+                max_speech_duration_s=9.0,
+                min_silence_duration_ms=320,
+                speech_pad_ms=160
             )
         )
 
@@ -341,11 +341,11 @@ class SpeechToTextEngine:
                     # 1. Punctuation in word (ending marks)
                     has_punct = bool(re.search(r'[。！？!?；;\n]', w_txt))
 
-                    # 2. Pause between this word and next word >= 0.65s (dialogue pause / turn-taking)
+                    # 2. Pause between this word and next word >= 0.85s (dialogue pause / turn-taking)
                     has_pause = False
                     if w_idx + 1 < len(words):
                         next_w = words[w_idx + 1]
-                        if (next_w.start - w.end) >= 0.65:
+                        if (next_w.start - w.end) >= 0.85:
                             has_pause = True
 
                     # 3. Accumulated length >= 6.5 seconds (prevents runaway sentences)
@@ -497,14 +497,36 @@ class SpeechToTextEngine:
                 combined_len = round(seg["end"] - prev["start"], 2)
                 same_speaker = (prev["detected_role"] == seg["detected_role"])
 
-                # Only merge if it's the exact same speaker with zero audible pause (<= 0.10s)
-                if same_speaker and combined_len <= 3.5 and gap <= 0.10:
+                # Merge if it's the exact same speaker with brief natural pause (<= 0.22s)
+                if same_speaker and combined_len <= 4.5 and gap <= 0.22:
                     prev["end"] = seg["end"]
                     prev["text"] = f"{prev['text']} {seg['text']}".strip()
                     prev["text_original"] = prev["text"]
                     continue
 
             consolidated.append(dict(seg))
+
+        # 3. Third Pass: Strict Anti-Overlap & Boundary Enforcement
+        # Ensure that segment start times never collide or overlap with previous segment end times
+        cleaned_dialogues = []
+        min_seg_gap = 0.08  # 80ms minimum acoustic separation
+        for seg in consolidated:
+            if cleaned_dialogues:
+                prev = cleaned_dialogues[-1]
+                if seg["start"] < prev["end"] + min_seg_gap:
+                    if prev["end"] > seg["start"]:
+                        if (seg["start"] - prev["start"]) >= 0.35:
+                            prev["end"] = round(seg["start"] - min_seg_gap, 2)
+                        else:
+                            seg["start"] = round(prev["end"] + min_seg_gap, 2)
+                            if seg["end"] <= seg["start"]:
+                                seg["end"] = round(seg["start"] + 0.35, 2)
+                    else:
+                        seg["start"] = round(prev["end"] + min_seg_gap, 2)
+                        if seg["end"] <= seg["start"]:
+                            seg["end"] = round(seg["start"] + 0.35, 2)
+            cleaned_dialogues.append(seg)
+        consolidated = cleaned_dialogues
 
         # Re-number IDs and initialize standard speech parameters
         for idx, item in enumerate(consolidated, start=1):

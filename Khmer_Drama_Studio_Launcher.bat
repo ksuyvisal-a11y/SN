@@ -1,4 +1,7 @@
 @echo off
+chcp 65001 > nul
+set PYTHONUTF8=1
+set PYTHONIOENCODING=utf-8
 title Khmer AI Drama Voice Translator & Movie Recap Studio (Piseth & Sreymom)
 cd /d "%~dp0"
 

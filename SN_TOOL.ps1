@@ -1,7 +1,9 @@
-﻿# ==============================================================================
+# ==============================================================================
 # SN TOOL - STUDIO PRO (Khmer AI Drama Studio) - PowerShell Launcher
 # ==============================================================================
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$env:PYTHONUTF8 = "1"
+$env:PYTHONIOENCODING = "utf-8"
 $Host.UI.RawUI.WindowTitle = "🎬 SN TOOL - STUDIO PRO (Khmer AI Drama Studio)"
 
 Write-Host "========================================================================" -ForegroundColor Yellow

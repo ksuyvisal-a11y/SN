@@ -30,7 +30,14 @@ app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="")
 from tts_engine import get_available_voices, synthesize_khmer_speech
 from translator import DramaTranslator, parse_srt_content
 from pipeline import ProjectManager, SAMPLE_DRAMAS
-from audio_processor import extract_audio_from_video, create_waveform_data, get_media_duration, get_silent_kwargs
+from audio_processor import (
+    extract_audio_from_video,
+    create_waveform_data,
+    get_media_duration,
+    get_silent_kwargs,
+    patch_silent_subprocess
+)
+patch_silent_subprocess()
 from downloader import (
     download_video_from_url,
     get_supported_platforms_with_counts,
@@ -1452,10 +1459,11 @@ try {{
             capture_output=True,
             text=True,
             encoding="utf-8",
+            errors="replace",
             timeout=300,
             **get_silent_kwargs()
         )
-        for line in proc.stdout.splitlines():
+        for line in (proc.stdout or "").splitlines():
             line = line.strip()
             if line.startswith("RESULT:"):
                 chosen = line[7:].strip().replace("\\", "/")
@@ -1512,10 +1520,11 @@ exit 0
             capture_output=True,
             text=True,
             encoding="utf-8",
+            errors="replace",
             timeout=300,
             **get_silent_kwargs()
         )
-        for line in proc.stdout.splitlines():
+        for line in (proc.stdout or "").splitlines():
             line = line.strip()
             if line.startswith("RESULT:"):
                 raw_json = line[7:].strip()

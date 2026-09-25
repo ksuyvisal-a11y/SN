@@ -405,8 +405,8 @@ def prepare_khmer_phonetic_for_speech(text: str) -> str:
         return ""
     res = text.strip().replace('\u200b', '')
 
-    # 0. Clean erratic/combined punctuation
-    res = re.sub(r'[\.\s]*[\?!！？]+[\.\s]*', '?', res)
+    # 0. Clean erratic/combined punctuation (preserve exclamation marks !)
+    res = re.sub(r'(?:\?+[!！]+|[!！]+\?+)', '?!', res)
     res = re.sub(r'[!！]{2,}', '!', res)
     res = re.sub(r'[?？]{2,}', '?', res)
     res = re.sub(r'[។]{2,}', '។', res)
@@ -420,7 +420,7 @@ def prepare_khmer_phonetic_for_speech(text: str) -> str:
     res = convert_numbers_in_text(res)
 
     # 3. Clean up excessive whitespace and ensure proper punctuation attachment
-    res = re.sub(r'[\.\s]*[\?!！？]+[\.\s]*', '?', res)
+    res = re.sub(r'(?:\?+[!！]+|[!！]+\?+)', '?!', res)
     res = re.sub(r'\s+([។!?,])', r'\1', res)
     res = re.sub(r'[ \t]{2,}', ' ', res).strip()
 
@@ -569,14 +569,15 @@ async def synthesize_khmer_speech(
 def trim_and_fit_voice_audio(audio_path: str, max_duration_sec: Optional[float] = None) -> float:
     """
     Strip leading/trailing dead silence while preserving natural consonants.
+    If max_duration_sec is provided and speech overruns, seamlessly fit via high-quality FFmpeg atempo.
     Leaves the complete, natural Khmer speech intact with zero vocal distortion.
-    Maintains 100% natural timbre and sweet acoustic clarity of Piseth and Sreymom.
     """
     try:
         from audio_processor import (
             load_audio_safely,
             save_audio_safely,
-            get_ffmpeg_path
+            get_ffmpeg_path,
+            get_silent_kwargs
         )
         from pydub.silence import detect_leading_silence
 
@@ -590,6 +591,42 @@ def trim_and_fit_voice_audio(audio_path: str, max_duration_sec: Optional[float] 
             trimmed = seg[start_pos:end_pos]
         else:
             trimmed = seg
+
+        # Dynamic Lip-Sync & Time Compression:
+        # If speech is longer than available slot before next dialogue line:
+        if max_duration_sec is not None and max_duration_sec > 0.35:
+            target_ms = int(max_duration_sec * 1000)
+            cur_ms = len(trimmed)
+            if cur_ms > target_ms:
+                # Speed ratio capped at 1.35x to maintain 100% natural timbre without distortion
+                speed = min(1.35, cur_ms / max(300, target_ms - 80))
+                if speed >= 1.05:
+                    import io
+                    wav_io = io.BytesIO()
+                    trimmed.export(wav_io, format="wav")
+                    cmd = [
+                        get_ffmpeg_path(),
+                        "-nostdin",
+                        "-y",
+                        "-f", "wav",
+                        "-i", "pipe:0",
+                        "-filter:a", f"atempo={speed:.3f}",
+                        "-f", "wav",
+                        "pipe:1"
+                    ]
+                    proc = subprocess.run(
+                        cmd,
+                        input=wav_io.getvalue(),
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.DEVNULL,
+                        timeout=15,
+                        **get_silent_kwargs()
+                    )
+                    if proc.returncode == 0 and len(proc.stdout) > 44:
+                        from pydub import AudioSegment
+                        stretched = AudioSegment.from_file(io.BytesIO(proc.stdout), format="wav")
+                        if len(stretched) > 0:
+                            trimmed = stretched
 
         save_audio_safely(trimmed, str(audio_path))
         return len(trimmed) / 1000.0
@@ -618,12 +655,26 @@ async def batch_synthesize(
             item_id = item.get("id", index)
             text = (item.get("text_km") or item.get("text", "")).strip()
             voice = item.get("voice") or default_voice
-            rate = int(item.get("rate_percent", 0))
-            # Strictly force pitch to 0 for pure natural, clear voice
-            pitch = 0
-
             start = float(item.get("start", 0.0))
             end = float(item.get("end", start + 2.0))
+
+            # Lip-sync mouth movement duration budget:
+            # Actor speaks for (end - start) seconds. Synchronize speech to finish near mouth closure!
+            mouth_dur = max(0.35, end - start)
+            if index + 1 < len(dialogue_items):
+                nxt_start = float(dialogue_items[index + 1].get("start", end + 1.0))
+                gap_to_next = max(0.35, nxt_start - start - 0.08)
+                avail_dur = min(mouth_dur + 0.25, gap_to_next)
+            else:
+                avail_dur = mouth_dur + 0.25
+
+            # Dynamically calculate optimal Edge-TTS speaking rate (+0% to +35%)
+            # so the speech tempo naturally matches the actor's mouth speed, eliminating voice lag!
+            dyn_rate = calculate_optimal_tts_rate(text, avail_dur)
+            rate = max(int(item.get("rate_percent", 0)), dyn_rate)
+
+            # Strictly force pitch to 0 for pure natural, clear voice
+            pitch = 0
 
             line_audio_path = out_path / f"line_{index:04d}_{item_id}.mp3"
             try:
@@ -635,8 +686,8 @@ async def batch_synthesize(
                     output_path=str(line_audio_path)
                 )
 
-                # Strip dead silence while preserving full sentence articulation
-                final_dur = trim_and_fit_voice_audio(audio_file)
+                # Strip dead silence and dynamically fit within lip-sync mouth window
+                final_dur = trim_and_fit_voice_audio(audio_file, max_duration_sec=avail_dur)
 
                 item_copy = dict(item)
                 item_copy["audio_file"] = audio_file
