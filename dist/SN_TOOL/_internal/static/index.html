@@ -550,8 +550,8 @@
                         </div>
                         <button class="dl-btn-preview-wide" onclick="previewLoadedDrama()">Preview Video</button>
                         <button class="dl-btn-preview-wide dl-catalog-dl-all-btn" id="btn-dl-catalog-all" onclick="downloadCurrentDramaFullSeries()">
-                            <i class="fa-solid fa-cloud-arrow-down" style="font-size:1.15rem;"></i>
-                            <span id="dl-catalog-dl-all-text">ទាញយកគ្រប់ភាគទាំងអស់ (Download Full Series)</span>
+                            <i class="fa-solid fa-bolt-lightning" style="font-size:1.15rem; color:#facc15;"></i>
+                            <span id="dl-catalog-dl-all-text">⚡ ទាញយកល្បឿនលឿន & រឿងពេញ ១០០% (Turbo Full Series)</span>
                         </button>
                         <!-- Dedicated Folder Destination & Explorer Manager -->
                         <div class="dl-folder-manager-box">
@@ -721,13 +721,19 @@
                         <!-- Download Full Series & Single Episode Buttons -->
                         <div class="dl-q2-download-wrap" style="display:flex; flex-direction:column; gap:8px;">
                             <button type="button" class="dl-q2-download-btn dl-btn-download-all" id="btn-q-download-all" onclick="downloadAllQueueEpisodes()">
-                                <i class="fa-solid fa-cloud-arrow-down" style="font-size:1.15rem;"></i>
-                                <span id="dl-q-download-all-text">ទាញយកគ្រប់ភាគទាំងអស់ (Download All EP 1 - 80)</span>
+                                <i class="fa-solid fa-bolt-lightning" style="font-size:1.15rem; color:#facc15;"></i>
+                                <span id="dl-q-download-all-text">⚡ ទាញយកល្បឿនលឿន & រឿងពេញ ១០០% (Download All EP 1 - 80)</span>
                             </button>
-                            <button type="button" class="dl-q2-secondary-btn" id="btn-q-download-current" onclick="downloadCurrentQueueEpisode()" style="font-size:0.76rem; justify-content:center; padding:7px 0;">
-                                <i class="fa-solid fa-download"></i>
-                                <span id="dl-q-download-btn-text">Download Only Current EP</span>
-                            </button>
+                            <div style="display:flex; gap:8px;">
+                                <button type="button" class="dl-q2-secondary-btn" id="btn-q-download-current" onclick="downloadCurrentQueueEpisode()" style="flex:1; font-size:0.76rem; justify-content:center; padding:7px 0;">
+                                    <i class="fa-solid fa-download"></i>
+                                    <span id="dl-q-download-btn-text">Download Current EP</span>
+                                </button>
+                                <button type="button" class="dl-q2-secondary-btn" id="btn-q-merge-full" onclick="mergeCurrentDramaFullMovie()" style="flex:1; font-size:0.76rem; justify-content:center; padding:7px 0; color:#38bdf8; border-color:rgba(56,189,248,0.4);" title="ផ្គុំគ្រប់ភាគទាំងអស់ចេញជាវីដេអូរឿងពេញ ១០៨០p តែមួយ (Merge Full Movie)">
+                                    <i class="fa-solid fa-film"></i>
+                                    <span>🎬 ផ្គុំរឿងពេញ (Full Movie)</span>
+                                </button>
+                            </div>
 
                             <!-- Dedicated Folder Destination & Explorer Manager -->
                             <div class="dl-folder-manager-box">

@@ -2188,8 +2188,8 @@ async function downloadAllQueueEpisodes() {
 
     const path = dlUserSaveLocation || document.getElementById('dl-save-path-input')?.value.trim() || 'D:/SN_Dramas';
     const computedDir = getComputedDramaFolder().replace(/\//g, '\\');
-    showToast(`កំពុងទាញយកគ្រប់ភាគទាំងអស់ (${total} ភាគ) ទៅកាន់ ${computedDir}...`);
-    appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Starting FULL SERIES download: EP 1 to EP ${total} for '${title}' into '${computedDir}'...`);
+    showToast(`⚡ កំពុងទាញយកល្បឿនលឿនគ្រប់ភាគ (${total} ភាគ) & រឿងពេញ ១០០% ទៅកាន់ ${computedDir}...`);
+    appendDownloaderLog(`[${new Date().toLocaleTimeString()}] ⚡ Starting TURBO FULL SERIES download: EP 1 to EP ${total} for '${title}' into '${computedDir}' (4x Concurrency + Auto Full Movie Merge)...`);
 
     const posterElem = document.getElementById('dl-save-poster-check');
     const savePoster = posterElem ? posterElem.checked : true;
@@ -2199,12 +2199,12 @@ async function downloadAllQueueEpisodes() {
     const originalText = btnAll ? btnAll.innerHTML : '';
     if (btnAll) {
         btnAll.disabled = true;
-        btnAll.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>កំពុងទាញយកគ្រប់ភាគ (EP 1 - ${total})...</span>`;
+        btnAll.innerHTML = `<i class="fa-solid fa-bolt-lightning fa-spin" style="color:#facc15;"></i> <span>⚡ កំពុងទាញយកល្បឿនលឿន (EP 1 - ${total})...</span>`;
     }
 
     const catBtnAll = document.getElementById('btn-dl-catalog-all');
     if (catBtnAll) {
-        catBtnAll.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>កំពុងទាញយក (${total} ភាគ)...</span>`;
+        catBtnAll.innerHTML = `<i class="fa-solid fa-bolt-lightning fa-spin" style="color:#facc15;"></i> <span>⚡ កំពុងទាញយក (${total} ភាគ)...</span>`;
     }
 
     try {
@@ -2214,7 +2214,8 @@ async function downloadAllQueueEpisodes() {
             body: JSON.stringify({
                 episode_ids: ["all"],
                 save_location: path,
-                save_poster: savePoster
+                save_poster: savePoster,
+                auto_merge_full: true
             })
         });
         const data = await res.json();
@@ -2261,19 +2262,24 @@ async function downloadAllQueueEpisodes() {
                         dlPollTimer = null;
                         if (btnAll) {
                             btnAll.disabled = false;
-                            btnAll.innerHTML = `<i class="fa-solid fa-circle-check" style="color:#4ade80;"></i> <span>ទាញយកបានគ្រប់ភាគ ${total}/${total} ដោយជោគជ័យ</span>`;
+                            btnAll.innerHTML = `<i class="fa-solid fa-circle-check" style="color:#4ade80;"></i> <span>ទាញយកបានគ្រប់ភាគ ${total}/${total} & រឿងពេញ ១០០%</span>`;
                             setTimeout(() => {
-                                btnAll.innerHTML = originalText || `<i class="fa-solid fa-cloud-arrow-down"></i> <span id="dl-q-download-all-text">ទាញយកគ្រប់ភាគទាំងអស់ (Download All EP 1 - ${total})</span>`;
-                            }, 5000);
+                                btnAll.innerHTML = originalText || `<i class="fa-solid fa-bolt-lightning" style="color:#facc15;"></i> <span id="dl-q-download-all-text">⚡ ទាញយកល្បឿនលឿន & រឿងពេញ ១០០% (Download All EP 1 - ${total})</span>`;
+                            }, 6000);
                         }
                         if (catBtnAll) {
-                            catBtnAll.innerHTML = `<i class="fa-solid fa-circle-check" style="color:#4ade80;"></i> <span>ទាញយកបានគ្រប់ ${total} ភាគជោគជ័យ</span>`;
+                            catBtnAll.innerHTML = `<i class="fa-solid fa-circle-check" style="color:#4ade80;"></i> <span>ទាញយកគ្រប់ ${total} ភាគ & រឿងពេញជោគជ័យ</span>`;
                             setTimeout(() => {
-                                catBtnAll.innerHTML = `<i class="fa-solid fa-cloud-arrow-down"></i> <span id="dl-catalog-dl-all-text">ទាញយកគ្រប់ភាគទាំងអស់ (Download Full Series)</span>`;
-                            }, 5000);
+                                catBtnAll.innerHTML = `<i class="fa-solid fa-bolt-lightning" style="color:#facc15;"></i> <span id="dl-catalog-dl-all-text">⚡ ទាញយកល្បឿនលឿន & រឿងពេញ ១០០% (Turbo Full Series)</span>`;
+                            }, 6000);
                         }
-                        showToast(`🎉 បានទាញយកចប់សព្វគ្រប់ ១០០%! កំពុងបើក Folder រឿងក្នុងកុំព្យូទ័រ...`);
-                        appendDownloaderLog(`[${new Date().toLocaleTimeString()}] All ${total} episodes completed 100%. Opening folder in Explorer...`);
+
+                        let movieMsg = "";
+                        if (sData.stats && sData.stats.full_movie_name) {
+                            movieMsg = ` 🎬 រឿងពេញ: ${sData.stats.full_movie_name}`;
+                        }
+                        showToast(`🎉 បានទាញយកគ្រប់ភាគ ${total}/${total} ចប់សព្វគ្រប់ ១០០%!${movieMsg}`);
+                        appendDownloaderLog(`[${new Date().toLocaleTimeString()}] All ${total} episodes completed 100%!${movieMsg} Opening folder...`);
 
                         // Auto-open download folder in Windows File Explorer
                         setTimeout(() => {
@@ -2292,6 +2298,45 @@ async function downloadAllQueueEpisodes() {
         if (btnAll) {
             btnAll.disabled = false;
             btnAll.innerHTML = originalText;
+        }
+    }
+}
+
+async function mergeCurrentDramaFullMovie() {
+    if (!dlCurrentDrama) {
+        showToast("សូមជ្រើសរើសរឿងភាគជាមុនសិន");
+        return;
+    }
+    const computedDir = getComputedDramaFolder();
+    showToast("🎬 កំពុងផ្គុំគ្រប់ភាគទាំងអស់ជារឿងពេញ Full Movie (1080p)...");
+    appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Assembling Full Drama Movie from episodes in '${computedDir}'...`);
+
+    const mergeBtn = document.getElementById('btn-q-merge-full');
+    if (mergeBtn) {
+        mergeBtn.disabled = true;
+        mergeBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>កំពុងផ្គុំ...</span>`;
+    }
+
+    try {
+        const res = await fetch('/api/downloader/merge-full', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ folder: computedDir })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`🎉 ផ្គុំជារឿងពេញជោគជ័យ: ${data.full_movie_name} (${data.size_mb} MB)`);
+            appendDownloaderLog(`[${new Date().toLocaleTimeString()}] ✔ Full Movie generated: ${data.full_movie_name} (${data.size_mb} MB, 1080p)`);
+            openCurrentDramaFolder(computedDir);
+        } else {
+            showToast(data.error || "បរាជ័យក្នុងការផ្គុំរឿង");
+        }
+    } catch (e) {
+        showToast("បញ្ហាក្នុងការភ្ជាប់ទៅ Server");
+    } finally {
+        if (mergeBtn) {
+            mergeBtn.disabled = false;
+            mergeBtn.innerHTML = `<i class="fa-solid fa-film"></i> <span>🎬 ផ្គុំរឿងពេញ (Full Movie)</span>`;
         }
     }
 }

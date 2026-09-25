@@ -44,7 +44,8 @@ from downloader import (
     DRAMA_CATALOG,
     get_drama_episodes,
     drama_downloader,
-    find_authentic_episode_video
+    find_authentic_episode_video,
+    merge_downloaded_drama_episodes
 )
 import hongguo_db
 from recap_engine import RecapEngine, VIRAL_KHMER_HOOKS
@@ -1065,13 +1066,23 @@ def downloader_send_to_studio_endpoint():
 
 @app.route("/api/downloader/download-episodes", methods=["POST"])
 def downloader_download_episodes_endpoint():
-    """Start batch download for selected episodes."""
+    """Start batch download for selected episodes with turbo concurrency and auto full drama merge."""
     data = request.get_json(force=True) or {}
     episode_ids = data.get("episode_ids", [])
     save_location = data.get("save_location") or ("D:/SN_Dramas" if os.path.exists("D:/") else "C:/SN_Dramas")
     save_poster = data.get("save_poster", True)
+    auto_merge_full = data.get("auto_merge_full", True)
     
-    res = drama_downloader.start_download_batch(episode_ids, save_location, save_poster)
+    res = drama_downloader.start_download_batch(episode_ids, save_location, save_poster, auto_merge_full=auto_merge_full)
+    return jsonify(res)
+
+
+@app.route("/api/downloader/merge-full", methods=["POST"])
+def downloader_merge_full_endpoint():
+    """Manually merge downloaded drama episodes into 1 Full Drama Video."""
+    data = request.get_json(silent=True) or {}
+    folder = data.get("folder") or drama_downloader.last_download_dir
+    res = merge_downloaded_drama_episodes(folder)
     return jsonify(res)
 
 
