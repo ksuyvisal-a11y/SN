@@ -31,9 +31,8 @@ DRAMA_CATALOG: List[Dict[str, Any]] = []
 
 # Dynamic platform registry matching user preferences
 SUPPORTED_PLATFORMS: List[Dict[str, Any]] = [
-    {"id": "all", "name": "All platforms", "icon": "fa-solid fa-globe", "count": 51907},
+    {"id": "all", "name": "All platforms", "icon": "fa-solid fa-globe", "count": 50751},
     {"id": "hongguo", "name": "Hongguo", "logo": "hongguo_logo.png", "icon": "fa-solid fa-play", "count": 49509},
-    {"id": "reelshort", "name": "Reelshort", "logo": "reelshort_logo.png", "icon": "fa-solid fa-film", "count": 1156},
     {"id": "ai_drama", "name": "AI Dramas", "icon": "fa-solid fa-robot", "count": 1160},
 ]
 
@@ -145,41 +144,6 @@ def get_drama_episodes(drama: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "download_url": s_url,
                 "source": it.get("source", "VOD Cluster") if it else "Online",
                 "is_online_stream": bool(s_url),
-                "is_selected": True
-            })
-        return episodes
-
-    # Tier 2.5: Special handler for ReelShort dramas (Authentic story series, zero ads)
-    is_reelshort = drama.get("platform_id") == "reelshort" or str(drama_id).startswith("rs_")
-    if is_reelshort:
-        clean_title = re.sub(r'[《》]', '', raw_title).strip()
-        total_eps = int(drama.get("total_episodes") or 60)
-        if total_eps <= 0:
-            total_eps = 60
-
-        # Query short drama cluster for genuine episode streams (avoid youtube ads/trailers)
-        cluster_eps = resolve_short_drama_stream_cluster(clean_title)
-        cluster_map = {e.get("episode_num"): e.get("stream_url") for e in cluster_eps if e.get("stream_url")}
-
-        episodes = []
-        for i in range(1, total_eps + 1):
-            ep_url = cluster_map.get(i) or ""
-            episodes.append({
-                "id": f"{drama_id}_ep_{i:03d}",
-                "drama_id": drama_id,
-                "episode_number": i,
-                "episode_num": i,
-                "title": f"Episode {i:02d} - {clean_title}",
-                "duration": "02:00",
-                "duration_sec": 120,
-                "resolution": "1080p Full HD",
-                "file_size": "32.0 MB",
-                "status": "Ready",
-                "progress": 0,
-                "stream_url": ep_url,
-                "download_url": ep_url,
-                "source": "ReelShort Story Stream" if ep_url else "ReelShort Official",
-                "is_online_stream": bool(ep_url),
                 "is_selected": True
             })
         return episodes
