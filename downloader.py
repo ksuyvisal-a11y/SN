@@ -77,28 +77,77 @@ def get_drama_episodes(drama: Dict[str, Any]) -> List[Dict[str, Any]]:
     raw_title = drama.get("title_cn") or drama.get("title", "")
     drama_id = drama.get("id", "hg_00001")
 
+    total_expected = int(drama.get("total_episodes") or 0)
+
     # Tier 1: Check authentic multi-VOD live stream cluster (Jinying, Baofen, FFm3u8, Modu, Ikun, KuaiChe)
     stream_eps = resolve_short_drama_stream_cluster(raw_title)
     if stream_eps:
+        found_map = {it["episode_num"]: it for it in stream_eps}
+        max_ep_num = max(max(found_map.keys()), total_expected) if total_expected > 0 else max(found_map.keys())
         episodes = []
-        for it in stream_eps:
-            ep_num = it["episode_num"]
+        for ep_num in range(1, max_ep_num + 1):
+            it = found_map.get(ep_num)
+            s_url = it["stream_url"] if it else ""
+            ep_t = it.get("title", f"ភាគ {ep_num:02d}") if it else f"Episode {ep_num:02d}"
             episodes.append({
                 "id": f"{drama_id}_ep_{ep_num:03d}",
                 "drama_id": drama_id,
                 "episode_number": ep_num,
                 "episode_num": ep_num,
-                "title": f"Episode {ep_num:02d} ({it.get('title', 'ភាគ ' + str(ep_num))})",
+                "title": f"Episode {ep_num:02d} ({ep_t})",
                 "duration": "02:15",
                 "duration_sec": 135,
                 "resolution": "1080p Full HD",
                 "file_size": "38.5 MB",
                 "status": "Ready",
                 "progress": 0,
-                "stream_url": it["stream_url"],
-                "download_url": it["stream_url"],
-                "source": it.get("source", "VOD Cluster"),
-                "is_online_stream": True,
+                "stream_url": s_url,
+                "download_url": s_url,
+                "source": it.get("source", "VOD Cluster") if it else "Online",
+                "is_online_stream": bool(s_url),
+                "is_selected": True
+            })
+        return episodes
+
+    # Tier 2.5: Special handler for ReelShort dramas
+    is_reelshort = drama.get("platform_id") == "reelshort" or str(drama_id).startswith("rs_")
+    if is_reelshort:
+        clean_title = re.sub(r'[《》]', '', raw_title).strip()
+        total_eps = int(drama.get("total_episodes") or 60)
+        if total_eps <= 0:
+            total_eps = 60
+        
+        # Check if ReelShort movie or full episode is found online
+        yt_stream_url = ""
+        try:
+            ydl_opts = {'quiet': True, 'extract_flat': True}
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(f"ytsearch1:{clean_title} ReelShort full movie", download=False)
+                entries = info.get('entries', [])
+                if entries and entries[0].get('url'):
+                    yt_stream_url = entries[0].get('url')
+        except Exception:
+            pass
+
+        episodes = []
+        for i in range(1, total_eps + 1):
+            ep_url = yt_stream_url if (i == 1 and yt_stream_url) else ""
+            episodes.append({
+                "id": f"{drama_id}_ep_{i:03d}",
+                "drama_id": drama_id,
+                "episode_number": i,
+                "episode_num": i,
+                "title": f"Episode {i:02d} - {clean_title}",
+                "duration": "02:00",
+                "duration_sec": 120,
+                "resolution": "1080p Full HD",
+                "file_size": "32.0 MB",
+                "status": "Ready",
+                "progress": 0,
+                "stream_url": ep_url,
+                "download_url": ep_url,
+                "source": "ReelShort Official",
+                "is_online_stream": bool(ep_url),
                 "is_selected": True
             })
         return episodes

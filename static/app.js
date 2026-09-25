@@ -1371,8 +1371,8 @@ function filterByPlatform(platId, platName, totalCount, platLogo) {
 
     const countLabel = document.getElementById('dl-catalog-count-label');
     if (countLabel) {
-        const countDisplay = totalCount ? totalCount.toLocaleString() : (platId === 'hongguo' ? '49,509' : '30');
-        const headerTitle = platId === 'hongguo' ? 'Top 100 on 红果 right now' : `Top Dramas on ${escapeHtml(platName)}`;
+        const countDisplay = totalCount ? totalCount.toLocaleString() : (platId === 'hongguo' ? '49,509' : (platId === 'reelshort' ? '1,249' : '50,840'));
+        const headerTitle = platId === 'hongguo' ? 'Top 100 on 红果 right now' : (platId === 'reelshort' ? 'Top 100 on ReelShort right now' : `Top Dramas on ${escapeHtml(platName)}`);
         countLabel.innerHTML = `<span class="dl-clapper-emoji">🎬</span> ${headerTitle} (${countDisplay})`;
     }
 
