@@ -746,7 +746,50 @@
                             </div>
                         </div>
 
-                        <!-- Episode Queue Table matching Image 2 -->
+                        <!-- Episode Grid Hub (Image 2) -->
+                        <div class="dl-episodes-hub-card dl-hub-in-center">
+                            <!-- Header Matching Image 2: Episodes (100 total) + Complete Episode List + Auto-Next -->
+                            <div class="dl-hub-header">
+                                <div class="dl-hub-title-block">
+                                    <h2 class="dl-hub-main-title" id="dl-hub-episodes-title">Episodes (80 total)</h2>
+                                    <span class="dl-hub-subtitle">Complete Episode List</span>
+                                </div>
+
+                                <!-- Auto-Next Toggle Switch matching Image 2 -->
+                                <div class="dl-hub-autonext-wrap">
+                                    <span class="dl-hub-autonext-label">Auto-Next</span>
+                                    <label class="dl-toggle-switch">
+                                        <input type="checkbox" id="dl-auto-next-toggle" checked onchange="toggleAutoNext(this.checked)">
+                                        <span class="dl-toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Filter Tabs / Range Bar matching Image 2 -->
+                            <div class="dl-hub-filter-bar" id="dl-hub-filter-pills-bar">
+                                <button type="button" class="dl-hub-pill active" id="dl-filter-pill-all" onclick="filterEpisodeRange('all')">
+                                    All (<span id="dl-hub-pill-total">80</span>)
+                                </button>
+                            </div>
+
+                            <!-- Episode Card Grid matching Image 2 -->
+                            <div class="dl-hub-grid" id="dl-episodes-grid-box">
+                                <!-- Populated dynamically via JS matching Image 2 -->
+                            </div>
+                        </div>
+
+                        <!-- Hidden Legacy Compatibility Elements -->
+                        <div style="display:none;">
+                            <select id="dl-q-select-dropdown"></select>
+                            <span id="dl-qstat-status-text"></span>
+                            <span id="dl-qstat-speed-text"></span>
+                            <button id="btn-q-send-all-to-studio"></button>
+                            <button id="btn-q-send-to-studio" onclick="sendCurrentQueueToStudio()"></button>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT COLUMN: Episode Download Queue Panel (Image 1) -->
+                    <div class="dl-queue-panel-card">
                         <div class="dl-q2-queue-wrapper">
                             <div class="dl-q2-queue-header">
                                 <div class="dl-q2-queue-title">
@@ -762,50 +805,9 @@
                                     <div class="dl-q2-th-prog">PROGRESS</div>
                                 </div>
                                 <div class="dl-q2-tbody" id="dl-queue-tbody">
-                                    <!-- Populated dynamically via JS matching Image 2 -->
+                                    <!-- Populated dynamically via JS matching Image 1 -->
                                 </div>
                             </div>
-                        </div>
-
-                        <!-- Hidden Legacy Compatibility Elements -->
-                        <div style="display:none;">
-                            <select id="dl-q-select-dropdown"></select>
-                            <span id="dl-qstat-status-text"></span>
-                            <span id="dl-qstat-speed-text"></span>
-                            <button id="btn-q-send-all-to-studio"></button>
-                            <button id="btn-q-send-to-studio" onclick="sendCurrentQueueToStudio()"></button>
-                        </div>
-                    </div>
-
-                    <!-- RIGHT COLUMN: Episode Grid Hub (EXACT MATCH TO IMAGE 2) -->
-                    <div class="dl-episodes-hub-card">
-                        <!-- Header Matching Image 2: Episodes (100 total) + Complete Episode List + Auto-Next -->
-                        <div class="dl-hub-header">
-                            <div class="dl-hub-title-block">
-                                <h2 class="dl-hub-main-title" id="dl-hub-episodes-title">Episodes (80 total)</h2>
-                                <span class="dl-hub-subtitle">Complete Episode List</span>
-                            </div>
-
-                            <!-- Auto-Next Toggle Switch matching Image 2 -->
-                            <div class="dl-hub-autonext-wrap">
-                                <span class="dl-hub-autonext-label">Auto-Next</span>
-                                <label class="dl-toggle-switch">
-                                    <input type="checkbox" id="dl-auto-next-toggle" checked onchange="toggleAutoNext(this.checked)">
-                                    <span class="dl-toggle-slider"></span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- Filter Tabs / Range Bar matching Image 2 -->
-                        <div class="dl-hub-filter-bar" id="dl-hub-filter-pills-bar">
-                            <button type="button" class="dl-hub-pill active" id="dl-filter-pill-all" onclick="filterEpisodeRange('all')">
-                                All (<span id="dl-hub-pill-total">80</span>)
-                            </button>
-                        </div>
-
-                        <!-- 4-Column Episode Card Grid matching Image 2 -->
-                        <div class="dl-hub-grid" id="dl-episodes-grid-box">
-                            <!-- Populated dynamically via JS matching Image 2 -->
                         </div>
                     </div>
                 </div>

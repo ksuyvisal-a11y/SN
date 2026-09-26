@@ -4352,8 +4352,8 @@ button, input, select, textarea {
    ========================================================================== */
 .dl-theater-main-grid {
     display: grid;
-    grid-template-columns: minmax(350px, 400px) minmax(380px, 1fr) 330px;
-    gap: 16px;
+    grid-template-columns: minmax(320px, 360px) minmax(360px, 1fr) minmax(380px, 440px);
+    gap: 14px;
     flex: 1;
     min-height: 0;
     overflow: hidden;
@@ -4583,13 +4583,13 @@ button, input, select, textarea {
     background: linear-gradient(180deg, #0d121f 0%, #070b13 100%);
     border: 1px solid rgba(245, 158, 11, 0.28);
     border-radius: 12px;
-    padding: 16px 18px;
+    padding: 14px 16px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
     height: 100%;
     min-height: 0;
-    overflow-y: auto;
+    overflow: hidden;
     box-sizing: border-box;
     box-shadow: 0 10px 32px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
@@ -4967,9 +4967,9 @@ button, input, select, textarea {
 
 .dl-q2-thead {
     display: grid;
-    grid-template-columns: 1fr 135px 125px;
+    grid-template-columns: 1fr 100px 95px;
     align-items: center;
-    padding: 8px 12px;
+    padding: 8px 10px;
     font-size: 0.68rem;
     font-weight: 800;
     color: #64748b;
@@ -5020,9 +5020,9 @@ button, input, select, textarea {
 /* Individual Episode Queue Row */
 .dl-q2-tr {
     display: grid;
-    grid-template-columns: 1fr 135px 125px;
+    grid-template-columns: 1fr 100px 95px;
     align-items: center;
-    padding: 7px 10px;
+    padding: 7px 8px;
     border-radius: 7px;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -5166,13 +5166,9 @@ button, input, select, textarea {
 
 
 /* ==========================================================================
-   COLUMN 3: 4-COLUMN EPISODE HUB (EXACT MATCH TO IMAGE 2)
+   CENTER COLUMN: 4-COLUMN EPISODE HUB (EXACT MATCH TO IMAGE 2)
    ========================================================================== */
 .dl-episodes-hub-card {
-    width: 330px;
-    max-width: 340px;
-    min-width: 290px;
-    flex-shrink: 0;
     background: #0b101b;
     border: 1px solid rgba(245, 158, 11, 0.22);
     border-radius: 12px;
@@ -5185,6 +5181,68 @@ button, input, select, textarea {
     overflow: hidden;
     box-sizing: border-box;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+}
+
+.dl-episodes-hub-card.dl-hub-in-center {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    flex-shrink: 1 !important;
+    background: #080c14;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    box-sizing: border-box;
+    box-shadow: none;
+}
+
+.dl-hub-in-center .dl-hub-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(66px, 1fr));
+    gap: 6px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1;
+    min-height: 0;
+    padding: 2px 2px 6px 2px;
+    box-sizing: border-box;
+}
+
+/* ==========================================================================
+   COLUMN 3 (RIGHT): EPISODE DOWNLOAD QUEUE PANEL (EXACT MATCH TO IMAGE 1)
+   ========================================================================== */
+.dl-queue-panel-card {
+    background: #0b101b;
+    border: 1px solid rgba(245, 158, 11, 0.22);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    box-sizing: border-box;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    flex: 1;
+    min-width: 0;
+}
+
+.dl-queue-panel-card .dl-q2-queue-wrapper {
+    background: transparent;
+    border: none;
+    padding: 0;
+    height: 100%;
+    flex: 1;
+    min-height: 0;
+    gap: 8px;
+    box-shadow: none;
 }
 
 /* Header matching Image 2 */
