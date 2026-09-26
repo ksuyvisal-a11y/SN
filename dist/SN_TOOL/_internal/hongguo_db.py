@@ -188,41 +188,7 @@ def ensure_db_initialized():
             cur.executemany("INSERT OR IGNORE INTO hongguo_dramas VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", records)
             conn.commit()
 
-        # 3. Ensure ReelShort catalog is loaded from cache if table has 0 reelshort items
-        try:
-            cur.execute("SELECT count(*) FROM hongguo_dramas WHERE LOWER(platform_id) = 'reelshort'")
-            rs_count = cur.fetchone()[0]
-            if rs_count == 0:
-                rs_cache = Path("data/reelshort_catalog.json")
-                if rs_cache.exists():
-                    with open(rs_cache, "r", encoding="utf-8") as f:
-                        rs_items = json.load(f)
-                    rs_records = []
-                    for rank, b in enumerate(rs_items, 1):
-                        bid = b.get('book_id')
-                        title = (b.get('book_title') or b.get('title') or "ReelShort Drama").strip()
-                        cover = b.get('book_pic') or b.get('pic') or "posters/poster_sample_ceo.jpg"
-                        eps = int(b.get('chapter_count') or 60)
-                        if eps <= 0: eps = 60
-                        desc = b.get('special_desc') or b.get('chapter_desc') or f"ReelShort series {title} with {eps} episodes."
-                        theme_list = b.get('theme_list', [])
-                        tag_names = [t.get('tag_name') for t in theme_list if t.get('tag_name')]
-                        if "ReelShort" not in tag_names: tag_names.insert(0, "ReelShort")
-                        tags_json = json.dumps(tag_names, ensure_ascii=False)
-                        score = f"{9.9 - (rank % 8) * 0.1:.1f}"
-                        heat = f"{max(3500, 9500 - rank * 5)}万"
-                        drama_id = f"rs_{bid}"
-                        title_kh = f"រឿងភាគ {title}"
-                        full_title = f"《{title}》"
-                        rs_records.append((
-                            drama_id, full_title, title, title_kh, "Reelshort", "reelshort",
-                            eps, "Romance", "sweet_romance", score, "2025", cover, desc, tags_json, heat, "completed", rank
-                        ))
-                    cur.executemany("INSERT OR REPLACE INTO hongguo_dramas VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", rs_records)
-                    conn.commit()
-                    print(f"[HongguoDB] Successfully seeded {len(rs_records)} ReelShort dramas into catalog!")
-        except Exception as ex:
-            print(f"[HongguoDB] ReelShort auto-seed notice: {ex}")
+
 
     conn.close()
     _DB_INITIALIZED = True
