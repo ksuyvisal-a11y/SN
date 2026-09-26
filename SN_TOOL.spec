@@ -19,7 +19,8 @@ a = Analysis(
     binaries=[],
     datas=[
         (str(ROOT_DIR / 'static'), 'static'),
-        (str(ROOT_DIR / 'data' / 'story_config.json'), 'data'),
+        (str(ROOT_DIR / 'scripts'), 'scripts'),
+        (str(ROOT_DIR / 'data'), 'data'),
         (ffmpeg_binaries_dir, 'imageio_ffmpeg/binaries'),
         (faster_whisper_assets, 'faster_whisper/assets'),
         (faster_whisper_dir, 'faster_whisper'),
@@ -31,7 +32,8 @@ a = Analysis(
         'video_processor', 'downloader', 'tts_engine', 'translator',
         'pipeline', 'recap_engine', 'batch_engine', 'audio_processor',
         'vocal_remover', 'server', 'stt_engine', 'faster_whisper',
-        'huggingface_hub', 'tokenizers', 'onnxruntime', 'ctranslate2'
+        'huggingface_hub', 'tokenizers', 'onnxruntime', 'ctranslate2',
+        'hongguo_service', 'hongguo_db'
     ],
     hookspath=[],
     hooksconfig={},
