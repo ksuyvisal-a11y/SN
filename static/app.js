@@ -1774,6 +1774,37 @@ function clearDlUrlInput() {
     if (inp2) inp2.value = '';
 }
 
+let dlAutoNextEnabled = true;
+let dlEpisodeCurrentFilter = 'all';
+
+function toggleAutoNext(enabled) {
+    dlAutoNextEnabled = !!enabled;
+    const toggleInput = document.getElementById('dl-auto-next-toggle');
+    if (toggleInput) toggleInput.checked = dlAutoNextEnabled;
+}
+
+function filterEpisodeRange(range) {
+    dlEpisodeCurrentFilter = range;
+    document.querySelectorAll('.dl-hub-pill').forEach(btn => btn.classList.remove('active'));
+    const activeBtn = document.getElementById(`dl-filter-pill-${range}`);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    const cards = document.querySelectorAll('.dl-ep-card-btn');
+    cards.forEach(card => {
+        const epNum = parseInt(card.getAttribute('data-ep'));
+        if (range === 'all') {
+            card.style.display = 'flex';
+        } else {
+            const parts = range.split('-').map(n => parseInt(n));
+            if (parts.length === 2 && epNum >= parts[0] && epNum <= parts[1]) {
+                card.style.display = 'flex';
+            } else {
+                card.style.display = 'none';
+            }
+        }
+    });
+}
+
 function renderQueueViewForCurrentDrama() {
     if (!dlCurrentDrama) return;
 
@@ -1792,57 +1823,149 @@ function renderQueueViewForCurrentDrama() {
         platBadge.textContent = (dlCurrentDrama.platform || 'HONGGUO').toUpperCase();
     }
 
+    const dramaTitle = (dlCurrentDrama?.title_cn || dlCurrentDrama?.title || '').replace(/[《》]/g, '').split(' - ')[0].trim();
+    const dramaNameElem = document.getElementById('dl-q-now-title');
+    if (dramaNameElem) {
+        dramaNameElem.textContent = `《${dramaTitle}》`;
+    }
+    const centerTitleElem = document.getElementById('dl-center-drama-title');
+    if (centerTitleElem) {
+        centerTitleElem.textContent = `《${dramaTitle}》`;
+    }
+    const centerPosterElem = document.getElementById('dl-center-poster-img');
+    if (centerPosterElem) {
+        centerPosterElem.src = dlCurrentDrama.poster || 'posters/poster_sample_ceo.jpg';
+    }
+    const centerPlatElem = document.getElementById('dl-center-platform-badge');
+    if (centerPlatElem) {
+        centerPlatElem.textContent = `${(dlCurrentDrama.platform || 'HONGGUO').toUpperCase()} AI PIPELINE`;
+    }
+
     // Update Episodes Count
     const totalCount = dlEpisodesList.length || dlCurrentDrama.total_episodes || 80;
+    const centerEpCount = document.getElementById('dl-center-ep-count');
+    if (centerEpCount) {
+        centerEpCount.textContent = `${totalCount} Episodes`;
+    }
     const epsCountBold = document.getElementById('dl-q-eps-count-bold');
     if (epsCountBold) {
         epsCountBold.textContent = totalCount;
     }
     const qDlBtnText = document.getElementById('dl-q-download-all-text');
     if (qDlBtnText) {
-        qDlBtnText.textContent = `ទាញយកគ្រប់ភាគទាំងអស់ (Download All EP 1 - ${totalCount})`;
+        qDlBtnText.textContent = `⚡ ទាញយកគ្រប់ភាគទាំងអស់ (Download All EP 1 - ${totalCount})`;
     }
 
-    // Render Table Rows
+    // Update Image 2 Episode Hub Header
+    const hubTitle = document.getElementById('dl-hub-episodes-title');
+    if (hubTitle) {
+        hubTitle.textContent = `Episodes (${totalCount} total)`;
+    }
+    const hubPillTotal = document.getElementById('dl-hub-pill-total');
+    if (hubPillTotal) {
+        hubPillTotal.textContent = totalCount;
+    }
+
+    // Populate Filter Range Pills
+    const filterBar = document.getElementById('dl-hub-filter-pills-bar');
+    if (filterBar) {
+        filterBar.innerHTML = `
+            <button type="button" class="dl-hub-pill ${dlEpisodeCurrentFilter === 'all' ? 'active' : ''}" id="dl-filter-pill-all" onclick="filterEpisodeRange('all')">
+                All (${totalCount})
+            </button>
+        `;
+        if (totalCount > 40) {
+            const pageSize = 40;
+            const ranges = Math.ceil(totalCount / pageSize);
+            for (let r = 0; r < ranges; r++) {
+                const s = r * pageSize + 1;
+                const e = Math.min(totalCount, (r + 1) * pageSize);
+                const rKey = `${s}-${e}`;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `dl-hub-pill ${dlEpisodeCurrentFilter === rKey ? 'active' : ''}`;
+                btn.id = `dl-filter-pill-${rKey}`;
+                btn.textContent = `${s} - ${e}`;
+                btn.onclick = () => filterEpisodeRange(rKey);
+                filterBar.appendChild(btn);
+            }
+        }
+    }
+
+    // Render Image 2 4-Column Episode Card Grid
+    const gridBox = document.getElementById('dl-episodes-grid-box');
+    if (gridBox) {
+        gridBox.innerHTML = '';
+        dlEpisodesList.forEach((ep, idx) => {
+            const epNum = ep.episode_num || (idx + 1);
+            const isPlaying = (epNum === (dlQueueActiveEpisodeNum || 1));
+            const card = document.createElement('div');
+            card.className = `dl-ep-card-btn ${isPlaying ? 'active' : ''} ${ep.progress === 100 ? 'completed' : ''}`;
+            card.id = `dl-ep-card-${epNum}`;
+            card.setAttribute('data-ep', epNum);
+            card.onclick = () => playQueueEpisode(epNum);
+
+            card.innerHTML = `
+                <span class="dl-ep-active-dot"></span>
+                <span class="dl-ep-card-num">${epNum}</span>
+                <span class="dl-ep-card-tag">${ep.progress === 100 ? 'READY' : 'FREE'}</span>
+                <div class="dl-ep-card-prog-track">
+                    <div class="dl-ep-card-prog-fill" id="dl-card-fill-${epNum}" style="width: ${ep.progress || 0}%;"></div>
+                </div>
+            `;
+            gridBox.appendChild(card);
+        });
+    }
+
+    // Render Episode Queue Table (EXACT MATCH TO IMAGE 2)
     const tbody = document.getElementById('dl-queue-tbody');
     const dropdown = document.getElementById('dl-q-select-dropdown');
     if (tbody) tbody.innerHTML = '';
     if (dropdown) dropdown.innerHTML = '';
 
-    const dramaTitle = (dlCurrentDrama?.title_cn || dlCurrentDrama?.title || '').replace(/[《》]/g, '').split(' - ')[0].trim();
-
     dlEpisodesList.forEach((ep, idx) => {
         const epNum = ep.episode_num || (idx + 1);
-        const epTitle = ep.title || dramaTitle || `Episode ${epNum}`;
-        const displayEpTitle = `EP${String(epNum).padStart(2, '0')} - ${epTitle}`;
+        const dramaTitle = (dlCurrentDrama?.title_cn || dlCurrentDrama?.title || '').replace(/[《》]/g, '').split(' - ')[0].trim();
+        const rawEpTitle = ep.title || dramaTitle || `Episode ${epNum}`;
+        const displayEpTitle = rawEpTitle.startsWith('EP') ? rawEpTitle : `EP${String(epNum).padStart(2, '0')} - ${rawEpTitle}`;
         const isSelected = ep.is_selected !== false;
+        const isPlaying = (epNum === (dlQueueActiveEpisodeNum || 1));
+        const prog = ep.progress || (ep.status === 'Completed' ? 100 : 0);
 
-        // Table Row
+        let statusText = ep.status || (prog === 100 ? 'Completed' : 'Ready');
+        let statusClass = 'ready';
+        if (statusText === 'Completed' || prog === 100) {
+            statusText = 'Completed';
+            statusClass = 'completed';
+        } else if (statusText === 'Downloading') {
+            statusClass = 'downloading';
+        }
+
+        // Table Row matching Image 2
         if (tbody) {
             const row = document.createElement('div');
-            row.className = `dl-q2-tr ${epNum === dlQueueActiveEpisodeNum ? 'active' : ''}`;
+            row.className = `dl-q2-tr ${isPlaying ? 'active' : ''}`;
             row.id = `dl-q-row-${epNum}`;
             row.onclick = () => playQueueEpisode(epNum);
 
             row.innerHTML = `
                 <div class="dl-q2-col-ep">
                     <div class="dl-q2-capsule-toggle ${isSelected ? 'checked' : ''}" onclick="event.stopPropagation(); toggleQueueEpisodeSelect(${epNum})"></div>
-                    <div class="dl-q2-ep-title" title="${escapeHtml(displayEpTitle)}">
-                        <b>EP ${epNum}</b> &nbsp; ${escapeHtml(displayEpTitle)}
-                    </div>
+                    <span class="dl-q2-ep-badge-text">EP ${epNum}</span>
+                    <span class="dl-q2-ep-name-text" title="${escapeHtml(displayEpTitle)}">${escapeHtml(displayEpTitle)}</span>
                 </div>
-                <div class="dl-q2-status-pill">Ready</div>
+                <div class="dl-q2-status-pill ${statusClass}">${statusText}</div>
                 <div class="dl-q2-prog-group">
                     <div class="dl-q2-prog-track">
-                        <div class="dl-q2-prog-fill" id="dl-q-fill-${epNum}" style="width: ${ep.progress || 0}%;"></div>
+                        <div class="dl-q2-prog-fill" id="dl-q-fill-${epNum}" style="width: ${prog}%;"></div>
                     </div>
-                    <span class="dl-q2-prog-val" id="dl-q-text-${epNum}">${ep.progress || 0}%</span>
+                    <span class="dl-q2-prog-val" id="dl-q-text-${epNum}">${prog}%</span>
                 </div>
             `;
             tbody.appendChild(row);
         }
 
-        // Dropdown Option
+        // Dropdown option fallback
         if (dropdown) {
             const opt = document.createElement('option');
             opt.value = epNum;
@@ -1900,12 +2023,19 @@ function loadVideoWithHls(video, url, posterUrl) {
 async function playQueueEpisode(epNum) {
     dlQueueActiveEpisodeNum = epNum;
 
-    // Highlight row in table
+    // Highlight active card in Image 2 4-Column Grid
+    document.querySelectorAll('.dl-ep-card-btn').forEach(c => c.classList.remove('active'));
+    const activeCard = document.getElementById(`dl-ep-card-${epNum}`);
+    if (activeCard) {
+        activeCard.classList.add('active');
+        activeCard.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
+    // Fallback highlight row in table
     document.querySelectorAll('.dl-q2-tr').forEach(r => r.classList.remove('active'));
     const activeRow = document.getElementById(`dl-q-row-${epNum}`);
     if (activeRow) {
         activeRow.classList.add('active');
-        activeRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
 
     const totalEps = dlEpisodesList.length || 80;
@@ -2053,7 +2183,11 @@ function onQueueVideoTimeUpdate() {
 }
 
 function onQueueVideoEnded() {
-    queueNextEpisode();
+    if (dlAutoNextEnabled) {
+        queueNextEpisode();
+    } else {
+        queueStopVideo();
+    }
 }
 
 function handleQueueScrubber(val) {
@@ -2242,20 +2376,25 @@ async function downloadAllQueueEpisodes() {
                         sData.episodes.forEach(ep => {
                             const epNum = ep.episode_num || ep.episode_number;
                             const fill = document.getElementById(`dl-q-fill-${epNum}`);
+                            const cardFill = document.getElementById(`dl-card-fill-${epNum}`);
                             const text = document.getElementById(`dl-q-text-${epNum}`);
                             const row = document.getElementById(`dl-q-row-${epNum}`);
-                            if (fill) fill.style.width = `${ep.progress || 0}%`;
-                            if (text) text.textContent = `${ep.progress || 0}%`;
+                            const prog = ep.progress || 0;
+                            if (fill) fill.style.width = `${prog}%`;
+                            if (cardFill) cardFill.style.width = `${prog}%`;
+                            if (text) text.textContent = `${prog}%`;
                             if (row) {
                                 const pill = row.querySelector('.dl-q2-status-pill');
                                 if (pill) {
-                                    pill.textContent = ep.status || 'Ready';
-                                    if (ep.status === 'Completed') {
-                                        pill.style.color = '#4ade80';
-                                        pill.style.borderColor = '#4ade80';
-                                    } else if (ep.status === 'Downloading') {
-                                        pill.style.color = '#facc15';
-                                        pill.style.borderColor = '#facc15';
+                                    const status = ep.status || (prog === 100 ? 'Completed' : (prog > 0 ? 'Downloading' : 'Ready'));
+                                    pill.textContent = status;
+                                    pill.className = `dl-q2-status-pill ${status.toLowerCase()}`;
+                                    if (status === 'Completed') {
+                                        pill.style.color = '#10b981';
+                                    } else if (status === 'Downloading') {
+                                        pill.style.color = '#f59e0b';
+                                    } else {
+                                        pill.style.color = '#38bdf8';
                                     }
                                 }
                             }
@@ -2381,14 +2520,33 @@ async function downloadCurrentQueueEpisode() {
         if (data.success) {
             showToast(`EP ${epNum} download started!`);
             const fill = document.getElementById(`dl-q-fill-${epNum}`);
+            const cardFill = document.getElementById(`dl-card-fill-${epNum}`);
             const text = document.getElementById(`dl-q-text-${epNum}`);
+            const row = document.getElementById(`dl-q-row-${epNum}`);
+            if (row) {
+                const pill = row.querySelector('.dl-q2-status-pill');
+                if (pill) {
+                    pill.textContent = 'Downloading';
+                    pill.className = 'dl-q2-status-pill downloading';
+                    pill.style.color = '#f59e0b';
+                }
+            }
             let prog = 0;
             const timer = setInterval(() => {
                 prog += 20;
                 if (fill) fill.style.width = `${prog}%`;
+                if (cardFill) cardFill.style.width = `${prog}%`;
                 if (text) text.textContent = `${prog}%`;
                 if (prog >= 100) {
                     clearInterval(timer);
+                    if (row) {
+                        const pill = row.querySelector('.dl-q2-status-pill');
+                        if (pill) {
+                            pill.textContent = 'Completed';
+                            pill.className = 'dl-q2-status-pill completed';
+                            pill.style.color = '#10b981';
+                        }
+                    }
                     showToast(`EP ${epNum} completed! Opening folder...`);
                     setTimeout(() => {
                         openCurrentDramaFolder();

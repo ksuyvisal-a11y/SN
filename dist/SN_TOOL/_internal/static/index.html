@@ -606,175 +606,206 @@
                  2. DEDICATED QUEUE & 9:16 EPISODE PLAYER WORKSPACE (Exact Match to Image 2, Cyber-Gold Theme)
                  ================================================================ -->
             <div class="dl-queue-view-container" id="dl-queue-player-view" style="display:none;">
-                <!-- LEFT SIDE: Top Analyzer Card + Episode Queue Card -->
-                <div class="dl-q2-left-stack">
-                    <!-- Top Analyzer Card -->
-                    <div class="dl-q2-card dl-q2-analyzer-card">
-                        <div class="dl-q2-card-header-row">
-                            <span class="dl-q2-card-heading">PASTE A DRAMA OR MEDIA LINK</span>
-                            <div class="dl-q2-tab-toggles">
-                                <button type="button" class="dl-q2-tab-pill" id="btn-qview-catalog" onclick="switchDlViewMode('catalog')">Catalog</button>
-                                <button type="button" class="dl-q2-tab-pill active" id="btn-qview-queue" onclick="switchDlViewMode('queue')">Queue</button>
-                            </div>
-                        </div>
-                        <div class="dl-q2-input-row">
-                            <div class="dl-q2-input-wrap">
-                                <input type="text" class="dl-q2-input-field" id="dl-qview-url-input" placeholder="Paste online link (Douyin, TikTok, YouTube, Hongguo...) or search..." onkeydown="handleDlLinkKey(event)">
-                                <button type="button" class="dl-q2-clear-icon" onclick="clearDlUrlInput()" title="Clear link">✕</button>
-                            </div>
-                            <button type="button" class="dl-q2-btn-analyze" onclick="analyzeEnteredLink()">
-                                <i class="fa-solid fa-magnifying-glass"></i>
-                                <span>Analyze</span>
-                            </button>
-                            <button type="button" class="dl-btn-import-folder" onclick="importLocalDramaFolder()" title="នាំចូល Folder រឿងភាគដែលបានទាញយក (Select Folder of Downloaded Short Drama Episodes)">
-                                <i class="fa-solid fa-folder-open"></i>
-                                <span>នាំចូល Folder</span>
-                            </button>
-                        </div>
+                <!-- 1. TOP HEADER BAR: Metadata + Link Analyze/Import + Mode & Close -->
+                <div class="dl-theater-topbar">
+                    <div class="dl-theater-meta-left">
+                        <span class="dl-q2-platform-badge" id="dl-q-platform-badge">HONGGUO</span>
+                        <div class="dl-theater-drama-name" id="dl-q-now-title">EP01 - រឿងភាគ</div>
+                        <span class="dl-theater-ep-pill" id="dl-q-now-ep-indicator">EPISODE 1 / 80</span>
                     </div>
 
-                    <!-- Episode Queue Card -->
-                    <div class="dl-q2-card dl-q2-table-card">
-                        <div class="dl-q2-queue-header">
-                            <span class="dl-q2-queue-title">Episode queue <b id="dl-q-eps-count-bold">0</b> episodes loaded</span>
-                            <button type="button" class="dl-q2-select-all-btn" id="btn-q-select-all" onclick="toggleSelectAllQueueEpisodes()">Select all</button>
+                    <div class="dl-theater-search-center">
+                        <div class="dl-q2-input-wrap">
+                            <input type="text" class="dl-q2-input-field" id="dl-qview-url-input" placeholder="Paste link (Douyin, TikTok, YouTube, Hongguo...) or search..." onkeydown="handleDlLinkKey(event)">
+                            <button type="button" class="dl-q2-clear-icon" onclick="clearDlUrlInput()" title="Clear link">✕</button>
                         </div>
-                        <div class="dl-q2-table-frame">
-                            <div class="dl-q2-thead">
-                                <div class="dl-q2-th-ep">EPISODE</div>
-                                <div class="dl-q2-th-status">ACCESS / STATUS</div>
-                                <div class="dl-q2-th-prog">PROGRESS</div>
-                            </div>
-                            <div class="dl-q2-tbody" id="dl-queue-tbody">
-                                <!-- Populated dynamically via JS -->
-                            </div>
+                        <button type="button" class="dl-q2-btn-analyze" onclick="analyzeEnteredLink()" title="Analyze link">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <span>Analyze</span>
+                        </button>
+                        <button type="button" class="dl-btn-import-folder" onclick="importLocalDramaFolder()" title="នាំចូល Folder រឿងភាគដែលបានទាញយក">
+                            <i class="fa-solid fa-folder-open"></i>
+                            <span>នាំចូល Folder</span>
+                        </button>
+                    </div>
+
+                    <div class="dl-theater-actions-right">
+                        <div class="dl-q2-tab-toggles">
+                            <button type="button" class="dl-q2-tab-pill" id="btn-qview-catalog" onclick="switchDlViewMode('catalog')">Catalog</button>
+                            <button type="button" class="dl-q2-tab-pill active" id="btn-qview-queue" onclick="switchDlViewMode('queue')">Player</button>
                         </div>
+                        <button type="button" class="dl-q2-close-btn" onclick="switchDlViewMode('catalog')" title="Close preview (Esc)">✕</button>
                     </div>
                 </div>
 
-                <!-- RIGHT SIDE: Dedicated 9:16 Video Player & Episode Controls Card -->
-                <div class="dl-q2-card dl-q2-player-card">
-                    <!-- 9:16 Video Stage Frame (Left sub-col) -->
-                    <div class="dl-q2-stage-frame">
-                        <div class="dl-q2-stage-inner" id="dl-q-monitor-screen" onclick="toggleQueuePlay()">
-                            <video id="dl-q-video-elem" playsinline preload="metadata" ontimeupdate="onQueueVideoTimeUpdate()" onended="onQueueVideoEnded()"></video>
-                            <div class="dl-q2-video-subtitles" id="dl-q-video-subtitles" style="display:none;"></div>
-                            <div class="dl-q2-center-play-glow" id="dl-q-center-play">
-                                <i class="fa-solid fa-play"></i>
+                <!-- 2. MAIN WORKSPACE: 3-Column Cinema Studio (Left: Video Stage | Center: Action Console | Right: Episode Hub) -->
+                <div class="dl-theater-main-grid">
+                    <!-- COLUMN 1: Large 9:16 Vertical Video Stage & Controls -->
+                    <div class="dl-theater-stage-card">
+                        <!-- 9:16 Vertical Video Screen -->
+                        <div class="dl-theater-screen-wrapper">
+                            <div class="dl-theater-screen" id="dl-q-monitor-screen" onclick="toggleQueuePlay()">
+                                <video id="dl-q-video-elem" playsinline preload="metadata" ontimeupdate="onQueueVideoTimeUpdate()" onended="onQueueVideoEnded()"></video>
+                                <div class="dl-q2-video-subtitles" id="dl-q-video-subtitles" style="display:none;"></div>
+                                <div class="dl-q2-center-play-glow" id="dl-q-center-play">
+                                    <i class="fa-solid fa-play"></i>
+                                </div>
                             </div>
+                        </div>
+
+                        <!-- Integrated Sleek Playback Controller -->
+                        <div class="dl-theater-controls-panel">
+                            <!-- Timecode & Scrubber -->
+                            <div class="dl-theater-scrubber-row">
+                                <span class="dl-theater-timecode" id="dl-q-timecode">00:00 / 00:00</span>
+                                <div class="dl-theater-slider-wrap">
+                                    <input type="range" class="dl-q2-range" id="dl-q-seek-slider" min="0" max="100" value="0" step="0.1" oninput="handleQueueScrubber(this.value)">
+                                </div>
+                            </div>
+
+                            <!-- Play / Nav / Action Buttons Row -->
+                            <div class="dl-theater-playback-btns">
+                                <button type="button" class="dl-ctrl-btn" onclick="queuePrevEpisode()" title="Previous Episode">
+                                    <i class="fa-solid fa-backward-step"></i> <span>Prev</span>
+                                </button>
+                                <button type="button" class="dl-ctrl-play-btn" id="dl-q-play-pause-btn" onclick="toggleQueuePlay()">
+                                    <i class="fa-solid fa-play" id="dl-q-play-icon"></i>
+                                    <span id="dl-q-play-text">Play</span>
+                                </button>
+                                <button type="button" class="dl-ctrl-btn" onclick="queueNextEpisode()" title="Next Episode">
+                                    <span>Next</span> <i class="fa-solid fa-forward-step"></i>
+                                </button>
+                                <button type="button" class="dl-ctrl-btn" onclick="queueStopVideo()" title="Stop">
+                                    <i class="fa-solid fa-stop"></i>
+                                </button>
+                                <button type="button" class="dl-ctrl-btn" id="dl-q-mute-btn" onclick="queueToggleMute()" title="Mute/Unmute">
+                                    <i class="fa-solid fa-volume-high" id="dl-q-mute-icon"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Keyboard Shortcuts Hint -->
+                        <div class="dl-theater-shortcuts">
+                            <span><kbd>Space</kbd> Play/Pause</span>
+                            <span><kbd>Esc</kbd> Close</span>
+                            <span><kbd>←</kbd> / <kbd>→</kbd> Prev/Next</span>
                         </div>
                     </div>
 
-                    <!-- Controls Sidebar (Right sub-col) -->
-                    <div class="dl-q2-controls-col">
-                        <!-- Top: Platform Badge + Close X -->
-                        <div class="dl-q2-ctrl-header">
-                            <span class="dl-q2-platform-badge" id="dl-q-platform-badge">HONGGUO</span>
-                            <button type="button" class="dl-q2-close-btn" onclick="switchDlViewMode('catalog')" title="Close preview (Esc)">✕</button>
-                        </div>
-
-                        <!-- Now Playing Info -->
-                        <div class="dl-q2-now-section">
-                            <div class="dl-q2-ep-name" id="dl-q-now-title">EP01 - រឿងភាគ</div>
-                            <div class="dl-q2-now-label">NOW PLAYING</div>
-                            <div class="dl-q2-ep-badge" id="dl-q-now-ep-indicator">EPISODE 1 / 80</div>
-                            <div class="dl-q2-dropdown-wrap">
-                                <select class="dl-q2-select" id="dl-q-select-dropdown" onchange="jumpToQueueEpisode(parseInt(this.value))"></select>
+                    <!-- COLUMN 2: AI COMMAND CENTER & ACTIONS CONSOLE (High-Tech AI Studio) -->
+                    <div class="dl-theater-actions-card">
+                        <!-- AI Drama Header Banner with Poster & Chips -->
+                        <div class="dl-ai-drama-header">
+                            <div class="dl-ai-poster-box">
+                                <img id="dl-center-poster-img" src="posters/poster_sample_ceo.jpg" alt="Poster" class="dl-ai-poster-thumb">
+                                <span class="dl-ai-poster-badge"><i class="fa-solid fa-sparkles"></i> AI PRO</span>
                             </div>
-                        </div>
-
-                        <!-- Playback Section -->
-                        <div class="dl-q2-playback-section">
-                            <div class="dl-q2-section-label">PLAYBACK</div>
-                            <div class="dl-q2-timecode" id="dl-q-timecode">00:00 / 00:00</div>
-                            <div class="dl-q2-slider-wrap">
-                                <input type="range" class="dl-q2-range" id="dl-q-seek-slider" min="0" max="100" value="0" step="0.1" oninput="handleQueueScrubber(this.value)">
-                            </div>
-
-                            <!-- Big Play Button -->
-                            <button type="button" class="dl-q2-play-btn" id="dl-q-play-pause-btn" onclick="toggleQueuePlay()">
-                                <i class="fa-solid fa-play" id="dl-q-play-icon"></i>
-                                <span id="dl-q-play-text">Play</span>
-                            </button>
-
-                            <!-- Nav: Prev / Next -->
-                            <div class="dl-q2-btn-row">
-                                <button type="button" class="dl-q2-secondary-btn" onclick="queuePrevEpisode()">
-                                    <i class="fa-solid fa-arrow-left"></i> Prev
-                                </button>
-                                <button type="button" class="dl-q2-secondary-btn" onclick="queueNextEpisode()">
-                                    Next <i class="fa-solid fa-arrow-right"></i>
-                                </button>
-                            </div>
-
-                            <!-- Actions: Stop / Mute -->
-                            <div class="dl-q2-btn-row">
-                                <button type="button" class="dl-q2-secondary-btn" onclick="queueStopVideo()">
-                                    <i class="fa-solid fa-stop"></i> Stop
-                                </button>
-                                <button type="button" class="dl-q2-secondary-btn" id="dl-q-mute-btn" onclick="queueToggleMute()">
-                                    <i class="fa-solid fa-volume-high" id="dl-q-mute-icon"></i> Mute
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Download Full Series & Single Episode Buttons -->
-                        <div class="dl-q2-download-wrap" style="display:flex; flex-direction:column; gap:8px;">
-                            <button type="button" class="dl-q2-download-btn dl-btn-download-all" id="btn-q-download-all" onclick="downloadAllQueueEpisodes()">
-                                <i class="fa-solid fa-bolt-lightning" style="font-size:1.15rem; color:#facc15;"></i>
-                                <span id="dl-q-download-all-text">⚡ ទាញយកល្បឿនលឿន & រឿងពេញ ១០០% (Download All EP 1 - 80)</span>
-                            </button>
-                            <div style="display:flex; gap:8px;">
-                                <button type="button" class="dl-q2-secondary-btn" id="btn-q-download-current" onclick="downloadCurrentQueueEpisode()" style="flex:1; font-size:0.76rem; justify-content:center; padding:7px 0;">
-                                    <i class="fa-solid fa-download"></i>
-                                    <span id="dl-q-download-btn-text">Download Current EP</span>
-                                </button>
-                                <button type="button" class="dl-q2-secondary-btn" id="btn-q-merge-full" onclick="mergeCurrentDramaFullMovie()" style="flex:1; font-size:0.76rem; justify-content:center; padding:7px 0; color:#38bdf8; border-color:rgba(56,189,248,0.4);" title="ផ្គុំគ្រប់ភាគទាំងអស់ចេញជាវីដេអូរឿងពេញ ១០៨០p តែមួយ (Merge Full Movie)">
-                                    <i class="fa-solid fa-film"></i>
-                                    <span>🎬 ផ្គុំរឿងពេញ (Full Movie)</span>
-                                </button>
-                            </div>
-
-                            <!-- Dedicated Folder Destination & Explorer Manager -->
-                            <div class="dl-folder-manager-box">
-                                <div class="dl-fmb-header">
-                                    <div class="dl-fmb-title">
-                                        <i class="fa-solid fa-folder-tree"></i>
-                                        <span>ទីតាំងទុកក្នុងកុំព្យូទ័រ (Save Folder)</span>
-                                    </div>
-                                    <button type="button" class="dl-fmb-browse-btn" onclick="selectCustomDownloadFolder()" title="ជ្រើសរើស Folder ថ្មីនៅលើកុំព្យូទ័រ (Browse Folder)">
-                                        <i class="fa-solid fa-folder-open"></i>
-                                        <span>ប្តូរ Folder</span>
-                                    </button>
+                            <div class="dl-ai-meta-content">
+                                <div class="dl-dib-badge-row">
+                                    <span class="dl-dib-badge" id="dl-center-platform-badge">HONGGUO AI PIPELINE</span>
+                                    <span class="dl-dib-count" id="dl-center-ep-count">80 Episodes</span>
+                                    <span class="dl-ai-chip-pill"><i class="fa-solid fa-microchip"></i> AI Studio</span>
                                 </div>
-                                <div class="dl-fmb-path-bar" onclick="selectCustomDownloadFolder()" title="ចុចទីនេះដើម្បីជ្រើសរើសទីតាំង Folder លើកុំព្យូទ័រ">
-                                    <i class="fa-solid fa-hard-drive dl-fmb-drive-icon"></i>
-                                    <span class="dl-fmb-path-text" id="dl-q2-save-folder-path">D:\SN_Dramas\东北话事人\</span>
-                                    <span class="dl-fmb-edit-badge"><i class="fa-solid fa-pen"></i> រើស</span>
-                                </div>
-                                <button type="button" class="dl-fmb-open-btn" onclick="openCurrentDramaFolder()" title="បើកមើល Folder រឿងក្នុងកុំព្យូទ័រ (Open in File Explorer)">
-                                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                                    <span>បើកមើល Folder រឿងក្នុងកុំព្យូទ័រ</span>
+                                <h3 class="dl-dib-title" id="dl-center-drama-title">EP01 - រឿងភាគ</h3>
+                                <p class="dl-dib-desc">ទាញយកគ្រប់ភាគ 1080p, ផ្គុំជារឿងពេញ ឬបញ្ចូលសំឡេងខ្មែរ AI ស្វ័យប្រវត្តិ។</p>
+                            </div>
+                        </div>
+
+                        <!-- Primary Hero: Turbo Download All Episodes -->
+                        <button type="button" class="dl-hero-dl-btn" id="btn-q-download-all" onclick="downloadAllQueueEpisodes()">
+                            <i class="fa-solid fa-bolt-lightning"></i>
+                            <span id="dl-q-download-all-text">⚡ ទាញយកគ្រប់ភាគទាំងអស់ (Download All EP 1 - 80)</span>
+                        </button>
+
+                        <!-- Secondary Quick Action Grid (2 Balanced Utility Buttons) -->
+                        <div class="dl-theater-action-row dl-ai-action-grid">
+                            <button type="button" class="dl-action-pill" id="btn-q-download-current" onclick="downloadCurrentQueueEpisode()">
+                                <i class="fa-solid fa-download"></i>
+                                <span id="dl-q-download-btn-text">Download Current EP</span>
+                            </button>
+                            <button type="button" class="dl-action-pill dl-pill-merge" id="btn-q-merge-full" onclick="mergeCurrentDramaFullMovie()" title="ផ្គុំគ្រប់ភាគទាំងអស់ចេញជាវីដេអូរឿងពេញ ១០៨០p តែមួយ (Merge Full Movie)">
+                                <i class="fa-solid fa-film"></i>
+                                <span>🎬 ផ្គុំរឿងពេញ (Full Movie)</span>
+                            </button>
+                        </div>
+
+                        <!-- Streamlined Executive Save Folder Bar (Single Clean Row) -->
+                        <div class="dl-ai-folder-bar">
+                            <div class="dl-afb-icon"><i class="fa-solid fa-folder-tree"></i></div>
+                            <div class="dl-afb-info">
+                                <span class="dl-afb-label">ទីតាំង Folder កុំព្យូទ័រ:</span>
+                                <span class="dl-afb-path" id="dl-q2-save-folder-path" onclick="selectCustomDownloadFolder()" title="ចុចដើម្បីជ្រើសរើស Folder">D:\SN_Dramas\东北话事人\</span>
+                            </div>
+                            <div class="dl-afb-actions">
+                                <button type="button" class="dl-afb-btn" onclick="selectCustomDownloadFolder()" title="ជ្រើសរើស Folder ថ្មី">
+                                    <i class="fa-solid fa-pen-to-square"></i> <span>ប្តូរ</span>
+                                </button>
+                                <button type="button" class="dl-afb-btn dl-afb-open" onclick="openCurrentDramaFolder()" title="បើកមើលក្នុង File Explorer">
+                                    <i class="fa-solid fa-arrow-up-right-from-square"></i> <span>បើកមើល</span>
                                 </button>
                             </div>
                         </div>
 
-                        <!-- 1-Click Send to AI Studio Dubber -->
-                        <div class="dl-q2-dubber-wrap">
-                            <button type="button" class="dl-q2-dubber-btn" id="btn-q-send-to-studio" onclick="sendCurrentQueueToStudio()" title="បញ្ជូនភាគនេះទៅកាន់ Studio ដើម្បីបញ្ចូលសំឡេងខ្មែរ">
-                                <i class="fa-solid fa-microphone-lines"></i>
-                                <span>🎙️ បញ្ចូលសំឡេងខ្មែរ (Send to Studio)</span>
-                            </button>
-                            <button type="button" class="dl-q2-dubber-all-btn" id="btn-q-send-all-to-studio" onclick="sendAllQueueToStudio()" title="បញ្ជូនគ្រប់ភាគដែលបានជ្រើសរើសទៅកាន់ស្ទូឌីយោដើម្បីបញ្ចូលសំឡេងខ្មែរ">
-                                <i class="fa-solid fa-layer-group"></i>
-                                <span>Dub All Selected Episodes</span>
+                        <!-- Episode Queue Table matching Image 2 -->
+                        <div class="dl-q2-queue-wrapper">
+                            <div class="dl-q2-queue-header">
+                                <div class="dl-q2-queue-title">
+                                    <span>Episode queue</span>
+                                    <span class="dl-q2-qh-count"><b id="dl-q-eps-count-bold">0</b> episodes loaded</span>
+                                </div>
+                                <button type="button" class="dl-q2-select-all-btn" id="btn-q-select-all" onclick="toggleSelectAllQueueEpisodes()">Select all</button>
+                            </div>
+                            <div class="dl-q2-table-frame">
+                                <div class="dl-q2-thead">
+                                    <div class="dl-q2-th-ep">EPISODE</div>
+                                    <div class="dl-q2-th-status">ACCESS / STATUS</div>
+                                    <div class="dl-q2-th-prog">PROGRESS</div>
+                                </div>
+                                <div class="dl-q2-tbody" id="dl-queue-tbody">
+                                    <!-- Populated dynamically via JS matching Image 2 -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Hidden Legacy Compatibility Elements -->
+                        <div style="display:none;">
+                            <select id="dl-q-select-dropdown"></select>
+                            <span id="dl-qstat-status-text"></span>
+                            <span id="dl-qstat-speed-text"></span>
+                            <button id="btn-q-send-all-to-studio"></button>
+                            <button id="btn-q-send-to-studio" onclick="sendCurrentQueueToStudio()"></button>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT COLUMN: Episode Grid Hub (EXACT MATCH TO IMAGE 2) -->
+                    <div class="dl-episodes-hub-card">
+                        <!-- Header Matching Image 2: Episodes (100 total) + Complete Episode List + Auto-Next -->
+                        <div class="dl-hub-header">
+                            <div class="dl-hub-title-block">
+                                <h2 class="dl-hub-main-title" id="dl-hub-episodes-title">Episodes (80 total)</h2>
+                                <span class="dl-hub-subtitle">Complete Episode List</span>
+                            </div>
+
+                            <!-- Auto-Next Toggle Switch matching Image 2 -->
+                            <div class="dl-hub-autonext-wrap">
+                                <span class="dl-hub-autonext-label">Auto-Next</span>
+                                <label class="dl-toggle-switch">
+                                    <input type="checkbox" id="dl-auto-next-toggle" checked onchange="toggleAutoNext(this.checked)">
+                                    <span class="dl-toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Filter Tabs / Range Bar matching Image 2 -->
+                        <div class="dl-hub-filter-bar" id="dl-hub-filter-pills-bar">
+                            <button type="button" class="dl-hub-pill active" id="dl-filter-pill-all" onclick="filterEpisodeRange('all')">
+                                All (<span id="dl-hub-pill-total">80</span>)
                             </button>
                         </div>
 
-                        <!-- Keyboard Shortcuts -->
-                        <div class="dl-q2-shortcuts">
-                            <div class="dl-q2-shortcut-row"><span class="dl-q2-key">Space</span> Play/Pause</div>
-                            <div class="dl-q2-shortcut-row"><span class="dl-q2-key">Esc</span> Close preview</div>
+                        <!-- 4-Column Episode Card Grid matching Image 2 -->
+                        <div class="dl-hub-grid" id="dl-episodes-grid-box">
+                            <!-- Populated dynamically via JS matching Image 2 -->
                         </div>
                     </div>
                 </div>
