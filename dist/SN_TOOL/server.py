@@ -453,15 +453,32 @@ def batch_clear_endpoint():
 
 @app.route("/api/open-export-folder", methods=["POST"])
 def open_export_folder():
-    """Open output folder in Windows File Explorer."""
-    folder_p = EXPORTS_DIR.resolve()
+    """Open output folder or specific drama folder in Windows File Explorer."""
+    data = request.get_json(silent=True) or {}
+    folder_path = data.get("folder_path") or request.args.get("path")
+    drama_title = data.get("drama_title") or request.args.get("title")
+
+    target_dir = None
+    if folder_path and os.path.exists(folder_path):
+        target_dir = Path(folder_path).resolve()
+    elif drama_title:
+        safe = re.sub(r'[\\/*?:"<>|《》【】「」『』\(\)\[\]]', '_', str(drama_title)).strip('_ ')
+        for root in ("D:/SN_Dramas", "C:/SN_Dramas", "data/exports"):
+            cand = Path(root) / safe
+            if cand.exists():
+                target_dir = cand.resolve()
+                break
+
+    if not target_dir:
+        target_dir = EXPORTS_DIR.resolve()
+
     if sys.platform == "win32":
         try:
-            os.startfile(str(folder_p))
-            return jsonify({"success": True})
+            os.startfile(str(target_dir))
+            return jsonify({"success": True, "opened_path": str(target_dir)})
         except Exception as e:
             return jsonify({"error": str(e)}), 500
-    return jsonify({"success": True})
+    return jsonify({"success": True, "opened_path": str(target_dir)})
 
 
 AI_CONFIG_FILE = Path("data/ai_provider_config.json")
@@ -647,6 +664,51 @@ def drama_dictionary_endpoint():
         except Exception:
             pass
     return jsonify({"success": True, "dictionary": {}})
+
+
+@app.route("/api/series/bible", methods=["GET", "POST"])
+def series_bible_endpoint():
+    """Retrieve or customize Drama Series Bible for 100% full series consistency."""
+    from series_memory import series_memory
+    if request.method == "POST":
+        data = request.get_json(force=True) or {}
+        drama_title = data.get("title") or "Drama_Series"
+        bible = series_memory.get_or_create_series_bible(drama_title)
+        # Update user modifications
+        for k in ("male_lead", "female_lead", "villain_or_rival", "glossary"):
+            if k in data:
+                bible[k] = data[k]
+        bible_p = series_memory.get_bible_path(drama_title)
+        with open(bible_p, "w", encoding="utf-8") as f:
+            json.dump(bible, f, ensure_ascii=False, indent=2)
+        return jsonify({"success": True, "bible": bible})
+
+    # GET
+    title = request.args.get("title", "Drama_Series")
+    bible = series_memory.get_or_create_series_bible(title)
+    return jsonify({"success": True, "bible": bible})
+
+
+@app.route("/api/series/merge", methods=["POST"])
+def series_merge_endpoint():
+    """Manually merge a list of dubbed episode videos into a single Full Movie (1-2 hours)."""
+    data = request.get_json(force=True) or {}
+    video_paths = data.get("video_paths", [])
+    series_name = data.get("series_name", "Full_Drama")
+    if not video_paths:
+        return jsonify({"success": False, "error": "No video paths provided."}), 400
+
+    from video_processor import merge_videos
+    out_file = EXPORTS_DIR / f"Full_Movie_{series_name}.mp4"
+    try:
+        merge_videos(video_paths, str(out_file))
+        return jsonify({
+            "success": True,
+            "output_video": str(out_file.resolve()).replace("\\", "/"),
+            "filename": out_file.name
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route("/api/story-config", methods=["GET", "POST"])

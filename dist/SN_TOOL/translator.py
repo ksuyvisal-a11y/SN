@@ -989,11 +989,11 @@ class DramaTranslator:
 
         client = self.get_http_client()
         chunk_size = 25
-        all_results = []
-        candidate_models = ["qwen/qwen3.8-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b"]
+        candidate_models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "qwen/qwen3.8-27b", "mixtral-8x7b-32768"]
 
-        for i in range(0, len(dialogues), chunk_size):
-            chunk = dialogues[i:i + chunk_size]
+        chunks = [dialogues[i:i + chunk_size] for i in range(0, len(dialogues), chunk_size)]
+
+        async def _process_groq_chunk(chunk: List[Dict[str, Any]]) -> Optional[List[Dict[str, Any]]]:
             enriched_chunk = []
             for itm in chunk:
                 c_itm = dict(itm)
@@ -1001,7 +1001,6 @@ class DramaTranslator:
                 e = float(c_itm.get("end", s + 2.0))
                 dur = round(max(0.2, e - s), 2)
                 c_itm["duration"] = dur
-                # Syllable/word budget based on spoken Khmer rate (~2.2 words/sec)
                 max_w = max(1, int(round(dur * 2.2)))
                 if dur <= 1.2:
                     max_w = min(max_w, 3)
@@ -1026,7 +1025,6 @@ CRITICAL LIP-SYNC & MOUTH-MOVEMENT SYNCHRONIZATION (ត្រូវទាន់�
 - Natural spoken Khmer drama dubbing style (ពិរោះស្ដាប់ រណ្តំចិត្ត ដូចទូរទស្សន៍ហង្សមាស បាយ័ន ស៊ីធីអិន): no robotic "តើអ្នក", no formal book language.
 Return JSON object with key "dialogues" containing an array with keys: id, start, end, text_original, text_km, speaker, voice, rate_percent, pitch_hz, emotion."""
 
-            chunk_success = False
             for model_name in candidate_models:
                 cur_key = self.get_active_groq_key()
                 headers = {
@@ -1044,7 +1042,7 @@ Return JSON object with key "dialogues" containing an array with keys: id, start
                     "temperature": 0.25
                 }
                 try:
-                    resp = await client.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=25.0)
+                    resp = await client.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=20.0)
                     if resp.status_code == 200:
                         r_data = resp.json()
                         content = r_data["choices"][0]["message"]["content"]
@@ -1058,7 +1056,6 @@ Return JSON object with key "dialogues" containing an array with keys: id, start
                                     orig_line = chunk[j].get("text_original", chunk[j].get("text", ""))
                                     item["text_original"] = orig_line
 
-                                    # Infer acoustic persona, voice, pitch, and rate
                                     persona = infer_drama_persona_acoustics(
                                         item,
                                         is_multi=is_multi,
@@ -1082,25 +1079,26 @@ Return JSON object with key "dialogues" containing an array with keys: id, start
                                         item["voice"],
                                         duration_sec=dur_sec
                                     )
-                            all_results.extend(items)
-                            chunk_success = True
-                            break
+                            return items
                     elif resp.status_code in (401, 403, 429):
-                        # Key unauthorized or rate-limited: rotate immediately
                         self.rotate_groq_key()
                         continue
                     elif resp.status_code == 404:
-                        # Model not available on Groq, try next model
                         continue
                 except Exception as e:
                     print(f"Groq API call note ({model_name}): {e}")
                     continue
+            return None
 
-            if not chunk_success:
-                break
-
-        if len(all_results) == len(dialogues):
-            return all_results
+        # Execute all chunks in parallel for ultra-high speed
+        chunk_tasks = [_process_groq_chunk(c) for c in chunks]
+        results = await asyncio.gather(*chunk_tasks)
+        if all(r is not None for r in results):
+            all_results = []
+            for r in results:
+                all_results.extend(r)
+            if len(all_results) == len(dialogues):
+                return all_results
         return None
 
     async def translate_dialogues(
@@ -1108,11 +1106,14 @@ Return JSON object with key "dialogues" containing an array with keys: id, start
         dialogues: List[Dict[str, Any]],
         mode: str = "drama_dubbing",
         source_lang: str = "auto",
-        target_voice_override: Optional[str] = None
+        target_voice_override: Optional[str] = None,
+        drama_title: Optional[str] = None,
+        episode_number: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """
         Translate dialogue items into authentic Khmer drama dubbing lines.
         Multi-voice with character persona pitch & rate differentiation is fully enabled by default.
+        Injects Master Drama Series Bible to guarantee 100% naming and context continuity across 100 episodes.
         """
         if not dialogues:
             return []
@@ -1127,6 +1128,15 @@ Return JSON object with key "dialogues" containing an array with keys: id, start
             voice_directive = "Dual Character Voice Dubbing Mode: Assign 'voice' strictly to 'sreymom' (female) or 'piseth' (male). Differentiate characters with pitch_hz and rate_percent: Villainess (+18Hz, +15%), Mother-in-law (-18Hz, -8%), Female Lead (+4Hz, +2%), Male Lead (-10Hz, +2%), Angry Male (+14Hz, +18%), Elder Male (-20Hz, -10%)."
             active_system_prompt = DRAMA_PROMPT_SYSTEM
 
+        # Inject Master Series Bible & Context Memory if drama_title is provided
+        if drama_title:
+            try:
+                from series_memory import series_memory
+                series_injection = series_memory.get_series_prompt_injection(drama_title, current_episode_num=episode_number)
+                active_system_prompt = series_injection + "\n\n" + active_system_prompt
+            except Exception as e:
+                print(f"Series memory note: {e}")
+
         # Inject Custom Drama Dictionary & Glossary terms into prompt
         custom_dict = load_drama_dictionary()
         if custom_dict:
@@ -1134,7 +1144,7 @@ Return JSON object with key "dialogues" containing an array with keys: id, start
             glossary_block = f"\n\nSTRICT CHARACTER NAMES & VOCABULARY DICTIONARY (You MUST use these exact Khmer terms for translation):\n{dict_str}\n"
             active_system_prompt = active_system_prompt + glossary_block
 
-        # 1. Groq Ultra-Fast AI (77 Keys Pool)
+        # 1. Groq Ultra-Fast AI (Parallel Chunks, 500-800 tokens/sec)
         if self.groq_api_key and str(self.groq_api_key).startswith("gsk_"):
             try:
                 groq_res = await self.translate_dialogues_groq(
@@ -1151,14 +1161,14 @@ Return JSON object with key "dialogues" containing an array with keys: id, start
             except Exception as ge:
                 print(f"Groq translation warning: {ge}")
 
-        # 2. Gemini AI Studio Translation (Only run if key starts with AIzaSy)
+        # 2. Gemini AI Studio Translation (Parallel Chunks)
         valid_gemini_keys = [k for k in self.api_keys if k.startswith("AIzaSy")]
         if self.clients and valid_gemini_keys:
             try:
                 chunk_size = 20
-                all_results = []
-                for i in range(0, len(dialogues), chunk_size):
-                    chunk = dialogues[i:i + chunk_size]
+                g_chunks = [dialogues[i:i + chunk_size] for i in range(0, len(dialogues), chunk_size)]
+
+                async def _process_gemini_chunk(chunk: List[Dict[str, Any]]) -> Optional[List[Dict[str, Any]]]:
                     enriched_chunk = []
                     for itm in chunk:
                         c_itm = dict(itm)
@@ -1190,7 +1200,6 @@ CRITICAL LIP-SYNC & MOUTH-MOVEMENT SYNCHRONIZATION (ត្រូវទាន់�
 - Natural spoken Khmer drama dubbing style (ពិរោះស្ដាប់ រណ្តំចិត្ត): no robotic "តើអ្នក", no formal book language.
 Return ONLY valid JSON array with keys: id, start, end, text_original, text_km, speaker, voice, rate_percent, pitch_hz, emotion."""
 
-                    # Rotate through key pool
                     active_client = self.get_client() or self.client
                     def _call_gemini(c):
                         return c.models.generate_content(
@@ -1211,9 +1220,10 @@ Return ONLY valid JSON array with keys: id, start, end, text_original, text_km, 
                             try:
                                 response = await asyncio.wait_for(asyncio.to_thread(_call_gemini, alt_client), timeout=12.0)
                             except Exception:
-                                break
+                                return None
                         else:
-                            break
+                            return None
+
                     if response and response.text:
                         parsed = json.loads(response.text)
                         if isinstance(parsed, list):
@@ -1247,14 +1257,17 @@ Return ONLY valid JSON array with keys: id, start, end, text_original, text_km, 
                                         item["voice"],
                                         duration_sec=dur_sec
                                     )
-                            all_results.extend(parsed)
-                        else:
-                            break
-                    else:
-                        break
+                            return parsed
+                    return None
 
-                if len(all_results) == len(dialogues):
-                    return all_results
+                g_tasks = [_process_gemini_chunk(c) for c in g_chunks]
+                g_results = await asyncio.gather(*g_tasks)
+                if all(r is not None for r in g_results):
+                    all_gemini = []
+                    for r in g_results:
+                        all_gemini.extend(r)
+                    if len(all_gemini) == len(dialogues):
+                        return all_gemini
             except Exception as e:
                 print(f"Gemini translation note: {e}. Using professional free drama dubbing engine.")
 

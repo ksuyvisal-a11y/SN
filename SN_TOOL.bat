@@ -20,20 +20,24 @@ where python >nul 2>nul
 if %ERRORLEVEL% EQU 0 (
     if exist "desktop_app.py" (
         python desktop_app.py
+        if %ERRORLEVEL% NEQ 0 pause
         goto :END
     )
     python run_studio.py
+    if %ERRORLEVEL% NEQ 0 pause
     goto :END
 )
 
 py -3.14 --version >nul 2>nul
 if %ERRORLEVEL% EQU 0 (
     py -3.14 desktop_app.py
+    if %ERRORLEVEL% NEQ 0 pause
     goto :END
 )
 
 if exist "%LOCALAPPDATA%\Python\pythoncore-3.14-64\python.exe" (
     "%LOCALAPPDATA%\Python\pythoncore-3.14-64\python.exe" desktop_app.py
+    if %ERRORLEVEL% NEQ 0 pause
     goto :END
 )
 
@@ -41,3 +45,4 @@ echo [ERROR] Python not found! Please install Python 3.10-3.14.
 pause
 
 :END
+

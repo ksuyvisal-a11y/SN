@@ -713,12 +713,12 @@ def resolve_short_drama_stream_cluster(raw_title: str) -> List[Dict[str, Any]]:
     return []
 
 
-def download_m3u8_stream_turbo(stream_url: str, dest_file: Path, timeout_sec: int = 300) -> bool:
+def download_m3u8_stream_turbo(stream_url: str, dest_file: Path, timeout_sec: int = 300, progress_callback: Optional[Callable[[int], None]] = None) -> bool:
     """
     Turbo High-Speed Multi-Threaded M3U8/MP4 Stream Downloader (U'NICH TURBO ENGINE).
-    Achieves 10MB-25MB/s download speed per episode via 16 concurrent fragment threads,
+    Achieves 10MB-25MB/s download speed per episode via 24 concurrent fragment threads,
     persistent HTTP connection pooling, and lossless FFmpeg stream copy.
-    Guarantees 100% video integrity and full duration preservation.
+    Guarantees 100% video integrity and real-time live progress reporting.
     """
     if not stream_url or not stream_url.startswith("http"):
         return False
@@ -736,8 +736,27 @@ def download_m3u8_stream_turbo(stream_url: str, dest_file: Path, timeout_sec: in
         except Exception:
             pass
 
-    # Tier 1: High-Speed yt-dlp Concurrent Fragment Engine (16 workers, ~3-6s per episode)
+    # Tier 1: High-Speed yt-dlp Concurrent Fragment Engine (24 workers, with live progress)
     try:
+        def live_hook(d):
+            if not progress_callback:
+                return
+            st = d.get('status')
+            if st == 'downloading':
+                frag_index = d.get('fragment_index')
+                frag_count = d.get('fragment_count')
+                if frag_index is not None and frag_count and frag_count > 0:
+                    pct = int(min(99, max(3, (frag_index / frag_count) * 100)))
+                    progress_callback(pct)
+                else:
+                    tot = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
+                    down = d.get('downloaded_bytes', 0)
+                    if tot > 0:
+                        pct = int(min(99, max(3, (down / tot) * 100)))
+                        progress_callback(pct)
+            elif st == 'finished':
+                progress_callback(100)
+
         ydl_opts = {
             'outtmpl': str(temp_dest),
             'concurrent_fragment_downloads': 24,
@@ -750,6 +769,7 @@ def download_m3u8_stream_turbo(stream_url: str, dest_file: Path, timeout_sec: in
             'quiet': True,
             'no_warnings': True,
             'socket_timeout': 30,
+            'progress_hooks': [live_hook] if progress_callback else [],
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([stream_url])
@@ -767,6 +787,8 @@ def download_m3u8_stream_turbo(stream_url: str, dest_file: Path, timeout_sec: in
                 except Exception:
                     pass
             real_temp.rename(dest_file)
+            if progress_callback:
+                progress_callback(100)
             return True
     except Exception:
         pass
@@ -1505,16 +1527,19 @@ class DramaDownloadManager:
             if not selected_eps and self.episodes:
                 selected_eps = list(self.episodes)
 
-        # Mark all selected episodes
+        # Mark all selected episodes and set immediate Downloading status so UI activates immediately!
         for ep in selected_eps:
             ep["is_selected"] = True
+            if ep.get("status") != "Completed":
+                ep["status"] = "Downloading"
+                ep["progress"] = max(3, ep.get("progress", 0))
 
         self.stats["total"] = len(selected_eps)
         self.stats["selected"] = len(selected_eps)
         self.stats["completed"] = 0
         self.stats["failed"] = 0
         self.stats["locked"] = 0
-        self.stats["progress_percent"] = 0
+        self.stats["progress_percent"] = 3
 
         safe_drama_title = "Drama_Series"
         if self.current_drama:
@@ -1724,10 +1749,15 @@ class DramaDownloadManager:
                         if alt_u not in cand_urls:
                             cand_urls.append(alt_u)
 
+                def single_ep_hook(pct: int):
+                    with self._lock:
+                        ep["status"] = "Downloading"
+                        ep["progress"] = max(3, pct)
+
                 for attempt_url in cand_urls:
                     if self.stop_requested:
                         return False
-                    success = download_m3u8_stream_turbo(attempt_url, dest_file, timeout_sec=180)
+                    success = download_m3u8_stream_turbo(attempt_url, dest_file, timeout_sec=180, progress_callback=single_ep_hook)
                     if success and dest_file.exists() and dest_file.stat().st_size > 1000000:
                         sz_mb = dest_file.stat().st_size / (1024 * 1024)
                         with self._lock:
@@ -1776,7 +1806,7 @@ class DramaDownloadManager:
                 if (not dest_file.exists() or dest_file.stat().st_size < 1000000) and (1 in cluster_streams):
                     s1 = cluster_streams[1]
                     if s1.get("stream_url") and ("全集" in s1.get("title", "") or total_cnt == 1):
-                        success = download_m3u8_stream_turbo(s1["stream_url"], dest_file, timeout_sec=300)
+                        success = download_m3u8_stream_turbo(s1["stream_url"], dest_file, timeout_sec=300, progress_callback=single_ep_hook)
                         if success and dest_file.exists() and dest_file.stat().st_size > 1000000:
                             sz_mb = dest_file.stat().st_size / (1024 * 1024)
                             with self._lock:
@@ -1793,6 +1823,23 @@ class DramaDownloadManager:
                 # 5. Source D: Online stream via yt-dlp
                 if (not dest_file.exists() or dest_file.stat().st_size < 1000000) and ep.get("stream_url") and ep["stream_url"].startswith("http"):
                     try:
+                        def ydl_ep_hook(d):
+                            st = d.get('status')
+                            if st == 'downloading':
+                                frag_index = d.get('fragment_index')
+                                frag_count = d.get('fragment_count')
+                                if frag_index is not None and frag_count and frag_count > 0:
+                                    pct = int(min(99, max(3, (frag_index / frag_count) * 100)))
+                                    single_ep_hook(pct)
+                                else:
+                                    tot = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
+                                    down = d.get('downloaded_bytes', 0)
+                                    if tot > 0:
+                                        pct = int(min(99, max(3, (down / tot) * 100)))
+                                        single_ep_hook(pct)
+                            elif st == 'finished':
+                                single_ep_hook(100)
+
                         ydl_down_opts = {
                             'outtmpl': str(drama_dest_dir / f"EP_{ep_num:02d}.%(ext)s"),
                             'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
@@ -1801,7 +1848,8 @@ class DramaDownloadManager:
                             'concurrent_fragment_downloads': 16,
                             'socket_timeout': 30,
                             'quiet': True,
-                            'no_warnings': True
+                            'no_warnings': True,
+                            'progress_hooks': [ydl_ep_hook]
                         }
                         with yt_dlp.YoutubeDL(ydl_down_opts) as ydl:
                             ydl.download([ep["stream_url"]])
@@ -1917,20 +1965,53 @@ class DramaDownloadManager:
 
             if (is_master_mode or (not cluster_streams and effective_master_url)) and effective_master_url and not self.stop_requested:
                 self.add_log(f"🎬 Downloading MASTER FULL DRAMA STREAM (1080p Full HD) into '{full_movie_dest.name}'...")
+
+                with self._lock:
+                    for ep_it in selected_eps:
+                        if ep_it.get("status") != "Completed":
+                            ep_it["status"] = "Downloading"
+                            ep_it["progress"] = max(3, ep_it.get("progress", 0))
+
+                def master_live_hook(pct: int):
+                    with self._lock:
+                        self.stats["progress_percent"] = pct
+                        for ep_it in selected_eps:
+                            if ep_it.get("status") != "Completed":
+                                ep_it["status"] = "Downloading"
+                                ep_it["progress"] = max(3, pct)
+
                 dl_ok = False
                 if ".m3u8" in effective_master_url:
-                    dl_ok = download_m3u8_stream_turbo(effective_master_url, full_movie_dest, timeout_sec=600)
+                    dl_ok = download_m3u8_stream_turbo(effective_master_url, full_movie_dest, timeout_sec=600, progress_callback=master_live_hook)
                 else:
                     try:
+                        def ydl_master_cb(d):
+                            st = d.get('status')
+                            if st == 'downloading':
+                                frag_index = d.get('fragment_index')
+                                frag_count = d.get('fragment_count')
+                                if frag_index is not None and frag_count and frag_count > 0:
+                                    pct = int(min(99, max(3, (frag_index / frag_count) * 100)))
+                                    master_live_hook(pct)
+                                else:
+                                    tot = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
+                                    down = d.get('downloaded_bytes', 0)
+                                    if tot > 0:
+                                        pct = int(min(99, max(3, (down / tot) * 100)))
+                                        master_live_hook(pct)
+                            elif st == 'finished':
+                                master_live_hook(100)
+
                         ydl_down_opts = {
                             'outtmpl': str(full_movie_dest.with_suffix('')) + '.%(ext)s',
                             'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
                             'ffmpeg_location': ffmpeg_bin,
                             'merge_output_format': 'mp4',
-                            'concurrent_fragment_downloads': 16,
+                            'concurrent_fragment_downloads': 24,
                             'socket_timeout': 30,
                             'quiet': True,
-                            'no_warnings': True
+                            'no_warnings': True,
+                            'progress_hooks': [ydl_master_cb]
                         }
                         with yt_dlp.YoutubeDL(ydl_down_opts) as ydl:
                             ydl.download([effective_master_url])

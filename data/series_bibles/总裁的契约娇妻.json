@@ -1,0 +1,39 @@
+{
+  "series_id": "总裁的契约娇妻",
+  "title": "《总裁的契约娇妻》",
+  "created_at": 1790591797.0735629,
+  "genre_tropes": [
+    "CEO / ប្រធានក្រុមហ៊ុនអភិជន",
+    "Contract Marriage / រៀបការតាមកិច្ចសន្យា"
+  ],
+  "male_lead": {
+    "name": "តួឯកប្រុស",
+    "voice": "piseth",
+    "persona": "Male Lead (ពិសិដ្ឋ)",
+    "pronoun_self": "ខ្ញុំ / បង",
+    "pronoun_call_female_lead": "អូន / នាង"
+  },
+  "female_lead": {
+    "name": "តួឯកស្រី",
+    "voice": "sreymom",
+    "persona": "Female Lead (ស្រីមុំ)",
+    "pronoun_self": "ខ្ញុំ / អូន",
+    "pronoun_call_male_lead": "បង / លោក"
+  },
+  "villain_or_rival": {
+    "name": "តួឈ្នានីស",
+    "voice": "piseth",
+    "persona": "Antagonist / ជនទីបី"
+  },
+  "glossary": {
+    "总裁": "លោកប្រធាន",
+    "董事长": "លោកប្រធានក្រុមប្រឹក្សា",
+    "少爷": "អ្នកប្រុសធំ",
+    "契约婚姻": "រៀបការក្លែងក្លាយតាមកិច្ចសន្យា",
+    "替嫁": "រៀបការជំនួស",
+    "入赘": "កូនប្រសារចូលស្តី"
+  },
+  "episode_summaries": {
+    "1": "លោកប្រធានលី បានមកដល់ជួយសង្គ្រោះនាងចាវចាវទាន់ពេលវេលា | កុំបារម្ភអី ដរាបណាមានបងនៅក្បែរ គ្មានអ្នកណាធ្វើបាបអូនបានទេ"
+  }
+}

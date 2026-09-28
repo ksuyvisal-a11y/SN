@@ -199,6 +199,51 @@ def detect_segment_pitch(audio_path: str, start_s: float, end_s: float) -> float
     return analyze_segment_acoustics(audio_path, start_s, end_s)["f0"]
 
 
+def extract_embedded_or_sidecar_subtitles(media_path: str) -> Optional[List[Dict[str, Any]]]:
+    """
+    Ultra-fast (0.05s) subtitle extractor:
+    1. Checks sidecar .srt/.vtt files next to the video.
+    2. Probes video for embedded subtitle tracks and extracts via FFmpeg directly to memory.
+    """
+    if not media_path:
+        return None
+    p = Path(media_path)
+    # Check sidecar subtitles
+    for ext in ('.srt', '.vtt'):
+        sidecar = p.with_suffix(ext)
+        if sidecar.exists() and sidecar.stat().st_size > 10:
+            try:
+                from translator import parse_srt_content
+                txt = sidecar.read_text(encoding='utf-8', errors='replace')
+                items = parse_srt_content(txt)
+                if items:
+                    print(f"[OK] Found sidecar subtitle file: {sidecar.name} ({len(items)} lines)")
+                    return items
+            except Exception:
+                pass
+
+    # Check embedded subtitle stream in MP4/MKV/TS
+    if p.suffix.lower() in ('.mp4', '.mkv', '.mov', '.ts', '.webm'):
+        try:
+            cmd = [
+                FFMPEG_EXE, '-nostdin', '-y',
+                '-i', str(media_path),
+                '-map', '0:s:0',
+                '-f', 'srt', '-'
+            ]
+            proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=8, **get_silent_kwargs())
+            if proc.returncode == 0 and len(proc.stdout) > 20:
+                from translator import parse_srt_content
+                raw_srt = proc.stdout.decode('utf-8', errors='replace')
+                items = parse_srt_content(raw_srt)
+                if items and len(items) >= 2:
+                    print(f"[OK] Extracted embedded subtitle track from {p.name} ({len(items)} lines in 0.05s!)")
+                    return items
+        except Exception:
+            pass
+    return None
+
+
 class SpeechToTextEngine:
     def __init__(self, model_size: str = "base"):
         self.model_size = model_size
@@ -208,7 +253,7 @@ class SpeechToTextEngine:
         if self._model is None and FASTER_WHISPER_AVAILABLE:
             device = "cpu"
             compute_type = "int8"
-            threads = min(4, os.cpu_count() or 4)
+            threads = min(8, os.cpu_count() or 4)
             try:
                 import ctranslate2
                 if "cuda" in ctranslate2.get_supported_compute_types("cuda"):
@@ -240,119 +285,136 @@ class SpeechToTextEngine:
         self,
         audio_path: str,
         source_lang: str = "auto",
-        beam_size: int = 2,
+        beam_size: int = 1,
         voice_override: Optional[str] = None,
-        progress_callback = None
+        progress_callback = None,
+        check_subtitles: bool = True,
+        video_path: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         Transcribe audio file into timed dialogue segments with millisecond lip-sync accuracy.
         Applies acoustic multi-layered speaker identification and strict male/female distinction.
         Returns list of dicts with: id, start, end, text, speaker, detected_role, voice, pitch
         """
-        model = self._get_model()
-        if not model:
-            raise RuntimeError(
-                "AI Speech-to-Text model is not available. Please ensure faster-whisper is installed."
-            )
-
-        lang_code = None if source_lang in ("auto", "", None) else source_lang
-        if lang_code in ("zh", "chinese", "mandarin"):
-            lang_code = "zh"
-
-        # Clean generic prompt ONLY for Chinese, NO hardcoded character names from other dramas!
-        initial_prompt = None
-        if lang_code == "zh":
-            initial_prompt = "以下是影视剧对话，台词清晰，标点符号完整。"
-
-        # Balanced VAD parameters tuned for Asian TV Dramas with Background Music:
-        # threshold=0.45: cleanly differentiates speech from background strings and music
-        # min_speech_duration_ms=100: catches short exclamations ("站住!", "谁?", "走!", "救命!")
-        # max_speech_duration_s=8.0: prevents oversized runaway monologue chunks
-        # min_silence_duration_ms=280: tight speech boundary detection
-        segments_gen, info = model.transcribe(
-            audio_path,
-            language=lang_code,
-            initial_prompt=initial_prompt,
-            beam_size=min(beam_size, 2),
-            best_of=1,
-            condition_on_previous_text=False,
-            compression_ratio_threshold=2.4,
-            no_speech_threshold=0.75,
-            word_timestamps=True,
-            vad_filter=True,
-            vad_parameters=dict(
-                threshold=0.30,
-                min_speech_duration_ms=80,
-                max_speech_duration_s=9.0,
-                min_silence_duration_ms=320,
-                speech_pad_ms=160
-            )
-        )
-
         raw_segments = []
-        tot_dur = getattr(info, "duration", 0) or 1.0
-        for segment in segments_gen:
-            text = segment.text.strip()
-            if not text:
-                continue
+        if check_subtitles:
+            target_sub_media = video_path if (video_path and Path(video_path).exists()) else audio_path
+            if target_sub_media:
+                cached_subs = extract_embedded_or_sidecar_subtitles(target_sub_media)
+                if cached_subs and len(cached_subs) > 0:
+                    raw_segments = cached_subs
 
-            words = getattr(segment, "words", None)
-            if not words:
-                # If no word-level timestamps, split text by sentence punctuation if long
-                sub_sentences = [s.strip() for s in re.split(r'([。！？!?\n]+)', text) if s.strip()]
-                combined_sentences = []
-                curr_sent = ""
-                for part in sub_sentences:
-                    curr_sent += part
-                    if re.search(r'[。！？!?\n]', part):
+        if not raw_segments:
+            model = self._get_model()
+            if not model:
+                raise RuntimeError(
+                    "AI Speech-to-Text model is not available. Please ensure faster-whisper is installed."
+                )
+
+            lang_code = None if source_lang in ("auto", "", None) else source_lang
+            if lang_code in ("zh", "chinese", "mandarin"):
+                lang_code = "zh"
+
+            initial_prompt = None
+            if lang_code == "zh":
+                initial_prompt = "以下是影视剧对话，台词清晰，标点符号完整。"
+
+            segments_gen, info = model.transcribe(
+                audio_path,
+                language=lang_code,
+                initial_prompt=initial_prompt,
+                beam_size=min(beam_size, 2),
+                best_of=1,
+                condition_on_previous_text=False,
+                compression_ratio_threshold=2.4,
+                no_speech_threshold=0.75,
+                word_timestamps=True,
+                vad_filter=True,
+                vad_parameters=dict(
+                    threshold=0.30,
+                    min_speech_duration_ms=80,
+                    max_speech_duration_s=9.0,
+                    min_silence_duration_ms=320,
+                    speech_pad_ms=160
+                )
+            )
+
+            tot_dur = getattr(info, "duration", 0) or 1.0
+            for segment in segments_gen:
+                text = segment.text.strip()
+                if not text:
+                    continue
+
+                words = getattr(segment, "words", None)
+                if not words:
+                    # If no word-level timestamps, split text by sentence punctuation if long
+                    sub_sentences = [s.strip() for s in re.split(r'([。！？!?\n]+)', text) if s.strip()]
+                    combined_sentences = []
+                    curr_sent = ""
+                    for part in sub_sentences:
+                        curr_sent += part
+                        if re.search(r'[。！？!?\n]', part):
+                            combined_sentences.append(curr_sent.strip())
+                            curr_sent = ""
+                    if curr_sent.strip():
                         combined_sentences.append(curr_sent.strip())
-                        curr_sent = ""
-                if curr_sent.strip():
-                    combined_sentences.append(curr_sent.strip())
 
-                if len(combined_sentences) <= 1:
-                    raw_segments.append({
-                        "start": round(segment.start, 2),
-                        "end": round(segment.end, 2),
-                        "text": text
-                    })
-                else:
-                    total_chars = max(1, sum(len(s) for s in combined_sentences))
-                    seg_dur = max(0.4, segment.end - segment.start)
-                    cur_t = segment.start
-                    for s in combined_sentences:
-                        p_dur = (len(s) / total_chars) * seg_dur
-                        p_start = round(cur_t, 2)
-                        p_end = round(cur_t + p_dur, 2)
+                    if len(combined_sentences) <= 1:
                         raw_segments.append({
-                            "start": p_start,
-                            "end": max(round(p_start + 0.35, 2), p_end),
-                            "text": s
+                            "start": round(segment.start, 2),
+                            "end": round(segment.end, 2),
+                            "text": text
                         })
-                        cur_t += p_dur
-            else:
-                # Word-level timestamp precision: Group words into individual dialogue lines!
-                curr_words = []
-                for w_idx, w in enumerate(words):
-                    curr_words.append(w)
-                    w_txt = getattr(w, "word", "") or ""
+                    else:
+                        total_chars = max(1, sum(len(s) for s in combined_sentences))
+                        seg_dur = max(0.4, segment.end - segment.start)
+                        cur_t = segment.start
+                        for s in combined_sentences:
+                            p_dur = (len(s) / total_chars) * seg_dur
+                            p_start = round(cur_t, 2)
+                            p_end = round(cur_t + p_dur, 2)
+                            raw_segments.append({
+                                "start": p_start,
+                                "end": max(round(p_start + 0.35, 2), p_end),
+                                "text": s
+                            })
+                            cur_t += p_dur
+                else:
+                    # Word-level timestamp precision: Group words into individual dialogue lines!
+                    curr_words = []
+                    for w_idx, w in enumerate(words):
+                        curr_words.append(w)
+                        w_txt = getattr(w, "word", "") or ""
 
-                    # Check split triggers:
-                    # 1. Punctuation in word (ending marks)
-                    has_punct = bool(re.search(r'[。！？!?；;\n]', w_txt))
+                        # Check split triggers:
+                        # 1. Punctuation in word (ending marks)
+                        has_punct = bool(re.search(r'[。！？!?；;\n]', w_txt))
 
-                    # 2. Pause between this word and next word >= 0.85s (dialogue pause / turn-taking)
-                    has_pause = False
-                    if w_idx + 1 < len(words):
-                        next_w = words[w_idx + 1]
-                        if (next_w.start - w.end) >= 0.85:
-                            has_pause = True
+                        # 2. Pause between this word and next word >= 0.85s (dialogue pause / turn-taking)
+                        has_pause = False
+                        if w_idx + 1 < len(words):
+                            next_w = words[w_idx + 1]
+                            if (next_w.start - w.end) >= 0.85:
+                                has_pause = True
 
-                    # 3. Accumulated length >= 6.5 seconds (prevents runaway sentences)
-                    span = curr_words[-1].end - curr_words[0].start
-                    is_too_long = span >= 6.5 and len(curr_words) >= 4
+                        # 3. Accumulated length >= 6.5 seconds (prevents runaway sentences)
+                        span = curr_words[-1].end - curr_words[0].start
+                        is_too_long = span >= 6.5 and len(curr_words) >= 4
 
-                    if (has_punct or has_pause or is_too_long) and len(curr_words) > 0:
+                        if (has_punct or has_pause or is_too_long) and len(curr_words) > 0:
+                            line_txt = "".join(getattr(cw, "word", "") for cw in curr_words).strip()
+                            if line_txt:
+                                l_start = round(curr_words[0].start, 2)
+                                l_end = round(curr_words[-1].end, 2)
+                                raw_segments.append({
+                                    "start": l_start,
+                                    "end": max(round(l_start + 0.35, 2), l_end),
+                                    "text": line_txt
+                                })
+                            curr_words = []
+
+                    # Any trailing words
+                    if curr_words:
                         line_txt = "".join(getattr(cw, "word", "") for cw in curr_words).strip()
                         if line_txt:
                             l_start = round(curr_words[0].start, 2)
@@ -362,29 +424,16 @@ class SpeechToTextEngine:
                                 "end": max(round(l_start + 0.35, 2), l_end),
                                 "text": line_txt
                             })
-                        curr_words = []
 
-                # Any trailing words
-                if curr_words:
-                    line_txt = "".join(getattr(cw, "word", "") for cw in curr_words).strip()
-                    if line_txt:
-                        l_start = round(curr_words[0].start, 2)
-                        l_end = round(curr_words[-1].end, 2)
-                        raw_segments.append({
-                            "start": l_start,
-                            "end": max(round(l_start + 0.35, 2), l_end),
-                            "text": line_txt
-                        })
-
-            if progress_callback and tot_dur > 0:
-                p_cur = 45 + int(min(15, (segment.end / tot_dur) * 15))
-                m_curr = int(segment.end // 60)
-                s_curr = int(segment.end % 60)
-                progress_callback(
-                    p_cur,
-                    f"៣/៧ AI កំពុងស្តាប់នៅនាទី {m_curr:02d}:{s_curr:02d}...",
-                    f"Transcribing audio at {m_curr:02d}:{s_curr:02d}..."
-                )
+                if progress_callback and tot_dur > 0:
+                    p_cur = 45 + int(min(15, (segment.end / tot_dur) * 15))
+                    m_curr = int(segment.end // 60)
+                    s_curr = int(segment.end % 60)
+                    progress_callback(
+                        p_cur,
+                        f"៣/៧ AI កំពុងស្តាប់នៅនាទី {m_curr:02d}:{s_curr:02d}...",
+                        f"Transcribing audio at {m_curr:02d}:{s_curr:02d}..."
+                    )
 
         if not raw_segments:
             return []

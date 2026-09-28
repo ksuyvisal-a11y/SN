@@ -1,0 +1,29 @@
+{
+  "series_id": "TestDrama",
+  "title": "TestDrama",
+  "created_at": 1790591831.6340244,
+  "genre_tropes": [
+    "Drama Dubbing"
+  ],
+  "male_lead": {
+    "name": "តួឯកប្រុស",
+    "voice": "piseth",
+    "persona": "Male Lead (ពិសិដ្ឋ)",
+    "pronoun_self": "ខ្ញុំ / បង",
+    "pronoun_call_female_lead": "អូន / នាង"
+  },
+  "female_lead": {
+    "name": "តួឯកស្រី",
+    "voice": "sreymom",
+    "persona": "Female Lead (ស្រីមុំ)",
+    "pronoun_self": "ខ្ញុំ / អូន",
+    "pronoun_call_male_lead": "បង / លោក"
+  },
+  "villain_or_rival": {
+    "name": "តួឈ្នានីស",
+    "voice": "piseth",
+    "persona": "Antagonist / ជនទីបី"
+  },
+  "glossary": {},
+  "episode_summaries": {}
+}

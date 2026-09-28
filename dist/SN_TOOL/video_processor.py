@@ -101,6 +101,39 @@ def render_dubbed_video(
         wm_clean = watermark_text.replace("'", "").replace(":", "")
         simple_filters.append(f"drawtext=text='{wm_clean}':fontsize=24:fontcolor=white@0.8:x=30:y=30:box=1:boxcolor=black@0.4:boxborderw=6")
 
+    # Phase 1 Turbo Optimization: Lossless Stream Copy Mode (1-2 seconds per episode!)
+    # If no subtitles need to be burned and no watermark, simply remux video stream with new dubbed audio!
+    can_use_stream_copy = (not ass_path) and (not watermark_text) and (is_already_vertical or aspect_ratio != "9:16")
+    if can_use_stream_copy:
+        fast_cmd = [
+            get_ffmpeg_path(),
+            "-nostdin",
+            "-y",
+            "-i", str(original_video_path),
+            "-i", str(mixed_audio_path),
+            "-map", "0:v:0",
+            "-map", "1:a:0",
+            "-c:v", "copy",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-ar", "48000",
+            "-ac", "2",
+            "-shortest",
+            str(out_p)
+        ]
+        fast_proc = subprocess.run(fast_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60, **get_silent_kwargs())
+        if fast_proc.returncode == 0 and out_p.exists() and out_p.stat().st_size > 5000:
+            try:
+                import shutil
+                exports_dir = Path("data/exports")
+                exports_dir.mkdir(parents=True, exist_ok=True)
+                stem = Path(original_video_path).stem
+                export_copy = exports_dir / f"Dubbed_{stem}.mp4"
+                shutil.copy2(str(out_p), str(export_copy))
+            except Exception:
+                pass
+            return str(out_p)
+
     # If 9:16 requested but input video is landscape (w >= h), frame it with blurred background
     if aspect_ratio == "9:16" and not is_already_vertical:
         filter_complex = (

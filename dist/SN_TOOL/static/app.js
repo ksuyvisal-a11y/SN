@@ -2321,11 +2321,35 @@ async function downloadAllQueueEpisodes() {
     const total = dlEpisodesList.length || dlCurrentDrama.total_episodes || 80;
     const title = (dlCurrentDrama.title_cn || dlCurrentDrama.title || '').replace(/[《》]/g, '').split(' - ')[0].trim();
 
-    // Select all episodes
-    dlEpisodesList.forEach(e => { e.is_selected = true; });
+    // Select all episodes & immediately show live Downloading status in UI
+    dlEpisodesList.forEach(e => {
+        e.is_selected = true;
+        if (e.status !== 'Completed') {
+            e.status = 'Downloading';
+            e.progress = Math.max(3, e.progress || 0);
+        }
+    });
 
-    // Update UI checkmarks in Queue table
+    // Update UI checkmarks and rows in Queue table immediately
     document.querySelectorAll('.dl-q2-capsule-toggle').forEach(t => t.classList.add('checked'));
+    dlEpisodesList.forEach(ep => {
+        const epNum = ep.episode_num || ep.episode_number;
+        const fill = document.getElementById(`dl-q-fill-${epNum}`);
+        const cardFill = document.getElementById(`dl-card-fill-${epNum}`);
+        const text = document.getElementById(`dl-q-text-${epNum}`);
+        const row = document.getElementById(`dl-q-row-${epNum}`);
+        const prog = ep.progress || 3;
+        if (fill && ep.status !== 'Completed') fill.style.width = `${prog}%`;
+        if (cardFill && ep.status !== 'Completed') cardFill.style.width = `${prog}%`;
+        if (text && ep.status !== 'Completed') text.textContent = `${prog}%`;
+        if (row && ep.status !== 'Completed') {
+            const pill = row.querySelector('.dl-q2-status-pill');
+            if (pill) {
+                pill.textContent = 'Downloading';
+                pill.className = 'dl-q2-status-pill downloading';
+            }
+        }
+    });
 
     const path = dlUserSaveLocation || document.getElementById('dl-save-path-input')?.value.trim() || 'D:/SN_Dramas';
     const computedDir = getComputedDramaFolder().replace(/\//g, '\\');

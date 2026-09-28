@@ -3,6 +3,8 @@ Automated Batch & Folder Auto-Dubbing Engine
 Processes entire folders of drama episodes end-to-end with zero manual typing.
 """
 import os
+import re
+import shutil
 import asyncio
 import threading
 import uuid
@@ -20,6 +22,48 @@ from video_processor import render_dubbed_video
 
 EXPORTS_DIR = Path("data/exports")
 EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def resolve_drama_export_directories(in_path: str, drama_title: str) -> List[Path]:
+    """
+    Resolves the dedicated unified folder for this drama.
+    If in_path is located in an existing drama folder (e.g. D:/SN_Dramas/Title/ or imported folder):
+        Places outputs directly inside that drama folder in a subfolder 'Dubbed_Khmer'
+        so the original video and dubbed files are strictly grouped together in one folder.
+    Also ensures an organized mirror exists in 'data/exports/{safe_title}/'.
+    """
+    safe_title = re.sub(r'[\\/*?:"<>|《》【】「」『』\(\)\[\]]', '_', str(drama_title)).strip('_ ') or "Drama_Series"
+    dirs = []
+
+    # 1. Primary: If in_path is from a drama folder (not a temp upload folder):
+    # Save directly inside that drama's folder under 'Dubbed_Khmer'
+    try:
+        p_in = Path(in_path).resolve()
+        parent_dir = p_in.parent
+        if parent_dir.exists() and parent_dir.name.lower() not in ("batch_temp", "uploads", "cache", "temp"):
+            dubbed_sub = parent_dir / "Dubbed_Khmer"
+            dubbed_sub.mkdir(parents=True, exist_ok=True)
+            dirs.append(dubbed_sub)
+    except Exception:
+        pass
+
+    # 2. Default SN_Dramas root if available (D:/SN_Dramas or C:/SN_Dramas)
+    for root_str in ("D:/SN_Dramas", "C:/SN_Dramas"):
+        root_p = Path(root_str)
+        if root_p.exists():
+            root_drama_dubbed = root_p / safe_title / "Dubbed_Khmer"
+            root_drama_dubbed.mkdir(parents=True, exist_ok=True)
+            if root_drama_dubbed not in dirs:
+                dirs.append(root_drama_dubbed)
+            break
+
+    # 3. Dedicated Exports Directory: data/exports/{safe_title}/
+    export_drama_dir = EXPORTS_DIR / safe_title
+    export_drama_dir.mkdir(parents=True, exist_ok=True)
+    if export_drama_dir not in dirs:
+        dirs.append(export_drama_dir)
+
+    return dirs
 
 
 class BatchDubbingManager:
@@ -89,26 +133,38 @@ class BatchDubbingManager:
         asyncio.set_event_loop(loop)
 
         try:
-            while True:
-                # Find next pending item
-                target_item = None
-                with self._lock:
-                    for item in self.queue:
-                        if item["status"] == "pending":
-                            item["status"] = "processing"
-                            target_item = item
-                            break
+            # Run up to 4 concurrent episode workers for ultra-fast series completion
+            max_workers = min(4, max(2, (os.cpu_count() or 4)))
 
-                if not target_item:
-                    break
+            async def _worker_loop():
+                while True:
+                    target_item = None
+                    with self._lock:
+                        for item in self.queue:
+                            if item["status"] == "pending":
+                                item["status"] = "processing"
+                                target_item = item
+                                break
 
-                # Process target item end-to-end
-                try:
-                    loop.run_until_complete(self._process_single_item(target_item))
-                except Exception as e:
-                    target_item["status"] = "failed"
-                    target_item["error"] = str(e)
-                    target_item["step"] = "មានបញ្ហា"
+                    if not target_item:
+                        break
+
+                    try:
+                        await self._process_single_item(target_item)
+                    except Exception as e:
+                        target_item["status"] = "failed"
+                        target_item["error"] = str(e)
+                        target_item["step"] = "មានបញ្ហា"
+
+            async def _run_all():
+                tasks = [_worker_loop() for _ in range(max_workers)]
+                await asyncio.gather(*tasks)
+
+            loop.run_until_complete(_run_all())
+            try:
+                self._auto_merge_completed_series()
+            except Exception as me:
+                print(f"Post-batch auto-merge note: {me}")
         finally:
             self.is_processing = False
             loop.close()
@@ -138,10 +194,10 @@ class BatchDubbingManager:
             except Exception as e:
                 print(f"Vocal separation fallback: {e}")
 
-        # 3. Speech-to-Text (Auto Transcribe)
+        # 3. Speech-to-Text (Auto Transcribe with Subtitle Extraction check)
         item["step"] = "3/5 AI កំពុងស្តាប់ និងចាប់សំឡេង (Faster-Whisper)..."
         item["progress"] = 45
-        dialogues = self.stt.transcribe_audio(str(raw_audio), source_lang="auto")
+        dialogues = self.stt.transcribe_audio(str(raw_audio), source_lang="auto", video_path=in_path)
         if not dialogues:
             dialogues = [{
                 "id": 1,
@@ -152,7 +208,7 @@ class BatchDubbingManager:
                 "text_original": "Drama video dialogue"
             }]
 
-        # 4. Contextual Drama/Recap Translation into Khmer
+        # 4. Contextual Drama/Recap Translation into Khmer with Series Bible Memory
         v_override = item["voice_mode"] if item.get("voice_mode") not in (None, "", "auto") else "piseth"
         v_override = str(v_override).lower().strip()
         is_multi = v_override in ("multi", "auto_multi")
@@ -163,14 +219,37 @@ class BatchDubbingManager:
         else:
             v_label = "ពិសិដ្ឋ (Piseth Solo)"
 
-        item["step"] = f"4/5 AI កំពុងបកប្រែជាភាសាខ្មែរ {v_label}..."
+        # Infer drama series title and episode number from path and filename
+        p_in = Path(in_path)
+        raw_stem = p_in.stem
+        ep_matches = re.findall(r'(?i)(?:EP|Episode|Part|第)?[\s_\-]*(\d+)', raw_stem)
+        ep_num = int(ep_matches[-1]) if ep_matches else 1
+
+        parent_folder = p_in.parent.name
+        if parent_folder and parent_folder.lower() not in ("batch_temp", "uploads", "exports", "sn_dramas", "downloads"):
+            drama_title = parent_folder
+        else:
+            clean_title = re.sub(r'(?i)(?:EP|Episode|Part|第)?[\s_\-]*\d+[\s_\-]*(?:集|話|部)?', '', raw_stem)
+            clean_title = re.sub(r'[\s_\-]+', '_', clean_title).strip('_ ')
+            drama_title = clean_title or "Drama_Series"
+
+        item["step"] = f"4/5 AI កំពុងបកប្រែជាភាសាខ្មែរ {v_label} (Story Bible)..."
         item["progress"] = 65
         translated_dialogues = await self.translator.translate_dialogues(
             dialogues=dialogues,
             mode=item["drama_mode"],
             source_lang="auto",
-            target_voice_override=v_override
+            target_voice_override=v_override,
+            drama_title=drama_title,
+            episode_number=ep_num
         )
+
+        # Record this episode's summary into the series memory
+        try:
+            from series_memory import series_memory
+            series_memory.record_episode_summary(drama_title, ep_num, translated_dialogues)
+        except Exception as e:
+            print(f"Record episode summary note: {e}")
 
         # 5. Batch TTS Synthesis
         item["step"] = f"5/5 កំពុងបញ្ចូលសំឡេងខ្មែរ {v_label} & Render..."
@@ -194,9 +273,11 @@ class BatchDubbingManager:
             dubbing_mode="smart_bgm"
         )
 
-        # Final Render MP4 to Exports Directory
-        out_filename = f"Dubbed_{Path(in_path).stem}.mp4"
-        final_video_path = EXPORTS_DIR / out_filename
+        # 6. Render and Save all drama files in ONE UNIFIED FOLDER
+        target_dirs = resolve_drama_export_directories(in_path, drama_title)
+        primary_dir = target_dirs[0]
+        out_filename = f"Dubbed_{p_in.stem}.mp4"
+        final_video_path = primary_dir / out_filename
         
         render_dubbed_video(
             original_video_path=in_path,
@@ -208,11 +289,71 @@ class BatchDubbingManager:
             temp_dir=str(item_dir / "temp")
         )
 
+        # Automatically export Khmer Subtitle (.srt) and mirror to secondary folders
+        try:
+            import shutil
+            from translator import format_srt_content
+            srt_content = format_srt_content(synthesized_items, use_km=True)
+            srt_filename = f"Dubbed_{p_in.stem}.srt"
+
+            for td in target_dirs:
+                srt_path = td / srt_filename
+                srt_path.write_text(srt_content, encoding="utf-8")
+                if td.resolve() != primary_dir.resolve() and final_video_path.exists():
+                    shutil.copy2(str(final_video_path), str(td / out_filename))
+        except Exception as se:
+            print(f"Subtitle and folder mirror note: {se}")
+
         item["progress"] = 100
         item["status"] = "completed"
         item["step"] = "រួចរាល់ ១០០%"
         item["output_video"] = str(final_video_path)
+        item["drama_folder"] = str(primary_dir.resolve()).replace("\\", "/")
+
+    def _auto_merge_completed_series(self):
+        """Automatically merge completed episodes of a series into a single Full Movie (1-2 hours) in the drama folder."""
+        import shutil
+        series_groups: Dict[str, List[Path]] = {}
+        with self._lock:
+            for item in self.queue:
+                if item["status"] == "completed" and item.get("output_video"):
+                    out_p = Path(item["output_video"])
+                    if out_p.exists():
+                        stem = out_p.stem.replace("Dubbed_", "")
+                        series_name = re.sub(r'(?i)(?:EP|Episode|Part|第)?[\s_\-]*\d+[\s_\-]*(?:集|話|部)?', '', stem)
+                        series_name = re.sub(r'[\s_\-]+', '_', series_name).strip('_ ') or "Drama_Series"
+                        if series_name not in series_groups:
+                            series_groups[series_name] = []
+                        if out_p not in series_groups[series_name]:
+                            series_groups[series_name].append(out_p)
+
+        for s_name, ep_paths in series_groups.items():
+            if len(ep_paths) >= 2:
+                def _get_ep(p):
+                    m = re.findall(r'\d+', p.stem)
+                    return int(m[-1]) if m else 0
+                ep_paths.sort(key=_get_ep)
+
+                # Save Full Movie directly in the drama's own folder where the episodes live
+                first_dir = ep_paths[0].parent
+                full_movie_name = f"Full_Movie_{s_name}_Khmer.mp4"
+                full_movie_out = first_dir / full_movie_name
+
+                if not full_movie_out.exists() or full_movie_out.stat().st_size < 1000:
+                    try:
+                        from video_processor import merge_videos
+                        merge_videos([str(p) for p in ep_paths], str(full_movie_out))
+                        print(f"[OK] Full Drama Series Movie merged in drama folder: {full_movie_out} ({len(ep_paths)} episodes)")
+
+                        # Also mirror to data/exports/{s_name}/
+                        export_mirror = EXPORTS_DIR / s_name / full_movie_name
+                        export_mirror.parent.mkdir(parents=True, exist_ok=True)
+                        if export_mirror.resolve() != full_movie_out.resolve():
+                            shutil.copy2(str(full_movie_out), str(export_mirror))
+                    except Exception as e:
+                        print(f"Series auto-merge note: {e}")
 
 
 # Global singleton instance
 batch_manager = BatchDubbingManager()
+

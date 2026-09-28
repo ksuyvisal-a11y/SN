@@ -5120,8 +5120,16 @@ button, input, select, textarea {
     color: #10b981;
 }
 
+@keyframes dl-pulse-glow {
+    0% { opacity: 0.6; transform: scale(0.97); }
+    50% { opacity: 1; transform: scale(1.03); }
+    100% { opacity: 0.6; transform: scale(0.97); }
+}
+
 .dl-q2-status-pill.downloading {
     color: #f59e0b;
+    animation: dl-pulse-glow 1.2s infinite ease-in-out;
+    text-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
 }
 
 .dl-q2-status-pill.ready {
