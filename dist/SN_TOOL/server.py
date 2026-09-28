@@ -1083,6 +1083,37 @@ def downloader_download_episodes_endpoint():
     return jsonify(res)
 
 
+@app.route("/api/downloader/queue", methods=["GET", "POST", "DELETE"])
+def downloader_queue_endpoint():
+    """Manage multi-drama batch download queue."""
+    if request.method == "GET":
+        return jsonify({
+            "queue": drama_downloader.get_queue(),
+            "queue_active": drama_downloader.queue_active,
+            "is_downloading": drama_downloader.is_downloading
+        })
+    elif request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        drama_data = data.get("drama") or drama_downloader.current_drama
+        save_loc = data.get("save_location") or ("D:/SN_Dramas" if os.path.exists("D:/") else "C:/SN_Dramas")
+        if not drama_data:
+            return jsonify({"success": False, "error": "No drama data provided"}), 400
+        res = drama_downloader.add_to_queue(drama_data, save_loc)
+        return jsonify(res)
+    elif request.method == "DELETE":
+        res = drama_downloader.clear_queue()
+        return jsonify(res)
+
+
+@app.route("/api/downloader/queue/start", methods=["POST"])
+def downloader_queue_start_endpoint():
+    """Start automated sequential processing of all queued dramas."""
+    data = request.get_json(silent=True) or {}
+    save_loc = data.get("save_location") or ("D:/SN_Dramas" if os.path.exists("D:/") else "C:/SN_Dramas")
+    res = drama_downloader.start_queue(save_loc)
+    return jsonify(res)
+
+
 @app.route("/api/downloader/merge-full", methods=["POST"])
 def downloader_merge_full_endpoint():
     """Manually merge downloaded drama episodes into 1 Full Drama Video."""
