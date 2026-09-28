@@ -533,8 +533,8 @@ def load_stored_story_config() -> dict:
         "aspect_ratio": "9:16",
         "subtitle_mode": "none",
         "dubbing_mode": "smart_bgm",
-        "ducking_volume": "0.35",
-        "speech_boost_db": 2.5
+        "ducking_volume": "0.15",
+        "speech_boost_db": 3.5
     }
 
 # Initial load on server start
@@ -841,11 +841,11 @@ def set_story_config_endpoint():
     try:
         val = float(raw_duck)
         if val < 0:
-            cfg["ducking_volume"] = "0.35"
+            cfg["ducking_volume"] = "0.15"
         else:
             cfg["ducking_volume"] = f"{val:.2f}"
     except (ValueError, TypeError):
-        cfg["ducking_volume"] = "0.35"
+        cfg["ducking_volume"] = "0.15"
 
     STORY_CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(STORY_CONFIG_FILE, "w", encoding="utf-8") as f:
@@ -1139,7 +1139,7 @@ def downloader_download_episodes_endpoint():
     episode_ids = data.get("episode_ids", [])
     save_location = data.get("save_location") or ("D:/SN_Dramas" if os.path.exists("D:/") else "C:/SN_Dramas")
     save_poster = data.get("save_poster", True)
-    auto_merge_full = data.get("auto_merge_full", True)
+    auto_merge_full = data.get("auto_merge_full", False)
     
     res = drama_downloader.start_download_batch(episode_ids, save_location, save_poster, auto_merge_full=auto_merge_full)
     return jsonify(res)
@@ -1219,6 +1219,11 @@ def downloader_open_folder_endpoint():
 
     p = Path(target_folder)
     p.mkdir(parents=True, exist_ok=True)
+
+    try:
+        hongguo_service.standardize_folder(p)
+    except Exception:
+        pass
 
     try:
         resolved_str = str(p.resolve()).replace("/", "\\")
@@ -1511,67 +1516,53 @@ public class ModernFolderPicker {
 """
 
 
-def open_native_windows_folder_dialog(initial_dir: str = "", title: str = "Select the folder that holds the episodes") -> Optional[str]:
+def open_native_windows_folder_dialog(initial_dir: str = "", title: str = "Select Drama Series Folder") -> Optional[str]:
     """
-    Open modern native Windows File Explorer folder picker safely using PowerShell -STA -EncodedCommand.
-    Uses modern Vista/Win10/Win11 IFileOpenDialog with full File Explorer GUI (navigation pane, address bar, drives),
-    Per-Monitor V2 High DPI crisp font rendering, and SN Tool official logo icon.
-    Guaranteed: NEVER calls sys.executable, avoiding PyInstaller child restarts and taskkill issues.
+    Open modern native Windows File Explorer folder picker safely using pre-compiled Windows Forms.
+    Pops up instantly in the foreground with TopMost owner, eliminating csc compilation delay and window hiding.
     """
     if not initial_dir or not os.path.exists(initial_dir):
         initial_dir = "D:/" if os.path.exists("D:/") else "C:/"
     init_dir_esc = str(Path(initial_dir).resolve()).replace("'", "''")
     title_esc = str(title).replace("'", "''")
-    icon_esc = str(APP_ICON_PATH).replace("'", "''")
 
     ps_code = f"""
-try {{
-    Add-Type -TypeDefinition @'
-{MODERN_FOLDER_PICKER_CS}
-'@
-    [ModernFolderPicker]::EnableHighDpi()
-    $owner = [ModernFolderPicker]::GetForegroundWindow()
-    $res = [ModernFolderPicker]::ShowDialog('{init_dir_esc}', '{title_esc}', '{icon_esc}', $owner)
-    if ($res) {{
-        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-        Write-Output ("RESULT:" + $res)
-    }} else {{
-        Write-Output "CANCELLED"
-    }}
-    exit 0
-}} catch {{
-    # Fallback only if COM compilation fails completely
-    Add-Type -AssemblyName System.Windows.Forms
-    $f = New-Object System.Windows.Forms.OpenFileDialog
-    $f.Title = '{title_esc}'
-    $f.ValidateNames = $false
-    $f.CheckFileExists = $false
-    $f.CheckPathExists = $true
-    $f.FileName = "Select Folder Here"
-    $initDir = '{init_dir_esc}'
-    if (Test-Path $initDir) {{ $f.InitialDirectory = $initDir }}
-    $res = $f.ShowDialog()
-    if ($res -eq [System.Windows.Forms.DialogResult]::OK) {{
-        $folder = [System.IO.Path]::GetDirectoryName($f.FileName)
-        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-        Write-Output ("RESULT:" + $folder)
-    }} else {{
-        Write-Output "CANCELLED"
-    }}
-    exit 0
+Add-Type -AssemblyName System.Windows.Forms
+$dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+$dialog.AutoUpgradeEnabled = $true
+$dialog.Description = '{title_esc}'
+$dialog.ShowNewFolderButton = $true
+$initDir = '{init_dir_esc}'
+if (Test-Path $initDir) {{ $dialog.SelectedPath = $initDir }}
+
+$topForm = New-Object System.Windows.Forms.Form
+$topForm.TopMost = $true
+$topForm.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
+$topForm.ShowInTaskbar = $false
+$topForm.WindowState = [System.Windows.Forms.FormWindowState]::Minimized
+
+$res = $dialog.ShowDialog($topForm)
+if ($res -eq [System.Windows.Forms.DialogResult]::OK) {{
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    Write-Output ("RESULT:" + $dialog.SelectedPath)
+}} else {{
+    Write-Output "CANCELLED"
 }}
+$topForm.Dispose()
+$dialog.Dispose()
+exit 0
 """
     try:
         import base64
         encoded = base64.b64encode(ps_code.encode("utf-16le")).decode("ascii")
         proc = subprocess.run(
-            ["powershell.exe", "-STA", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded],
+            ["powershell.exe", "-STA", "-NoProfile", "-WindowStyle", "Hidden", "-EncodedCommand", encoded],
             capture_output=True,
             text=True,
             encoding="utf-8",
             errors="replace",
             timeout=300,
-            **get_silent_kwargs()
+            is_gui_dialog=True
         )
         for line in (proc.stdout or "").splitlines():
             line = line.strip()
@@ -1584,10 +1575,10 @@ try {{
     return None
 
 
-def open_native_windows_files_dialog(initial_dir: str = "", title: str = "Select the video files for the drama series") -> List[str]:
+def open_native_windows_files_dialog(initial_dir: str = "", title: str = "Select Video Files for Drama Series") -> List[str]:
     """
-    Open native Windows multi-file picker safely using PowerShell -STA -EncodedCommand with High DPI support.
-    Guaranteed safe across all Windows environments without invoking sys.executable.
+    Open native Windows multi-file picker safely using pre-compiled Windows Forms OpenFileDialog.
+    Pops up instantly in the foreground with TopMost owner, eliminating window hiding.
     """
     if not initial_dir or not os.path.exists(initial_dir):
         initial_dir = "D:/" if os.path.exists("D:/") else "C:/"
@@ -1596,43 +1587,44 @@ def open_native_windows_files_dialog(initial_dir: str = "", title: str = "Select
 
     ps_code = f"""
 Add-Type -AssemblyName System.Windows.Forms
-try {{
-    Add-Type -TypeDefinition @'
-{MODERN_FOLDER_PICKER_CS}
-'@
-    [ModernFolderPicker]::EnableHighDpi()
-}} catch {{ }}
-
-$f = New-Object System.Windows.Forms.OpenFileDialog
-$f.Title = '{title_esc}'
-$f.Filter = 'Video Files (*.mp4;*.mkv;*.mov;*.avi;*.webm;*.flv;*.ts;*.m4v)|*.mp4;*.mkv;*.mov;*.avi;*.webm;*.flv;*.ts;*.m4v|All Files (*.*)|*.*'
-$f.Multiselect = $true
+$dialog = New-Object System.Windows.Forms.OpenFileDialog
+$dialog.Title = '{title_esc}'
+$dialog.Filter = 'Video Files (*.mp4;*.mkv;*.mov;*.avi;*.webm;*.flv;*.ts;*.m4v)|*.mp4;*.mkv;*.mov;*.avi;*.webm;*.flv;*.ts;*.m4v|All Files (*.*)|*.*'
+$dialog.Multiselect = $true
 $initDir = '{init_dir_esc}'
 if (Test-Path $initDir) {{
-    $f.InitialDirectory = $initDir
+    $dialog.InitialDirectory = $initDir
 }}
-$res = $f.ShowDialog()
+
+$topForm = New-Object System.Windows.Forms.Form
+$topForm.TopMost = $true
+$topForm.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
+$topForm.ShowInTaskbar = $false
+$topForm.WindowState = [System.Windows.Forms.FormWindowState]::Minimized
+
+$res = $dialog.ShowDialog($topForm)
 if ($res -eq [System.Windows.Forms.DialogResult]::OK) {{
     [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-    $json = ConvertTo-Json -Compress @($f.FileNames)
+    $json = ConvertTo-Json -Compress @($dialog.FileNames)
     Write-Output ("RESULT:" + $json)
 }} else {{
     Write-Output "CANCELLED"
 }}
-$f.Dispose()
+$topForm.Dispose()
+$dialog.Dispose()
 exit 0
 """
     try:
         import base64
         encoded = base64.b64encode(ps_code.encode("utf-16le")).decode("ascii")
         proc = subprocess.run(
-            ["powershell.exe", "-STA", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded],
+            ["powershell.exe", "-STA", "-NoProfile", "-WindowStyle", "Hidden", "-EncodedCommand", encoded],
             capture_output=True,
             text=True,
             encoding="utf-8",
             errors="replace",
             timeout=300,
-            **get_silent_kwargs()
+            is_gui_dialog=True
         )
         for line in (proc.stdout or "").splitlines():
             line = line.strip()

@@ -2534,6 +2534,11 @@ button, input, select, textarea {
     transform: translateY(-4px);
 }
 
+.dl-card-item:active {
+    transform: scale(0.96) translateY(-2px);
+    transition: transform 0.05s ease;
+}
+
 .dl-card-thumb-wrap {
     width: 100%;
     aspect-ratio: 3 / 4.1;
@@ -4129,6 +4134,18 @@ button, input, select, textarea {
     overflow: hidden;
     background: #06090f;
     min-height: 0;
+    animation: dlSmoothIn 0.14s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes dlSmoothIn {
+    from {
+        opacity: 0.7;
+        transform: translateY(2px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* 1. TOP HEADER BAR */
@@ -5114,10 +5131,15 @@ button, input, select, textarea {
     font-weight: 700;
     color: #38bdf8;
     letter-spacing: 0.2px;
+    transition: color 0.2s ease, text-shadow 0.2s ease;
 }
 
 .dl-q2-status-pill.completed {
     color: #10b981;
+}
+
+.dl-q2-status-pill.failed {
+    color: #ef4444;
 }
 
 @keyframes dl-pulse-glow {
@@ -5134,6 +5156,10 @@ button, input, select, textarea {
 
 .dl-q2-status-pill.ready {
     color: #38bdf8;
+}
+
+.dl-q2-status-pill.queued {
+    color: #94a3b8;
 }
 
 /* Real-Time Progress Bar & Percentage */
@@ -5158,7 +5184,15 @@ button, input, select, textarea {
     width: 0%;
     background: linear-gradient(90deg, #f59e0b, #fbbf24);
     border-radius: 2px;
-    transition: width 0.3s ease;
+    transition: width 0.3s ease, background 0.3s ease;
+}
+
+.dl-q2-prog-fill.completed {
+    background: #10b981 !important;
+}
+
+.dl-q2-prog-fill.failed {
+    background: #ef4444 !important;
 }
 
 .dl-q2-prog-val {
@@ -5168,6 +5202,19 @@ button, input, select, textarea {
     font-family: 'JetBrains Mono', monospace;
     min-width: 32px;
     text-align: right;
+    transition: color 0.2s ease;
+}
+
+.dl-q2-prog-val.completed {
+    color: #10b981 !important;
+}
+
+.dl-q2-prog-val.failed {
+    color: #ef4444 !important;
+}
+
+.dl-q2-prog-val.downloading {
+    color: #fbbf24 !important;
 }
 
 

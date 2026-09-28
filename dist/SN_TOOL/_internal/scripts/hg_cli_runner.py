@@ -88,8 +88,8 @@ def standardize_episode_files(target_dir: Path) -> List[str]:
     if not target_dir.exists():
         return saved_files
         
-    for p in target_dir.glob("*.mp4"):
-        if ".raw" in p.name or ".part" in p.name or ".enc" in p.name:
+    for p in list(target_dir.glob("*.mp4")):
+        if ".raw" in p.name or ".part" in p.name or ".enc" in p.name or ".tmp" in p.name:
             continue
         # Check if already EP_XX.mp4
         m_ep = re.match(r'^EP_?(\d+)\.mp4$', p.name, re.IGNORECASE)
@@ -103,19 +103,27 @@ def standardize_episode_files(target_dir: Path) -> List[str]:
             ep_num = int(m_cn.group(1))
             standard_name = f"EP_{ep_num:02d}.mp4"
             dest = target_dir / standard_name
-            if not dest.exists():
+            if not dest.exists() or dest.stat().st_size < p.stat().st_size:
                 try:
-                    # Prefer copying or creating hardlink/symlink, or renaming
-                    shutil.copy2(p, dest)
+                    if dest.exists():
+                        dest.unlink()
+                    p.rename(dest)
                 except Exception:
                     try:
-                        p.rename(dest)
+                        shutil.move(str(p), str(dest))
                     except Exception:
-                        pass
+                        try:
+                            shutil.copy2(p, dest)
+                            p.unlink()
+                        except Exception:
+                            pass
+            else:
+                try:
+                    p.unlink()
+                except Exception:
+                    pass
             if dest.exists():
                 saved_files.append(str(dest.resolve()))
-            else:
-                saved_files.append(str(p.resolve()))
     return saved_files
 
 def cmd_episodes(args):
@@ -203,23 +211,65 @@ def cmd_download(args):
         print(json.dumps({"ok": False, "error": str(e)}))
         return
         
-    # Find all downloaded folders
+    # Flatten all downloaded folders and standardize as EP_XX.mp4
     standardized = []
-    # Check directly inside out_dir
-    standardized.extend(standardize_episode_files(out_dir))
-    # Check subdirectories (e.g. out_dir / <Drama_Name>)
-    for sub in out_dir.iterdir():
+    for sub in list(out_dir.iterdir()):
         if sub.is_dir():
-            standardized.extend(standardize_episode_files(sub))
-            # Also copy to parent out_dir if requested
-            for sf in sub.glob("EP_*.mp4"):
-                target_dest = out_dir / sf.name
-                if not target_dest.exists() or target_dest.stat().st_size < sf.stat().st_size:
+            for p in list(sub.glob("*.mp4")) + list(sub.glob("*.mkv")) + list(sub.glob("*.ts")):
+                if any(x in p.name for x in [".raw", ".part", ".enc", ".tmp"]):
                     try:
-                        shutil.copy2(sf, target_dest)
-                        standardized.append(str(target_dest.resolve()))
+                        p.unlink()
                     except Exception:
                         pass
+                    continue
+                m_ep = re.search(r'EP_?(\d+)', p.name, re.IGNORECASE) or re.search(r'第?(\d+)集', p.name) or re.search(r'(\d+)', p.stem)
+                ep_n = int(m_ep.group(1)) if m_ep else 1
+                dest_f = out_dir / f"EP_{ep_n:02d}.mp4"
+                if not dest_f.exists() or dest_f.stat().st_size < p.stat().st_size:
+                    try:
+                        if dest_f.exists():
+                            dest_f.unlink()
+                        shutil.move(str(p), str(dest_f))
+                        standardized.append(str(dest_f.resolve()))
+                    except Exception:
+                        try:
+                            shutil.copy2(p, dest_f)
+                            p.unlink()
+                            standardized.append(str(dest_f.resolve()))
+                        except Exception:
+                            pass
+                else:
+                    try:
+                        p.unlink()
+                    except Exception:
+                        pass
+
+            # Remove subfolder completely so no duplicate folder remains!
+            try:
+                shutil.rmtree(sub, ignore_errors=True)
+            except Exception:
+                pass
+
+    # Check directly inside out_dir
+    standardized.extend(standardize_episode_files(out_dir))
+
+    # Remove .series, Story_Info, Full_Drama, and metadata clutter so only clean video episodes and poster remain
+    for meta_file in list(out_dir.glob("*_Story_Info.txt")) + list(out_dir.glob("*.series*")) + list(out_dir.glob("series.json")) + list(out_dir.glob("*_Full_Drama*.mp4")):
+        try:
+            meta_file.unlink()
+        except Exception:
+            pass
+
+    for meta_name in [".series.json", ".series", "series.json", ".hg_download"]:
+        meta_file = out_dir / meta_name
+        if meta_file.exists():
+            try:
+                if meta_file.is_file():
+                    meta_file.unlink()
+                elif meta_file.is_dir():
+                    shutil.rmtree(meta_file, ignore_errors=True)
+            except Exception:
+                pass
                         
     out = {
         "ok": True,

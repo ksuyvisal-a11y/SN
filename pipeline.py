@@ -198,14 +198,14 @@ class ProjectManager:
         proj_dir.mkdir(parents=True, exist_ok=True)
         
         # Load default ducking from story_config.json
-        cfg_duck = 0.02
+        cfg_duck = 0.15
         try:
             cfg_p = Path("data/story_config.json")
             if cfg_p.exists():
                 with open(cfg_p, "r", encoding="utf-8") as f:
-                    cfg_duck = safe_float(json.load(f).get("ducking_volume"), 0.02)
+                    cfg_duck = safe_float(json.load(f).get("ducking_volume"), 0.15)
         except Exception:
-            cfg_duck = 0.02
+            cfg_duck = 0.15
 
         project = {
             "id": project_id,
@@ -421,7 +421,7 @@ class ProjectManager:
             bgm_track = project.get("original_audio_file")
 
         mixed_audio_path = proj_dir / "mixed_dubbed_audio.mp3"
-        duck_val = safe_float(cfg_data.get("ducking_volume"), safe_float(project.get("ducking_factor"), 0.35))
+        duck_val = safe_float(cfg_data.get("ducking_volume"), safe_float(project.get("ducking_factor"), 0.15))
         dub_mode = cfg_data.get("dubbing_mode", "smart_bgm")
         speech_boost = safe_float(cfg_data.get("speech_boost_db"), 2.5)
 
@@ -671,7 +671,7 @@ class ProjectManager:
         bgm_track = project.get("isolated_bgm_file") or str(audio_dest)
         if not Path(bgm_track).exists():
             bgm_track = str(audio_dest)
-        duck_val = safe_float(cfg_data.get("ducking_volume"), safe_float(project.get("ducking_factor"), 0.35))
+        duck_val = safe_float(cfg_data.get("ducking_volume"), safe_float(project.get("ducking_factor"), 0.15))
         dub_mode = cfg_data.get("dubbing_mode", "smart_bgm")
         speech_boost = safe_float(cfg_data.get("speech_boost_db"), 2.5)
         mix_dubbed_audio(

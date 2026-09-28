@@ -240,36 +240,115 @@ def download_episodes_batch(
 
 
 def standardize_folder(dest_dir: Path):
-    """Ensure all downloaded episode files in dest_dir (and subdirs) are standardized as EP_XX.mp4."""
+    """
+    Ensure all downloaded episode files in dest_dir are standardized as EP_XX.mp4,
+    flatten all nested subdirectories, and delete any duplicate files or subfolders.
+    """
+    if not dest_dir:
+        return
+    dest_dir = Path(dest_dir)
     if not dest_dir.exists():
         return
 
-    # Check immediate subdirectories first
-    for sub in dest_dir.iterdir():
+    # 1. Flatten all subdirectories inside dest_dir
+    for sub in list(dest_dir.iterdir()):
         if sub.is_dir():
-            for f in sub.glob("*.mp4"):
-                if any(x in f.name for x in [".raw", ".part", ".enc"]):
+            # Check all video files in sub
+            video_candidates = list(sub.glob("*.mp4")) + list(sub.glob("*.mkv")) + list(sub.glob("*.ts"))
+            for f in video_candidates:
+                if any(x in f.name for x in [".raw", ".part", ".enc", ".tmp"]):
+                    try:
+                        f.unlink()
+                    except Exception:
+                        pass
                     continue
-                m = re.search(r'第?(\d+)集', f.name)
+
+                m = re.search(r'EP_?(\d+)', f.name, re.IGNORECASE) or re.search(r'第?(\d+)集', f.name) or re.search(r'(\d+)', f.stem)
                 if m:
                     ep_num = int(m.group(1))
                     target = dest_dir / f"EP_{ep_num:02d}.mp4"
                     if not target.exists() or target.stat().st_size < f.stat().st_size:
                         try:
-                            shutil.copy2(f, target)
+                            if target.exists():
+                                target.unlink()
+                            shutil.move(str(f), str(target))
+                        except Exception:
+                            try:
+                                shutil.copy2(f, target)
+                                f.unlink()
+                            except Exception:
+                                pass
+                    else:
+                        # Target already exists and is full size in root dest_dir, delete duplicate file!
+                        try:
+                            f.unlink()
                         except Exception:
                             pass
 
-    # Check root dest_dir
-    for f in dest_dir.glob("*.mp4"):
-        if any(x in f.name for x in [".raw", ".part", ".enc"]):
+            # Clean any remaining temp files in sub
+            for extra in list(sub.iterdir()):
+                try:
+                    if extra.is_file():
+                        extra.unlink()
+                    elif extra.is_dir():
+                        shutil.rmtree(extra, ignore_errors=True)
+                except Exception:
+                    pass
+
+            # Remove the subfolder completely so no duplicate folder remains!
+            try:
+                shutil.rmtree(sub, ignore_errors=True)
+            except Exception:
+                pass
+
+    # 2. Check root dest_dir for any Chinese named or non-standard files
+    for f in list(dest_dir.glob("*.mp4")):
+        if any(x in f.name for x in [".raw", ".part", ".enc", ".tmp"]):
+            try:
+                f.unlink()
+            except Exception:
+                pass
             continue
-        m = re.search(r'第?(\d+)集', f.name)
+
+        # If already EP_XX.mp4, keep it
+        if re.match(r'^EP_\d+\.mp4$', f.name, re.IGNORECASE):
+            continue
+
+        m = re.search(r'第?(\d+)集', f.name) or re.search(r'EP_?(\d+)', f.name, re.IGNORECASE)
         if m:
             ep_num = int(m.group(1))
             target = dest_dir / f"EP_{ep_num:02d}.mp4"
             if not target.exists() or target.stat().st_size < f.stat().st_size:
                 try:
-                    shutil.copy2(f, target)
+                    if target.exists():
+                        target.unlink()
+                    f.rename(target)
+                except Exception:
+                    try:
+                        shutil.move(str(f), str(target))
+                    except Exception:
+                        pass
+            else:
+                # Duplicate Chinese named file, remove it
+                try:
+                    f.unlink()
                 except Exception:
                     pass
+
+    # 3. Clean up non-video metadata, temporary files, and Full_Drama videos (leaving only EP_XX.mp4 & Poster)
+    for meta_file in list(dest_dir.glob("*_Story_Info.txt")) + list(dest_dir.glob("*.series*")) + list(dest_dir.glob("series.json")) + list(dest_dir.glob("*_Full_Drama*.mp4")):
+        try:
+            meta_file.unlink()
+        except Exception:
+            pass
+
+    for meta_name in [".series.json", ".series", "series.json", ".hg_download"]:
+        meta_file = dest_dir / meta_name
+        if meta_file.exists():
+            try:
+                if meta_file.is_file():
+                    meta_file.unlink()
+                elif meta_file.is_dir():
+                    shutil.rmtree(meta_file, ignore_errors=True)
+            except Exception:
+                pass

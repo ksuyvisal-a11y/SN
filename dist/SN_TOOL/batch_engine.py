@@ -262,14 +262,27 @@ class BatchDubbingManager:
             default_voice="piseth" if is_multi else v_override
         )
 
-        # Mix Audio with BGM Ducking (Zero Chinese Vocal Bleed)
+        # Mix Audio with BGM volume and Speech Boost from story settings
         mixed_audio = item_dir / "dubbed_mixed.mp3"
+        cfg_duck = 0.15
+        cfg_boost = 3.5
+        try:
+            cfg_p = Path("data/story_config.json")
+            if cfg_p.exists():
+                with open(cfg_p, "r", encoding="utf-8") as f:
+                    _c = json.load(f)
+                    cfg_duck = float(_c.get("ducking_volume", 0.15))
+                    cfg_boost = float(_c.get("speech_boost_db", 3.5))
+        except Exception:
+            pass
+
         mix_dubbed_audio(
             original_audio_path=bgm_track,
             dialogue_items=synthesized_items,
             output_mixed_path=str(mixed_audio),
             total_duration_sec=duration,
-            ducking_volume_factor=0.02,
+            ducking_volume_factor=cfg_duck,
+            speech_volume_boost_db=cfg_boost,
             dubbing_mode="smart_bgm"
         )
 

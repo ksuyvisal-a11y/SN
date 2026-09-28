@@ -48,13 +48,19 @@ function getMediaFilePath(f) {
 
 async function extractFilesFromDataTransfer(dt) {
     const files = [];
+    let detectedFolder = "";
     if (dt.items && dt.items.length > 0) {
         const queue = [];
         for (let i = 0; i < dt.items.length; i++) {
             const item = dt.items[i];
             if (item.webkitGetAsEntry) {
                 const entry = item.webkitGetAsEntry();
-                if (entry) queue.push(entry);
+                if (entry) {
+                    if (entry.isDirectory && !detectedFolder) {
+                        detectedFolder = entry.name;
+                    }
+                    queue.push(entry);
+                }
             } else if (item.kind === 'file') {
                 const f = item.getAsFile();
                 if (f) files.push(f);
@@ -65,8 +71,12 @@ async function extractFilesFromDataTransfer(dt) {
             const entry = queue.shift();
             if (entry.isFile) {
                 const f = await new Promise((res) => entry.file(res, () => res(null)));
-                if (f) files.push(f);
+                if (f) {
+                    if (entry.fullPath) f._fullPath = entry.fullPath;
+                    files.push(f);
+                }
             } else if (entry.isDirectory) {
+                if (!detectedFolder) detectedFolder = entry.name;
                 const reader = entry.createReader();
                 const entries = await new Promise((res) => {
                     const all = [];
@@ -85,11 +95,11 @@ async function extractFilesFromDataTransfer(dt) {
         }
     }
     
-    // Always fallback to dt.files if directory entry reading returned nothing
+    // Fallback to dt.files if directory entry reading returned nothing
     if (files.length === 0 && dt.files && dt.files.length > 0) {
         files.push(...Array.from(dt.files));
     } else if (dt.files && dt.files.length > 0) {
-        // If WebView2 provided native Windows path on dt.files, transfer filepath to files
+        // If native Windows path is attached on dt.files, transfer filepath to files
         const pathMap = {};
         for (let i = 0; i < dt.files.length; i++) {
             const df = dt.files[i];
@@ -104,34 +114,101 @@ async function extractFilesFromDataTransfer(dt) {
             }
         }
     }
-    return files;
+    return { files, folderTitle: detectedFolder };
 }
 
-function setupDragAndDropSupport() {
-    ['dragenter', 'dragover'].forEach(eventName => {
-        window.addEventListener(eventName, (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (e.dataTransfer) {
-                e.dataTransfer.dropEffect = 'copy';
-            }
-        }, false);
-    });
+function showDragDropOverlay() {
+    let overlay = document.getElementById('studio-drag-drop-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'studio-drag-drop-overlay';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10, 8, 4, 0.88);
+            backdrop-filter: blur(8px);
+            z-index: 999999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 3px dashed #facc15;
+            box-shadow: inset 0 0 50px rgba(250, 204, 21, 0.25);
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        `;
+        overlay.innerHTML = `
+            <div style="background: rgba(24, 21, 12, 0.95); border: 1px solid rgba(250, 204, 21, 0.5); border-radius: 16px; padding: 36px 48px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.8); display: flex; flex-direction: column; align-items: center; gap: 14px;">
+                <div style="width: 72px; height: 72px; border-radius: 50%; background: rgba(250, 204, 21, 0.15); border: 2px solid #facc15; display: flex; align-items: center; justify-content: center; font-size: 2rem; color: #facc15;">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                </div>
+                <div style="font-size: 1.25rem; font-weight: 700; color: #fff;">
+                    ទម្លាក់រឿងចូលដើម្បីបកប្រែ (Drop to Translate)
+                </div>
+                <div style="font-size: 0.85rem; color: #facc15;">
+                    គាំទ្រឯកសារវីដេអូរឿងភាគ ឬ Folder មួយចប់ទាំងមូល (MP4, MKV, MOV...)
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+    }
+    overlay.style.display = 'flex';
+}
 
-    ['dragleave', 'drop'].forEach(eventName => {
-        window.addEventListener(eventName, (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-        }, false);
-    });
+function hideDragDropOverlay() {
+    const overlay = document.getElementById('studio-drag-drop-overlay');
+    if (overlay) {
+        overlay.style.display = 'none';
+    }
+}
+
+let dragCounter = 0;
+function setupDragAndDropSupport() {
+    window.addEventListener('dragenter', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dragCounter++;
+        if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) {
+            showDragDropOverlay();
+        }
+    }, false);
+
+    window.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.dataTransfer) {
+            e.dataTransfer.dropEffect = 'copy';
+        }
+    }, false);
+
+    window.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dragCounter--;
+        if (dragCounter <= 0) {
+            dragCounter = 0;
+            hideDragDropOverlay();
+        }
+    }, false);
 
     window.addEventListener('drop', async (e) => {
         e.preventDefault();
         e.stopPropagation();
+        dragCounter = 0;
+        hideDragDropOverlay();
         if (e.dataTransfer) {
-            const files = await extractFilesFromDataTransfer(e.dataTransfer);
-            if (files && files.length > 0) {
-                handleSelectedFiles(files);
+            try {
+                const { files, folderTitle } = await extractFilesFromDataTransfer(e.dataTransfer);
+                if (files && files.length > 0) {
+                    switchMainTab('translate');
+                    closeModal('modal-import');
+                    handleSelectedFiles(files, folderTitle);
+                }
+            } catch (err) {
+                console.warn("Drop handling error:", err);
             }
         }
     }, false);
@@ -1513,7 +1590,9 @@ async function loadDramaCatalog(platformId = "hongguo", query = "", category = "
 
             updateSavedCountUI();
 
+            window.dlCatalogMap = window.dlCatalogMap || new Map();
             data.dramas.forEach((drama, idx) => {
+                window.dlCatalogMap.set(String(drama.id), drama);
                 const card = document.createElement('div');
                 card.className = `dl-card-item ${dlCurrentDrama && dlCurrentDrama.id === drama.id ? 'active' : ''}`;
                 card.id = `dl-card-${drama.id}`;
@@ -1576,17 +1655,62 @@ async function loadMoreDramas() {
 }
 
 async function selectDramaCard(dramaId, openQueueMode = false) {
+    // 1. INSTANT OPTIMISTIC FEEDBACK (< 16ms): Zero-lag immediate response
+    document.querySelectorAll('.dl-card-item').forEach(c => c.classList.remove('active'));
+    const activeCard = document.getElementById(`dl-card-${dramaId}`);
+    if (activeCard) activeCard.classList.add('active');
+
+    const cachedDrama = window.dlCatalogMap ? window.dlCatalogMap.get(String(dramaId)) : null;
+    if (cachedDrama) {
+        dlCurrentDrama = cachedDrama;
+        const totalEps = cachedDrama.total_episodes || 80;
+
+        const title = document.getElementById('dl-info-title-text');
+        const posterImg = document.getElementById('dl-info-poster-img');
+        const badge = document.getElementById('dl-info-platform-badge');
+        const stats = document.getElementById('dl-info-stats-text');
+        const desc = document.getElementById('dl-info-desc-text');
+
+        if (title) title.textContent = cachedDrama.title_cn || cachedDrama.title || "Drama";
+        if (posterImg) posterImg.src = cachedDrama.poster || 'posters/poster_sample_ceo.jpg';
+        if (badge) badge.textContent = `${(cachedDrama.platform || 'HONGGUO').toUpperCase()} • ${cachedDrama.rating || '9.8'} ★`;
+        if (stats) stats.textContent = `Episodes ${totalEps} • Locked 0 • Selected ${totalEps}`;
+        if (desc) desc.textContent = cachedDrama.description || "Hongguo Short Drama Series Manifest.";
+
+        const catDlBtnText = document.getElementById('dl-catalog-dl-all-text');
+        if (catDlBtnText) catDlBtnText.textContent = `ទាញយកគ្រប់ភាគទាំងអស់ (Download All EP 1 - ${totalEps})`;
+        const qDlBtnText = document.getElementById('dl-q-download-all-text');
+        if (qDlBtnText) qDlBtnText.textContent = `ទាញយកគ្រប់ភាគទាំងអស់ (Download All EP 1 - ${totalEps})`;
+
+        if (openQueueMode) {
+            switchDlViewMode('queue');
+            // If episodes not yet loaded for this drama, pre-populate instantly
+            if (!dlEpisodesList || dlEpisodesList.length === 0 || dlEpisodesList[0]?.drama_id !== dramaId) {
+                dlEpisodesList = Array.from({ length: totalEps }, (_, i) => ({
+                    id: `${dramaId}_ep_${String(i + 1).padStart(3, '0')}`,
+                    drama_id: dramaId,
+                    episode_num: i + 1,
+                    episode_number: i + 1,
+                    title: `Episode ${String(i + 1).padStart(2, '0')}`,
+                    duration: "02:00",
+                    status: "Ready",
+                    progress: 0,
+                    is_selected: true
+                }));
+            }
+            renderQueueViewForCurrentDrama();
+        }
+    } else if (openQueueMode) {
+        switchDlViewMode('queue');
+    }
+
+    // 2. Fetch full verified episodes & local disk status (< 5ms)
     try {
         const res = await fetch(`/api/downloader/drama/${dramaId}`);
         const data = await res.json();
         if (data.success) {
             dlCurrentDrama = data.drama;
             dlEpisodesList = (data.episodes || []).map(ep => ({ ...ep, is_selected: true }));
-
-            // Highlight card in grid
-            document.querySelectorAll('.dl-card-item').forEach(c => c.classList.remove('active'));
-            const activeCard = document.getElementById(`dl-card-${dramaId}`);
-            if (activeCard) activeCard.classList.add('active');
 
             // Update Right DRAMA INFO Box
             const title = document.getElementById('dl-info-title-text');
@@ -1631,9 +1755,8 @@ async function selectDramaCard(dramaId, openQueueMode = false) {
             renderEpisodesChecklist(dlEpisodesList);
             updateDownloaderStats(data.stats);
 
-            // Open Image 2 Queue / Episode Player View if requested
             if (openQueueMode) {
-                switchDlViewMode('queue');
+                renderQueueViewForCurrentDrama();
             }
         }
     } catch (e) {}
@@ -1934,11 +2057,27 @@ function renderQueueViewForCurrentDrama() {
 
         let statusText = ep.status || (prog === 100 ? 'Completed' : 'Ready');
         let statusClass = 'ready';
+        let fillStyle = `width: ${prog}%;`;
+        let textStyle = '';
+
         if (statusText === 'Completed' || prog === 100) {
             statusText = 'Completed';
             statusClass = 'completed';
+            fillStyle = 'width: 100%; background: #10b981;';
+            textStyle = 'color: #10b981;';
+        } else if (statusText === 'Failed') {
+            statusText = 'Failed';
+            statusClass = 'failed';
+            fillStyle = 'width: 100%; background: #ef4444;';
+            textStyle = 'color: #ef4444;';
         } else if (statusText === 'Downloading') {
             statusClass = 'downloading';
+            fillStyle = `width: ${prog}%; background: linear-gradient(90deg, #f59e0b, #fbbf24);`;
+            textStyle = 'color: #fbbf24;';
+        } else if (statusText === 'Queued') {
+            statusClass = 'queued';
+            fillStyle = 'width: 0%;';
+            textStyle = 'color: #94a3b8;';
         }
 
         // Table Row matching Image 2
@@ -1957,9 +2096,9 @@ function renderQueueViewForCurrentDrama() {
                 <div class="dl-q2-status-pill ${statusClass}">${statusText}</div>
                 <div class="dl-q2-prog-group">
                     <div class="dl-q2-prog-track">
-                        <div class="dl-q2-prog-fill" id="dl-q-fill-${epNum}" style="width: ${prog}%;"></div>
+                        <div class="dl-q2-prog-fill ${statusClass}" id="dl-q-fill-${epNum}" style="${fillStyle}"></div>
                     </div>
-                    <span class="dl-q2-prog-val" id="dl-q-text-${epNum}">${prog}%</span>
+                    <span class="dl-q2-prog-val ${statusClass}" id="dl-q-text-${epNum}" style="${textStyle}">${statusText === 'Failed' ? 'Failed' : `${prog}%`}</span>
                 </div>
             `;
             tbody.appendChild(row);
@@ -1974,8 +2113,10 @@ function renderQueueViewForCurrentDrama() {
         }
     });
 
-    // Start playback for active episode
-    playQueueEpisode(dlQueueActiveEpisodeNum || 1);
+    // Prepare playback for active episode paused with play button ready
+    if (!dlQueueActiveEpisodeNum) {
+        playQueueEpisode(1, false);
+    }
 }
 
 function toggleQueueEpisodeSelect(epNum) {
@@ -2020,7 +2161,7 @@ function loadVideoWithHls(video, url, posterUrl) {
     }
 }
 
-async function playQueueEpisode(epNum) {
+async function playQueueEpisode(epNum, autoPlay = true) {
     dlQueueActiveEpisodeNum = epNum;
 
     // Highlight active card in Image 2 4-Column Grid
@@ -2081,15 +2222,22 @@ async function playQueueEpisode(epNum) {
     if (rawUrl) {
         loadVideoWithHls(video, rawUrl, dlCurrentDrama?.poster || 'posters/poster_sample_ceo.jpg');
         video.currentTime = 0;
-        video.play().then(() => {
-            if (playOverlay) playOverlay.classList.add('hidden');
-            if (playBtnText) playBtnText.textContent = 'Pause';
-            if (playBtnIcon) playBtnIcon.className = 'fa-solid fa-pause';
-        }).catch(() => {
+        if (autoPlay) {
+            video.play().then(() => {
+                if (playOverlay) playOverlay.classList.add('hidden');
+                if (playBtnText) playBtnText.textContent = 'Pause';
+                if (playBtnIcon) playBtnIcon.className = 'fa-solid fa-pause';
+            }).catch(() => {
+                if (playOverlay) playOverlay.classList.remove('hidden');
+                if (playBtnText) playBtnText.textContent = 'Play';
+                if (playBtnIcon) playBtnIcon.className = 'fa-solid fa-play';
+            });
+        } else {
+            video.pause();
             if (playOverlay) playOverlay.classList.remove('hidden');
             if (playBtnText) playBtnText.textContent = 'Play';
             if (playBtnIcon) playBtnIcon.className = 'fa-solid fa-play';
-        });
+        }
         return;
     }
 
@@ -2101,15 +2249,22 @@ async function playQueueEpisode(epNum) {
         if (data.success && vUrl) {
             loadVideoWithHls(video, vUrl, data.poster || dlCurrentDrama.poster || 'posters/poster_sample_ceo.jpg');
             video.currentTime = 0;
-            video.play().then(() => {
-                if (playOverlay) playOverlay.classList.add('hidden');
-                if (playBtnText) playBtnText.textContent = 'Pause';
-                if (playBtnIcon) playBtnIcon.className = 'fa-solid fa-pause';
-            }).catch(() => {
+            if (autoPlay) {
+                video.play().then(() => {
+                    if (playOverlay) playOverlay.classList.add('hidden');
+                    if (playBtnText) playBtnText.textContent = 'Pause';
+                    if (playBtnIcon) playBtnIcon.className = 'fa-solid fa-pause';
+                }).catch(() => {
+                    if (playOverlay) playOverlay.classList.remove('hidden');
+                    if (playBtnText) playBtnText.textContent = 'Play';
+                    if (playBtnIcon) playBtnIcon.className = 'fa-solid fa-play';
+                });
+            } else {
+                video.pause();
                 if (playOverlay) playOverlay.classList.remove('hidden');
                 if (playBtnText) playBtnText.textContent = 'Play';
                 if (playBtnIcon) playBtnIcon.className = 'fa-solid fa-play';
-            });
+            }
             return;
         } else {
             // Authentic video not yet downloaded / imported
@@ -2321,12 +2476,12 @@ async function downloadAllQueueEpisodes() {
     const total = dlEpisodesList.length || dlCurrentDrama.total_episodes || 80;
     const title = (dlCurrentDrama.title_cn || dlCurrentDrama.title || '').replace(/[《》]/g, '').split(' - ')[0].trim();
 
-    // Select all episodes & immediately show live Downloading status in UI
+    // Select all episodes: mark non-completed as 'Queued' (NOT 'Downloading' yet!)
     dlEpisodesList.forEach(e => {
         e.is_selected = true;
         if (e.status !== 'Completed') {
-            e.status = 'Downloading';
-            e.progress = Math.max(3, e.progress || 0);
+            e.status = 'Queued';
+            e.progress = 0;
         }
     });
 
@@ -2338,15 +2493,20 @@ async function downloadAllQueueEpisodes() {
         const cardFill = document.getElementById(`dl-card-fill-${epNum}`);
         const text = document.getElementById(`dl-q-text-${epNum}`);
         const row = document.getElementById(`dl-q-row-${epNum}`);
-        const prog = ep.progress || 3;
-        if (fill && ep.status !== 'Completed') fill.style.width = `${prog}%`;
-        if (cardFill && ep.status !== 'Completed') cardFill.style.width = `${prog}%`;
-        if (text && ep.status !== 'Completed') text.textContent = `${prog}%`;
-        if (row && ep.status !== 'Completed') {
-            const pill = row.querySelector('.dl-q2-status-pill');
-            if (pill) {
-                pill.textContent = 'Downloading';
-                pill.className = 'dl-q2-status-pill downloading';
+        if (ep.status !== 'Completed') {
+            if (fill) fill.style.width = '0%';
+            if (cardFill) cardFill.style.width = '0%';
+            if (text) {
+                text.textContent = '0%';
+                text.style.color = '#94a3b8';
+            }
+            if (row) {
+                const pill = row.querySelector('.dl-q2-status-pill');
+                if (pill) {
+                    pill.textContent = 'Queued';
+                    pill.className = 'dl-q2-status-pill queued';
+                    pill.style.color = '#94a3b8';
+                }
             }
         }
     });
@@ -2380,7 +2540,7 @@ async function downloadAllQueueEpisodes() {
                 episode_ids: ["all"],
                 save_location: path,
                 save_poster: savePoster,
-                auto_merge_full: true
+                auto_merge_full: false
             })
         });
         const data = await res.json();
@@ -2401,29 +2561,68 @@ async function downloadAllQueueEpisodes() {
                             const epNum = ep.episode_num || ep.episode_number;
                             const fill = document.getElementById(`dl-q-fill-${epNum}`);
                             const cardFill = document.getElementById(`dl-card-fill-${epNum}`);
+                            const card = document.getElementById(`dl-ep-card-${epNum}`);
                             const text = document.getElementById(`dl-q-text-${epNum}`);
                             const row = document.getElementById(`dl-q-row-${epNum}`);
                             const prog = ep.progress || 0;
-                            if (fill) fill.style.width = `${prog}%`;
-                            if (cardFill) cardFill.style.width = `${prog}%`;
-                            if (text) text.textContent = `${prog}%`;
+                            const status = ep.status || (prog === 100 ? 'Completed' : (prog > 0 ? 'Downloading' : 'Ready'));
+
+                            if (fill) {
+                                if (status === 'Completed' || prog === 100) {
+                                    fill.style.width = '100%';
+                                    fill.style.background = '#10b981';
+                                } else if (status === 'Failed') {
+                                    fill.style.width = '100%';
+                                    fill.style.background = '#ef4444';
+                                } else if (status === 'Downloading') {
+                                    fill.style.width = `${prog}%`;
+                                    fill.style.background = 'linear-gradient(90deg, #f59e0b, #fbbf24)';
+                                } else {
+                                    fill.style.width = '0%';
+                                }
+                            }
+                            if (cardFill) {
+                                cardFill.style.width = (status === 'Completed' || prog === 100) ? '100%' : `${prog}%`;
+                            }
+                            if (card) {
+                                if (status === 'Completed' || prog === 100) {
+                                    card.classList.add('completed');
+                                }
+                            }
+                            if (text) {
+                                if (status === 'Completed' || prog === 100) {
+                                    text.textContent = '100%';
+                                    text.style.color = '#10b981';
+                                } else if (status === 'Failed') {
+                                    text.textContent = 'Failed';
+                                    text.style.color = '#ef4444';
+                                } else if (status === 'Downloading') {
+                                    text.textContent = `${prog}%`;
+                                    text.style.color = '#fbbf24';
+                                } else {
+                                    text.textContent = '0%';
+                                    text.style.color = '#94a3b8';
+                                }
+                            }
                             if (row) {
                                 const pill = row.querySelector('.dl-q2-status-pill');
                                 if (pill) {
-                                    const status = ep.status || (prog === 100 ? 'Completed' : (prog > 0 ? 'Downloading' : 'Ready'));
                                     pill.textContent = status;
                                     pill.className = `dl-q2-status-pill ${status.toLowerCase()}`;
-                                    if (status === 'Completed') {
+                                    if (status === 'Completed' || prog === 100) {
                                         pill.style.color = '#10b981';
+                                    } else if (status === 'Failed') {
+                                        pill.style.color = '#ef4444';
                                     } else if (status === 'Downloading') {
                                         pill.style.color = '#f59e0b';
+                                    } else if (status === 'Queued') {
+                                        pill.style.color = '#94a3b8';
                                     } else {
                                         pill.style.color = '#38bdf8';
                                     }
                                 }
                             }
                         });
-                        renderEpisodesChecklist(dlEpisodesList);
                     }
                     updateDownloaderStats(sData.stats);
 
@@ -2456,8 +2655,12 @@ async function downloadAllQueueEpisodes() {
                             openCurrentDramaFolder(sData.last_download_dir);
                         }, 500);
 
+                        const qVideo = document.getElementById('dl-q-video-elem');
+                        if (qVideo) {
+                            qVideo.pause();
+                        }
                         if (dlQueueActiveEpisodeNum) {
-                            playQueueEpisode(dlQueueActiveEpisodeNum);
+                            playQueueEpisode(dlQueueActiveEpisodeNum, false);
                         }
                     }
                 }
@@ -2889,21 +3092,72 @@ async function startBatchDownload() {
                 const sRes = await fetch('/api/downloader/status');
                 const sData = await sRes.json();
                 if (sData) {
-                    if (sData.episodes) {
+                    if (sData.episodes && sData.episodes.length > 0) {
                         dlEpisodesList = sData.episodes;
                         sData.episodes.forEach(ep => {
                             const epNum = ep.episode_num || ep.episode_number;
                             const fill = document.getElementById(`dl-q-fill-${epNum}`);
+                            const cardFill = document.getElementById(`dl-card-fill-${epNum}`);
+                            const card = document.getElementById(`dl-ep-card-${epNum}`);
                             const text = document.getElementById(`dl-q-text-${epNum}`);
                             const row = document.getElementById(`dl-q-row-${epNum}`);
-                            if (fill) fill.style.width = `${ep.progress || 0}%`;
-                            if (text) text.textContent = `${ep.progress || 0}%`;
+                            const prog = ep.progress || 0;
+                            const status = ep.status || (prog === 100 ? 'Completed' : (prog > 0 ? 'Downloading' : 'Ready'));
+
+                            if (fill) {
+                                if (status === 'Completed' || prog === 100) {
+                                    fill.style.width = '100%';
+                                    fill.style.background = '#10b981';
+                                } else if (status === 'Failed') {
+                                    fill.style.width = '100%';
+                                    fill.style.background = '#ef4444';
+                                } else if (status === 'Downloading') {
+                                    fill.style.width = `${prog}%`;
+                                    fill.style.background = 'linear-gradient(90deg, #f59e0b, #fbbf24)';
+                                } else {
+                                    fill.style.width = '0%';
+                                }
+                            }
+                            if (cardFill) {
+                                cardFill.style.width = (status === 'Completed' || prog === 100) ? '100%' : `${prog}%`;
+                            }
+                            if (card && (status === 'Completed' || prog === 100)) {
+                                card.classList.add('completed');
+                            }
+                            if (text) {
+                                if (status === 'Completed' || prog === 100) {
+                                    text.textContent = '100%';
+                                    text.style.color = '#10b981';
+                                } else if (status === 'Failed') {
+                                    text.textContent = 'Failed';
+                                    text.style.color = '#ef4444';
+                                } else if (status === 'Downloading') {
+                                    text.textContent = `${prog}%`;
+                                    text.style.color = '#fbbf24';
+                                } else {
+                                    text.textContent = '0%';
+                                    text.style.color = '#94a3b8';
+                                }
+                            }
                             if (row) {
                                 const pill = row.querySelector('.dl-q2-status-pill');
-                                if (pill && ep.status) pill.textContent = ep.status;
+                                if (pill) {
+                                    pill.textContent = status;
+                                    pill.className = `dl-q2-status-pill ${status.toLowerCase()}`;
+                                    if (status === 'Completed' || prog === 100) {
+                                        pill.style.color = '#10b981';
+                                    } else if (status === 'Failed') {
+                                        pill.style.color = '#ef4444';
+                                    } else if (status === 'Downloading') {
+                                        pill.style.color = '#f59e0b';
+                                    } else if (status === 'Queued') {
+                                        pill.style.color = '#94a3b8';
+                                    } else {
+                                        pill.style.color = '#38bdf8';
+                                    }
+                                }
                             }
                         });
-                        renderEpisodesChecklist(dlEpisodesList);
                     }
                     updateDownloaderStats(sData.stats);
                     if (!sData.is_downloading) {
@@ -2943,12 +3197,21 @@ function updateDownloaderStats(stats) {
     const locked = document.getElementById('dl-stat-locked');
     const percent = document.getElementById('dl-stat-overall-percent');
 
-    if (total) total.textContent = stats.total || 0;
-    if (selected) selected.textContent = stats.selected || 0;
-    if (completed) completed.textContent = stats.completed || 0;
-    if (failed) failed.textContent = stats.failed || 0;
-    if (locked) locked.textContent = stats.locked || 0;
-    if (percent) percent.textContent = `${stats.progress_percent || 0}%`;
+    if (total) total.textContent = stats.total ?? 0;
+    if (selected) selected.textContent = stats.selected ?? 0;
+    if (completed) completed.textContent = stats.completed ?? 0;
+    if (failed) failed.textContent = stats.failed ?? 0;
+    if (locked) locked.textContent = stats.locked ?? 0;
+    if (percent) percent.textContent = `${stats.progress_percent ?? 0}%`;
+
+    // Ensure footer is visible when in Downloader tab
+    const dlFooter = document.getElementById('footer-dl-stats');
+    if (dlFooter) {
+        const dlView = document.getElementById('view-downloader-workspace');
+        if (dlView && dlView.style.display !== 'none') {
+            dlFooter.style.display = 'flex';
+        }
+    }
 }
 
 function appendDownloaderLog(msg) {
@@ -3023,7 +3286,7 @@ let currentStoryConfig = {
     aspect_ratio: "9:16",
     subtitle_mode: "none",
     dubbing_mode: "smart_bgm",
-    ducking_volume: "0.02",
+    ducking_volume: "0.15",
     speech_boost_db: 2.5
 };
 
@@ -3082,7 +3345,7 @@ function syncStagedCardControls() {
     }
 
     // 2. Sync BGM slider & presets
-    const rawDuck = parseFloat(currentStoryConfig.ducking_volume !== undefined ? currentStoryConfig.ducking_volume : 0.18);
+    const rawDuck = parseFloat(currentStoryConfig.ducking_volume !== undefined ? currentStoryConfig.ducking_volume : 0.15);
     const duckingNum = Math.min(40, Math.max(0, Math.round(rawDuck * 100)));
     const slider = document.getElementById('staged-bgm-slider');
     if (slider) slider.value = duckingNum;
@@ -3277,15 +3540,14 @@ async function openStorySettingsModal() {
 }
 
 function formatDuckingDbText(pct) {
-    if (pct <= 0) return "0% (-45dB) • បិទស្ងាត់ពេលនិយាយ";
-    const db = 20 * Math.log10(Math.max(0.005, pct / 100));
+    if (pct <= 0) return "0% • បិទភ្លេងកំដរ (Mute BGM)";
     let desc = "ស្តង់ដារពិរោះ";
-    if (pct <= 4) desc = "ស្រាលបំផុត";
-    else if (pct <= 8) desc = "ស្រាលទន់";
-    else if (pct <= 18) desc = "ស្តង់ដារពិរោះ";
-    else if (pct <= 28) desc = "រាងឮច្បាស់";
-    else desc = "ឮខ្លាំង";
-    return `${pct}% (${db.toFixed(1)} dB) • ${desc}`;
+    if (pct <= 5) desc = "ស្រាលបំផុត (Subtle)";
+    else if (pct <= 10) desc = "ស្រាលល្មម (Soft)";
+    else if (pct <= 18) desc = "ស្តង់ដាររឿងភាគ (Cinema Standard)";
+    else if (pct <= 28) desc = "រាងឮច្បាស់ (Moderate)";
+    else desc = "ឮខ្លាំង (High BGM)";
+    return `${pct}% • ${desc}`;
 }
 
 function syncStoryDuckingUI(pct) {
@@ -3851,14 +4113,16 @@ async function triggerFileSelect() {
         const data = await res.json();
         if (data && data.success && data.files && data.files.length > 0) {
             handleSelectedFiles(data.files);
+            return;
         }
-        // Native picker concluded or cancelled - do not pop a second dialog!
-        return;
+        if (data && data.cancelled) {
+            return;
+        }
     } catch (e) {
         console.warn("Native file picker note, falling back to HTML input:", e);
-        const input = document.getElementById('batch-files-input');
-        if (input) input.click();
     }
+    const input = document.getElementById('batch-files-input');
+    if (input) input.click();
 }
 
 async function triggerFolderSelect() {
@@ -3868,14 +4132,16 @@ async function triggerFolderSelect() {
         const data = await res.json();
         if (data && data.success && data.files && data.files.length > 0) {
             handleSelectedFiles(data.files, data.series_title);
+            return;
         }
-        // Native picker concluded or cancelled - do not pop a second dialog!
-        return;
+        if (data && data.cancelled) {
+            return;
+        }
     } catch (e) {
         console.warn("Native folder picker note, falling back to HTML input:", e);
-        const input = document.getElementById('batch-folder-input');
-        if (input) input.click();
     }
+    const input = document.getElementById('batch-folder-input');
+    if (input) input.click();
 }
 
 let activeDubbingTaskId = null;
@@ -4006,7 +4272,10 @@ function setStagedBatchFiles(files, folderTitle = "") {
     if (sourceLabel) sourceLabel.style.display = 'none';
 
     let folderName = folderTitle || "";
-    if (!folderName && files[0] && files[0].webkitRelativePath) {
+    if (!folderName && files[0] && files[0]._fullPath) {
+        const parts = files[0]._fullPath.split('/').filter(Boolean);
+        if (parts.length > 1) folderName = parts[0];
+    } else if (!folderName && files[0] && files[0].webkitRelativePath) {
         const parts = files[0].webkitRelativePath.split('/');
         if (parts.length > 1) folderName = parts[0];
     } else if (!folderName && files[0] && files[0].filepath) {
@@ -4054,6 +4323,7 @@ function clearStagedFiles() {
 
 function handleSelectedFiles(files, folderTitle = "") {
     if (!files || files.length === 0) return;
+    switchMainTab('translate');
     closeModal('modal-import');
 
     const validExts = ['.mp4', '.mkv', '.mov', '.avi', '.webm', '.flv', '.ts', '.m4v', '.wmv'];

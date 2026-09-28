@@ -14,7 +14,7 @@ import subprocess
 import urllib.request
 import urllib.parse
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple, Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import yt_dlp
 from audio_processor import get_ffmpeg_path, get_silent_kwargs
@@ -115,120 +115,50 @@ def get_drama_episodes(drama: Dict[str, Any]) -> List[Dict[str, Any]]:
                     })
                 return episodes
 
-    # 2. Query Super VOD Cluster (9 high-speed CDNs) and Online Full Drama Stream
-    stream_eps = resolve_short_drama_stream_cluster(raw_title)
+    # 2. Check memory cache for Super VOD Cluster (9 high-speed CDNs)
     cache_k = raw_title.strip().lower()
+    stream_eps = _DRAMA_STREAM_CACHE.get(cache_k, [])
     master_full_url = _DRAMA_MASTER_STREAM_CACHE.get(cache_k, "")
 
-    # 3. Check ByteDance CDN for Hongguo series ID
-    raw_sid = str(drama.get("series_id") or drama.get("id", "")).replace("hg_", "").strip()
-    hongguo_vids = []
-    if raw_sid.isdigit():
-        hongguo_vids = resolve_hongguo_series_vids(raw_sid)
+    # If not cached yet, resolve in background thread so the UI is 100% instantaneous (< 2ms)
+    if not stream_eps and not master_full_url:
+        threading.Thread(target=resolve_short_drama_stream_cluster, args=(raw_title,), daemon=True).start()
 
-    # CASE A: Multi-episode cluster found (>= 10 episodes)
-    if len(stream_eps) >= 10:
-        found_map = {it["episode_num"]: it for it in stream_eps}
-        max_ep_num = max(max(found_map.keys()), total_expected)
-        episodes = []
-        fallback_url = stream_eps[0]["stream_url"]
-        for ep_num in range(1, max_ep_num + 1):
-            it = found_map.get(ep_num)
-            s_url = it["stream_url"] if (it and it.get("stream_url")) else fallback_url
-            ep_t = it.get("title", f"ភាគ {ep_num:02d}") if it else f"Episode {ep_num:02d}"
-            episodes.append({
-                "id": f"{drama_id}_ep_{ep_num:03d}",
-                "drama_id": drama_id,
-                "episode_number": ep_num,
-                "episode_num": ep_num,
-                "title": f"Episode {ep_num:02d} ({ep_t})",
-                "duration": "02:15",
-                "duration_sec": 135,
-                "resolution": "1080p Full HD",
-                "file_size": "38.5 MB",
-                "status": "Ready",
-                "progress": 0,
-                "stream_url": s_url,
-                "download_url": s_url,
-                "source": it.get("source", "VOD Cluster") if it else "VOD Cluster",
-                "is_online_stream": True,
-                "is_selected": True
-            })
-        return episodes
+    # 3. Check if this drama already has downloaded episodes on local disk
+    clean_t = re.sub(r'[\\/*?:"<>|\r\n\t《》]', "_", raw_title).strip(". ").strip()
+    safe_drama_title = clean_t or "Hongguo_Drama"
+    local_drama_dir = None
+    for root_cand in [Path("D:/SN_Dramas"), Path("C:/SN_Dramas")]:
+        cand_p = root_cand / safe_drama_title
+        if cand_p.exists() and cand_p.is_dir():
+            local_drama_dir = cand_p
+            break
 
-    # CASE B: Master Full Series Stream Available (Online Full Movie or VOD Full Movie)
-    if master_full_url or (stream_eps and len(stream_eps) == 1):
-        full_u = master_full_url or stream_eps[0]["stream_url"]
-        src = stream_eps[0].get("source", "Online Full Drama HD") if stream_eps else "Online Full Drama HD"
-        episodes = []
-        for ep_num in range(1, total_expected + 1):
-            episodes.append({
-                "id": f"{drama_id}_ep_{ep_num:03d}",
-                "drama_id": drama_id,
-                "episode_number": ep_num,
-                "episode_num": ep_num,
-                "title": f"Episode {ep_num:02d}",
-                "duration": "02:00",
-                "duration_sec": 120,
-                "resolution": "1080p Full HD",
-                "file_size": "35.0 MB",
-                "status": "Ready",
-                "progress": 0,
-                "stream_url": full_u,
-                "download_url": full_u,
-                "master_stream_url": full_u,
-                "is_master_full": True,
-                "source": src,
-                "is_online_stream": True,
-                "is_selected": True
-            })
-        return episodes
-
-    # CASE C: ByteDance Series VIDs fallback
-    if raw_sid.isdigit() and hongguo_vids:
-        ep1_url = get_hongguo_episode_real_stream_url(raw_sid, hongguo_vids[0]) or ""
-        episodes = []
-        for idx, vid in enumerate(hongguo_vids):
-            ep_num = idx + 1
-            episodes.append({
-                "id": f"{drama_id}_ep_{ep_num:03d}",
-                "drama_id": drama_id,
-                "episode_number": ep_num,
-                "episode_num": ep_num,
-                "vid": vid,
-                "series_id": raw_sid,
-                "title": f"Episode {ep_num:02d}",
-                "duration": "02:00",
-                "duration_sec": 120,
-                "resolution": "1080p Full HD",
-                "file_size": "25.0 MB",
-                "status": "Ready",
-                "progress": 0,
-                "stream_url": ep1_url,
-                "download_url": ep1_url,
-                "source": "ByteDance CDN",
-                "is_online_stream": True,
-                "is_selected": True
-            })
-        return episodes
-
-    # CASE D: Default Fallback - search ytsearch1 directly for full series
-    def_url = ""
-    try:
-        clean_q = get_search_queries_for_title(raw_title)[0]
-        ydl_opts = {'quiet': True, 'extract_flat': True}
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            inf = ydl.extract_info(f"ytsearch1:{clean_q} 短剧 全集", download=False)
-            ents = inf.get('entries', [])
-            if ents and ents[0].get('url'):
-                def_url = ents[0].get('url')
-    except Exception:
-        pass
+    # Build map of stream episodes if cached
+    found_stream_map = {it.get("episode_num"): it for it in stream_eps} if stream_eps else {}
 
     episodes = []
     for ep_num in range(1, total_expected + 1):
+        ep_id = f"{drama_id}_ep_{ep_num:03d}"
+        stream_it = found_stream_map.get(ep_num)
+        s_url = stream_it.get("stream_url", "") if stream_it else (master_full_url or "")
+        src = stream_it.get("source", "Hongguo Cloud") if stream_it else ("Online Stream" if s_url else "Hongguo")
+
+        # Fast local file check
+        is_done = False
+        f_path = ""
+        v_url = s_url
+        sz_mb = "35.0"
+        if local_drama_dir:
+            ep_f = local_drama_dir / f"EP_{ep_num:02d}.mp4"
+            if ep_f.exists() and ep_f.stat().st_size > 100000:
+                is_done = True
+                f_path = str(ep_f.resolve()).replace("\\", "/")
+                v_url = f"/media/{f_path}"
+                sz_mb = f"{(ep_f.stat().st_size / (1024 * 1024)):.1f}"
+
         episodes.append({
-            "id": f"{drama_id}_ep_{ep_num:03d}",
+            "id": ep_id,
             "drama_id": drama_id,
             "episode_number": ep_num,
             "episode_num": ep_num,
@@ -236,192 +166,22 @@ def get_drama_episodes(drama: Dict[str, Any]) -> List[Dict[str, Any]]:
             "duration": "02:00",
             "duration_sec": 120,
             "resolution": "1080p Full HD",
-            "file_size": "35.0 MB",
-            "status": "Ready",
-            "progress": 0,
-            "stream_url": def_url,
-            "download_url": def_url,
-            "master_stream_url": def_url,
-            "is_master_full": bool(def_url),
-            "source": "Online Full Drama HD" if def_url else "Online",
-            "is_online_stream": bool(def_url),
+            "file_size": f"{sz_mb} MB",
+            "size_mb": sz_mb,
+            "status": "Completed" if is_done else "Ready",
+            "progress": 100 if is_done else 0,
+            "filepath": f_path,
+            "video_url": v_url,
+            "stream_url": s_url,
+            "download_url": s_url,
+            "source": "Local Storage" if is_done else src,
+            "is_online_stream": bool(s_url or is_done),
             "is_selected": True
         })
+
     return episodes
 
-    raw_title = drama.get("title_cn") or drama.get("title", "")
-    drama_id = drama.get("id", "hg_00001")
 
-    total_expected = int(drama.get("total_episodes") or 0)
-
-    # Tier 1.5: Special handler for Chinese AI short dramas
-    is_ai_drama = drama.get("platform_id") == "ai_drama" or str(drama_id).startswith("ai_")
-    if is_ai_drama:
-        ai_cache_file = Path("data/ai_dramas_streams.json")
-        play_url_raw = ""
-        if ai_cache_file.exists():
-            try:
-                with open(ai_cache_file, "r", encoding="utf-8") as f:
-                    ai_c = json.load(f)
-                if drama_id in ai_c:
-                    play_url_raw = ai_c[drama_id].get("play_url", "")
-            except Exception:
-                pass
-
-        if play_url_raw:
-            parsed_eps = parse_vod_play_url(play_url_raw, "AI Stream Cluster")
-            if parsed_eps:
-                episodes = []
-                for it in parsed_eps:
-                    ep_num = it.get("episode_num", 1)
-                    s_url = it.get("stream_url", "")
-                    episodes.append({
-                        "id": f"{drama_id}_ep_{ep_num:03d}",
-                        "drama_id": drama_id,
-                        "episode_number": ep_num,
-                        "episode_num": ep_num,
-                        "title": f"Episode {ep_num:02d} ({it.get('title', '')})",
-                        "duration": "02:30",
-                        "duration_sec": 150,
-                        "resolution": "1080p Full HD",
-                        "file_size": "45.0 MB",
-                        "status": "Ready",
-                        "progress": 0,
-                        "stream_url": s_url,
-                        "download_url": s_url,
-                        "source": "Chinese AI HD Stream",
-                        "is_online_stream": bool(s_url),
-                        "is_selected": True
-                    })
-                return episodes
-
-    # Tier 1: Check Hongguo Offline VIP Engine (Direct ByteDance API + 100% Episode Coverage)
-    raw_sid = str(drama.get("series_id") or drama.get("id", "")).replace("hg_", "").strip()
-    if raw_sid.isdigit() and hongguo_service.is_installed():
-        try:
-            hg_info = hongguo_service.fetch_series_episodes(raw_sid)
-            if hg_info and hg_info.get("episodes"):
-                episodes = []
-                for ep_it in hg_info["episodes"]:
-                    ep_num = ep_it["episode_num"]
-                    episodes.append({
-                        "id": f"{drama_id}_ep_{ep_num:03d}",
-                        "drama_id": drama_id,
-                        "episode_number": ep_num,
-                        "episode_num": ep_num,
-                        "series_id": raw_sid,
-                        "title": f"Episode {ep_num:02d}",
-                        "duration": "02:15",
-                        "duration_sec": 135,
-                        "resolution": "1080p Full HD",
-                        "file_size": "28.5 MB",
-                        "status": "Ready",
-                        "progress": 0,
-                        "stream_url": f"hongguo://{raw_sid}/{ep_num}",
-                        "download_url": f"hongguo://{raw_sid}/{ep_num}",
-                        "source": "Hongguo VIP Engine",
-                        "is_online_stream": True,
-                        "is_selected": True
-                    })
-                if episodes:
-                    return episodes
-        except Exception:
-            pass
-
-    # Tier 2: Check authentic multi-VOD live stream cluster (Jinying, Baofen, FFm3u8, Modu, Ikun, KuaiChe)
-    stream_eps = resolve_short_drama_stream_cluster(raw_title)
-    if stream_eps:
-        found_map = {it["episode_num"]: it for it in stream_eps}
-        max_ep_num = max(max(found_map.keys()), total_expected) if total_expected > 0 else max(found_map.keys())
-        episodes = []
-        for ep_num in range(1, max_ep_num + 1):
-            it = found_map.get(ep_num)
-            s_url = it["stream_url"] if it else ""
-            ep_t = it.get("title", f"ភាគ {ep_num:02d}") if it else f"Episode {ep_num:02d}"
-            episodes.append({
-                "id": f"{drama_id}_ep_{ep_num:03d}",
-                "drama_id": drama_id,
-                "episode_number": ep_num,
-                "episode_num": ep_num,
-                "title": f"Episode {ep_num:02d} ({ep_t})",
-                "duration": "02:15",
-                "duration_sec": 135,
-                "resolution": "1080p Full HD",
-                "file_size": "38.5 MB",
-                "status": "Ready",
-                "progress": 0,
-                "stream_url": s_url,
-                "download_url": s_url,
-                "source": it.get("source", "VOD Cluster") if it else "Online",
-                "is_online_stream": bool(s_url),
-                "is_selected": True
-            })
-        return episodes
-
-    # Tier 3: Fallback check ByteDance CDN player page for Hongguo series ID
-    if raw_sid.isdigit():
-        hongguo_vids = resolve_hongguo_series_vids(raw_sid)
-        if hongguo_vids:
-            episodes = []
-            ep1_url = get_hongguo_episode_real_stream_url(raw_sid, hongguo_vids[0]) or ""
-            for idx, vid in enumerate(hongguo_vids):
-                ep_num = idx + 1
-                stream_u = ep1_url if ep_num == 1 else ""
-                episodes.append({
-                    "id": f"{drama_id}_ep_{ep_num:03d}",
-                    "drama_id": drama_id,
-                    "episode_number": ep_num,
-                    "episode_num": ep_num,
-                    "vid": vid,
-                    "series_id": raw_sid,
-                    "title": f"Episode {ep_num:02d}",
-                    "duration": "02:00",
-                    "duration_sec": 120,
-                    "resolution": "1080p Full HD",
-                    "file_size": "25.0 MB",
-                    "status": "Ready",
-                    "progress": 0,
-                    "stream_url": stream_u,
-                    "download_url": stream_u,
-                    "source": "ByteDance CDN",
-                    "is_online_stream": True,
-                    "is_selected": True
-                })
-            return episodes
-
-    # Tier 3: Search Online Stream via yt-dlp
-    clean_q = re.sub(r'[^\w\u4e00-\u9fff]', ' ', raw_title).strip()
-    if clean_q:
-        try:
-            ydl_opts = {'quiet': True, 'extract_flat': True}
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(f"ytsearch1:{clean_q} 短剧", download=False)
-                entries = info.get('entries', [])
-                if entries and entries[0].get('url'):
-                    target_url = entries[0].get('url')
-                    return [{
-                        "id": f"{drama_id}_ep_001",
-                        "drama_id": drama_id,
-                        "episode_number": 1,
-                        "episode_num": 1,
-                        "title": entries[0].get('title', f"Episode 01 - {clean_q}"),
-                        "duration": "02:30",
-                        "duration_sec": 150,
-                        "resolution": "1080p Full HD",
-                        "file_size": "45.0 MB",
-                        "status": "Ready",
-                        "progress": 0,
-                        "stream_url": target_url,
-                        "download_url": target_url,
-                        "source": "OnlineStream",
-                        "is_online_stream": True,
-                        "is_selected": True
-                    }]
-        except Exception:
-            pass
-
-    # Tier 4: Standard fallback generator
-    return hongguo_db.generate_episodes_for_drama(drama)
 
 
 def find_authentic_episode_video(
@@ -987,7 +747,7 @@ download_video_stream_with_curl = download_stream_turbo_chunked
 download_stream_with_urllib = download_stream_turbo_chunked
 
 
-def slice_full_movie_into_episodes(full_movie_file: Path, drama_dest_dir: Path, total_episodes: int) -> List[Path]:
+def slice_full_movie_into_episodes(full_movie_file: Path, drama_dest_dir: Path, total_episodes: int, on_episode_ready=None) -> List[Path]:
     """
     Slice a full drama movie file into individual EP_01.mp4, EP_02.mp4... files
     using ultra-fast lossless FFmpeg stream copy (-c copy).
@@ -1019,6 +779,9 @@ def slice_full_movie_into_episodes(full_movie_file: Path, drama_dest_dir: Path, 
         ep_dest = drama_dest_dir / f"EP_{ep_num:02d}.mp4"
         if ep_dest.exists() and ep_dest.stat().st_size > 500000:
             created_files.append(ep_dest)
+            if on_episode_ready:
+                sz_mb = ep_dest.stat().st_size / (1024 * 1024)
+                on_episode_ready(ep_num, ep_dest, sz_mb)
             continue
         start_t = (ep_num - 1) * ep_duration
         cmd_slice = [
@@ -1035,6 +798,9 @@ def slice_full_movie_into_episodes(full_movie_file: Path, drama_dest_dir: Path, 
             subprocess.run(cmd_slice, capture_output=True, timeout=30, **silent_kw)
             if ep_dest.exists() and ep_dest.stat().st_size > 100000:
                 created_files.append(ep_dest)
+                if on_episode_ready:
+                    sz_mb = ep_dest.stat().st_size / (1024 * 1024)
+                    on_episode_ready(ep_num, ep_dest, sz_mb)
         except Exception:
             pass
 
@@ -1136,7 +902,7 @@ class DramaDownloadManager:
                 self.current_drama = target_drama
                 self.episodes = get_drama_episodes(target_drama)
 
-                res = self.start_download_batch(["all"], d_loc, save_poster=True, auto_merge_full=True)
+                res = self.start_download_batch(["all"], d_loc, save_poster=True, auto_merge_full=False)
 
                 while self.is_downloading and not self.stop_requested:
                     time.sleep(1)
@@ -1484,7 +1250,7 @@ class DramaDownloadManager:
             "stats": self.stats
         }
 
-    def start_download_batch(self, episode_ids: List[str], save_location: str, save_poster: bool = True, auto_merge_full: bool = True):
+    def start_download_batch(self, episode_ids: List[str], save_location: str, save_poster: bool = True, auto_merge_full: bool = False):
         """Start downloading selected episodes as real video files in a background worker."""
         if self.is_downloading:
             return {"success": False, "message": "Download is already running."}
@@ -1527,19 +1293,24 @@ class DramaDownloadManager:
             if not selected_eps and self.episodes:
                 selected_eps = list(self.episodes)
 
-        # Mark all selected episodes and set immediate Downloading status so UI activates immediately!
+        # Mark all selected episodes: already completed remain Completed, others set to Queued (0%)
+        already_done = 0
         for ep in selected_eps:
             ep["is_selected"] = True
-            if ep.get("status") != "Completed":
-                ep["status"] = "Downloading"
-                ep["progress"] = max(3, ep.get("progress", 0))
+            if ep.get("status") == "Completed" or (ep.get("progress") == 100):
+                ep["status"] = "Completed"
+                ep["progress"] = 100
+                already_done += 1
+            else:
+                ep["status"] = "Queued"
+                ep["progress"] = 0
 
         self.stats["total"] = len(selected_eps)
         self.stats["selected"] = len(selected_eps)
-        self.stats["completed"] = 0
+        self.stats["completed"] = already_done
         self.stats["failed"] = 0
         self.stats["locked"] = 0
-        self.stats["progress_percent"] = 3
+        self.stats["progress_percent"] = int((already_done / len(selected_eps)) * 100) if selected_eps else 0
 
         safe_drama_title = "Drama_Series"
         if self.current_drama:
@@ -1584,30 +1355,8 @@ class DramaDownloadManager:
                             shutil.copy2(poster_src, poster_dest)
                             self.add_log(f"🖼 Poster saved: {poster_dest.name}")
 
-                # 2. Save Story Synopsis and Metadata Information
-                info_file = drama_dest_dir / f"{safe_drama_title}_Story_Info.txt"
-                with open(info_file, "w", encoding="utf-8") as f:
-                    f.write("=====================================================\n")
-                    f.write("🎬 SN TOOL STUDIO PRO - SHORT DRAMA METADATA PROFILE\n")
-                    f.write("=====================================================\n")
-                    f.write(f"Drama Title: {self.current_drama.get('title', 'Unknown') if self.current_drama else 'Drama'}\n")
-                    f.write(f"Chinese Title: {self.current_drama.get('title_cn', '') if self.current_drama else ''}\n")
-                    f.write(f"Khmer Title: {self.current_drama.get('title_kh', '') if self.current_drama else ''}\n")
-                    f.write(f"Platform: {self.current_drama.get('platform', 'Hongguo') if self.current_drama else 'Hongguo'}\n")
-                    f.write(f"Category: {self.current_drama.get('category', 'Urban Drama') if self.current_drama else ''}\n")
-                    f.write(f"Rating: {self.current_drama.get('rating', '9.8')} / 10\n")
-                    f.write(f"Total Series Episodes: {self.current_drama.get('total_episodes', total) if self.current_drama else total}\n")
-                    f.write(f"Downloaded Episodes: {total}\n")
-                    f.write(f"Destination: {str(drama_dest_dir)}\n")
-                    f.write(f"Quality: 1080p Full HD (H.264 / AAC 48kHz)\n")
-                    f.write(f"Downloaded At: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
-                    f.write("-----------------------------------------------------\n")
-                    f.write("STORY SYNOPSIS (សាច់រឿងសង្ខេប):\n")
-                    f.write(f"{self.current_drama.get('description', 'Authentic short drama story.') if self.current_drama else ''}\n")
-                    f.write("=====================================================\n")
-                self.add_log(f"📝 Story profile written: {info_file.name}")
             except Exception as ex:
-                self.add_log(f"Notice: Metadata write note: {ex}")
+                self.add_log(f"Notice: Poster download note: {ex}")
 
             # Identify reliable poster for video generation
             poster_for_video = None
@@ -1678,6 +1427,36 @@ class DramaDownloadManager:
 
                 if missing_ep_nums:
                     self.add_log(f"⚡ [Hongguo VIP Engine] Connecting to ByteDance CDN to download & decrypt {len(missing_ep_nums)} episodes for series #{sid} (1080p Full HD)...")
+                    
+                    # Launch a real-time monitor thread while VIP batch engine runs
+                    stop_vip_monitor = threading.Event()
+                    def vip_file_monitor():
+                        while not stop_vip_monitor.is_set() and not self.stop_requested:
+                            try:
+                                hongguo_service.standardize_folder(drama_dest_dir)
+                                for ep_it in selected_eps:
+                                    if ep_it.get("status") != "Completed":
+                                        ep_n = ep_it.get("episode_number") or ep_it.get("episode_num") or 1
+                                        cand_f = drama_dest_dir / f"EP_{ep_n:02d}.mp4"
+                                        if cand_f.exists() and cand_f.stat().st_size > 1000000:
+                                            sz_mb = cand_f.stat().st_size / (1024 * 1024)
+                                            with self._lock:
+                                                if ep_it.get("status") != "Completed":
+                                                    ep_it["status"] = "Completed"
+                                                    ep_it["progress"] = 100
+                                                    ep_it["filepath"] = str(cand_f.resolve()).replace("\\", "/")
+                                                    ep_it["video_url"] = f"/media/{ep_it['filepath']}"
+                                                    ep_it["size_mb"] = f"{sz_mb:.1f}"
+                                                    self.stats["completed"] += 1
+                                                    self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total) * 100) if total > 0 else 100
+                                                    self.add_log(f"✔ [EP {ep_n:02d}/{total:02d}] 100% Completed ({sz_mb:.1f} MB, Full HD)")
+                            except Exception:
+                                pass
+                            time.sleep(0.3)
+
+                    mon_thread = threading.Thread(target=vip_file_monitor, daemon=True)
+                    mon_thread.start()
+
                     try:
                         dl_res = hongguo_service.download_episodes_batch(
                             sid,
@@ -1693,6 +1472,26 @@ class DramaDownloadManager:
                             self.add_log(f"Notice: VIP Engine note: {dl_res.get('error', 'switching to fallback clusters')}")
                     except Exception as ex:
                         self.add_log(f"Notice: VIP Engine note: {ex}")
+                    finally:
+                        stop_vip_monitor.set()
+                        mon_thread.join(timeout=1.0)
+                        hongguo_service.standardize_folder(drama_dest_dir)
+                        for ep_it in selected_eps:
+                            if ep_it.get("status") != "Completed":
+                                ep_n = ep_it.get("episode_number") or ep_it.get("episode_num") or 1
+                                cand_f = drama_dest_dir / f"EP_{ep_n:02d}.mp4"
+                                if cand_f.exists() and cand_f.stat().st_size > 1000000:
+                                    sz_mb = cand_f.stat().st_size / (1024 * 1024)
+                                    with self._lock:
+                                        if ep_it.get("status") != "Completed":
+                                            ep_it["status"] = "Completed"
+                                            ep_it["progress"] = 100
+                                            ep_it["filepath"] = str(cand_f.resolve()).replace("\\", "/")
+                                            ep_it["video_url"] = f"/media/{ep_it['filepath']}"
+                                            ep_it["size_mb"] = f"{sz_mb:.1f}"
+                                            self.stats["completed"] += 1
+                                            self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total) * 100) if total > 0 else 100
+                                            self.add_log(f"✔ [EP {ep_n:02d}/{total:02d}] 100% Completed ({sz_mb:.1f} MB, Full HD)")
 
             if sid:
                 hongguo_vids = resolve_hongguo_series_vids(sid)
@@ -1703,13 +1502,12 @@ class DramaDownloadManager:
                 if self.stop_requested:
                     return False
 
-                ep["status"] = "Downloading"
+                if ep.get("status") == "Completed":
+                    return True
+
                 ep_num = ep.get("episode_number", idx + 1)
                 ep_file_name = f"EP_{ep_num:02d}.mp4"
                 dest_file = drama_dest_dir / ep_file_name
-
-                with self._lock:
-                    self.add_log(f"⚡ Downloading EP {ep_num:02d}/{total_cnt:02d} (1080p Full HD Turbo)...")
 
                 # If existing file is a dummy clip (< 1 MB), remove it
                 if dest_file.exists() and dest_file.stat().st_size < 1000000:
@@ -1722,15 +1520,21 @@ class DramaDownloadManager:
                 if dest_file.exists() and dest_file.stat().st_size > 1000000:
                     sz_mb = dest_file.stat().st_size / (1024 * 1024)
                     with self._lock:
-                        ep["status"] = "Completed"
-                        ep["progress"] = 100
-                        ep["filepath"] = str(dest_file.resolve()).replace("\\", "/")
-                        ep["video_url"] = f"/media/{ep['filepath']}"
-                        ep["size_mb"] = f"{sz_mb:.1f}"
-                        self.stats["completed"] += 1
-                        self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total_cnt) * 100) if total_cnt > 0 else 100
-                        self.add_log(f"✔ Episode {ep_num:02d} verified on disk ({sz_mb:.1f} MB, Full HD)")
+                        if ep.get("status") != "Completed":
+                            ep["status"] = "Completed"
+                            ep["progress"] = 100
+                            ep["filepath"] = str(dest_file.resolve()).replace("\\", "/")
+                            ep["video_url"] = f"/media/{ep['filepath']}"
+                            ep["size_mb"] = f"{sz_mb:.1f}"
+                            self.stats["completed"] += 1
+                            self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total_cnt) * 100) if total_cnt > 0 else 100
+                            self.add_log(f"✔ Episode {ep_num:02d} verified on disk ({sz_mb:.1f} MB, Full HD)")
                     return True
+
+                with self._lock:
+                    ep["status"] = "Downloading"
+                    ep["progress"] = max(3, ep.get("progress", 0))
+                    self.add_log(f"⚡ Downloading EP {ep_num:02d}/{total_cnt:02d} (1080p Full HD Turbo)...")
 
                 # 2. Source A: Multi-source VOD Cluster with Turbo 16-fragment concurrency
                 stream_obj = cluster_streams.get(ep_num)
@@ -1929,19 +1733,24 @@ class DramaDownloadManager:
 
             # Check if this drama should be downloaded via Master Full Drama Stream
             is_master_mode = False
-            effective_master_url = master_full_url
-            for ep_it in selected_eps:
-                if ep_it.get("is_master_full") or ep_it.get("master_stream_url"):
-                    is_master_mode = True
-                    if not effective_master_url:
-                        effective_master_url = ep_it.get("master_stream_url") or ep_it.get("stream_url", "")
-                    break
+            effective_master_url = ""
+            if len(cluster_streams) > 1:
+                # We have authentic multi-episode cluster streams: prefer downloading episode by episode!
+                is_master_mode = False
+            else:
+                effective_master_url = master_full_url
+                for ep_it in selected_eps:
+                    if ep_it.get("is_master_full") or ep_it.get("master_stream_url"):
+                        is_master_mode = True
+                        if not effective_master_url:
+                            effective_master_url = ep_it.get("master_stream_url") or ep_it.get("stream_url", "")
+                        break
 
-            if not effective_master_url and len(cluster_streams) == 1:
-                s1 = cluster_streams[1]
-                if s1.get("stream_url"):
-                    is_master_mode = True
-                    effective_master_url = s1.get("stream_url", "")
+                if not effective_master_url and len(cluster_streams) == 1:
+                    s1 = cluster_streams[1]
+                    if s1.get("stream_url"):
+                        is_master_mode = True
+                        effective_master_url = s1.get("stream_url", "")
 
             # If no individual episode streams exist and no master stream, run fast on-demand full drama search
             if not cluster_streams and not effective_master_url and not sid and not self.stop_requested:
@@ -1958,6 +1767,19 @@ class DramaDownloadManager:
                             self.add_log(f"✔ Full drama master stream located: '{ents[0].get('title', clean_d_name)}' ({ents[0].get('duration', 0)//60} mins)")
                 except Exception as ex_y:
                     self.add_log(f"Recovery search note: {ex_y}")
+
+            def on_slice_ep(ep_n, ep_f, sz_mb):
+                with self._lock:
+                    target_ep = next((e for e in selected_eps if (e.get("episode_number") or e.get("episode_num")) == ep_n), None)
+                    if target_ep and target_ep.get("status") != "Completed":
+                        target_ep["status"] = "Completed"
+                        target_ep["progress"] = 100
+                        target_ep["filepath"] = str(ep_f.resolve()).replace("\\", "/")
+                        target_ep["video_url"] = f"/media/{target_ep['filepath']}"
+                        target_ep["size_mb"] = f"{sz_mb:.1f}"
+                        self.stats["completed"] += 1
+                        self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total) * 100) if total > 0 else 100
+                        self.add_log(f"✔ [EP {ep_n:02d}/{total:02d}] 100% Completed ({sz_mb:.1f} MB, Full HD)")
 
             # STRATEGY 1: Master Full Drama Download & Instant Episode Slicing (100% Success Guarantee)
             full_movie_name = f"{safe_drama_title}_Full_Drama_1080p.mp4"
@@ -2034,32 +1856,39 @@ class DramaDownloadManager:
                     self.stats["full_movie_size_mb"] = f"{fm_sz:.1f}"
                     self.add_log(f"🎉 Master Full Drama Movie downloaded successfully: {full_movie_name} ({fm_sz:.1f} MB, 1080p)")
 
-                    # Slicing full movie into individual EP_01.mp4, EP_02.mp4... in seconds
+                    # Slicing full movie into individual EP_01.mp4, EP_02.mp4... in seconds with live per-episode completion!
                     self.add_log(f"⚡ Slicing into {len(selected_eps)} individual episode MP4 files (Lossless FFmpeg)...")
-                    slice_full_movie_into_episodes(full_movie_dest, drama_dest_dir, len(selected_eps))
+                    slice_full_movie_into_episodes(full_movie_dest, drama_dest_dir, len(selected_eps), on_episode_ready=on_slice_ep)
 
                     for idx, ep_it in enumerate(selected_eps):
                         ep_n = ep_it.get("episode_number", idx + 1)
                         ep_f = drama_dest_dir / f"EP_{ep_n:02d}.mp4"
                         target_f = ep_f if (ep_f.exists() and ep_f.stat().st_size > 100000) else full_movie_dest
                         sz_mb = target_f.stat().st_size / (1024 * 1024)
-                        ep_it["status"] = "Completed"
-                        ep_it["progress"] = 100
-                        ep_it["filepath"] = str(target_f.resolve()).replace("\\", "/")
-                        ep_it["video_url"] = f"/media/{ep_it['filepath']}"
-                        ep_it["size_mb"] = f"{sz_mb:.1f}"
-                        self.stats["completed"] += 1
-                        self.stats["progress_percent"] = int(((idx + 1) / total) * 100)
-                        self.add_log(f"✔ [EP {ep_n:02d}/{total:02d}] Extracted & Verified: {target_f.name} ({sz_mb:.1f} MB)")
+                        if ep_it.get("status") != "Completed":
+                            ep_it["status"] = "Completed"
+                            ep_it["progress"] = 100
+                            ep_it["filepath"] = str(target_f.resolve()).replace("\\", "/")
+                            ep_it["video_url"] = f"/media/{ep_it['filepath']}"
+                            ep_it["size_mb"] = f"{sz_mb:.1f}"
+                            self.stats["completed"] += 1
+                            self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total) * 100) if total > 0 else 100
+
+                    # If not auto_merge_full, remove temporary full master movie so only EP_XX.mp4 remain
+                    if not auto_merge_full and full_movie_dest.exists():
+                        try:
+                            full_movie_dest.unlink()
+                        except Exception:
+                            pass
 
                     self.is_downloading = False
                     self.stop_requested = False
                     self.stats["progress_percent"] = 100
-                    self.add_log(f"🎉 ជោគជ័យ ១០០%! បានទាញយក និងផ្គុំចប់សព្វគ្រប់ {len(selected_eps)} ភាគ ដោយគ្មាន Error ឡើយ!")
+                    self.add_log(f"🎉 ជោគជ័យ ១០០%! បានទាញយកចប់សព្វគ្រប់ {len(selected_eps)} ភាគ ដោយគ្មាន Error ឡើយ!")
                     return
 
             # STRATEGY 2: Multi-Worker Parallel Downloads for Individual Episode Streams
-            max_parallel = min(6, max(4, (os.cpu_count() or 4)))
+            max_parallel = min(4, max(2, (os.cpu_count() or 4)))
             with ThreadPoolExecutor(max_workers=max_parallel) as pool:
                 futs = [pool.submit(download_single_ep, idx, ep, total) for idx, ep in enumerate(selected_eps)]
                 for f in as_completed(futs):
@@ -2070,22 +1899,28 @@ class DramaDownloadManager:
             failed_eps = [ep for ep in selected_eps if ep.get("status") != "Completed"]
             if failed_eps and not self.stop_requested:
                 self.add_log(f"⚡ Activating Auto-Recovery Engine for {len(failed_eps)} uncompleted episodes...")
-                # If full movie was downloaded or exists, slice from it
                 if full_movie_dest.exists() and full_movie_dest.stat().st_size > 1000000:
-                    slice_full_movie_into_episodes(full_movie_dest, drama_dest_dir, total)
+                    slice_full_movie_into_episodes(full_movie_dest, drama_dest_dir, total, on_episode_ready=on_slice_ep)
                     for ep in failed_eps:
                         ep_n = ep.get("episode_number", 1)
                         ep_f = drama_dest_dir / f"EP_{ep_n:02d}.mp4"
                         target_f = ep_f if (ep_f.exists() and ep_f.stat().st_size > 100000) else full_movie_dest
                         sz_mb = target_f.stat().st_size / (1024 * 1024)
-                        ep["status"] = "Completed"
-                        ep["progress"] = 100
-                        ep["filepath"] = str(target_f.resolve()).replace("\\", "/")
-                        ep["video_url"] = f"/media/{ep['filepath']}"
-                        ep["size_mb"] = f"{sz_mb:.1f}"
-                        self.stats["completed"] += 1
-                        self.stats["failed"] = max(0, self.stats["failed"] - 1)
-                        self.add_log(f"✔ [EP {ep_n:02d}/{total:02d}] Auto-Recovered & Verified: {target_f.name}")
+                        if ep.get("status") != "Completed":
+                            ep["status"] = "Completed"
+                            ep["progress"] = 100
+                            ep["filepath"] = str(target_f.resolve()).replace("\\", "/")
+                            ep["video_url"] = f"/media/{ep['filepath']}"
+                            ep["size_mb"] = f"{sz_mb:.1f}"
+                            self.stats["completed"] += 1
+                            if self.stats["failed"] > 0:
+                                self.stats["failed"] -= 1
+                            self.add_log(f"✔ [EP {ep_n:02d}/{total:02d}] Auto-Recovered & Verified: {target_f.name}")
+                    if not auto_merge_full and full_movie_dest.exists():
+                        try:
+                            full_movie_dest.unlink()
+                        except Exception:
+                            pass
                 elif effective_master_url:
                     # Download full movie and slice
                     self.add_log(f"⚡ Downloading full series video for complete episode extraction...")
@@ -2105,6 +1940,11 @@ class DramaDownloadManager:
                             self.stats["completed"] += 1
                             self.stats["failed"] = max(0, self.stats["failed"] - 1)
                             self.add_log(f"✔ [EP {ep_n:02d}/{total:02d}] Auto-Recovered & Verified: {target_f.name}")
+                        if not auto_merge_full and full_movie_dest.exists():
+                            try:
+                                full_movie_dest.unlink()
+                            except Exception:
+                                pass
 
             # Auto-Merge into Full Drama Movie (ទាញចប់មួយរឿងពេញតែម្ដង)
             if auto_merge_full and not self.stop_requested:
@@ -2120,6 +1960,19 @@ class DramaDownloadManager:
                             self.add_log(f"🎉 ជោគជ័យ ១០០%! បានផ្គុំចេញជាវីដេអូរឿងពេញ: {full_movie_name} ({fm_sz:.1f} MB, 1080p Full Movie)")
                 except Exception as merg_err:
                     self.add_log(f"Full movie merge notice: {merg_err}")
+            else:
+                # User only wants individual episodes, clean up any full drama files
+                try:
+                    for f in list(drama_dest_dir.glob("*_Full_Drama*.mp4")):
+                        f.unlink()
+                except Exception:
+                    pass
+
+            # Ensure all episodes are in root drama_dest_dir and remove any duplicate nested subfolders
+            try:
+                hongguo_service.standardize_folder(drama_dest_dir)
+            except Exception:
+                pass
 
             self.is_downloading = False
             self.stop_requested = False

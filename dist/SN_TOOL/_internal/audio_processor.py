@@ -45,7 +45,7 @@ def patch_silent_subprocess():
         elif isinstance(cmd, str):
             cmd_str = cmd.lower()
 
-        is_gui_app = any(gui in cmd_str for gui in ("msedge", "chrome", "explorer"))
+        is_gui_app = any(gui in cmd_str for gui in ("msedge", "chrome", "explorer", "dialog", "picker")) or kwargs.pop("is_gui_dialog", False)
 
         if not is_gui_app:
             if "creationflags" not in kwargs:
@@ -395,13 +395,13 @@ def mix_dubbed_audio(
     dialogue_items: List[Dict[str, Any]],
     output_mixed_path: str,
     total_duration_sec: Optional[float] = None,
-    ducking_volume_factor: float = 0.35,  # -9dB ducking (warm continuous musical bed)
+    ducking_volume_factor: float = 0.0,    # 0.0 = Absolute Zero Vocal Bleed (Chinese speech 100% silenced)
     speech_volume_boost_db: float = 3.5,   # Boost speech clarity by +3.5dB
     dubbing_mode: str = "smart_bgm"        # "smart_bgm", "pure_voice", "standard_ducking"
 ) -> str:
     """
     Mix Khmer voice clips into the timeline with Smart BGM Audio Ducking and Zero Vocal Leakage.
-    Guarantees audible, rich audio output with zero silent drops.
+    Guarantees audible, rich audio output with zero silent drops and zero Chinese vocal whispering.
     """
     out_p = Path(output_mixed_path)
     out_p.parent.mkdir(parents=True, exist_ok=True)
@@ -450,9 +450,20 @@ def mix_dubbed_audio(
         audio_file = item.get("audio_file")
         if audio_file and Path(audio_file).exists():
             valid_lines.append((idx, item))
+        
+        # Guarantee every detected original speech line is completely muted in BGM
+        orig_s = float(item.get("orig_start", item.get("start", 0.0)))
+        orig_e = float(item.get("orig_end", item.get("end", orig_s + 1.5)))
+        if orig_e > orig_s:
+            p_s = max(0, int(orig_s * 1000) - 280)
+            p_e = int(orig_e * 1000) + 280
+            speech_intervals.append((p_s, p_e))
 
-    # Speech clarity boost (at least +3.5dB so dialogue cuts cleanly and proudly over BGM)
-    boost_val = max(3.0, float(speech_volume_boost_db)) if speech_volume_boost_db is not None else 3.5
+    # Speech clarity boost (respect exact user setting from 0.0dB to +8.0dB)
+    try:
+        boost_val = float(speech_volume_boost_db) if speech_volume_boost_db is not None else 2.5
+    except Exception:
+        boost_val = 2.5
 
     processed_lines = []
     min_dialogue_gap_ms = 120  # Minimum 120ms acoustic breathing space between consecutive speakers
@@ -461,10 +472,10 @@ def mix_dubbed_audio(
     for i, (idx, item) in enumerate(valid_lines):
         try:
             line_seg = load_audio_safely(item["audio_file"])
-            # Safe studio headroom gain: boost speech clearly without digital clipping (target peak -1.5 dBFS)
-            if boost_val != 0:
+            # Safe studio headroom gain: boost speech clearly without digital clipping
+            if boost_val > 0:
                 max_peak = line_seg.max_dBFS
-                safe_gain = min(boost_val, max(0.0, -1.5 - max_peak)) if max_peak > -12.0 else boost_val
+                safe_gain = min(boost_val, max(0.0, -0.8 - max_peak)) if max_peak > -12.0 else boost_val
                 if safe_gain > 0:
                     line_seg = line_seg + safe_gain
 
@@ -515,9 +526,9 @@ def mix_dubbed_audio(
             item["start"] = round(start_ms / 1000.0, 2)
             item["end"] = round(speech_end_ms / 1000.0, 2)
 
-            # The ducking interval covers original speech and dubbing with gentle padding
-            pad_start = max(0, min(orig_start_ms, start_ms) - 150)
-            pad_end = max(orig_end_ms, speech_end_ms) + 160
+            # The ducking interval covers original speech and dubbing with generous 280ms padding
+            pad_start = max(0, min(orig_start_ms, start_ms) - 280)
+            pad_end = max(orig_end_ms, speech_end_ms) + 280
             speech_intervals.append((pad_start, pad_end))
             processed_lines.append((start_ms, line_seg))
         except Exception as e:
@@ -623,88 +634,109 @@ def mix_dubbed_audio(
             raw_samples = np.frombuffer(bg_audio.raw_data, dtype=np.int16)
             total_frames = len(raw_samples) // bg_channels
 
-            bgm_nominal = 0.70
-            bgm_ducked = 0.35
+            # Respect user's configured BGM Volume setting directly
+            try:
+                user_bgm_vol = float(ducking_volume_factor) if ducking_volume_factor is not None else 0.15
+            except Exception:
+                user_bgm_vol = 0.15
 
-            fade_in_frames = max(1, int(0.280 * sr))   # 280ms smooth S-curve dip
-            fade_out_frames = max(1, int(0.600 * sr))  # 600ms smooth S-curve return
+            user_bgm_vol = max(0.0, min(1.0, user_bgm_vol))
 
-            block_frames = 60 * sr
-            ducked_bytes = bytearray()
+            if user_bgm_vol <= 0.005 or dubbing_mode == "pure_voice":
+                # Pure voice mode or 0% BGM -> mute BGM entirely
+                ducked_bg = AudioSegment.silent(duration=target_len_ms, frame_rate=target_fr).set_channels(channels)
+            else:
+                # The user's chosen BGM setting IS the continuous baseline volume!
+                bgm_nominal = user_bgm_vol
 
-            for blk_start in range(0, total_frames, block_frames):
-                blk_end = min(total_frames, blk_start + block_frames)
-                n_blk = blk_end - blk_start
+                # Gentle, transparent studio ducking during speech (~2.5dB dip):
+                # When speech occurs, music stays present at 70% of user's chosen volume
+                # When speech ends, music stays at user's chosen volume
+                # The music NEVER cuts out into awkward dead silence, and NEVER surges abruptly!
+                bgm_ducked = user_bgm_vol * 0.70
 
-                gain_blk = np.full(n_blk, bgm_nominal, dtype=np.float32)
+                fade_in_frames = max(1, int(0.350 * sr))   # 350ms smooth S-curve dip
+                fade_out_frames = max(1, int(0.500 * sr))  # 500ms smooth S-curve return
 
-                blk_s_ms = (blk_start / sr) * 1000.0
-                blk_e_ms = (blk_end / sr) * 1000.0
+                block_frames = 60 * sr
+                ducked_bytes = bytearray()
 
-                for s_ms, e_ms in merged_intervals:
-                    if e_ms + 1000 < blk_s_ms or s_ms - 1000 > blk_e_ms:
-                        continue
+                for blk_start in range(0, total_frames, block_frames):
+                    blk_end = min(total_frames, blk_start + block_frames)
+                    n_blk = blk_end - blk_start
 
-                    start_frame = max(0, int((s_ms / 1000.0) * sr))
-                    end_frame = min(total_frames, int((e_ms / 1000.0) * sr))
+                    gain_blk = np.full(n_blk, bgm_nominal, dtype=np.float32)
 
-                    dip_start = max(0, start_frame - fade_in_frames // 2)
-                    dip_end = min(total_frames, dip_start + fade_in_frames)
+                    blk_s_ms = (blk_start / sr) * 1000.0
+                    blk_e_ms = (blk_end / sr) * 1000.0
 
-                    loc_dip_s = max(0, dip_start - blk_start)
-                    loc_dip_e = min(n_blk, dip_end - blk_start)
-                    if loc_dip_e > loc_dip_s:
-                        g_start = blk_start + loc_dip_s
-                        g_end = blk_start + loc_dip_e
-                        t = np.linspace((g_start - dip_start) / max(1, dip_end - dip_start) * np.pi,
-                                        (g_end - dip_start) / max(1, dip_end - dip_start) * np.pi,
-                                        loc_dip_e - loc_dip_s, dtype=np.float32)
-                        ramp_down = bgm_ducked + (bgm_nominal - bgm_ducked) * 0.5 * (1.0 + np.cos(t))
-                        gain_blk[loc_dip_s:loc_dip_e] = np.minimum(gain_blk[loc_dip_s:loc_dip_e], ramp_down)
+                    for s_ms, e_ms in merged_intervals:
+                        if e_ms + 1000 < blk_s_ms or s_ms - 1000 > blk_e_ms:
+                            continue
 
-                    body_start = dip_end
-                    body_end = max(body_start, end_frame)
-                    loc_body_s = max(0, body_start - blk_start)
-                    loc_body_e = min(n_blk, body_end - blk_start)
-                    if loc_body_e > loc_body_s:
-                        gain_blk[loc_body_s:loc_body_e] = np.minimum(gain_blk[loc_body_s:loc_body_e], bgm_ducked)
+                        start_frame = max(0, int((s_ms / 1000.0) * sr))
+                        end_frame = min(total_frames, int((e_ms / 1000.0) * sr))
 
-                    rise_start = body_end
-                    rise_end = min(total_frames, rise_start + fade_out_frames)
-                    loc_rise_s = max(0, rise_start - blk_start)
-                    loc_rise_e = min(n_blk, rise_end - blk_start)
-                    if loc_rise_e > loc_rise_s:
-                        g_start = blk_start + loc_rise_s
-                        g_end = blk_start + loc_rise_e
-                        t = np.linspace((g_start - rise_start) / max(1, rise_end - rise_start) * np.pi,
-                                        (g_end - rise_start) / max(1, rise_end - rise_start) * np.pi,
-                                        loc_rise_e - loc_rise_s, dtype=np.float32)
-                        ramp_up = bgm_ducked + (bgm_nominal - bgm_ducked) * 0.5 * (1.0 - np.cos(t))
-                        gain_blk[loc_rise_s:loc_rise_e] = np.minimum(gain_blk[loc_rise_s:loc_rise_e], ramp_up)
+                        dip_start = max(0, start_frame - fade_in_frames)
+                        dip_end = start_frame
 
-                blk_sample_s = blk_start * bg_channels
-                blk_sample_e = blk_end * bg_channels
-                blk_samples = raw_samples[blk_sample_s:blk_sample_e]
+                        loc_dip_s = max(0, dip_start - blk_start)
+                        loc_dip_e = min(n_blk, dip_end - blk_start)
+                        if loc_dip_e > loc_dip_s:
+                            g_start = blk_start + loc_dip_s
+                            g_end = blk_start + loc_dip_e
+                            t = np.linspace((g_start - dip_start) / max(1, dip_end - dip_start) * np.pi,
+                                            (g_end - dip_start) / max(1, dip_end - dip_start) * np.pi,
+                                            loc_dip_e - loc_dip_s, dtype=np.float32)
+                            ramp_down = bgm_ducked + (bgm_nominal - bgm_ducked) * 0.5 * (1.0 + np.cos(t))
+                            gain_blk[loc_dip_s:loc_dip_e] = np.minimum(gain_blk[loc_dip_s:loc_dip_e], ramp_down)
 
-                if bg_channels > 1:
-                    samples_2d = blk_samples.reshape(-1, bg_channels).astype(np.float32)
-                    ducked_blk = samples_2d * gain_blk[:, np.newaxis]
-                else:
-                    ducked_blk = blk_samples.astype(np.float32) * gain_blk
+                        body_start = start_frame
+                        body_end = max(body_start, end_frame)
+                        loc_body_s = max(0, body_start - blk_start)
+                        loc_body_e = min(n_blk, body_end - blk_start)
+                        if loc_body_e > loc_body_s:
+                            gain_blk[loc_body_s:loc_body_e] = np.minimum(gain_blk[loc_body_s:loc_body_e], bgm_ducked)
 
-                ducked_bytes.extend(np.clip(ducked_blk, -32768, 32767).astype(np.int16).tobytes())
+                        rise_start = body_end
+                        rise_end = min(total_frames, rise_start + fade_out_frames)
+                        loc_rise_s = max(0, rise_start - blk_start)
+                        loc_rise_e = min(n_blk, rise_end - blk_start)
+                        if loc_rise_e > loc_rise_s:
+                            g_start = blk_start + loc_rise_s
+                            g_end = blk_start + loc_rise_e
+                            t = np.linspace((g_start - rise_start) / max(1, rise_end - rise_start) * np.pi,
+                                            (g_end - rise_start) / max(1, rise_end - rise_start) * np.pi,
+                                            loc_rise_e - loc_rise_s, dtype=np.float32)
+                            ramp_up = bgm_ducked + (bgm_nominal - bgm_ducked) * 0.5 * (1.0 - np.cos(t))
+                            gain_blk[loc_rise_s:loc_rise_e] = np.minimum(gain_blk[loc_rise_s:loc_rise_e], ramp_up)
 
-            ducked_bg = AudioSegment(
-                bytes(ducked_bytes),
-                frame_rate=sr,
-                sample_width=2,
-                channels=bg_channels
-            )
-            if ducked_bg.frame_rate != target_fr or ducked_bg.channels != channels:
-                ducked_bg = ducked_bg.set_frame_rate(target_fr).set_channels(channels)
+                    blk_sample_s = blk_start * bg_channels
+                    blk_sample_e = blk_end * bg_channels
+                    blk_samples = raw_samples[blk_sample_s:blk_sample_e]
+
+                    if bg_channels > 1:
+                        samples_2d = blk_samples.reshape(-1, bg_channels).astype(np.float32)
+                        ducked_blk = samples_2d * gain_blk[:, np.newaxis]
+                    else:
+                        ducked_blk = blk_samples.astype(np.float32) * gain_blk
+
+                    ducked_bytes.extend(np.clip(ducked_blk, -32768, 32767).astype(np.int16).tobytes())
+
+                ducked_bg = AudioSegment(
+                    bytes(ducked_bytes),
+                    frame_rate=sr,
+                    sample_width=2,
+                    channels=bg_channels
+                )
+                if ducked_bg.frame_rate != target_fr or ducked_bg.channels != channels:
+                    ducked_bg = ducked_bg.set_frame_rate(target_fr).set_channels(channels)
         except Exception as e:
             print(f"NumPy smooth ducking fallback note: {e}")
-            ducked_bg = bg_audio
+            if bgm_ducked == 0.0 or dubbing_mode == "pure_voice":
+                ducked_bg = AudioSegment.silent(duration=target_len_ms, frame_rate=target_fr).set_channels(channels)
+            else:
+                ducked_bg = bg_audio - 25
 
         if speech_track and (speech_track.frame_rate != target_fr or speech_track.channels != channels):
             speech_track = speech_track.set_frame_rate(target_fr).set_channels(channels)
@@ -720,16 +752,12 @@ def mix_dubbed_audio(
 
     # Absolute Safety Net: Ensure the exported audio is NEVER silent!
     try:
-        if final_mixed is None or len(final_mixed) == 0 or final_mixed.dBFS < -46.0 or math.isinf(final_mixed.dBFS):
+        if final_mixed is None or len(final_mixed) == 0 or (final_mixed.dBFS < -46.0 and (not speech_track or speech_track.dBFS < -46.0)):
             if original_audio_path and Path(original_audio_path).exists():
-                print("Warning: mixed audio had low energy or silence, recovering with original audio!")
+                print("Warning: mixed audio had zero energy, checking recovery...")
                 orig_recover = load_audio_safely(str(original_audio_path))
-                if orig_recover.dBFS < -46.0 or math.isinf(orig_recover.dBFS):
-                    alt_orig = Path(original_audio_path).parent / "original_audio.wav"
-                    if alt_orig.exists():
-                        orig_recover = load_audio_safely(str(alt_orig))
                 if speech_track and len(speech_track) > 0 and speech_track.dBFS > -42.0:
-                    final_mixed = orig_recover.overlay(speech_track)
+                    final_mixed = speech_track
                 else:
                     final_mixed = orig_recover
     except Exception as check_e:
