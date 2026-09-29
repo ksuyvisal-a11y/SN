@@ -1518,22 +1518,18 @@ public class ModernFolderPicker {
 
 def open_native_windows_folder_dialog(initial_dir: str = "", title: str = "Select Drama Series Folder") -> Optional[str]:
     """
-    Open modern native Windows File Explorer folder picker safely using pre-compiled Windows Forms.
-    Pops up instantly in the foreground with TopMost owner, eliminating csc compilation delay and window hiding.
+    Open modern native Windows File Explorer folder picker (IFileOpenDialog with FOS_PICKFOLDERS).
+    Displays the authentic modern Windows 10/11 Explorer dialog with breadcrumbs, drives, and folder icons (matching Image 2).
+    Never uses the legacy 1995 BrowseForFolder tree view.
     """
     if not initial_dir or not os.path.exists(initial_dir):
         initial_dir = "D:/" if os.path.exists("D:/") else "C:/"
     init_dir_esc = str(Path(initial_dir).resolve()).replace("'", "''")
     title_esc = str(title).replace("'", "''")
+    icon_esc = str(APP_ICON_PATH).replace("'", "''")
 
     ps_code = f"""
 Add-Type -AssemblyName System.Windows.Forms
-$dialog = New-Object System.Windows.Forms.FolderBrowserDialog
-$dialog.AutoUpgradeEnabled = $true
-$dialog.Description = '{title_esc}'
-$dialog.ShowNewFolderButton = $true
-$initDir = '{init_dir_esc}'
-if (Test-Path $initDir) {{ $dialog.SelectedPath = $initDir }}
 
 $topForm = New-Object System.Windows.Forms.Form
 $topForm.TopMost = $true
@@ -1541,15 +1537,40 @@ $topForm.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
 $topForm.ShowInTaskbar = $false
 $topForm.WindowState = [System.Windows.Forms.FormWindowState]::Minimized
 
-$res = $dialog.ShowDialog($topForm)
-if ($res -eq [System.Windows.Forms.DialogResult]::OK) {{
-    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-    Write-Output ("RESULT:" + $dialog.SelectedPath)
-}} else {{
-    Write-Output "CANCELLED"
+try {{
+    Add-Type -TypeDefinition @'
+{MODERN_FOLDER_PICKER_CS}
+'@
+    $res = [ModernFolderPicker]::ShowDialog('{init_dir_esc}', '{title_esc}', '{icon_esc}', $topForm.Handle)
+    if ($res) {{
+        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+        Write-Output ("RESULT:" + $res)
+    }} else {{
+        Write-Output "CANCELLED"
+    }}
+}} catch {{
+    # Fallback to modern OpenFileDialog (Explorer window) instead of legacy BrowseForFolder
+    $dlg = New-Object System.Windows.Forms.OpenFileDialog
+    $dlg.Title = '{title_esc}'
+    $dlg.ValidateNames = $false
+    $dlg.CheckFileExists = $false
+    $dlg.CheckPathExists = $true
+    $dlg.FileName = 'Select Folder Here'
+    $initDir = '{init_dir_esc}'
+    if (Test-Path $initDir) {{ $dlg.InitialDirectory = $initDir }}
+    $fres = $dlg.ShowDialog($topForm)
+    if ($fres -eq [System.Windows.Forms.DialogResult]::OK) {{
+        $target = $dlg.FileName
+        if ([System.IO.File]::Exists($target)) {{
+            $target = [System.IO.Path]::GetDirectoryName($target)
+        }}
+        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+        Write-Output ("RESULT:" + $target)
+    }} else {{
+        Write-Output "CANCELLED"
+    }}
 }}
 $topForm.Dispose()
-$dialog.Dispose()
 exit 0
 """
     try:
@@ -1699,6 +1720,8 @@ def system_select_media_folder_endpoint():
         return jsonify({"success": False, "cancelled": True, "files": []})
 
     folder_p = Path(chosen_folder)
+    if folder_p.is_file():
+        folder_p = folder_p.parent
     valid_exts = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".flv", ".ts", ".m4v", ".wmv"}
 
     found_paths = []

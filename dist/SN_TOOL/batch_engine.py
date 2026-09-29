@@ -26,44 +26,50 @@ EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
 def resolve_drama_export_directories(in_path: str, drama_title: str) -> List[Path]:
     """
-    Resolves the dedicated unified folder for this drama.
-    If in_path is located in an existing drama folder (e.g. D:/SN_Dramas/Title/ or imported folder):
-        Places outputs directly inside that drama folder in a subfolder 'Dubbed_Khmer'
-        so the original video and dubbed files are strictly grouped together in one folder.
-    Also ensures an organized mirror exists in 'data/exports/{safe_title}/'.
+    Resolves the single dedicated unified folder for this drama series.
+    Guarantees that ALL episodes (EP_01, EP_02... EP_80) are placed together inside
+    ONE single 'Dubbed_Khmer' folder, NEVER creating separate folders for each episode.
     """
-    safe_title = re.sub(r'[\\/*?:"<>|《》【】「」『』\(\)\[\]]', '_', str(drama_title)).strip('_ ') or "Drama_Series"
-    dirs = []
-
-    # 1. Primary: If in_path is from a drama folder (not a temp upload folder):
-    # Save directly inside that drama's folder under 'Dubbed_Khmer'
+    # 1. Detect if in_path belongs to an existing drama series folder
     try:
         p_in = Path(in_path).resolve()
         parent_dir = p_in.parent
-        if parent_dir.exists() and parent_dir.name.lower() not in ("batch_temp", "uploads", "cache", "temp"):
+        p_name = parent_dir.name.strip()
+        if parent_dir.exists() and p_name.lower() not in ("batch_temp", "uploads", "cache", "temp", "sn_dramas", "exports", "data", "downloads"):
+            # Inside authentic drama folder (e.g. D:/SN_Dramas/无敌张三烽/)
             dubbed_sub = parent_dir / "Dubbed_Khmer"
             dubbed_sub.mkdir(parents=True, exist_ok=True)
-            dirs.append(dubbed_sub)
+            return [dubbed_sub]
     except Exception:
         pass
 
-    # 2. Default SN_Dramas root if available (D:/SN_Dramas or C:/SN_Dramas)
+    # 2. Extract clean series name (strip episode suffixes like EP_01, Episode 12, etc.)
+    raw_title = str(drama_title or "").strip()
+    clean_series = re.sub(r'(?i)^(Dubbed_)?(EP|Episode|Part|第)?[\s_\-]*\d+.*$', '', raw_title).strip('_ ')
+    if not clean_series or len(clean_series) < 2:
+        try:
+            p_in = Path(in_path).resolve()
+            if p_in.parent.name.lower() not in ("batch_temp", "uploads", "cache", "temp"):
+                clean_series = p_in.parent.name
+        except Exception:
+            pass
+    if not clean_series:
+        clean_series = "Drama_Series"
+
+    safe_title = re.sub(r'[\\/*?:"<>|《》【】「」『』\(\)\[\]]', '_', str(clean_series)).strip('_ ') or "Drama_Series"
+
+    # 3. Dedicated unified series folder in SN_Dramas (D:/SN_Dramas/<Series_Title>/Dubbed_Khmer)
     for root_str in ("D:/SN_Dramas", "C:/SN_Dramas"):
         root_p = Path(root_str)
         if root_p.exists():
             root_drama_dubbed = root_p / safe_title / "Dubbed_Khmer"
             root_drama_dubbed.mkdir(parents=True, exist_ok=True)
-            if root_drama_dubbed not in dirs:
-                dirs.append(root_drama_dubbed)
-            break
+            return [root_drama_dubbed]
 
-    # 3. Dedicated Exports Directory: data/exports/{safe_title}/
-    export_drama_dir = EXPORTS_DIR / safe_title
+    # Fallback to data/exports/<Series_Title>/Dubbed_Khmer/
+    export_drama_dir = EXPORTS_DIR / safe_title / "Dubbed_Khmer"
     export_drama_dir.mkdir(parents=True, exist_ok=True)
-    if export_drama_dir not in dirs:
-        dirs.append(export_drama_dir)
-
-    return dirs
+    return [export_drama_dir]
 
 
 class BatchDubbingManager:
@@ -302,20 +308,14 @@ class BatchDubbingManager:
             temp_dir=str(item_dir / "temp")
         )
 
-        # Automatically export Khmer Subtitle (.srt) and mirror to secondary folders
+        # Mirror video to secondary folders if any (export only clean .mp4 videos, zero extra files)
         try:
             import shutil
-            from translator import format_srt_content
-            srt_content = format_srt_content(synthesized_items, use_km=True)
-            srt_filename = f"Dubbed_{p_in.stem}.srt"
-
             for td in target_dirs:
-                srt_path = td / srt_filename
-                srt_path.write_text(srt_content, encoding="utf-8")
                 if td.resolve() != primary_dir.resolve() and final_video_path.exists():
                     shutil.copy2(str(final_video_path), str(td / out_filename))
         except Exception as se:
-            print(f"Subtitle and folder mirror note: {se}")
+            print(f"Folder mirror note: {se}")
 
         item["progress"] = 100
         item["status"] = "completed"

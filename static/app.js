@@ -3540,12 +3540,13 @@ async function openStorySettingsModal() {
 }
 
 function formatDuckingDbText(pct) {
-    if (pct <= 0) return "0% • បិទភ្លេងកំដរ (Mute BGM)";
-    let desc = "ស្តង់ដារពិរោះ";
-    if (pct <= 5) desc = "ស្រាលបំផុត (Subtle)";
-    else if (pct <= 10) desc = "ស្រាលល្មម (Soft)";
-    else if (pct <= 18) desc = "ស្តង់ដាររឿងភាគ (Cinema Standard)";
-    else if (pct <= 28) desc = "រាងឮច្បាស់ (Moderate)";
+    pct = parseInt(pct, 10);
+    if (isNaN(pct)) pct = 15;
+    if (pct <= 0) return "0% • បិទភ្លេង (Mute)";
+    let desc = "ស្តង់ដារ (Standard)";
+    if (pct <= 8) desc = "ភ្លេងស្រាល (Subtle)";
+    else if (pct <= 18) desc = "ស្តង់ដារណែនាំ (Standard)";
+    else if (pct <= 28) desc = "រាងច្បាស់ (Moderate)";
     else desc = "ឮខ្លាំង (High BGM)";
     return `${pct}% • ${desc}`;
 }
@@ -3582,11 +3583,13 @@ function setDuckingPreset(pct) {
 }
 
 function formatSpeechDbText(val) {
+    val = parseFloat(val);
+    if (isNaN(val)) val = 2.5;
     let desc = "ស្តង់ដារពិរោះ";
-    if (val === 0) desc = "កម្រិតធម្មតា";
-    else if (val <= 1.5) desc = "ស្រទន់";
-    else if (val <= 3.0) desc = "ណែនាំច្បាស់";
-    else if (val <= 5.0) desc = "ច្បាស់មាំ";
+    if (val === 0) desc = "ធម្មតា (Flat)";
+    else if (val <= 1.5) desc = "ស្រទន់ (Subtle)";
+    else if (val <= 3.0) desc = "ច្បាស់ណែនាំ (Balanced)";
+    else if (val <= 5.0) desc = "ច្បាស់មាំ (Punchy)";
     else desc = "ខ្លាំងបំផុត";
     const prefix = val > 0 ? `+${val.toFixed(1)}` : `${val.toFixed(1)}`;
     return `${prefix} dB • ${desc}`;
@@ -3754,9 +3757,11 @@ async function saveStorySettings() {
         speech_boost_db: boost
     };
 
-    // Save Drama Dictionary if edited
+    // Save Drama Dictionary only if the tab is explicitly visible and has content
+    const dictTabBtn = document.getElementById('story-tab-btn-dictionary');
+    const isDictVisible = dictTabBtn && dictTabBtn.style.display !== 'none' && dictTabBtn.offsetParent !== null;
     const dictElem = document.getElementById('story-dictionary-textarea');
-    if (dictElem) {
+    if (isDictVisible && dictElem && dictElem.value.trim()) {
         const dictMap = {};
         dictElem.value.split('\n').forEach(line => {
             const trimmed = line.trim();
@@ -3769,14 +3774,16 @@ async function saveStorySettings() {
                 }
             }
         });
-        try {
-            await fetch('/api/drama-dictionary', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ dictionary: dictMap })
-            });
-        } catch (e) {
-            console.warn("Dictionary save note:", e);
+        if (Object.keys(dictMap).length > 0) {
+            try {
+                await fetch('/api/drama-dictionary', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dictionary: dictMap })
+                });
+            } catch (e) {
+                console.warn("Dictionary save note:", e);
+            }
         }
     }
 

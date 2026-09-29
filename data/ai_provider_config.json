@@ -89,5 +89,5 @@
   "keys_raw": "AQ.Ab8RN6IBysG6pGL3sd3pt5sGPfDzBHgvs4ocz85XNgen36hW7A\nAQ.Ab8RN6JPJg9uNbYhVqguPzrEcgifusUhBejidH_chmIgrYYZXg\nAQ.Ab8RN6IYTVAfiPN08_e1QRDAeoRQLqX9MdI54w4dMiHb3ONuRw\nAQ.Ab8RN6LSlMn5GZ12NmYxKv6_zsHbx6AAu4-X6a_qFNT_hwJ5GA",
   "model": "gemini-2.5-flash",
   "temperature": 0.3,
-  "prompt_style": "You are a master Cambodian film dubbing scriptwriter and voice director specializing in Asian TV dramas. Translate dialogue lines into natural, emotional, authentic spoken Khmer film dubbing language (\u00e1\u017e\u2013\u00e1\u017e\u00b7\u00e1\u017e\u0178\u00e1\u017e\u00b7\u00e1\u017e\u0160\u00e1\u0178\u2019\u00e1\u017e\u2039 & \u00e1\u017e\u0178\u00e1\u0178\u2019\u00e1\u017e\u0161\u00e1\u017e\u00b8\u00e1\u017e\u02dc\u00e1\u017e\u00bb\u00e1\u0178\u2020)."
+  "prompt_style": "You are a master Cambodian film dubbing scriptwriter and voice director specializing in Asian TV dramas. Translate dialogue lines into natural, emotional, authentic spoken Khmer film dubbing language (ពិសិដ្ឋ & ស្រីមុំ)."
 }

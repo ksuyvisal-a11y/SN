@@ -477,19 +477,17 @@ class ProjectManager:
         project["aspect_ratio"] = aspect_ratio
         project["watermark_text"] = watermark_text or ""
 
-        # Mirror cleanly to drama unified folder and generate .srt
+        # Mirror cleanly to drama unified folder (only .mp4 video, zero extra files)
         try:
             import shutil
-            from translator import format_srt_content
             from batch_engine import resolve_drama_export_directories
             clean_title = project.get("title") or Path(video_in).stem
             dest_dirs = resolve_drama_export_directories(video_in, clean_title)
             out_stem = f"Dubbed_{Path(video_in).stem}"
             for d in dest_dirs:
-                shutil.copy2(str(output_video_path), str(d / f"{out_stem}.mp4"))
-                if project.get("dialogues"):
-                    srt_txt = format_srt_content(project["dialogues"], use_km=True)
-                    (d / f"{out_stem}.srt").write_text(srt_txt, encoding="utf-8")
+                dest_file = d / f"{out_stem}.mp4"
+                if Path(output_video_path).resolve() != dest_file.resolve():
+                    shutil.copy2(str(output_video_path), str(dest_file))
         except Exception as e:
             print(f"Unified drama folder export note: {e}")
 

@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=7.5">
+    <link rel="stylesheet" href="style.css?v=8.0">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
@@ -986,15 +986,15 @@
                             <i class="fa-solid fa-sliders ai-tab-icon-fa" style="color:var(--gold-glow);"></i>
                             <span class="ai-tab-label">Audio &amp; Ducking</span>
                         </button>
-                        <button type="button" class="ai-sidebar-tab" id="story-tab-btn-vocal" onclick="switchStoryTab('vocal')">
+                        <button type="button" class="ai-sidebar-tab" id="story-tab-btn-vocal" style="display:none;" onclick="switchStoryTab('vocal')">
                             <i class="fa-solid fa-layer-group ai-tab-icon-fa" style="color:var(--gold-glow);"></i>
                             <span class="ai-tab-label">Vocal Separation</span>
                         </button>
-                        <button type="button" class="ai-sidebar-tab" id="story-tab-btn-export" onclick="switchStoryTab('export')">
+                        <button type="button" class="ai-sidebar-tab" id="story-tab-btn-export" style="display:none;" onclick="switchStoryTab('export')">
                             <i class="fa-solid fa-folder-open ai-tab-icon-fa" style="color:var(--gold-glow);"></i>
                             <span class="ai-tab-label">Export &amp; Output</span>
                         </button>
-                        <button type="button" class="ai-sidebar-tab" id="story-tab-btn-dictionary" onclick="switchStoryTab('dictionary')">
+                        <button type="button" class="ai-sidebar-tab" id="story-tab-btn-dictionary" style="display:none;" onclick="switchStoryTab('dictionary')">
                             <i class="fa-solid fa-book-bookmark ai-tab-icon-fa" style="color:var(--gold-glow);"></i>
                             <span class="ai-tab-label">Drama Terminology</span>
                         </button>
@@ -1006,7 +1006,7 @@
                         <div class="ai-tab-view" id="story-view-voice">
                             <div class="ai-view-header">
                                 <h2 class="ai-view-title">Voice &amp; Language</h2>
-                                <p class="ai-view-subtitle">Dubbing vocal track, whisper transcription model &amp; translation engine</p>
+                                <p class="ai-view-subtitle">Dubbing vocal track and whisper transcription model</p>
                             </div>
 
                             <div class="ai-card-frame">
@@ -1032,7 +1032,7 @@
                                     </select>
                                 </div>
 
-                                <div class="ai-field-group" style="margin-bottom:14px;">
+                                <div class="ai-field-group">
                                     <label class="ai-field-label">TRANSCRIPTION MODEL (WHISPER)</label>
                                     <select id="story-whisper-model" class="ai-gold-select">
                                         <option value="medium" selected>Medium</option>
@@ -1041,14 +1041,6 @@
                                         <option value="base">Base</option>
                                         <option value="tiny">Tiny</option>
                                     </select>
-                                </div>
-
-                                <div class="ai-field-group">
-                                    <label class="ai-field-label">TRANSLATION ENGINE</label>
-                                    <div style="display:flex; justify-content:space-between; align-items:center; background:#0c0904; border:1px solid rgba(250, 204, 21, 0.25); border-radius:6px; padding:8px 12px;">
-                                        <span id="story-ai-provider-display" style="font-size:0.82rem; font-weight:600; color:#fff;">Built-in Studio Engine (Standard)</span>
-                                        <button type="button" class="ai-outline-action-btn" onclick="openAiProvidingModal()" style="padding:4px 12px; font-size:0.74rem;">Studio Engine...</button>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1085,67 +1077,73 @@
                         <div class="ai-tab-view" id="story-view-audio" style="display:none;">
                             <div class="ai-view-header">
                                 <h2 class="ai-view-title">Audio &amp; Ducking</h2>
-                                <p class="ai-view-subtitle">BGM ducking volume and speech clarity</p>
+                                <p class="ai-view-subtitle">BGM ducking volume and Khmer speech clarity</p>
                             </div>
 
-                            <div class="ai-card-frame">
-                                <div class="ai-field-group" style="margin-bottom:14px;">
-                                    <label class="ai-field-label">DUBBING MIX MODE</label>
-                                    <select id="story-dubbing-mode" class="ai-gold-select">
-                                        <option value="smart_bgm" selected>Smart BGM Ducking (Automatic Isolation)</option>
-                                        <option value="pure_voice">Pure Voice (Mute Background Music)</option>
-                                        <option value="standard_ducking">Standard Audio Ducking</option>
-                                    </select>
-                                </div>
+                            <input type="hidden" id="story-dubbing-mode" value="smart_bgm">
+                            <input type="hidden" id="story-ducking-vol" value="0.15">
+                            <input type="hidden" id="story-speech-boost" value="2.5">
 
-                                <div class="ai-field-group" style="margin-bottom:14px;">
-                                    <input type="hidden" id="story-ducking-vol" value="0.15">
-                                    <div class="ai-slider-container">
-                                        <div class="ai-slider-header">
-                                            <span class="ai-slider-title">
-                                                <i class="fa-solid fa-sliders" style="color:#facc15;"></i> BGM DUCKING VOLUME (កម្រិតរារ៉េភ្លេង)
-                                            </span>
-                                            <span class="ai-slider-badge" id="story-ducking-badge">15% • ស្តង់ដារពិរោះ (Standard)</span>
+                            <div class="studio-audio-rack">
+                                <!-- Channel 1: BGM Volume -->
+                                <div class="studio-audio-channel">
+                                    <div class="studio-channel-top">
+                                        <div class="studio-channel-info">
+                                            <div class="studio-channel-icon-wrap bgm-icon">
+                                                <i class="fa-solid fa-music"></i>
+                                            </div>
+                                            <div>
+                                                <div class="studio-channel-label">BGM Music Volume</div>
+                                                <div class="studio-channel-sub">កម្រិតសំឡេងភ្លេងផ្ទៃក្រោយ</div>
+                                            </div>
                                         </div>
-                                        <input type="range" id="story-ducking-slider" class="ai-gold-slider" min="0" max="40" step="1" value="15" oninput="onStoryDuckingSliderChange(this.value)">
-                                        <div class="ai-slider-scale-labels">
-                                            <span>0% (បិទភ្លេង)</span>
-                                            <span class="rec">15% (ស្តង់ដារ)</span>
-                                            <span>40% (Max)</span>
-                                        </div>
-                                        <div class="ai-slider-presets" id="story-ducking-presets">
-                                            <button type="button" class="ai-preset-chip" data-val="0" onclick="setDuckingPreset(0)">0% (បិទភ្លេង)</button>
-                                            <button type="button" class="ai-preset-chip" data-val="5" onclick="setDuckingPreset(5)">5% (Subtle)</button>
-                                            <button type="button" class="ai-preset-chip" data-val="10" onclick="setDuckingPreset(10)">10% (Soft)</button>
-                                            <button type="button" class="ai-preset-chip active" data-val="15" onclick="setDuckingPreset(15)">15% (Standard)</button>
-                                            <button type="button" class="ai-preset-chip" data-val="22" onclick="setDuckingPreset(22)">22% (Moderate)</button>
-                                            <button type="button" class="ai-preset-chip" data-val="32" onclick="setDuckingPreset(32)">32% (High)</button>
-                                        </div>
+                                        <div class="studio-channel-readout" id="story-ducking-badge">15% • ស្តង់ដារណែនាំ</div>
+                                    </div>
+
+                                    <div class="studio-fader-wrap">
+                                        <input type="range" id="story-ducking-slider" class="studio-fader-slider" min="0" max="40" step="1" value="15" oninput="onStoryDuckingSliderChange(this.value)">
+                                    </div>
+
+                                    <div class="studio-scale-bar">
+                                        <span>0% (បិទភ្លេង)</span>
+                                        <span class="scale-rec">15% (ស្តង់ដារណែនាំ)</span>
+                                        <span>40% (ឮខ្លាំង)</span>
+                                    </div>
+
+                                    <div class="studio-card-hint">
+                                        <i class="fa-solid fa-circle-check" style="color:#facc15;"></i>
+                                        <span>ណែនាំ 15%៖ ភ្លេង BGM ឮស្រាលពិរោះ ស៊ីចង្វាក់ជាមួយសំឡេងនិយាយ</span>
                                     </div>
                                 </div>
 
-                                <div class="ai-field-group">
-                                    <input type="hidden" id="story-speech-boost" value="2.5">
-                                    <div class="ai-slider-container">
-                                        <div class="ai-slider-header">
-                                            <span class="ai-slider-title">
-                                                <i class="fa-solid fa-volume-high" style="color:#facc15;"></i> KHMER SPEECH BOOST (កម្លាំងសំឡេងខ្មែរ)
-                                            </span>
-                                            <span class="ai-slider-badge" id="story-speech-badge">+2.5 dB • ស្តង់ដារពិរោះ</span>
+                                <!-- Channel 2: Khmer Speech Boost -->
+                                <div class="studio-audio-channel">
+                                    <div class="studio-channel-top">
+                                        <div class="studio-channel-info">
+                                            <div class="studio-channel-icon-wrap speech-icon">
+                                                <i class="fa-solid fa-microphone-lines"></i>
+                                            </div>
+                                            <div>
+                                                <div class="studio-channel-label">Khmer Speech Boost</div>
+                                                <div class="studio-channel-sub">កម្លាំងសំឡេងនិយាយខ្មែរ (Clarity)</div>
+                                            </div>
                                         </div>
-                                        <input type="range" id="story-speech-slider" class="ai-gold-slider" min="0" max="8" step="0.5" value="2.5" oninput="onStorySpeechSliderChange(this.value)">
-                                        <div class="ai-slider-scale-labels">
-                                            <span>0.0 dB (Flat)</span>
-                                            <span class="rec">+2.5 dB (Balanced)</span>
-                                            <span>+8.0 dB (Max)</span>
-                                        </div>
-                                        <div class="ai-slider-presets" id="story-speech-presets">
-                                            <button type="button" class="ai-preset-chip" data-val="0" onclick="setSpeechBoostPreset(0)">0.0 dB (Flat)</button>
-                                            <button type="button" class="ai-preset-chip" data-val="1.5" onclick="setSpeechBoostPreset(1.5)">+1.5 dB (Subtle)</button>
-                                            <button type="button" class="ai-preset-chip active" data-val="2.5" onclick="setSpeechBoostPreset(2.5)">+2.5 dB (Balanced)</button>
-                                            <button type="button" class="ai-preset-chip" data-val="4" onclick="setSpeechBoostPreset(4.0)">+4.0 dB (Punchy)</button>
-                                            <button type="button" class="ai-preset-chip" data-val="6" onclick="setSpeechBoostPreset(6.0)">+6.0 dB (Heavy)</button>
-                                        </div>
+                                        <div class="studio-channel-readout" id="story-speech-badge">+2.5 dB • ច្បាស់ណែនាំ</div>
+                                    </div>
+
+                                    <div class="studio-fader-wrap">
+                                        <input type="range" id="story-speech-slider" class="studio-fader-slider" min="0" max="8" step="0.5" value="2.5" oninput="onStorySpeechSliderChange(this.value)">
+                                    </div>
+
+                                    <div class="studio-scale-bar">
+                                        <span>0.0 dB (ធម្មតា)</span>
+                                        <span class="scale-rec">+2.5 dB (ច្បាស់ណែនាំ)</span>
+                                        <span>+8.0 dB (ខ្លាំងបំផុត)</span>
+                                    </div>
+
+                                    <div class="studio-card-hint">
+                                        <i class="fa-solid fa-shield-halved" style="color:#38bdf8;"></i>
+                                        <span>ណែនាំ +2.5 dB៖ សំឡេងខ្មែរឮច្បាស់ណែន មាន Limiter ការពារមិនឲ្យបែក</span>
                                     </div>
                                 </div>
                             </div>
@@ -1269,7 +1267,7 @@
                             <i class="fa-solid fa-sliders ai-tab-icon-fa" style="color:var(--gold-glow);"></i>
                             <span class="ai-tab-label">Model Parameters</span>
                         </button>
-                        <button type="button" class="ai-sidebar-tab" id="ai-tab-btn-speechgen" onclick="switchAiProvidingTab('speechgen')">
+                        <button type="button" class="ai-sidebar-tab" id="ai-tab-btn-speechgen" onclick="switchAiProvidingTab('speechgen')" style="display:none;">
                             <i class="fa-solid fa-microphone-lines ai-tab-icon-fa" style="color:#38bdf8;"></i>
                             <span class="ai-tab-label">SpeechGen.io (សំឡេង)</span>
                         </button>
@@ -1312,16 +1310,11 @@
                                     <div class="ai-field-hint">សោរ Gemini ត្រឹមត្រូវចាប់ផ្តើមដោយ 'AIzaSy' — One key per line.</div>
                                 </div>
 
-                                <div class="ai-actions-btn-row">
-                                    <button type="button" class="ai-outline-action-btn" onclick="triggerImportKeysFile()">
-                                        <i class="fa-solid fa-file-arrow-up"></i>
-                                        <span>Import Keys (.txt)</span>
-                                    </button>
-                                    <button type="button" class="ai-outline-action-btn" id="btn-check-keys-live" onclick="checkKeysLive()">
-                                        <i class="fa-solid fa-circle-check"></i>
+                                <div class="ai-actions-btn-row" style="margin-top: 12px;">
+                                    <button type="button" class="ai-outline-action-btn" id="btn-check-keys-live" onclick="checkKeysLive()" style="padding: 7px 18px; font-size: 0.8rem; font-weight: 600; border-color: rgba(250, 204, 21, 0.4); background: rgba(250, 204, 21, 0.05); display: inline-flex; align-items: center; gap: 8px;">
+                                        <i class="fa-solid fa-circle-check" style="color: #4ade80; font-size: 0.9rem;"></i>
                                         <span>Check Keys (Live)</span>
                                     </button>
-                                    <input type="file" id="ai-keys-file-input" accept=".txt" style="display:none;" onchange="handleAiKeysFileSelect(event)">
                                 </div>
                             </div>
                         </div>
@@ -1330,7 +1323,7 @@
                         <div class="ai-tab-view" id="ai-view-models" style="display:none;">
                             <div class="ai-view-header">
                                 <h2 class="ai-view-title">Model Parameters</h2>
-                                <p class="ai-view-subtitle">Configure model parameters, temperature and drama prompts</p>
+                                <p class="ai-view-subtitle">Configure translation model and temperature</p>
                             </div>
 
                             <div class="ai-card-frame">
@@ -1350,7 +1343,7 @@
                                     <input type="range" id="ai-temperature-slider" min="0" max="1" step="0.05" value="0.3" class="ai-gold-slider" oninput="document.getElementById('ai-temp-val').textContent = this.value">
                                 </div>
 
-                                <div class="ai-field-group" style="margin-top: 14px;">
+                                <div class="ai-field-group" style="display: none;">
                                     <label class="ai-field-label">SYSTEM TRANSLATION GUIDELINES</label>
                                     <textarea id="ai-system-prompt-input" class="ai-gold-textarea" rows="3">You are a master Cambodian film dubbing scriptwriter and voice director specializing in Asian TV dramas. Translate dialogue lines into natural, emotional, authentic spoken Khmer film dubbing language (ពិសិដ្ឋ & ស្រីមុំ).</textarea>
                                 </div>
@@ -1690,6 +1683,6 @@
 
     <!-- HLS.js for Live Stream M3U8 Video Previews -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <script src="app.js?v=7.6"></script>
+    <script src="app.js?v=8.3"></script>
 </body>
 </html>
