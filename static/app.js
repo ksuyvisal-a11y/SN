@@ -3291,13 +3291,10 @@ let currentStoryConfig = {
 };
 
 function getStoryVoiceDisplayLabel() {
-    if (currentStoryConfig.auto_multi_voice || currentStoryConfig.khmer_voice === 'multi') {
-        return "Piseth & Sreymom (ប្រុស & ស្រីតាមតួអង្គ)";
-    }
     if (currentStoryConfig.khmer_voice === 'sreymom') {
         return "Sreymom (Female Solo - អ្នកបញ្ចូលសំឡេងស្រី)";
     }
-    return "Piseth (Male Solo - អ្នកបញ្ចូលសំឡេងទោល)";
+    return "Piseth (Male Solo - អ្នកបញ្ចូលសំឡេងប្រុស)";
 }
 
 function refreshStagedCardVoiceMeta() {
@@ -3319,28 +3316,30 @@ function refreshStagedCardVoiceMeta() {
 }
 
 function syncStagedCardControls() {
-    // 1. Sync voice chip active state
-    let activeKey = 'multi';
-    if (currentStoryConfig.auto_multi_voice || currentStoryConfig.khmer_voice === 'multi') {
-        activeKey = 'multi';
-    } else if (currentStoryConfig.khmer_voice === 'sreymom') {
-        activeKey = 'sreymom';
-    } else {
-        activeKey = 'piseth';
+    // 1. Sync voice chip active state (Piseth & Sreymom Solo)
+    currentStoryConfig.auto_multi_voice = false;
+    if (currentStoryConfig.khmer_voice === 'multi') {
+        currentStoryConfig.khmer_voice = 'piseth';
     }
+    let activeKey = (currentStoryConfig.khmer_voice === 'sreymom') ? 'sreymom' : 'piseth';
 
-    ['multi', 'piseth', 'sreymom'].forEach(k => {
+    ['piseth', 'sreymom'].forEach(k => {
         const chip = document.getElementById(`voice-chip-${k}`);
         if (chip) {
-            if (k === activeKey) chip.classList.add('active');
-            else chip.classList.remove('active');
+            const st = chip.querySelector('.staged-chip-status-text');
+            if (k === activeKey) {
+                chip.classList.add('active');
+                if (st) st.textContent = 'កំពុងប្រើ';
+            } else {
+                chip.classList.remove('active');
+                if (st) st.textContent = 'ជ្រើសរើស';
+            }
         }
     });
 
     const vBadge = document.getElementById('staged-voice-status-badge');
     if (vBadge) {
-        if (activeKey === 'multi') vBadge.textContent = "Piseth & Sreymom (ប្រុស & ស្រី)";
-        else if (activeKey === 'sreymom') vBadge.textContent = "Sreymom (ស្រីទោល)";
+        if (activeKey === 'sreymom') vBadge.textContent = "Sreymom (ស្រីទោល)";
         else vBadge.textContent = "Piseth (ប្រុសទោល)";
     }
 
@@ -3374,19 +3373,22 @@ async function selectQuickVoice(voiceKey) {
     if (voiceKey === 'sreymom') {
         currentStoryConfig.khmer_voice = 'sreymom';
         currentStoryConfig.auto_multi_voice = false;
-    } else if (voiceKey === 'multi') {
-        currentStoryConfig.khmer_voice = 'multi';
-        currentStoryConfig.auto_multi_voice = true;
     } else {
         currentStoryConfig.khmer_voice = 'piseth';
         currentStoryConfig.auto_multi_voice = false;
+    }
+
+    if (currentVoicePreviewAudio) {
+        currentVoicePreviewAudio.pause();
+        currentVoicePreviewAudio = null;
+        currentPreviewVoiceKey = null;
+        resetAllVoicePreviewBtns();
     }
 
     syncStagedCardControls();
     refreshStagedCardVoiceMeta();
 
     const voiceLabels = {
-        'multi': 'ពិសិដ្ឋ & ស្រីមុំ (Dual Voice - បញ្ចូលសំឡេងតាមតួប្រុស/ស្រី)',
         'piseth': 'ពិសិដ្ឋ (Piseth - តួប្រុស/អ្នកនិទានរឿងទោល)',
         'sreymom': 'ស្រីមុំ (Sreymom - តួស្រី/អ្នកនិទានរឿងទោល)'
     };
@@ -3409,6 +3411,107 @@ async function selectQuickVoice(voiceKey) {
     } catch (e) {
         console.warn("Save quick voice error:", e);
     }
+}
+
+let currentVoicePreviewAudio = null;
+let currentPreviewVoiceKey = null;
+
+async function playVoiceSamplePreview(voiceKey, event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+
+    const prevBtn = document.getElementById(`voice-prev-btn-${voiceKey}`);
+    const waveEl = document.getElementById(`voice-wave-${voiceKey}`);
+
+    // If currently playing this voice, toggle stop
+    if (currentVoicePreviewAudio && currentPreviewVoiceKey === voiceKey) {
+        currentVoicePreviewAudio.pause();
+        currentVoicePreviewAudio = null;
+        currentPreviewVoiceKey = null;
+        resetAllVoicePreviewBtns();
+        return;
+    }
+
+    // Stop any other voice audio
+    if (currentVoicePreviewAudio) {
+        currentVoicePreviewAudio.pause();
+        currentVoicePreviewAudio = null;
+    }
+    resetAllVoicePreviewBtns();
+
+    currentPreviewVoiceKey = voiceKey;
+    if (prevBtn) {
+        prevBtn.classList.add('loading');
+        prevBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>កំពុងរៀបចំ...</span>';
+    }
+
+    const sampleTexts = {
+        'piseth': "ជម្រាបសួរ! ខ្ញុំបាទឈ្មោះ ពិសិដ្ឋ ជាអ្នកបញ្ចូលសំឡេងសម្រាប់ភាពយន្តភាគ និងរឿងខ្លី។",
+        'sreymom': "ជម្រាបសួរចាស! នាងខ្ញុំឈ្មោះ ស្រីមុំ រីករាយនឹងបញ្ចូលសំឡេងជូនអ្នកទាំងអស់គ្នា។"
+    };
+
+    const textToSpeak = sampleTexts[voiceKey] || "សួស្តី";
+    const actualVoice = voiceKey === 'sreymom' ? 'sreymom' : 'piseth';
+
+    try {
+        const res = await fetch('/api/voices/preview', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                text: textToSpeak,
+                voice: actualVoice,
+                rate_percent: 0,
+                pitch_hz: 0
+            })
+        });
+        const data = await res.json();
+        if (data && data.success && data.audio_url) {
+            currentVoicePreviewAudio = new Audio(data.audio_url);
+            if (prevBtn) {
+                prevBtn.classList.remove('loading');
+                prevBtn.classList.add('playing');
+                prevBtn.innerHTML = '<i class="fa-solid fa-pause"></i> <span>ផ្អាក</span>';
+            }
+            if (waveEl) waveEl.classList.add('animating');
+
+            currentVoicePreviewAudio.play().catch(e => {
+                console.warn("Audio play blocked/error:", e);
+                resetAllVoicePreviewBtns();
+            });
+
+            currentVoicePreviewAudio.onended = () => {
+                resetAllVoicePreviewBtns();
+                currentVoicePreviewAudio = null;
+                currentPreviewVoiceKey = null;
+            };
+            currentVoicePreviewAudio.onerror = () => {
+                resetAllVoicePreviewBtns();
+                currentVoicePreviewAudio = null;
+                currentPreviewVoiceKey = null;
+            };
+        } else {
+            resetAllVoicePreviewBtns();
+            showToast("មិនអាចចាក់សំឡេងគំរូបានទេ");
+        }
+    } catch (e) {
+        console.warn("Voice preview fetch error:", e);
+        resetAllVoicePreviewBtns();
+        showToast("សូមបើក Server ដើម្បីសាកល្បងសំឡេងគំរូ");
+    }
+}
+
+function resetAllVoicePreviewBtns() {
+    ['piseth', 'sreymom'].forEach(k => {
+        const btn = document.getElementById(`voice-prev-btn-${k}`);
+        if (btn) {
+            btn.classList.remove('loading', 'playing');
+            btn.innerHTML = '<i class="fa-solid fa-play"></i> <span>ស្តាប់គំរូ</span>';
+        }
+        const wave = document.getElementById(`voice-wave-${k}`);
+        if (wave) wave.classList.remove('animating');
+    });
 }
 
 function selectQuickBgmPreset(val) {

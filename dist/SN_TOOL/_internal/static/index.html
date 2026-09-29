@@ -7,7 +7,7 @@
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="style.css?v=8.0">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
@@ -198,71 +198,128 @@
                                     </div>
                                 </div>
 
-                                <!-- Section 1: Dubbing Voice Selector (2 Columns: Piseth & Sreymom) -->
+                                <!-- Section 1: Professional Studio Dubbing Console (Piseth & Sreymom Solo) -->
                                 <div class="staged-section-wrapper staged-voice-section">
-                                    <div class="staged-section-label">
-                                        <span><i class="fa-solid fa-microphone-lines" style="color:#facc15;"></i> ជ្រើសរើសសំឡេងបកប្រែ (Dubbing Voice)</span>
-                                        <span class="staged-section-badge" id="staged-voice-status-badge">Piseth (ប្រុសទោល)</span>
-                                    </div>
-                                    <div class="staged-voice-grid" style="grid-template-columns: repeat(3, 1fr);">
-                                        <!-- Chip 1: Dual Voice (Piseth & Sreymom) -->
-                                        <button type="button" class="staged-voice-chip active" id="voice-chip-multi" onclick="selectQuickVoice('multi')">
-                                            <div class="staged-chip-top-row">
-                                                <div class="staged-chip-radio"><i class="fa-solid fa-check"></i></div>
-                                                <div class="staged-chip-tag" style="background:rgba(168, 85, 247, 0.2); color:#c084fc;"><i class="fa-solid fa-wand-magic-sparkles" style="font-size:0.65rem; margin-right:3px;"></i> RECOMMENDED</div>
-                                            </div>
-                                            <div class="staged-chip-body">
-                                                <div class="staged-chip-icon-box">
-                                                    <i class="fa-solid fa-people-arrows staged-chip-icon" style="color:#c084fc;"></i>
+                                    <div class="staged-voice-panel">
+                                        <!-- Voice Console Header -->
+                                        <div class="staged-voice-header">
+                                            <div class="staged-voice-header-left">
+                                                <div class="staged-voice-header-icon-box">
+                                                    <i class="fa-solid fa-microphone-lines"></i>
                                                 </div>
-                                                <div class="staged-chip-text-group">
-                                                    <div class="staged-chip-title">ពិសិដ្ឋ &amp; ស្រីមុំ</div>
-                                                    <div class="staged-chip-sub">ប្រុស &amp; ស្រី • បញ្ចូលតាមតួអង្គ</div>
+                                                <div class="staged-voice-header-text">
+                                                    <div class="staged-voice-header-title">ជ្រើសរើសសំឡេងបកប្រែ (Dubbing Voice)</div>
+                                                    <div class="staged-voice-header-desc">ជ្រើសរើសសំឡេងអ្នកបញ្ចូលសំឡេងសម្រាប់ភាពយន្ត ឬវីដេអូរបស់អ្នក</div>
                                                 </div>
                                             </div>
-                                        </button>
+                                            <div class="staged-voice-header-right">
+                                                <div class="staged-voice-active-indicator">
+                                                    <span class="staged-voice-dot"></span>
+                                                    <span class="staged-section-badge" id="staged-voice-status-badge">Piseth (ប្រុសទោល)</span>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                                        <!-- Chip 2: Piseth Solo -->
-                                        <button type="button" class="staged-voice-chip" id="voice-chip-piseth" onclick="selectQuickVoice('piseth')">
-                                            <div class="staged-chip-top-row">
-                                                <div class="staged-chip-radio"><i class="fa-solid fa-check"></i></div>
-                                                <div class="staged-chip-tag-empty"><i class="fa-solid fa-circle-check" style="font-size:0.65rem; margin-right:3px;"></i> MALE SOLO</div>
-                                            </div>
-                                            <div class="staged-chip-body">
-                                                <div class="staged-chip-icon-box">
-                                                    <i class="fa-solid fa-user-tie staged-chip-icon" style="color:#38bdf8;"></i>
+                                        <!-- Voice Cards Grid (2 Columns: Piseth & Sreymom Solo) -->
+                                        <div class="staged-voice-grid">
+                                            <!-- Card 1: Piseth Solo -->
+                                            <div class="staged-voice-chip active" id="voice-chip-piseth" onclick="selectQuickVoice('piseth')">
+                                                <div class="staged-chip-top-bar">
+                                                    <div class="staged-chip-profile">
+                                                        <div class="staged-chip-avatar avatar-piseth">
+                                                            <i class="fa-solid fa-user-tie"></i>
+                                                        </div>
+                                                        <div class="staged-chip-identity">
+                                                            <div class="staged-chip-name">ពិសិដ្ឋ (Piseth)</div>
+                                                            <div class="staged-chip-sub">សំឡេងប្រុសទោល • Male Solo</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="staged-chip-select-indicator">
+                                                        <div class="staged-chip-radio">
+                                                            <i class="fa-solid fa-check"></i>
+                                                        </div>
+                                                        <span class="staged-chip-status-text">កំពុងប្រើ</span>
+                                                    </div>
                                                 </div>
-                                                <div class="staged-chip-text-group">
-                                                    <div class="staged-chip-title">ពិសិដ្ឋ (Piseth)</div>
-                                                    <div class="staged-chip-sub">Male Solo • សំឡេងប្រុសទោល</div>
-                                                </div>
-                                            </div>
-                                        </button>
 
-                                        <!-- Chip 3: Sreymom Solo -->
-                                        <button type="button" class="staged-voice-chip" id="voice-chip-sreymom" onclick="selectQuickVoice('sreymom')">
-                                            <div class="staged-chip-top-row">
-                                                <div class="staged-chip-radio"><i class="fa-solid fa-check"></i></div>
-                                                <div class="staged-chip-tag-empty"><i class="fa-solid fa-waveform" style="font-size:0.65rem; margin-right:3px;"></i> FEMALE SOLO</div>
-                                            </div>
-                                            <div class="staged-chip-body">
-                                                <div class="staged-chip-icon-box">
-                                                    <i class="fa-solid fa-user staged-chip-icon" style="color:#f472b6;"></i>
+                                                <div class="staged-chip-body">
+                                                    <p class="staged-chip-desc">សំឡេងរៀបរាប់ និទានកថាទាក់ទាញ ច្បាស់ និងមានទម្ងន់ ស័ក្តិសមសម្រាប់ភាពយន្តភាគ រឿងកុន និងឯកសារ។</p>
+                                                    <div class="staged-chip-tags">
+                                                        <span class="staged-tag"><i class="fa-solid fa-language"></i> ភាសាខ្មែរ</span>
+                                                        <span class="staged-tag"><i class="fa-solid fa-headphones"></i> Studio HD</span>
+                                                        <span class="staged-tag"><i class="fa-solid fa-volume-high"></i> ធម្មជាតិ &amp; ច្បាស់</span>
+                                                    </div>
                                                 </div>
-                                                <div class="staged-chip-text-group">
-                                                    <div class="staged-chip-title">ស្រីមុំ (Sreymom)</div>
-                                                    <div class="staged-chip-sub">Female Solo • សំឡេងស្រីទោល</div>
+
+                                                <div class="staged-chip-footer">
+                                                    <div class="staged-audio-preview-bar">
+                                                        <button type="button" class="staged-sample-btn" id="voice-prev-btn-piseth" onclick="playVoiceSamplePreview('piseth', event)" title="សាកល្បងស្តាប់សំឡេងគំរូ">
+                                                            <i class="fa-solid fa-play"></i>
+                                                            <span>ស្តាប់គំរូ</span>
+                                                        </button>
+                                                        <div class="staged-audio-track" id="voice-wave-piseth">
+                                                            <div class="staged-mini-wave">
+                                                                <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                                                            </div>
+                                                            <span class="staged-audio-dur">00:04</span>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </button>
+
+                                            <!-- Card 2: Sreymom Solo -->
+                                            <div class="staged-voice-chip" id="voice-chip-sreymom" onclick="selectQuickVoice('sreymom')">
+                                                <div class="staged-chip-top-bar">
+                                                    <div class="staged-chip-profile">
+                                                        <div class="staged-chip-avatar avatar-sreymom">
+                                                            <i class="fa-solid fa-user"></i>
+                                                        </div>
+                                                        <div class="staged-chip-identity">
+                                                            <div class="staged-chip-name">ស្រីមុំ (Sreymom)</div>
+                                                            <div class="staged-chip-sub">សំឡេងស្រីទោល • Female Solo</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="staged-chip-select-indicator">
+                                                        <div class="staged-chip-radio">
+                                                            <i class="fa-solid fa-check"></i>
+                                                        </div>
+                                                        <span class="staged-chip-status-text">ជ្រើសរើស</span>
+                                                    </div>
+                                                </div>
+
+                                                <div class="staged-chip-body">
+                                                    <p class="staged-chip-desc">សំឡេងស្រទន់ ពិរោះ រស់រវើក និងពោរពេញដោយមនោសញ្ចេតនា ស័ក្តិសមសម្រាប់តួអង្គស្រី និងរឿងមនោសញ្ចេតនា។</p>
+                                                    <div class="staged-chip-tags">
+                                                        <span class="staged-tag"><i class="fa-solid fa-language"></i> ភាសាខ្មែរ</span>
+                                                        <span class="staged-tag"><i class="fa-solid fa-headphones"></i> Studio HD</span>
+                                                        <span class="staged-tag"><i class="fa-solid fa-sparkles"></i> ស្រទន់ &amp; រស់រវើក</span>
+                                                    </div>
+                                                </div>
+
+                                                <div class="staged-chip-footer">
+                                                    <div class="staged-audio-preview-bar">
+                                                        <button type="button" class="staged-sample-btn" id="voice-prev-btn-sreymom" onclick="playVoiceSamplePreview('sreymom', event)" title="សាកល្បងស្តាប់សំឡេងគំរូ">
+                                                            <i class="fa-solid fa-play"></i>
+                                                            <span>ស្តាប់គំរូ</span>
+                                                        </button>
+                                                        <div class="staged-audio-track" id="voice-wave-sreymom">
+                                                            <div class="staged-mini-wave">
+                                                                <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                                                            </div>
+                                                            <span class="staged-audio-dur">00:04</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
                                 <!-- Quick Export Action Trigger -->
                                 <div class="staged-action-cta-row">
                                     <div class="staged-cta-hint">
-                                        <i class="fa-solid fa-circle-info" style="color:#facc15;"></i>
-                                        <span>ជ្រើសរើសសំឡេងរួចរាល់ សូមចុច <strong>Export</strong> ខាងលើ ឬចុចប៊ូតុងខាងស្តាំ</span>
+                                        <i class="fa-solid fa-circle-check" style="color:#22c55e;"></i>
+                                        <span>ជ្រើសរើសសំឡេងរួចរាល់ សូមចុច <strong>Export ឥឡូវនេះ</strong> ដើម្បីចាប់ផ្តើមបកប្រែវីដេអូ</span>
                                     </div>
                                     <button type="button" class="staged-main-export-btn" id="btn-staged-export-direct" onclick="startStudioExportJob()" title="Start Dubbing & Export Video">
                                         <i class="fa-solid fa-bolt"></i>
