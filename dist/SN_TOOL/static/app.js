@@ -3523,36 +3523,65 @@ function resetAllVoicePreviewBtns() {
 // ==========================================================================
 let currentOverlayAssets = {
     logo: null,
-    blur: null
+    logoUrl: null,
+    logoPosition: 'top-right',
+    blurActive: false,
+    blurPosition: 'top-right'
 };
 
 function triggerOverlayUpload(type) {
-    const input = document.getElementById(`input-overlay-${type}`);
-    if (input) input.click();
+    if (type === 'logo') {
+        const input = document.getElementById('input-overlay-logo');
+        if (input) input.click();
+    } else if (type === 'blur') {
+        toggleBlurMaskTool();
+    }
 }
 
 function handleOverlayFileSelect(event, type) {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
 
-    currentOverlayAssets[type] = file;
-    const statusEl = document.getElementById(`status-overlay-${type}`);
-    const sizeKb = (file.size / 1024).toFixed(1);
+    if (type === 'logo') {
+        if (currentOverlayAssets.logoUrl) {
+            URL.revokeObjectURL(currentOverlayAssets.logoUrl);
+        }
+        currentOverlayAssets.logo = file;
+        currentOverlayAssets.logoUrl = URL.createObjectURL(file);
 
-    if (statusEl) {
-        statusEl.innerHTML = `
-            <span class="overlay-status-pill selected">
-                <i class="fa-solid fa-circle-check" style="color:#22c55e;"></i>
-                <span class="overlay-file-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
-                <span class="overlay-file-size">(${sizeKb} KB)</span>
-                <button type="button" class="overlay-file-remove-btn" onclick="clearOverlayFile(event, '${type}')" title="លុបឯកសារ">&times;</button>
-            </span>
-        `;
+        // Show directly on Video Preview Monitor
+        const monitorLogo = document.getElementById('monitor-logo-overlay');
+        const monitorLogoImg = document.getElementById('monitor-logo-img');
+        if (monitorLogo && monitorLogoImg) {
+            monitorLogoImg.src = currentOverlayAssets.logoUrl;
+            monitorLogo.style.display = 'flex';
+            setOverlayPosition('logo', currentOverlayAssets.logoPosition || 'top-right');
+            makeOverlayDraggable(monitorLogo);
+        }
+
+        const statusEl = document.getElementById('status-overlay-logo');
+        const sizeKb = (file.size / 1024).toFixed(1);
+
+        if (statusEl) {
+            statusEl.innerHTML = `
+                <div class="overlay-active-controls">
+                    <span class="overlay-status-pill selected" title="${escapeHtml(file.name)}">
+                        <img src="${currentOverlayAssets.logoUrl}" class="overlay-thumb-mini" alt="thumb">
+                        <span class="overlay-file-name">${escapeHtml(file.name)}</span>
+                        <button type="button" class="overlay-file-remove-btn" onclick="clearOverlayFile(event, 'logo')" title="លុប Logo">&times;</button>
+                    </span>
+                    <div class="overlay-preset-buttons">
+                        <button type="button" class="pos-preset-btn ${currentOverlayAssets.logoPosition === 'top-right' ? 'active' : ''}" onclick="setOverlayPosition('logo', 'top-right', event)" title="ដាក់ជ្រុងស្តាំលើ">TR</button>
+                        <button type="button" class="pos-preset-btn ${currentOverlayAssets.logoPosition === 'top-left' ? 'active' : ''}" onclick="setOverlayPosition('logo', 'top-left', event)" title="ដាក់ជ្រុងឆ្វេងលើ">TL</button>
+                        <button type="button" class="pos-preset-btn ${currentOverlayAssets.logoPosition === 'bottom-right' ? 'active' : ''}" onclick="setOverlayPosition('logo', 'bottom-right', event)" title="ដាក់ជ្រុងស្តាំក្រោម">BR</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        showToast(`បានដាក់ Logo លើ Video Preview Monitor រួចរាល់! (${file.name})`);
+        appendLiveTerminalLine(`Logo overlay attached to preview monitor: ${file.name} (${sizeKb} KB)`, "[Overlay Engine]", "success");
     }
-
-    const typeLabel = type === 'logo' ? 'LOGO' : 'BLUR Mask';
-    showToast(`បានបញ្ចូល ${typeLabel}: ${file.name}`);
-    appendLiveTerminalLine(`Overlay asset loaded: ${typeLabel} (${file.name}, ${sizeKb} KB)`, "[Overlay Engine]", "success");
 }
 
 function clearOverlayFile(event, type) {
@@ -3560,16 +3589,174 @@ function clearOverlayFile(event, type) {
         event.stopPropagation();
         event.preventDefault();
     }
-    currentOverlayAssets[type] = null;
-    const input = document.getElementById(`input-overlay-${type}`);
-    if (input) input.value = '';
+    if (type === 'logo') {
+        if (currentOverlayAssets.logoUrl) {
+            URL.revokeObjectURL(currentOverlayAssets.logoUrl);
+            currentOverlayAssets.logoUrl = null;
+        }
+        currentOverlayAssets.logo = null;
+        const input = document.getElementById('input-overlay-logo');
+        if (input) input.value = '';
 
-    const statusEl = document.getElementById(`status-overlay-${type}`);
-    if (statusEl) {
-        statusEl.innerHTML = `<span class="overlay-status-pill empty"><i class="fa-solid fa-cloud-arrow-up"></i> ចុចដើម្បី Upload</span>`;
+        const monitorLogo = document.getElementById('monitor-logo-overlay');
+        if (monitorLogo) monitorLogo.style.display = 'none';
+
+        const statusEl = document.getElementById('status-overlay-logo');
+        if (statusEl) {
+            statusEl.innerHTML = `<span class="overlay-status-pill empty"><i class="fa-solid fa-cloud-arrow-up"></i> ចុចដើម្បី Upload</span>`;
+        }
+        showToast("បានដក Logo ចេញពី Preview Monitor");
     }
-    const typeLabel = type === 'logo' ? 'LOGO' : 'BLUR Mask';
-    showToast(`បានដក ${typeLabel} ចេញ`);
+}
+
+// In-App BLUR Mask Tool (NO Computer File Explorer Dialog)
+function toggleBlurMaskTool(event, forceState) {
+    if (event) {
+        event.stopPropagation();
+    }
+    if (typeof forceState === 'boolean') {
+        currentOverlayAssets.blurActive = forceState;
+    } else {
+        currentOverlayAssets.blurActive = !currentOverlayAssets.blurActive;
+    }
+
+    const monitorBlur = document.getElementById('monitor-blur-overlay');
+    const statusBlur = document.getElementById('status-overlay-blur');
+
+    if (currentOverlayAssets.blurActive) {
+        if (monitorBlur) {
+            monitorBlur.style.display = 'flex';
+            setOverlayPosition('blur', currentOverlayAssets.blurPosition || 'top-right');
+            makeOverlayDraggable(monitorBlur);
+        }
+        if (statusBlur) {
+            statusBlur.innerHTML = `
+                <div class="overlay-active-controls">
+                    <span class="overlay-status-pill selected blur-active-pill" title="Blur Mask កំពុងដំណើរការ">
+                        <i class="fa-solid fa-eye-slash" style="color:#c084fc;"></i>
+                        <span class="overlay-file-name">Blur Active</span>
+                        <button type="button" class="overlay-file-remove-btn" onclick="toggleBlurMaskTool(event, false)" title="បិទ Blur">&times;</button>
+                    </span>
+                    <div class="overlay-preset-buttons">
+                        <button type="button" class="pos-preset-btn ${currentOverlayAssets.blurPosition === 'top-right' ? 'active' : ''}" onclick="setOverlayPosition('blur', 'top-right', event)" title="Blur ជ្រុងស្តាំលើ (បាំង NetShort/Logo)">TR</button>
+                        <button type="button" class="pos-preset-btn ${currentOverlayAssets.blurPosition === 'top-left' ? 'active' : ''}" onclick="setOverlayPosition('blur', 'top-left', event)" title="Blur ជ្រុងឆ្វេងលើ">TL</button>
+                        <button type="button" class="pos-preset-btn ${currentOverlayAssets.blurPosition === 'bottom-center' ? 'active' : ''}" onclick="setOverlayPosition('blur', 'bottom-center', event)" title="Blur ខាងក្រោម">BC</button>
+                    </div>
+                </div>
+            `;
+        }
+        showToast("បានបើក BLUR Mask លើ Video Preview (អាចអូសរំកិលបាន)!");
+        appendLiveTerminalLine("Blur Mask overlay enabled on video preview monitor (active)", "[Overlay Engine]", "success");
+    } else {
+        if (monitorBlur) {
+            monitorBlur.style.display = 'none';
+        }
+        if (statusBlur) {
+            statusBlur.innerHTML = `
+                <span class="overlay-status-pill empty" id="blur-status-pill">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> ចុចដើម្បីដាក់ Blur
+                </span>
+            `;
+        }
+        showToast("បានបិទ BLUR Mask ពីលើវីដេអូ");
+    }
+}
+
+function setOverlayPosition(type, pos, event) {
+    if (event) event.stopPropagation();
+    const el = document.getElementById(type === 'logo' ? 'monitor-logo-overlay' : 'monitor-blur-overlay');
+    if (!el) return;
+
+    if (type === 'logo') currentOverlayAssets.logoPosition = pos;
+    if (type === 'blur') currentOverlayAssets.blurPosition = pos;
+
+    el.style.left = '';
+    el.style.right = '';
+    el.style.top = '';
+    el.style.bottom = '';
+    el.style.transform = '';
+
+    if (pos === 'top-right') {
+        el.style.top = '14px';
+        el.style.right = '14px';
+    } else if (pos === 'top-left') {
+        el.style.top = '14px';
+        el.style.left = '14px';
+    } else if (pos === 'bottom-right') {
+        el.style.bottom = '14px';
+        el.style.right = '14px';
+    } else if (pos === 'bottom-left') {
+        el.style.bottom = '14px';
+        el.style.left = '14px';
+    } else if (pos === 'bottom-center') {
+        el.style.bottom = '18px';
+        el.style.left = '50%';
+        el.style.transform = 'translateX(-50%)';
+    }
+
+    // Update active preset button styling
+    const card = document.getElementById(type === 'logo' ? 'card-upload-logo' : 'card-upload-blur');
+    if (card) {
+        card.querySelectorAll('.pos-preset-btn').forEach(btn => {
+            const btnKey = btn.textContent.trim().toLowerCase();
+            const targetKey = pos === 'top-right' ? 'tr' : pos === 'top-left' ? 'tl' : pos === 'bottom-right' ? 'br' : 'bc';
+            btn.classList.toggle('active', btnKey === targetKey);
+        });
+    }
+}
+
+function makeOverlayDraggable(el) {
+    if (!el || el._hasDragHandler) return;
+    el._hasDragHandler = true;
+
+    let isDragging = false;
+    let startX = 0, startY = 0, origLeft = 0, origTop = 0;
+
+    el.addEventListener('mousedown', (e) => {
+        if (e.target.tagName.toLowerCase() === 'button') return;
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+
+        const parentRect = el.parentElement.getBoundingClientRect();
+        const elRect = el.getBoundingClientRect();
+
+        origLeft = elRect.left - parentRect.left;
+        origTop = elRect.top - parentRect.top;
+
+        el.style.left = `${origLeft}px`;
+        el.style.top = `${origTop}px`;
+        el.style.right = 'auto';
+        el.style.bottom = 'auto';
+        el.style.transform = 'none';
+
+        el.classList.add('dragging');
+        e.preventDefault();
+        e.stopPropagation();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+
+        const parentRect = el.parentElement.getBoundingClientRect();
+        const elWidth = el.offsetWidth;
+        const elHeight = el.offsetHeight;
+
+        let newLeft = Math.max(0, Math.min(parentRect.width - elWidth, origLeft + dx));
+        let newTop = Math.max(0, Math.min(parentRect.height - elHeight, origTop + dy));
+
+        el.style.left = `${newLeft}px`;
+        el.style.top = `${newTop}px`;
+    });
+
+    window.addEventListener('mouseup', () => {
+        if (isDragging) {
+            isDragging = false;
+            el.classList.remove('dragging');
+        }
+    });
 }
 
 function selectQuickBgmPreset(val) {

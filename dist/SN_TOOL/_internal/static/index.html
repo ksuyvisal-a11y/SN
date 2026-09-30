@@ -12,7 +12,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=23.0">
+    <link rel="stylesheet" href="style.css?v=24.0">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
@@ -115,6 +115,20 @@
                     <div class="monitor-screen-area" id="monitor-screen-area" onclick="togglePlayPreview(event)">
                         <video id="main-video" playsinline style="display:none;" onclick="togglePlayPreview(event)"></video>
                         
+                        <!-- Live Interactive Watermark LOGO Overlay on Video Canvas -->
+                        <div class="monitor-logo-overlay" id="monitor-logo-overlay" style="display:none;" onclick="event.stopPropagation()">
+                            <img id="monitor-logo-img" src="" alt="Watermark Logo">
+                            <button type="button" class="overlay-quick-remove-btn" onclick="clearOverlayFile(event, 'logo')" title="Remove Logo">×</button>
+                        </div>
+
+                        <!-- Live Interactive Watermark BLUR Box Mask Overlay on Video Canvas -->
+                        <div class="monitor-blur-overlay" id="monitor-blur-overlay" style="display:none;" onclick="event.stopPropagation()">
+                            <div class="blur-box-content">
+                                <span class="blur-label-tag"><i class="fa-solid fa-eye-slash"></i> BLUR MASK</span>
+                            </div>
+                            <button type="button" class="blur-quick-remove-btn" onclick="toggleBlurMaskTool(event, false)" title="Remove Blur Mask">×</button>
+                        </div>
+
                         <!-- Floating YouTube-style Back Button in Fullscreen -->
                         <button type="button" class="fullscreen-back-btn" id="fullscreen-back-btn" onclick="exitFullscreenMode(event)" title="Exit Fullscreen / Back (Esc)">
                             <i class="fa-solid fa-arrow-left"></i> <span>Back</span>
@@ -231,23 +245,22 @@
                                             </div>
                                         </div>
 
-                                        <!-- Card 2: Upload BLUR -->
-                                        <div class="overlay-upload-card" id="card-upload-blur" onclick="triggerOverlayUpload('blur')" title="Upload Mask/Blur image">
-                                            <input type="file" id="input-overlay-blur" accept="image/*,video/*" style="display:none;" onchange="handleOverlayFileSelect(event, 'blur')">
+                                        <!-- Card 2: Add BLUR Mask (In-App Tool Mode - No File Explorer) -->
+                                        <div class="overlay-upload-card" id="card-upload-blur" onclick="toggleBlurMaskTool(event)" title="Add Watermark Blur Mask">
                                             <div class="overlay-card-header">
                                                 <div class="overlay-card-icon-box blur-icon">
                                                     <i class="fa-solid fa-eye-slash"></i>
                                                 </div>
                                                 <div class="overlay-card-title-group">
-                                                    <div class="overlay-card-title">Upload BLUR</div>
-                                                    <div class="overlay-card-desc">ជ្រើសរើសរូបភាព ឬ Mask សម្រាប់បិទបាំង Logo/Watermark ចាស់</div>
+                                                    <div class="overlay-card-title">Add BLUR Mask</div>
+                                                    <div class="overlay-card-desc">បិទបាំង Logo/Watermark ចាស់ផ្ទាល់លើវីដេអូ Preview</div>
                                                 </div>
                                             </div>
                                             <div class="overlay-card-footer">
                                                 <div class="overlay-card-status" id="status-overlay-blur">
-                                                    <span class="overlay-status-pill empty"><i class="fa-solid fa-cloud-arrow-up"></i> ចុចដើម្បី Upload</span>
+                                                    <span class="overlay-status-pill empty" id="blur-status-pill"><i class="fa-solid fa-wand-magic-sparkles"></i> ចុចដើម្បីដាក់ Blur</span>
                                                 </div>
-                                                <span class="overlay-format-tag">Image, Mask, Video</span>
+                                                <span class="overlay-format-tag">Tool Mode</span>
                                             </div>
                                         </div>
                                     </div>
