@@ -7,12 +7,12 @@
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Kantumruy+Pro:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=9.0">
+    <link rel="stylesheet" href="style.css?v=10.0">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
@@ -111,6 +111,9 @@
                             <span class="monitor-kicker-dot"></span>
                             <span class="monitor-kicker-title">PREVIEW MONITOR</span>
                         </div>
+                        <div class="monitor-mini-bars-badge" id="monitor-visualizer-bars" title="Audio Visualizer">
+                            <span></span><span></span><span></span><span></span><span></span>
+                        </div>
                     </div>
 
                     <div class="monitor-screen-area" id="monitor-screen-area" onclick="togglePlayPreview(event)">
@@ -164,18 +167,53 @@
                         <div class="studio-source-clean-view" id="studio-source-clean-view">
                             <div class="clean-source-label" id="clean-source-label">Translation source</div>
                             
-                            <!-- Initial Empty State: Professional Studio Media Ingest -->
-                            <div class="clean-import-center-cta" id="clean-import-prompt" onclick="openImportModal()">
-                                <div class="clean-import-icon-box">
-                                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                            <!-- Initial Empty State: Modern Glass Media Ingest & Capabilities -->
+                            <div class="clean-import-wrapper" id="clean-import-prompt">
+                                <div class="clean-import-center-cta" onclick="openImportModal()">
+                                    <div class="clean-import-glow-circle"></div>
+                                    <div class="clean-import-icon-box">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                                    </div>
+                                    <div class="clean-import-text">Import Media / Drama Folder</div>
+                                    <div class="clean-import-sub">Drag &amp; drop video files or series folder to begin dubbing</div>
+                                    <div class="clean-import-formats">
+                                        <span class="media-fmt-chip">MP4</span>
+                                        <span class="media-fmt-chip">MKV</span>
+                                        <span class="media-fmt-chip">MOV</span>
+                                        <span class="media-fmt-chip highlight">SERIES FOLDER</span>
+                                    </div>
                                 </div>
-                                <div class="clean-import-text">Import Media / Drama Folder</div>
-                                <div class="clean-import-sub">Drag &amp; drop video files or series folder to begin dubbing</div>
-                                <div class="clean-import-formats">
-                                    <span class="media-fmt-chip">MP4</span>
-                                    <span class="media-fmt-chip">MKV</span>
-                                    <span class="media-fmt-chip">MOV</span>
-                                    <span class="media-fmt-chip highlight">SERIES FOLDER</span>
+
+                                <!-- Glassmorphism Studio Capabilities Hub -->
+                                <div class="studio-glass-features-bar">
+                                    <div class="glass-feature-pill" onclick="openImportModal()">
+                                        <div class="feature-pill-icon"><i class="fa-solid fa-bolt" style="color:#facc15;"></i></div>
+                                        <div class="feature-pill-texts">
+                                            <span class="feature-pill-title">Batch Dubbing 40+ ភាគ</span>
+                                            <span class="feature-pill-desc">ស្វ័យប្រវត្ត លឿនបំផុត</span>
+                                        </div>
+                                    </div>
+                                    <div class="glass-feature-pill" onclick="openStorySettingsModal()">
+                                        <div class="feature-pill-icon"><i class="fa-solid fa-microphone-lines" style="color:#38bdf8;"></i></div>
+                                        <div class="feature-pill-texts">
+                                            <span class="feature-pill-title">Khmer AI Voices</span>
+                                            <span class="feature-pill-desc">ពិសិដ្ឋ (ប្រុស) &amp; ស្រីមុំ (ស្រី)</span>
+                                        </div>
+                                    </div>
+                                    <div class="glass-feature-pill" onclick="openStorySettingsModal()">
+                                        <div class="feature-pill-icon"><i class="fa-solid fa-sliders" style="color:#a855f7;"></i></div>
+                                        <div class="feature-pill-texts">
+                                            <span class="feature-pill-title">Smart BGM &amp; Ducking</span>
+                                            <span class="feature-pill-desc">រក្សាភ្លេងកំដរ ឮសំឡេងច្បាស់</span>
+                                        </div>
+                                    </div>
+                                    <div class="glass-feature-pill" onclick="openStorySettingsModal()">
+                                        <div class="feature-pill-icon"><i class="fa-solid fa-mobile-screen" style="color:#4ade80;"></i></div>
+                                        <div class="feature-pill-texts">
+                                            <span class="feature-pill-title">Auto Re-frame 9:16</span>
+                                            <span class="feature-pill-desc">សមស្រប TikTok &amp; Reels</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -1741,6 +1779,6 @@
 
     <!-- HLS.js for Live Stream M3U8 Video Previews -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <script src="app.js?v=9.0"></script>
+    <script src="app.js?v=10.0"></script>
 </body>
 </html>

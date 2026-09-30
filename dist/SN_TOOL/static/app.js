@@ -371,6 +371,8 @@ function togglePlayPreview(e) {
         }
 
         startAudioPlaybackVUMeter();
+        const miniBars = document.getElementById('monitor-visualizer-bars');
+        if (miniBars) miniBars.classList.add('active');
 
         if (playbackTimer) clearInterval(playbackTimer);
         playbackTimer = setInterval(() => {
@@ -401,6 +403,8 @@ function togglePlayPreview(e) {
             playbackTimer = null;
         }
         resetVuMetersToIdle();
+        const miniBars = document.getElementById('monitor-visualizer-bars');
+        if (miniBars) miniBars.classList.remove('active');
     }
 }
 
