@@ -3518,6 +3518,60 @@ function resetAllVoicePreviewBtns() {
     });
 }
 
+// ==========================================================================
+// STAGED WORKSPACE OVERLAY LOGO & BLUR ASSET MANAGEMENT
+// ==========================================================================
+let currentOverlayAssets = {
+    logo: null,
+    blur: null
+};
+
+function triggerOverlayUpload(type) {
+    const input = document.getElementById(`input-overlay-${type}`);
+    if (input) input.click();
+}
+
+function handleOverlayFileSelect(event, type) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    currentOverlayAssets[type] = file;
+    const statusEl = document.getElementById(`status-overlay-${type}`);
+    const sizeKb = (file.size / 1024).toFixed(1);
+
+    if (statusEl) {
+        statusEl.innerHTML = `
+            <span class="overlay-status-pill selected">
+                <i class="fa-solid fa-circle-check" style="color:#22c55e;"></i>
+                <span class="overlay-file-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
+                <span class="overlay-file-size">(${sizeKb} KB)</span>
+                <button type="button" class="overlay-file-remove-btn" onclick="clearOverlayFile(event, '${type}')" title="លុបឯកសារ">&times;</button>
+            </span>
+        `;
+    }
+
+    const typeLabel = type === 'logo' ? 'LOGO' : 'BLUR Mask';
+    showToast(`បានបញ្ចូល ${typeLabel}: ${file.name}`);
+    appendLiveTerminalLine(`Overlay asset loaded: ${typeLabel} (${file.name}, ${sizeKb} KB)`, "[Overlay Engine]", "success");
+}
+
+function clearOverlayFile(event, type) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    currentOverlayAssets[type] = null;
+    const input = document.getElementById(`input-overlay-${type}`);
+    if (input) input.value = '';
+
+    const statusEl = document.getElementById(`status-overlay-${type}`);
+    if (statusEl) {
+        statusEl.innerHTML = `<span class="overlay-status-pill empty"><i class="fa-solid fa-cloud-arrow-up"></i> ចុចដើម្បី Upload</span>`;
+    }
+    const typeLabel = type === 'logo' ? 'LOGO' : 'BLUR Mask';
+    showToast(`បានដក ${typeLabel} ចេញ`);
+}
+
 function selectQuickBgmPreset(val) {
     const slider = document.getElementById('staged-bgm-slider');
     if (slider) slider.value = val;
