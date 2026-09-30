@@ -1168,146 +1168,169 @@ button, input, select, textarea {
     font-size: 0.82rem;
 }
 
-/* Staged Overlay Upload Grid & Cards (Expanded down to blue line, height: 128px) */
+/* ==========================================================================
+   STAGED OVERLAY TOOLBAR (Exact Match to User Drawn Sample Frame - Slim 42px)
+   ========================================================================== */
+.staged-overlay-bar,
 .staged-overlay-upload-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+    display: flex;
+    align-items: center;
     width: 100%;
     margin-top: 6px;
-    flex: initial;
-    box-sizing: border-box;
-}
-
-.overlay-upload-card {
-    height: 128px;
-    min-height: 128px;
-    max-height: 128px;
-    background: rgba(18, 24, 38, 0.55);
+    background: rgba(16, 22, 34, 0.65);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 11px;
-    padding: 14px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 9px;
     box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    cursor: pointer;
+    overflow: hidden;
+    flex: initial;
+    height: 42px;
+    min-height: 42px;
+    max-height: 42px;
     transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-    user-select: none;
-    position: relative;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
-.overlay-upload-card#card-upload-logo:hover {
-    border-color: rgba(250, 204, 21, 0.45);
-    background: rgba(26, 33, 50, 0.65);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.38), 0 0 18px rgba(250, 204, 21, 0.12);
+.staged-overlay-bar:hover,
+.staged-overlay-upload-grid:hover {
+    border-color: rgba(250, 204, 21, 0.35);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45), 0 0 14px rgba(250, 204, 21, 0.1);
 }
 
-.overlay-upload-card#card-upload-blur:hover {
-    border-color: rgba(168, 85, 247, 0.45);
-    background: rgba(26, 33, 50, 0.65);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.38), 0 0 18px rgba(168, 85, 247, 0.12);
-}
-
-.overlay-card-header {
+.overlay-bar-col,
+.overlay-upload-card {
+    flex: 1;
     display: flex;
     align-items: center;
     gap: 12px;
-    width: 100%;
+    padding: 0 14px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    user-select: none;
+    min-width: 0;
+    height: 100%;
+    box-sizing: border-box;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
 }
 
+.overlay-bar-col:first-child,
+.overlay-upload-card:first-child {
+    border-radius: 8px 0 0 8px;
+}
+
+.overlay-bar-col:last-child,
+.overlay-upload-card:last-child {
+    border-radius: 0 8px 8px 0;
+}
+
+.overlay-bar-col:hover,
+.overlay-upload-card:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.overlay-bar-col#card-upload-logo:hover,
+.overlay-upload-card#card-upload-logo:hover {
+    background: rgba(250, 204, 21, 0.05);
+}
+
+.overlay-bar-col#card-upload-blur:hover,
+.overlay-upload-card#card-upload-blur:hover {
+    background: rgba(168, 85, 247, 0.05);
+}
+
+.overlay-bar-divider {
+    width: 1px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.12);
+    flex-shrink: 0;
+}
+
+.overlay-col-icon,
 .overlay-card-icon-box {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.1rem;
+    font-size: 0.90rem;
     flex-shrink: 0;
     transition: all 0.2s ease;
 }
 
+.overlay-col-icon.logo-icon,
 .overlay-card-icon-box.logo-icon {
-    background: rgba(250, 204, 21, 0.12);
-    border: 1px solid rgba(250, 204, 21, 0.3);
+    background: rgba(250, 204, 21, 0.14);
+    border: 1px solid rgba(250, 204, 21, 0.35);
     color: #facc15;
 }
 
-.overlay-upload-card:hover .overlay-card-icon-box.logo-icon {
+.overlay-bar-col:hover .logo-icon,
+.overlay-upload-card:hover .logo-icon {
     transform: scale(1.08);
-    box-shadow: 0 0 14px rgba(250, 204, 21, 0.3);
+    box-shadow: 0 0 10px rgba(250, 204, 21, 0.35);
 }
 
+.overlay-col-icon.blur-icon,
 .overlay-card-icon-box.blur-icon {
-    background: rgba(168, 85, 247, 0.12);
-    border: 1px solid rgba(168, 85, 247, 0.3);
+    background: rgba(168, 85, 247, 0.14);
+    border: 1px solid rgba(168, 85, 247, 0.35);
     color: #c084fc;
 }
 
-.overlay-upload-card:hover .overlay-card-icon-box.blur-icon {
+.overlay-bar-col:hover .blur-icon,
+.overlay-upload-card:hover .blur-icon {
     transform: scale(1.08);
-    box-shadow: 0 0 14px rgba(168, 85, 247, 0.3);
+    box-shadow: 0 0 10px rgba(168, 85, 247, 0.35);
 }
 
-.overlay-card-title-group {
+.overlay-col-text,
+.overlay-card-title-group,
+.overlay-card-header {
     display: flex;
-    flex-direction: column;
-    gap: 3px;
-    min-width: 0;
+    align-items: baseline;
+    gap: 8px;
     flex: 1;
+    min-width: 0;
     overflow: hidden;
 }
 
+.overlay-col-title,
 .overlay-card-title {
     font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
-    font-size: 0.96rem;
+    font-size: 0.88rem;
     font-weight: 700;
     color: #f8fafc;
     letter-spacing: 0.3px;
     white-space: nowrap;
+    flex-shrink: 0;
 }
 
+.overlay-col-desc,
 .overlay-card-desc {
     font-family: 'Kantumruy Pro', sans-serif;
-    font-size: 0.74rem;
+    font-size: 0.72rem;
     color: #94a3b8;
-    line-height: 1.35;
+    line-height: 1.3;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
+.overlay-col-status,
+.overlay-card-status,
 .overlay-card-footer {
+    flex-shrink: 0;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    width: 100%;
-    margin-top: auto;
-}
-
-.overlay-card-status {
-    display: flex;
-    align-items: center;
-    min-width: 0;
 }
 
 .overlay-format-tag {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.67rem;
-    color: #64748b;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    padding: 3px 8px;
-    border-radius: 5px;
-    letter-spacing: 0.2px;
-    flex-shrink: 0;
+    display: none;
 }
 
 .overlay-status-pill {
@@ -1317,7 +1340,7 @@ button, input, select, textarea {
     font-size: 0.72rem;
     font-family: 'Kantumruy Pro', sans-serif;
     border-radius: 7px;
-    padding: 4px 12px;
+    padding: 3px 10px;
     transition: all 0.18s ease;
     white-space: nowrap;
 }
@@ -1328,12 +1351,14 @@ button, input, select, textarea {
     color: #cbd5e1;
 }
 
+.overlay-bar-col#card-upload-logo:hover .overlay-status-pill.empty,
 .overlay-upload-card#card-upload-logo:hover .overlay-status-pill.empty {
     background: rgba(250, 204, 21, 0.12);
     border-color: rgba(250, 204, 21, 0.35);
     color: #facc15;
 }
 
+.overlay-bar-col#card-upload-blur:hover .overlay-status-pill.empty,
 .overlay-upload-card#card-upload-blur:hover .overlay-status-pill.empty {
     background: rgba(168, 85, 247, 0.12);
     border-color: rgba(168, 85, 247, 0.35);

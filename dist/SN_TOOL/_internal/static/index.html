@@ -12,7 +12,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=24.0">
+    <link rel="stylesheet" href="style.css?v=25.0">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
@@ -223,44 +223,37 @@
                                         </button>
                                     </div>
 
-                                    <!-- Upload LOGO & Upload BLUR Grid (Expanded down to blue line, height: 128px) -->
-                                    <div class="staged-overlay-upload-grid">
-                                        <!-- Card 1: Upload LOGO -->
-                                        <div class="overlay-upload-card" id="card-upload-logo" onclick="triggerOverlayUpload('logo')" title="Upload Watermark/Logo">
+                                    <!-- Unified Horizontal Overlay Bar (Matching User Drawn Sample Frame, height: 42px) -->
+                                    <div class="staged-overlay-bar">
+                                        <!-- Item 1: Upload LOGO -->
+                                        <div class="overlay-bar-col" id="card-upload-logo" onclick="triggerOverlayUpload('logo')" title="Upload Watermark/Logo">
                                             <input type="file" id="input-overlay-logo" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;" onchange="handleOverlayFileSelect(event, 'logo')">
-                                            <div class="overlay-card-header">
-                                                <div class="overlay-card-icon-box logo-icon">
-                                                    <i class="fa-solid fa-stamp"></i>
-                                                </div>
-                                                <div class="overlay-card-title-group">
-                                                    <div class="overlay-card-title">Upload LOGO</div>
-                                                    <div class="overlay-card-desc">ជ្រើសរើសរូបភាព Logo (PNG/JPG) ដើម្បីដាក់ Watermark</div>
-                                                </div>
+                                            <div class="overlay-col-icon logo-icon">
+                                                <i class="fa-solid fa-stamp"></i>
                                             </div>
-                                            <div class="overlay-card-footer">
-                                                <div class="overlay-card-status" id="status-overlay-logo">
-                                                    <span class="overlay-status-pill empty"><i class="fa-solid fa-cloud-arrow-up"></i> ចុចដើម្បី Upload</span>
-                                                </div>
-                                                <span class="overlay-format-tag">PNG, JPG, WEBP</span>
+                                            <div class="overlay-col-text">
+                                                <span class="overlay-col-title">Upload LOGO</span>
+                                                <span class="overlay-col-desc">ជ្រើសរើសរូប Logo (PNG/JPG)</span>
+                                            </div>
+                                            <div class="overlay-col-status" id="status-overlay-logo">
+                                                <span class="overlay-status-pill empty"><i class="fa-solid fa-cloud-arrow-up"></i> Upload</span>
                                             </div>
                                         </div>
 
-                                        <!-- Card 2: Add BLUR Mask (In-App Tool Mode - No File Explorer) -->
-                                        <div class="overlay-upload-card" id="card-upload-blur" onclick="toggleBlurMaskTool(event)" title="Add Watermark Blur Mask">
-                                            <div class="overlay-card-header">
-                                                <div class="overlay-card-icon-box blur-icon">
-                                                    <i class="fa-solid fa-eye-slash"></i>
-                                                </div>
-                                                <div class="overlay-card-title-group">
-                                                    <div class="overlay-card-title">Add BLUR Mask</div>
-                                                    <div class="overlay-card-desc">បិទបាំង Logo/Watermark ចាស់ផ្ទាល់លើវីដេអូ Preview</div>
-                                                </div>
+                                        <!-- Center Divider -->
+                                        <div class="overlay-bar-divider"></div>
+
+                                        <!-- Item 2: Add BLUR Mask (In-App Tool Mode - No File Explorer) -->
+                                        <div class="overlay-bar-col" id="card-upload-blur" onclick="toggleBlurMaskTool(event)" title="Add Watermark Blur Mask">
+                                            <div class="overlay-col-icon blur-icon">
+                                                <i class="fa-solid fa-eye-slash"></i>
                                             </div>
-                                            <div class="overlay-card-footer">
-                                                <div class="overlay-card-status" id="status-overlay-blur">
-                                                    <span class="overlay-status-pill empty" id="blur-status-pill"><i class="fa-solid fa-wand-magic-sparkles"></i> ចុចដើម្បីដាក់ Blur</span>
-                                                </div>
-                                                <span class="overlay-format-tag">Tool Mode</span>
+                                            <div class="overlay-col-text">
+                                                <span class="overlay-col-title">Add BLUR Mask</span>
+                                                <span class="overlay-col-desc">បិទបាំង Logo/Watermark ចាស់</span>
+                                            </div>
+                                            <div class="overlay-col-status" id="status-overlay-blur">
+                                                <span class="overlay-status-pill empty" id="blur-status-pill"><i class="fa-solid fa-wand-magic-sparkles"></i> ដាក់ Blur</span>
                                             </div>
                                         </div>
                                     </div>
