@@ -3871,9 +3871,6 @@ function toggleBlurMaskDropdown(e) {
         e.stopPropagation();
         e.preventDefault();
     }
-    
-    // Close BGM dropdown if open to avoid overlap
-    if (typeof closeTrackBgmDropdown === 'function') closeTrackBgmDropdown();
 
     const dropdown = document.getElementById('blur-custom-dropdown');
     const chevron = document.getElementById('blur-dropdown-chevron');
@@ -3888,20 +3885,6 @@ function toggleBlurMaskDropdown(e) {
         // If blur is not yet active, activate it on video monitor
         if (!currentOverlayAssets.blurActive) {
             toggleBlurMaskTool(null, true);
-        }
-
-        // Dynamically match width and position to the Track/BGM Pill from Image 2
-        const bgmPill = document.getElementById('track-bgm-pill') || document.getElementById('track-video-pill');
-        const blurCard = document.getElementById('card-upload-blur');
-        if (bgmPill && blurCard) {
-            const cardRect = blurCard.getBoundingClientRect();
-            const pillRect = bgmPill.getBoundingClientRect();
-            const leftOffset = Math.round(pillRect.left - cardRect.left);
-            const rightOffset = Math.max(0, Math.round(cardRect.right - pillRect.right));
-            if (leftOffset > 20) {
-                dropdown.style.left = `${leftOffset}px`;
-                dropdown.style.right = `${rightOffset}px`;
-            }
         }
 
         dropdown.classList.add('show');

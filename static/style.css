@@ -1365,6 +1365,11 @@ button, input, select, textarea {
     box-shadow: none;
 }
 
+.overlay-row-bar#card-upload-blur {
+    border-bottom-left-radius: 11px;
+    border-bottom-right-radius: 11px;
+}
+
 .overlay-row-bar#card-upload-blur:hover {
     background: linear-gradient(90deg, rgba(168, 85, 247, 0.12) 0%, rgba(168, 85, 247, 0.03) 65%, transparent 100%);
     border-color: transparent;
