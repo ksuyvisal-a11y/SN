@@ -880,8 +880,7 @@ button, input, select, textarea {
 
 /* Row 1: Compact Header with File Info & Action Buttons (Pinned to Top) */
 .staged-compact-header {
-    margin-top: 0;
-    margin-bottom: auto;
+    margin: 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -4250,6 +4249,7 @@ button, input, select, textarea {
 }
 
 .staged-action-cta-row {
+    margin-top: auto;
     margin-bottom: 0;
     display: flex;
     align-items: center;
