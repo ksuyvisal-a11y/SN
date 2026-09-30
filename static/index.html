@@ -12,7 +12,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=18.0">
+    <link rel="stylesheet" href="style.css?v=19.0">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
@@ -37,10 +37,6 @@
                 <button class="nav-pill-btn active" id="btn-tab-translate" onclick="switchMainTab('translate')" title="Translation & Dubbing Studio">
                     <i class="fa-solid fa-globe icon-translate"></i>
                     <span>Translate</span>
-                </button>
-                <button class="nav-pill-btn" id="btn-tab-overlay" onclick="switchMainTab('overlay')" title="Overlay & Watermark Tools">
-                    <i class="fa-solid fa-folder icon-overlay"></i>
-                    <span>Overlay</span>
                 </button>
                 <button class="nav-pill-btn" id="btn-tab-dl" onclick="switchMainTab('dl')" title="Drama Downloader Studio">
                     <i class="fa-solid fa-download icon-dl"></i>
@@ -205,7 +201,14 @@
                                 </div>
 
                                 <!-- Center Glass Workspace Frame Box (Clean Frosted Studio Canvas) -->
-                                <div class="staged-workspace-frame" id="staged-workspace-frame"></div>
+                                <div class="staged-workspace-frame" id="staged-workspace-frame">
+                                    <div class="staged-frame-toolbar">
+                                        <button type="button" class="staged-frame-overlay-btn" id="btn-tab-overlay" onclick="switchMainTab('overlay')" title="Overlay & Watermark Tools">
+                                            <i class="fa-solid fa-folder icon-overlay"></i>
+                                            <span>Overlay</span>
+                                        </button>
+                                    </div>
+                                </div>
 
                                 <!-- Quick Export Action Trigger (Pinned to Bottom) -->
                                 <div class="staged-action-cta-row">

@@ -991,12 +991,57 @@ button, input, select, textarea {
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05);
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 12px 14px;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .staged-workspace-frame:hover {
     border-color: rgba(250, 204, 21, 0.25);
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35), 0 0 16px rgba(250, 204, 21, 0.06);
+}
+
+.staged-frame-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.staged-frame-overlay-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #e2e8f0;
+    font-family: 'Outfit', 'Kantumruy Pro', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.staged-frame-overlay-btn:hover {
+    background: rgba(250, 204, 21, 0.12);
+    border-color: rgba(250, 204, 21, 0.45);
+    color: #facc15;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(250, 204, 21, 0.2);
+}
+
+.staged-frame-overlay-btn:active {
+    transform: translateY(0);
+}
+
+.staged-frame-overlay-btn i {
+    color: #facc15;
+    font-size: 0.82rem;
 }
 
 /* Section Wrapper */
