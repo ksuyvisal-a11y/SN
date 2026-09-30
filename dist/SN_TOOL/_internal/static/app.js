@@ -765,6 +765,9 @@ function initStudioWorkspace() {
 
     // Initial default view is Clean Image 2 View
     showCleanSourceView();
+
+    // Initialize interactive overlays (logo & blur mask drag & resize)
+    initInteractiveOverlays();
 }
 
 function selectStudioPreset(presetKey) {
@@ -3525,8 +3528,13 @@ let currentOverlayAssets = {
     logo: null,
     logoUrl: null,
     logoPosition: 'top-right',
+    logoScale: 1.0,
+    logoWidth: 110,
     blurActive: false,
-    blurPosition: 'top-right'
+    blurPosition: 'top-right',
+    blurScale: 1.0,
+    blurWidth: 120,
+    blurHeight: 50
 };
 
 function triggerOverlayUpload(type) {
@@ -3557,6 +3565,8 @@ function handleOverlayFileSelect(event, type) {
             monitorLogo.style.display = 'flex';
             setOverlayPosition('logo', currentOverlayAssets.logoPosition || 'top-right');
             makeOverlayDraggable(monitorLogo);
+            const logoHandle = document.getElementById('logo-resize-handle');
+            if (logoHandle) makeOverlayResizable(monitorLogo, logoHandle, 'logo');
         }
 
         const statusEl = document.getElementById('status-overlay-logo');
@@ -3574,6 +3584,11 @@ function handleOverlayFileSelect(event, type) {
                         <button type="button" class="pos-preset-btn ${currentOverlayAssets.logoPosition === 'top-right' ? 'active' : ''}" onclick="setOverlayPosition('logo', 'top-right', event)" title="ដាក់ជ្រុងស្តាំលើ">TR</button>
                         <button type="button" class="pos-preset-btn ${currentOverlayAssets.logoPosition === 'top-left' ? 'active' : ''}" onclick="setOverlayPosition('logo', 'top-left', event)" title="ដាក់ជ្រុងឆ្វេងលើ">TL</button>
                         <button type="button" class="pos-preset-btn ${currentOverlayAssets.logoPosition === 'bottom-right' ? 'active' : ''}" onclick="setOverlayPosition('logo', 'bottom-right', event)" title="ដាក់ជ្រុងស្តាំក្រោម">BR</button>
+                    </div>
+                    <div class="overlay-size-controls" onclick="event.stopPropagation()">
+                        <button type="button" class="size-ctrl-btn" onclick="adjustOverlaySize('logo', -0.15, event)" title="បង្រួម Logo (Zoom Out)"><i class="fa-solid fa-minus"></i></button>
+                        <span class="overlay-size-label" id="logo-size-label">${Math.round((currentOverlayAssets.logoScale || 1.0) * 100)}%</span>
+                        <button type="button" class="size-ctrl-btn" onclick="adjustOverlaySize('logo', 0.15, event)" title="ពង្រីក Logo (Zoom In)"><i class="fa-solid fa-plus"></i></button>
                     </div>
                 </div>
             `;
@@ -3628,6 +3643,8 @@ function toggleBlurMaskTool(event, forceState) {
             monitorBlur.style.display = 'flex';
             setOverlayPosition('blur', currentOverlayAssets.blurPosition || 'top-right');
             makeOverlayDraggable(monitorBlur);
+            const blurHandle = document.getElementById('blur-resize-handle');
+            if (blurHandle) makeOverlayResizable(monitorBlur, blurHandle, 'blur');
         }
         if (statusBlur) {
             statusBlur.innerHTML = `
@@ -3642,10 +3659,15 @@ function toggleBlurMaskTool(event, forceState) {
                         <button type="button" class="pos-preset-btn ${currentOverlayAssets.blurPosition === 'top-left' ? 'active' : ''}" onclick="setOverlayPosition('blur', 'top-left', event)" title="Blur ជ្រុងឆ្វេងលើ">TL</button>
                         <button type="button" class="pos-preset-btn ${currentOverlayAssets.blurPosition === 'bottom-center' ? 'active' : ''}" onclick="setOverlayPosition('blur', 'bottom-center', event)" title="Blur ខាងក្រោម">BC</button>
                     </div>
+                    <div class="overlay-size-controls" onclick="event.stopPropagation()">
+                        <button type="button" class="size-ctrl-btn" onclick="adjustOverlaySize('blur', -0.15, event)" title="បង្រួម Blur Mask (Zoom Out)"><i class="fa-solid fa-minus"></i></button>
+                        <span class="overlay-size-label" id="blur-size-label">${Math.round((currentOverlayAssets.blurScale || 1.0) * 100)}%</span>
+                        <button type="button" class="size-ctrl-btn" onclick="adjustOverlaySize('blur', 0.15, event)" title="ពង្រីក Blur Mask (Zoom In)"><i class="fa-solid fa-plus"></i></button>
+                    </div>
                 </div>
             `;
         }
-        showToast("បានបើក BLUR Mask លើ Video Preview (អាចអូសរំកិលបាន)!");
+        showToast("បានបើក BLUR Mask លើ Video Preview (អាចអូសរំកិល និងទាញពង្រីកបង្រួមបាន)!");
         appendLiveTerminalLine("Blur Mask overlay enabled on video preview monitor (active)", "[Overlay Engine]", "success");
     } else {
         if (monitorBlur) {
@@ -3705,6 +3727,172 @@ function setOverlayPosition(type, pos, event) {
     }
 }
 
+function adjustOverlaySize(type, delta, event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+
+    if (type === 'logo') {
+        const overlay = document.getElementById('monitor-logo-overlay');
+        const img = document.getElementById('monitor-logo-img');
+        if (!overlay) return;
+
+        currentOverlayAssets.logoScale = Math.max(0.3, Math.min(3.5, Number(((currentOverlayAssets.logoScale || 1.0) + delta).toFixed(2))));
+        const baseW = 110;
+        const newW = Math.round(baseW * currentOverlayAssets.logoScale);
+
+        overlay.style.width = `${newW}px`;
+        overlay.style.maxWidth = 'none';
+        if (img) {
+            img.style.maxHeight = 'none';
+            img.style.width = '100%';
+        }
+        currentOverlayAssets.logoWidth = newW;
+
+        const label = document.getElementById('logo-size-label');
+        if (label) label.textContent = `${Math.round(currentOverlayAssets.logoScale * 100)}%`;
+    } else if (type === 'blur') {
+        const overlay = document.getElementById('monitor-blur-overlay');
+        if (!overlay) return;
+
+        const curScale = currentOverlayAssets.blurScale || 1.0;
+        const targetScale = Math.max(0.3, Math.min(4.0, Number((curScale + delta).toFixed(2))));
+        const ratio = targetScale / curScale;
+
+        const curW = currentOverlayAssets.blurWidth || 120;
+        const curH = currentOverlayAssets.blurHeight || 50;
+        const newW = Math.round(Math.max(40, curW * ratio));
+        const newH = Math.round(Math.max(22, curH * ratio));
+
+        overlay.style.width = `${newW}px`;
+        overlay.style.height = `${newH}px`;
+        currentOverlayAssets.blurWidth = newW;
+        currentOverlayAssets.blurHeight = newH;
+        currentOverlayAssets.blurScale = targetScale;
+
+        const label = document.getElementById('blur-size-label');
+        if (label) label.textContent = `${Math.round(targetScale * 100)}%`;
+    }
+}
+
+function makeOverlayResizable(overlayEl, handleEl, type) {
+    if (!overlayEl || !handleEl || handleEl._hasResizeHandler) return;
+    handleEl._hasResizeHandler = true;
+
+    let isResizing = false;
+    let startX = 0, startY = 0;
+    let startWidth = 0, startHeight = 0;
+
+    const startResize = (clientX, clientY, e) => {
+        isResizing = true;
+        startX = clientX;
+        startY = clientY;
+        startWidth = overlayEl.offsetWidth;
+        startHeight = overlayEl.offsetHeight;
+
+        // Anchor explicit left and top if positioned with right/bottom
+        const parentRect = overlayEl.parentElement.getBoundingClientRect();
+        const elRect = overlayEl.getBoundingClientRect();
+        overlayEl.style.left = `${elRect.left - parentRect.left}px`;
+        overlayEl.style.top = `${elRect.top - parentRect.top}px`;
+        overlayEl.style.right = 'auto';
+        overlayEl.style.bottom = 'auto';
+        overlayEl.style.transform = 'none';
+
+        overlayEl.classList.add('resizing');
+        handleEl.classList.add('active');
+
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    };
+
+    const doResize = (clientX, clientY) => {
+        if (!isResizing) return;
+        const dx = clientX - startX;
+        const dy = clientY - startY;
+
+        const parentRect = overlayEl.parentElement.getBoundingClientRect();
+        const elRect = overlayEl.getBoundingClientRect();
+        const maxW = Math.max(50, parentRect.right - elRect.left - 4);
+        const maxH = Math.max(30, parentRect.bottom - elRect.top - 4);
+
+        if (type === 'blur') {
+            // Free 2D resizing for Blur Mask with mouse drag (100% interactive)
+            const newW = Math.round(Math.max(40, Math.min(maxW, startWidth + dx)));
+            const newH = Math.round(Math.max(22, Math.min(maxH, startHeight + dy)));
+            overlayEl.style.width = `${newW}px`;
+            overlayEl.style.height = `${newH}px`;
+
+            currentOverlayAssets.blurWidth = newW;
+            currentOverlayAssets.blurHeight = newH;
+            currentOverlayAssets.blurScale = +(newW / 120).toFixed(2);
+
+            const label = document.getElementById('blur-size-label');
+            if (label) label.textContent = `${Math.round(currentOverlayAssets.blurScale * 100)}%`;
+        } else if (type === 'logo') {
+            // Proportional smooth resizing for Logo using dominant movement
+            const delta = Math.abs(dx) > Math.abs(dy) ? dx : dy;
+            const newW = Math.round(Math.max(35, Math.min(maxW, startWidth + delta)));
+            overlayEl.style.width = `${newW}px`;
+            overlayEl.style.maxWidth = 'none';
+            const img = document.getElementById('monitor-logo-img');
+            if (img) {
+                img.style.maxHeight = 'none';
+                img.style.width = '100%';
+            }
+
+            currentOverlayAssets.logoWidth = newW;
+            currentOverlayAssets.logoScale = +(newW / 110).toFixed(2);
+
+            const label = document.getElementById('logo-size-label');
+            if (label) label.textContent = `${Math.round(currentOverlayAssets.logoScale * 100)}%`;
+        }
+    };
+
+    const stopResize = () => {
+        if (isResizing) {
+            isResizing = false;
+            overlayEl.classList.remove('resizing');
+            handleEl.classList.remove('active');
+        }
+    };
+
+    handleEl.addEventListener('mousedown', (e) => startResize(e.clientX, e.clientY, e));
+    window.addEventListener('mousemove', (e) => doResize(e.clientX, e.clientY));
+    window.addEventListener('mouseup', stopResize);
+
+    // Touch support for touchscreens
+    handleEl.addEventListener('touchstart', (e) => {
+        if (e.touches && e.touches[0]) {
+            startResize(e.touches[0].clientX, e.touches[0].clientY, e);
+        }
+    }, { passive: false });
+
+    window.addEventListener('touchmove', (e) => {
+        if (isResizing && e.touches && e.touches[0]) {
+            doResize(e.touches[0].clientX, e.touches[0].clientY);
+            e.preventDefault();
+        }
+    }, { passive: false });
+
+    window.addEventListener('touchend', stopResize);
+}
+
+function initInteractiveOverlays() {
+    const monitorLogo = document.getElementById('monitor-logo-overlay');
+    const logoHandle = document.getElementById('logo-resize-handle');
+    if (monitorLogo) makeOverlayDraggable(monitorLogo);
+    if (monitorLogo && logoHandle) makeOverlayResizable(monitorLogo, logoHandle, 'logo');
+
+    const monitorBlur = document.getElementById('monitor-blur-overlay');
+    const blurHandle = document.getElementById('blur-resize-handle');
+    if (monitorBlur) makeOverlayDraggable(monitorBlur);
+    if (monitorBlur && blurHandle) makeOverlayResizable(monitorBlur, blurHandle, 'blur');
+}
+
 function makeOverlayDraggable(el) {
     if (!el || el._hasDragHandler) return;
     el._hasDragHandler = true;
@@ -3712,11 +3900,13 @@ function makeOverlayDraggable(el) {
     let isDragging = false;
     let startX = 0, startY = 0, origLeft = 0, origTop = 0;
 
-    el.addEventListener('mousedown', (e) => {
-        if (e.target.tagName.toLowerCase() === 'button') return;
+    const startDrag = (clientX, clientY, target, e) => {
+        if (target.tagName.toLowerCase() === 'button') return;
+        if (target.classList.contains('overlay-resize-handle') || target.closest('.overlay-resize-handle')) return;
+
         isDragging = true;
-        startX = e.clientX;
-        startY = e.clientY;
+        startX = clientX;
+        startY = clientY;
 
         const parentRect = el.parentElement.getBoundingClientRect();
         const elRect = el.getBoundingClientRect();
@@ -3731,14 +3921,16 @@ function makeOverlayDraggable(el) {
         el.style.transform = 'none';
 
         el.classList.add('dragging');
-        e.preventDefault();
-        e.stopPropagation();
-    });
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    };
 
-    window.addEventListener('mousemove', (e) => {
+    const doDrag = (clientX, clientY) => {
         if (!isDragging) return;
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
+        const dx = clientX - startX;
+        const dy = clientY - startY;
 
         const parentRect = el.parentElement.getBoundingClientRect();
         const elWidth = el.offsetWidth;
@@ -3749,14 +3941,34 @@ function makeOverlayDraggable(el) {
 
         el.style.left = `${newLeft}px`;
         el.style.top = `${newTop}px`;
-    });
+    };
 
-    window.addEventListener('mouseup', () => {
+    const stopDrag = () => {
         if (isDragging) {
             isDragging = false;
             el.classList.remove('dragging');
         }
-    });
+    };
+
+    el.addEventListener('mousedown', (e) => startDrag(e.clientX, e.clientY, e.target, e));
+    window.addEventListener('mousemove', (e) => doDrag(e.clientX, e.clientY));
+    window.addEventListener('mouseup', stopDrag);
+
+    // Touch support for dragging
+    el.addEventListener('touchstart', (e) => {
+        if (e.touches && e.touches[0]) {
+            startDrag(e.touches[0].clientX, e.touches[0].clientY, e.target, e);
+        }
+    }, { passive: false });
+
+    window.addEventListener('touchmove', (e) => {
+        if (isDragging && e.touches && e.touches[0]) {
+            doDrag(e.touches[0].clientX, e.touches[0].clientY);
+            e.preventDefault();
+        }
+    }, { passive: false });
+
+    window.addEventListener('touchend', stopDrag);
 }
 
 function selectQuickBgmPreset(val) {

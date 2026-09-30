@@ -12,7 +12,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=29.0">
+    <link rel="stylesheet" href="style.css?v=30.0">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
@@ -119,6 +119,9 @@
                         <div class="monitor-logo-overlay" id="monitor-logo-overlay" style="display:none;" onclick="event.stopPropagation()">
                             <img id="monitor-logo-img" src="" alt="Watermark Logo">
                             <button type="button" class="overlay-quick-remove-btn" onclick="clearOverlayFile(event, 'logo')" title="Remove Logo">×</button>
+                            <div class="overlay-resize-handle" id="logo-resize-handle" title="ទាញដើម្បីពង្រីក/បង្រួម Logo (Drag to Resize)">
+                                <i class="fa-solid fa-up-right-and-down-left-from-center"></i>
+                            </div>
                         </div>
 
                         <!-- Live Interactive Watermark BLUR Box Mask Overlay on Video Canvas -->
@@ -127,6 +130,9 @@
                                 <span class="blur-label-tag"><i class="fa-solid fa-eye-slash"></i> BLUR MASK</span>
                             </div>
                             <button type="button" class="blur-quick-remove-btn" onclick="toggleBlurMaskTool(event, false)" title="Remove Blur Mask">×</button>
+                            <div class="overlay-resize-handle blur-handle" id="blur-resize-handle" title="ទាញដើម្បីពង្រីក/បង្រួម Blur Mask (Drag to Resize)">
+                                <i class="fa-solid fa-up-right-and-down-left-from-center"></i>
+                            </div>
                         </div>
 
                         <!-- Floating YouTube-style Back Button in Fullscreen -->
@@ -1682,6 +1688,6 @@
 
     <!-- HLS.js for Live Stream M3U8 Video Previews -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <script src="app.js?v=11.0"></script>
+    <script src="app.js?v=12.0"></script>
 </body>
 </html>
