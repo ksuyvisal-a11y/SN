@@ -984,7 +984,7 @@ button, input, select, textarea {
 }
 
 /* Staged Video Ready to Export Card */
-/* Staged Video Ready to Export Workspace (Fills Translation Source Frame Seamlessly) */
+/* Staged Video Ready to Export Workspace (Modern Glassmorphism Studio Layout) */
 .staged-video-ready-card {
     width: 100%;
     height: 100%;
@@ -993,7 +993,8 @@ button, input, select, textarea {
     justify-content: flex-start;
     gap: 12px;
     padding: 14px 18px;
-    background: transparent;
+    background: radial-gradient(circle at 85% 15%, rgba(99, 102, 241, 0.08) 0%, transparent 45%),
+                radial-gradient(circle at 15% 85%, rgba(250, 204, 21, 0.05) 0%, transparent 40%);
     border: none;
     box-shadow: none;
     animation: fadeIn 0.25s ease;
@@ -1002,20 +1003,31 @@ button, input, select, textarea {
     overflow-x: hidden;
 }
 
-/* Row 1: Compact Header with File Info & Action Buttons (Pinned to Top) */
+/* Row 1: Modern Glass Compact Header with File Info & Action Buttons (Pinned to Top) */
 .staged-compact-header {
     margin: 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
     width: 100%;
-    padding: 8px 14px;
-    background: rgba(16, 20, 29, 0.65);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
-    gap: 10px;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 100%),
+                rgba(15, 21, 35, 0.78);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-top: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 12px;
+    gap: 12px;
     box-sizing: border-box;
     flex-shrink: 0;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    transition: all 0.2s ease;
+}
+
+.staged-compact-header:hover {
+    border-color: rgba(255, 255, 255, 0.18);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .staged-file-info-left {
@@ -1030,48 +1042,56 @@ button, input, select, textarea {
     font-size: 0.68rem;
     font-weight: 800;
     letter-spacing: 0.8px;
-    color: #cbd5e1;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    border-radius: 6px;
+    color: #a5b4fc;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(99, 102, 241, 0.06) 100%);
+    border: 1px solid rgba(99, 102, 241, 0.4);
+    border-radius: 7px;
     padding: 3px 8px;
     display: inline-flex;
     align-items: center;
     gap: 5px;
     flex-shrink: 0;
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.15);
 }
 
 .staged-status-pill {
     font-size: 0.68rem;
     font-weight: 800;
     color: #4ade80;
-    background: rgba(34, 197, 94, 0.12);
-    border: 1px solid rgba(34, 197, 94, 0.3);
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(34, 197, 94, 0.06) 100%);
+    border: 1px solid rgba(34, 197, 94, 0.4);
     border-radius: 12px;
-    padding: 3px 8px;
+    padding: 3px 9px;
     display: inline-flex;
     align-items: center;
     gap: 5px;
     flex-shrink: 0;
     letter-spacing: 0.5px;
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.25);
 }
 
 .staged-card-title {
+    font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
     font-size: 0.94rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: #ffffff;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 380px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .staged-card-meta {
-    font-size: 0.74rem;
+    font-size: 0.72rem;
     color: #94a3b8;
     font-family: var(--font-mono);
     white-space: nowrap;
     flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    padding: 2px 7px;
 }
 
 .staged-file-actions-right {
@@ -1082,49 +1102,91 @@ button, input, select, textarea {
 }
 
 .staged-mini-btn {
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.12);
-    color: #cbd5e1;
-    font-size: 0.74rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    color: #e2e8f0;
+    font-family: 'Outfit', 'Kantumruy Pro', sans-serif;
+    font-size: 0.75rem;
     font-weight: 600;
-    padding: 6px 12px;
-    border-radius: 7px;
+    padding: 6px 13px;
+    border-radius: 8px;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    transition: all 0.15s ease;
+    gap: 7px;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .staged-mini-btn:hover {
-    border-color: #facc15;
-    color: #facc15;
-    background: rgba(250, 204, 21, 0.08);
+    border-color: rgba(250, 204, 21, 0.5);
+    color: #fde047;
+    background: rgba(250, 204, 21, 0.12);
     transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(250, 204, 21, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
-/* Center Glass Workspace Frame Box (Clean Frosted Studio Canvas) */
+/* Center Glass Workspace Frame Box (Clean Frosted Studio Canvas with Ambient Mesh) */
 .staged-workspace-frame {
     flex: 1;
     width: 100%;
     min-height: 0;
-    background: rgba(16, 20, 29, 0.45);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    background: linear-gradient(145deg, rgba(22, 29, 48, 0.55) 0%, rgba(13, 17, 30, 0.72) 100%);
+    backdrop-filter: blur(28px) saturate(190%);
+    -webkit-backdrop-filter: blur(28px) saturate(190%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-top: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 16px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45), 
+                inset 0 1px 0 rgba(255, 255, 255, 0.14),
+                inset 0 0 24px rgba(255, 255, 255, 0.02);
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    padding: 12px 14px;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    padding: 14px 18px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.staged-workspace-frame::before {
+    content: '';
+    position: absolute;
+    top: -20%;
+    right: -10%;
+    width: 340px;
+    height: 340px;
+    background: radial-gradient(circle, rgba(168, 85, 247, 0.12) 0%, rgba(99, 102, 241, 0.05) 50%, transparent 70%);
+    pointer-events: none;
+    filter: blur(45px);
+    z-index: 0;
+}
+
+.staged-workspace-frame::after {
+    content: '';
+    position: absolute;
+    bottom: -20%;
+    left: -10%;
+    width: 340px;
+    height: 340px;
+    background: radial-gradient(circle, rgba(250, 204, 21, 0.08) 0%, rgba(234, 179, 8, 0.03) 50%, transparent 70%);
+    pointer-events: none;
+    filter: blur(45px);
+    z-index: 0;
+}
+
+.staged-workspace-frame > * {
+    position: relative;
+    z-index: 1;
 }
 
 .staged-workspace-frame:hover {
-    border-color: rgba(250, 204, 21, 0.25);
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35), 0 0 16px rgba(250, 204, 21, 0.06);
+    border-color: rgba(255, 255, 255, 0.18);
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.52), 0 0 20px rgba(250, 204, 21, 0.06);
 }
 
 .staged-frame-toolbar {
@@ -1135,28 +1197,33 @@ button, input, select, textarea {
 }
 
 .staged-frame-overlay-btn {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    color: #e2e8f0;
-    font-family: 'Outfit', 'Kantumruy Pro', sans-serif;
-    font-size: 0.78rem;
-    font-weight: 600;
-    padding: 6px 14px;
-    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(250, 204, 21, 0.16) 0%, rgba(250, 204, 21, 0.06) 100%);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(250, 204, 21, 0.45);
+    border-top: 1px solid rgba(250, 204, 21, 0.65);
+    color: #fde047;
+    font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.80rem;
+    font-weight: 700;
+    padding: 7px 16px;
+    border-radius: 9px;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3), 
+                0 0 16px rgba(250, 204, 21, 0.2), 
+                inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 .staged-frame-overlay-btn:hover {
-    background: rgba(250, 204, 21, 0.12);
-    border-color: rgba(250, 204, 21, 0.45);
-    color: #facc15;
+    background: linear-gradient(135deg, rgba(250, 204, 21, 0.28) 0%, rgba(250, 204, 21, 0.12) 100%);
+    border-color: #facc15;
+    color: #fff;
     transform: translateY(-1px);
-    box-shadow: 0 4px 14px rgba(250, 204, 21, 0.2);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 0 22px rgba(250, 204, 21, 0.35);
 }
 
 .staged-frame-overlay-btn:active {
@@ -1165,11 +1232,11 @@ button, input, select, textarea {
 
 .staged-frame-overlay-btn i {
     color: #facc15;
-    font-size: 0.82rem;
+    font-size: 0.85rem;
 }
 
 /* ==========================================================================
-   STAGED OVERLAY UNIFIED PANEL (One Joined Frame - Logo on Top, Blur Underneath)
+   STAGED OVERLAY UNIFIED PANEL (Modern Glass Joined Frame - Logo on Top, Blur Underneath)
    ========================================================================== */
 .staged-overlay-unified-panel,
 .staged-overlay-stack {
@@ -1177,40 +1244,46 @@ button, input, select, textarea {
     flex-direction: column;
     gap: 0;
     width: 100%;
-    margin-top: 8px;
+    margin-top: 10px;
     flex: initial;
-    background: rgba(16, 22, 34, 0.68);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(26, 34, 56, 0.68) 0%, rgba(16, 22, 38, 0.78) 100%);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-top: 1px solid rgba(255, 255, 255, 0.26);
+    border-radius: 12px;
     box-sizing: border-box;
     overflow: hidden;
-    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45), 
+                inset 0 1px 0 rgba(255, 255, 255, 0.14),
+                inset 0 0 16px rgba(255, 255, 255, 0.02);
 }
 
 .staged-overlay-unified-panel:hover,
 .staged-overlay-stack:hover {
-    border-color: rgba(255, 255, 255, 0.22);
-    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45), 0 0 16px rgba(250, 204, 21, 0.06);
+    border-color: rgba(255, 255, 255, 0.26);
+    border-top-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), 
+                0 0 24px rgba(250, 204, 21, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .overlay-row-bar {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
     width: 100%;
-    height: 44px;
-    min-height: 44px;
-    max-height: 44px;
+    height: 46px;
+    min-height: 46px;
+    max-height: 46px;
     padding: 0 16px;
     background: transparent;
     border: none;
     border-radius: 0;
     box-sizing: border-box;
     cursor: pointer;
-    transition: all 0.18s ease;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     user-select: none;
     box-shadow: none;
 }
@@ -1220,13 +1293,13 @@ button, input, select, textarea {
 }
 
 .overlay-row-bar#card-upload-logo:hover {
-    background: rgba(250, 204, 21, 0.07);
+    background: linear-gradient(90deg, rgba(250, 204, 21, 0.12) 0%, rgba(250, 204, 21, 0.03) 65%, transparent 100%);
     border-color: transparent;
     box-shadow: none;
 }
 
 .overlay-row-bar#card-upload-blur:hover {
-    background: rgba(168, 85, 247, 0.07);
+    background: linear-gradient(90deg, rgba(168, 85, 247, 0.12) 0%, rgba(168, 85, 247, 0.03) 65%, transparent 100%);
     border-color: transparent;
     box-shadow: none;
 }
@@ -1239,8 +1312,129 @@ button, input, select, textarea {
 .overlay-unified-divider {
     width: 100%;
     height: 1px;
-    background: rgba(255, 255, 255, 0.08);
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.12) 15%, rgba(255, 255, 255, 0.12) 85%, transparent 100%);
     flex-shrink: 0;
+}
+
+/* ==========================================================================
+   MODERN GLASSMORPHISM SHOWCASE FEATURE DECK
+   ========================================================================== */
+.staged-glass-showcase-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    width: 100%;
+    margin-top: 14px;
+}
+
+.staged-glass-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.015) 100%),
+                rgba(16, 22, 36, 0.6);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.staged-glass-card:hover {
+    transform: translateY(-2px);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%),
+                rgba(22, 30, 48, 0.7);
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.glass-card-icon-bubble {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    flex-shrink: 0;
+}
+.glass-card-icon-bubble.ai-bubble {
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.25) 0%, rgba(59, 130, 246, 0.1) 100%);
+    border: 1px solid rgba(56, 189, 248, 0.45);
+    color: #38bdf8;
+    box-shadow: 0 0 14px rgba(56, 189, 248, 0.25);
+}
+.glass-card-icon-bubble.bgm-bubble {
+    background: linear-gradient(135deg, rgba(250, 204, 21, 0.25) 0%, rgba(234, 179, 8, 0.1) 100%);
+    border: 1px solid rgba(250, 204, 21, 0.45);
+    color: #facc15;
+    box-shadow: 0 0 14px rgba(250, 204, 21, 0.25);
+}
+.glass-card-icon-bubble.brand-bubble {
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.25) 0%, rgba(147, 51, 234, 0.1) 100%);
+    border: 1px solid rgba(168, 85, 247, 0.45);
+    color: #c084fc;
+    box-shadow: 0 0 14px rgba(168, 85, 247, 0.25);
+}
+
+.glass-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    flex: 1;
+}
+.glass-card-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+.glass-card-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #f8fafc;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.glass-pill-tag {
+    font-size: 0.62rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+}
+.glass-pill-tag.cyan {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.35);
+}
+.glass-pill-tag.amber {
+    background: rgba(250, 204, 21, 0.15);
+    color: #fde047;
+    border: 1px solid rgba(250, 204, 21, 0.35);
+}
+.glass-pill-tag.purple {
+    background: rgba(168, 85, 247, 0.15);
+    color: #e9d5ff;
+    border: 1px solid rgba(168, 85, 247, 0.35);
+}
+.glass-card-desc {
+    margin: 0;
+    font-family: 'Kantumruy Pro', sans-serif;
+    font-size: 0.70rem;
+    color: #94a3b8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
 }
 
 .staged-overlay-bar,
@@ -4829,55 +5023,68 @@ button, input, select, textarea {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 16px;
-    background: rgba(16, 20, 29, 0.75);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
-    gap: 10px;
+    padding: 12px 18px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%),
+                rgba(15, 21, 35, 0.82);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-top: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 12px;
+    gap: 12px;
     flex-wrap: wrap;
     box-sizing: border-box;
     width: 100%;
     flex-shrink: 0;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .staged-cta-hint {
-    font-size: 0.74rem;
+    font-size: 0.76rem;
     color: #94a3b8;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
+    font-family: 'Kantumruy Pro', sans-serif;
 }
 
 .staged-cta-hint strong {
     color: #facc15;
+    font-weight: 700;
 }
 
 .staged-main-export-btn {
-    background: linear-gradient(180deg, #fde047 0%, #eab308 100%);
+    background: linear-gradient(135deg, #fde047 0%, #eab308 50%, #ca8a04 100%);
     color: #0b0f19;
-    border: 1px solid #ca8a04;
-    font-size: 0.82rem;
-    font-weight: 700;
-    padding: 7px 18px;
-    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    font-family: 'Outfit', 'Kantumruy Pro', sans-serif;
+    font-size: 0.84rem;
+    font-weight: 800;
+    padding: 8px 22px;
+    border-radius: 8px;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.35);
-    transition: all 0.15s ease;
+    gap: 8px;
+    box-shadow: 0 4px 16px rgba(234, 179, 8, 0.4), 
+                0 0 20px rgba(250, 204, 21, 0.25), 
+                inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    letter-spacing: 0.3px;
 }
 
 .staged-main-export-btn:hover {
-    background: linear-gradient(180deg, #fef08a 0%, #facc15 100%);
-    border-color: #eab308;
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.45);
-    transform: translateY(-1px);
+    background: linear-gradient(135deg, #fff 0%, #facc15 40%, #eab308 100%);
+    border-color: #fff;
+    box-shadow: 0 6px 22px rgba(234, 179, 8, 0.55), 
+                0 0 28px rgba(250, 204, 21, 0.4), 
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    transform: translateY(-1px) scale(1.01);
 }
 
 .staged-main-export-btn:active {
-    transform: translateY(0);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+    transform: translateY(0) scale(0.99);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
 /* ==========================================================================
