@@ -12,7 +12,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=10.0">
+    <link rel="stylesheet" href="style.css?v=11.0">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
@@ -167,53 +167,18 @@
                         <div class="studio-source-clean-view" id="studio-source-clean-view">
                             <div class="clean-source-label" id="clean-source-label">Translation source</div>
                             
-                            <!-- Initial Empty State: Modern Glass Media Ingest & Capabilities -->
-                            <div class="clean-import-wrapper" id="clean-import-prompt">
-                                <div class="clean-import-center-cta" onclick="openImportModal()">
-                                    <div class="clean-import-glow-circle"></div>
-                                    <div class="clean-import-icon-box">
-                                        <i class="fa-solid fa-cloud-arrow-up"></i>
-                                    </div>
-                                    <div class="clean-import-text">Import Media / Drama Folder</div>
-                                    <div class="clean-import-sub">Drag &amp; drop video files or series folder to begin dubbing</div>
-                                    <div class="clean-import-formats">
-                                        <span class="media-fmt-chip">MP4</span>
-                                        <span class="media-fmt-chip">MKV</span>
-                                        <span class="media-fmt-chip">MOV</span>
-                                        <span class="media-fmt-chip highlight">SERIES FOLDER</span>
-                                    </div>
+                            <!-- Initial Empty State: Clean Frosted Glass Media Ingest Dropzone -->
+                            <div class="clean-import-center-cta" id="clean-import-prompt" onclick="openImportModal()">
+                                <div class="clean-import-icon-box">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i>
                                 </div>
-
-                                <!-- Glassmorphism Studio Capabilities Hub -->
-                                <div class="studio-glass-features-bar">
-                                    <div class="glass-feature-pill" onclick="openImportModal()">
-                                        <div class="feature-pill-icon"><i class="fa-solid fa-bolt" style="color:#facc15;"></i></div>
-                                        <div class="feature-pill-texts">
-                                            <span class="feature-pill-title">Batch Dubbing 40+ ភាគ</span>
-                                            <span class="feature-pill-desc">ស្វ័យប្រវត្ត លឿនបំផុត</span>
-                                        </div>
-                                    </div>
-                                    <div class="glass-feature-pill" onclick="openStorySettingsModal()">
-                                        <div class="feature-pill-icon"><i class="fa-solid fa-microphone-lines" style="color:#38bdf8;"></i></div>
-                                        <div class="feature-pill-texts">
-                                            <span class="feature-pill-title">Khmer AI Voices</span>
-                                            <span class="feature-pill-desc">ពិសិដ្ឋ (ប្រុស) &amp; ស្រីមុំ (ស្រី)</span>
-                                        </div>
-                                    </div>
-                                    <div class="glass-feature-pill" onclick="openStorySettingsModal()">
-                                        <div class="feature-pill-icon"><i class="fa-solid fa-sliders" style="color:#a855f7;"></i></div>
-                                        <div class="feature-pill-texts">
-                                            <span class="feature-pill-title">Smart BGM &amp; Ducking</span>
-                                            <span class="feature-pill-desc">រក្សាភ្លេងកំដរ ឮសំឡេងច្បាស់</span>
-                                        </div>
-                                    </div>
-                                    <div class="glass-feature-pill" onclick="openStorySettingsModal()">
-                                        <div class="feature-pill-icon"><i class="fa-solid fa-mobile-screen" style="color:#4ade80;"></i></div>
-                                        <div class="feature-pill-texts">
-                                            <span class="feature-pill-title">Auto Re-frame 9:16</span>
-                                            <span class="feature-pill-desc">សមស្រប TikTok &amp; Reels</span>
-                                        </div>
-                                    </div>
+                                <div class="clean-import-text">Import Media / Drama Folder</div>
+                                <div class="clean-import-sub">Drag &amp; drop video files or series folder to begin dubbing</div>
+                                <div class="clean-import-formats">
+                                    <span class="media-fmt-chip">MP4</span>
+                                    <span class="media-fmt-chip">MKV</span>
+                                    <span class="media-fmt-chip">MOV</span>
+                                    <span class="media-fmt-chip highlight">SERIES FOLDER</span>
                                 </div>
                             </div>
 
@@ -1779,6 +1744,6 @@
 
     <!-- HLS.js for Live Stream M3U8 Video Previews -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <script src="app.js?v=10.0"></script>
+    <script src="app.js?v=11.0"></script>
 </body>
 </html>
