@@ -494,6 +494,7 @@ function toggleTrackBgmDropdown(e) {
         e.stopPropagation();
         e.preventDefault();
     }
+    if (typeof closeBlurMaskDropdown === 'function') closeBlurMaskDropdown();
     const dropdown = document.getElementById('track-bgm-custom-dropdown');
     const chevron = document.getElementById('track-bgm-chevron');
     if (!dropdown) return;
@@ -592,13 +593,21 @@ function onTrackBgmSelected(val) {
     selectBgmOption(val, val, '🎵');
 }
 
-// Global listener to close BGM dropdown on click outside
+// Global listener to close BGM and Blur dropdowns on click outside
 document.addEventListener('click', function(e) {
-    const pill = document.getElementById('track-bgm-pill');
-    const dropdown = document.getElementById('track-bgm-custom-dropdown');
-    if (dropdown && dropdown.classList.contains('show')) {
-        if (pill && !pill.contains(e.target)) {
+    const bgmPill = document.getElementById('track-bgm-pill');
+    const bgmDropdown = document.getElementById('track-bgm-custom-dropdown');
+    if (bgmDropdown && bgmDropdown.classList.contains('show')) {
+        if (bgmPill && !bgmPill.contains(e.target)) {
             closeTrackBgmDropdown();
+        }
+    }
+
+    const blurCard = document.getElementById('card-upload-blur');
+    const blurDropdown = document.getElementById('blur-custom-dropdown');
+    if (blurDropdown && blurDropdown.classList.contains('show')) {
+        if (blurCard && !blurCard.contains(e.target)) {
+            closeBlurMaskDropdown();
         }
     }
 });
@@ -3712,7 +3721,8 @@ let currentOverlayAssets = {
     blurPosition: 'top-right',
     blurScale: 1.0,
     blurWidth: 120,
-    blurHeight: 50
+    blurHeight: 50,
+    blurRadius: 25
 };
 
 function triggerOverlayUpload(type) {
@@ -3814,7 +3824,9 @@ function toggleBlurMaskTool(event, forceState) {
     }
 
     const monitorBlur = document.getElementById('monitor-blur-overlay');
-    const statusBlur = document.getElementById('status-overlay-blur');
+    const statusPill = document.getElementById('blur-status-pill');
+    const statusLabel = document.getElementById('blur-status-label');
+    const descLabel = document.getElementById('blur-intensity-desc-label');
 
     if (currentOverlayAssets.blurActive) {
         if (monitorBlur) {
@@ -3823,42 +3835,140 @@ function toggleBlurMaskTool(event, forceState) {
             makeOverlayDraggable(monitorBlur);
             const blurHandle = document.getElementById('blur-resize-handle');
             if (blurHandle) makeOverlayResizable(monitorBlur, blurHandle, 'blur');
+            applyBlurIntensity(currentOverlayAssets.blurRadius || 25, '25px (មធ្យម)');
         }
-        if (statusBlur) {
-            statusBlur.innerHTML = `
-                <div class="overlay-active-controls">
-                    <span class="overlay-status-pill selected blur-active-pill" title="Blur Mask កំពុងដំណើរការ">
-                        <i class="fa-solid fa-eye-slash" style="color:#c084fc;"></i>
-                        <span class="overlay-file-name">Blur Active</span>
-                        <button type="button" class="overlay-file-remove-btn" onclick="toggleBlurMaskTool(event, false)" title="បិទ Blur">&times;</button>
-                    </span>
-                    <div class="overlay-preset-buttons">
-                        <button type="button" class="pos-preset-btn ${currentOverlayAssets.blurPosition === 'top-right' ? 'active' : ''}" onclick="setOverlayPosition('blur', 'top-right', event)" title="Blur ជ្រុងស្តាំលើ (បាំង NetShort/Logo)">TR</button>
-                        <button type="button" class="pos-preset-btn ${currentOverlayAssets.blurPosition === 'top-left' ? 'active' : ''}" onclick="setOverlayPosition('blur', 'top-left', event)" title="Blur ជ្រុងឆ្វេងលើ">TL</button>
-                        <button type="button" class="pos-preset-btn ${currentOverlayAssets.blurPosition === 'bottom-center' ? 'active' : ''}" onclick="setOverlayPosition('blur', 'bottom-center', event)" title="Blur ខាងក្រោម">BC</button>
-                    </div>
-                    <div class="overlay-size-controls" onclick="event.stopPropagation()">
-                        <button type="button" class="size-ctrl-btn" onclick="adjustOverlaySize('blur', -0.15, event)" title="បង្រួម Blur Mask (Zoom Out)"><i class="fa-solid fa-minus"></i></button>
-                        <span class="overlay-size-label" id="blur-size-label">${Math.round((currentOverlayAssets.blurScale || 1.0) * 100)}%</span>
-                        <button type="button" class="size-ctrl-btn" onclick="adjustOverlaySize('blur', 0.15, event)" title="ពង្រីក Blur Mask (Zoom In)"><i class="fa-solid fa-plus"></i></button>
-                    </div>
-                </div>
-            `;
+        if (statusPill) {
+            statusPill.className = 'overlay-status-pill selected blur-active-pill';
         }
-        showToast("បានបើក BLUR Mask លើ Video Preview (អាចអូសរំកិល និងទាញពង្រីកបង្រួមបាន)!");
+        if (statusLabel) {
+            statusLabel.textContent = `Blur (${currentOverlayAssets.blurRadius || 25}px)`;
+        }
+        if (descLabel) {
+            descLabel.textContent = `កម្រិត Blur សកម្ម: ${currentOverlayAssets.blurRadius || 25}px (អាចសារ៉េកម្រិតបាន)`;
+        }
+        showToast("បានបើក BLUR Mask លើ Video Preview (អាចសារ៉េកម្រិត Blur និងទាញពង្រីកបង្រួមបាន)!");
         appendLiveTerminalLine("Blur Mask overlay enabled on video preview monitor (active)", "[Overlay Engine]", "success");
     } else {
         if (monitorBlur) {
             monitorBlur.style.display = 'none';
         }
-        if (statusBlur) {
-            statusBlur.innerHTML = `
-                <span class="overlay-status-pill empty" id="blur-status-pill">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i> ចុចដើម្បីដាក់ Blur
-                </span>
-            `;
+        if (statusPill) {
+            statusPill.className = 'overlay-status-pill empty';
         }
+        if (statusLabel) {
+            statusLabel.textContent = 'ចុចដើម្បីដាក់ Blur';
+        }
+        if (descLabel) {
+            descLabel.textContent = 'បិទបាំង Logo/Watermark ចាស់ផ្ទាល់លើវីដេអូ Preview';
+        }
+        closeBlurMaskDropdown();
         showToast("បានបិទ BLUR Mask ពីលើវីដេអូ");
+    }
+}
+
+function toggleBlurMaskDropdown(e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    
+    // Close BGM dropdown if open to avoid overlap
+    if (typeof closeTrackBgmDropdown === 'function') closeTrackBgmDropdown();
+
+    const dropdown = document.getElementById('blur-custom-dropdown');
+    const chevron = document.getElementById('blur-dropdown-chevron');
+    if (!dropdown) return;
+
+    const isOpen = dropdown.classList.contains('show');
+    
+    if (isOpen) {
+        dropdown.classList.remove('show');
+        if (chevron) chevron.classList.remove('open');
+    } else {
+        // If blur is not yet active, activate it on video monitor
+        if (!currentOverlayAssets.blurActive) {
+            toggleBlurMaskTool(null, true);
+        }
+        dropdown.classList.add('show');
+        if (chevron) chevron.classList.add('open');
+    }
+}
+
+function closeBlurMaskDropdown(e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    const dropdown = document.getElementById('blur-custom-dropdown');
+    const chevron = document.getElementById('blur-dropdown-chevron');
+    if (dropdown) dropdown.classList.remove('show');
+    if (chevron) chevron.classList.remove('open');
+}
+
+function onBlurSliderChange(val, e) {
+    if (e) e.stopPropagation();
+    const radius = parseInt(val, 10);
+    applyBlurIntensity(radius, `${radius}px (Custom)`);
+    
+    // Un-highlight presets if slider doesn't match
+    document.querySelectorAll('.blur-opt-item').forEach(item => {
+        const itemBlur = parseInt(item.getAttribute('data-blur'), 10);
+        item.classList.toggle('active', itemBlur === radius);
+    });
+}
+
+function selectBlurPreset(radius, title, labelShort, e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    applyBlurIntensity(radius, labelShort);
+    
+    // Update active highlight across blur preset items
+    document.querySelectorAll('.blur-opt-item').forEach(item => {
+        const itemBlur = parseInt(item.getAttribute('data-blur'), 10);
+        item.classList.toggle('active', itemBlur === radius);
+    });
+
+    const slider = document.getElementById('input-blur-intensity');
+    if (slider) slider.value = radius;
+
+    showToast(`កម្រិត Blur បានប្តូរទៅ: ${title}`);
+    appendLiveTerminalLine(`Blur mask intensity adjusted: ${radius}px (${title})`, "[Blur Engine]", "info");
+}
+
+function applyBlurIntensity(radius, displayLabel) {
+    currentOverlayAssets.blurRadius = radius;
+    
+    // Apply to Video Preview Monitor overlay
+    const monitorBlur = document.getElementById('monitor-blur-overlay');
+    if (monitorBlur) {
+        monitorBlur.style.backdropFilter = `blur(${radius}px)`;
+        monitorBlur.style.webkitBackdropFilter = `blur(${radius}px)`;
+        if (radius >= 65) {
+            monitorBlur.style.backgroundColor = 'rgba(10, 10, 20, 0.78)';
+            monitorBlur.style.borderColor = 'rgba(250, 204, 21, 0.9)';
+        } else {
+            monitorBlur.style.backgroundColor = 'rgba(168, 85, 247, 0.20)';
+            monitorBlur.style.borderColor = 'rgba(192, 132, 252, 0.85)';
+        }
+    }
+
+    // Update Slider Badge
+    const badge = document.getElementById('blur-slider-badge');
+    if (badge) {
+        badge.textContent = `${radius}px`;
+    }
+
+    // Update Row 2 status text
+    const statusLabel = document.getElementById('blur-status-label');
+    if (statusLabel) {
+        statusLabel.textContent = `Blur (${radius}px)`;
+    }
+
+    const descLabel = document.getElementById('blur-intensity-desc-label');
+    if (descLabel) {
+        descLabel.textContent = `កម្រិត Blur សកម្ម: ${radius}px (${displayLabel || ''})`;
     }
 }
 
@@ -3902,6 +4012,13 @@ function setOverlayPosition(type, pos, event) {
             const targetKey = pos === 'top-right' ? 'tr' : pos === 'top-left' ? 'tl' : pos === 'bottom-right' ? 'br' : 'bc';
             btn.classList.toggle('active', btnKey === targetKey);
         });
+    }
+
+    if (type === 'blur') {
+        document.querySelectorAll('.blur-tray-pill-btn').forEach(btn => btn.classList.remove('active'));
+        const btnKey = pos === 'top-right' ? 'btn-blur-pos-tr' : pos === 'top-left' ? 'btn-blur-pos-tl' : 'btn-blur-pos-bc';
+        const activeBtn = document.getElementById(btnKey);
+        if (activeBtn) activeBtn.classList.add('active');
     }
 }
 
@@ -3951,6 +4068,8 @@ function adjustOverlaySize(type, delta, event) {
 
         const label = document.getElementById('blur-size-label');
         if (label) label.textContent = `${Math.round(targetScale * 100)}%`;
+        const trayLabel = document.getElementById('blur-tray-size-val');
+        if (trayLabel) trayLabel.textContent = `${Math.round(targetScale * 100)}%`;
     }
 }
 
@@ -4010,6 +4129,8 @@ function makeOverlayResizable(overlayEl, handleEl, type) {
 
             const label = document.getElementById('blur-size-label');
             if (label) label.textContent = `${Math.round(currentOverlayAssets.blurScale * 100)}%`;
+            const trayLabel = document.getElementById('blur-tray-size-val');
+            if (trayLabel) trayLabel.textContent = `${Math.round(currentOverlayAssets.blurScale * 100)}%`;
         } else if (type === 'logo') {
             // Proportional smooth resizing for Logo using dominant movement
             const delta = Math.abs(dx) > Math.abs(dy) ? dx : dy;

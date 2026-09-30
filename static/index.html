@@ -12,7 +12,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=34.0">
+    <link rel="stylesheet" href="style.css?v=35.0">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
@@ -249,17 +249,112 @@
                                         <!-- Clean Divider Line connecting both rows seamlessly -->
                                         <div class="overlay-unified-divider"></div>
 
-                                        <!-- Row 2: Add BLUR Mask (Directly Underneath Logo Frame, Joined Together) -->
-                                        <div class="overlay-row-bar" id="card-upload-blur" onclick="toggleBlurMaskTool(event)" title="Add Watermark Blur Mask">
+                                        <!-- Row 2: Add BLUR Mask (With Obsidian Glass Intensity Selector Matching Reference Image) -->
+                                        <div class="overlay-row-bar blur-row-bar" id="card-upload-blur" onclick="toggleBlurMaskDropdown(event)" title="Add Watermark Blur Mask & Adjust Blur Level">
                                             <div class="overlay-col-icon blur-icon">
                                                 <i class="fa-solid fa-eye-slash"></i>
                                             </div>
                                             <div class="overlay-col-text">
                                                 <span class="overlay-col-title">Add BLUR Mask</span>
-                                                <span class="overlay-col-desc">បិទបាំង Logo/Watermark ចាស់ផ្ទាល់លើវីដេអូ Preview</span>
+                                                <span class="overlay-col-desc" id="blur-intensity-desc-label">បិទបាំង Logo/Watermark ចាស់ផ្ទាល់លើវីដេអូ Preview</span>
                                             </div>
                                             <div class="overlay-col-status" id="status-overlay-blur">
-                                                <span class="overlay-status-pill empty" id="blur-status-pill"><i class="fa-solid fa-wand-magic-sparkles"></i> ដាក់ Blur</span>
+                                                <span class="overlay-status-pill empty" id="blur-status-pill">
+                                                    <i class="fa-solid fa-wand-magic-sparkles"></i> <span id="blur-status-label">ចុចដើម្បីដាក់ Blur</span>
+                                                    <i class="fa-solid fa-chevron-down blur-dropdown-arrow" id="blur-dropdown-chevron"></i>
+                                                </span>
+                                            </div>
+
+                                            <!-- Custom Obsidian Dark Glass Blur Intensity Panel (Matching Reference Image) -->
+                                            <div class="blur-custom-dropdown" id="blur-custom-dropdown" onclick="event.stopPropagation()">
+                                                <div class="blur-dropdown-header">
+                                                    <div class="blur-header-left">
+                                                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                                        <span>ជ្រើសរើសកម្រិត BLUR MASK (BLUR INTENSITY)</span>
+                                                    </div>
+                                                    <button type="button" class="blur-panel-close-btn" onclick="closeBlurMaskDropdown(event)" title="បិទផ្ទាំង (Close)">
+                                                        <i class="fa-solid fa-xmark"></i>
+                                                    </button>
+                                                </div>
+
+                                                <!-- Dynamic Live Slider -->
+                                                <div class="blur-slider-card">
+                                                    <div class="blur-slider-header">
+                                                        <span class="blur-slider-title"><i class="fa-solid fa-sliders"></i> សារ៉េកម្រិត Blur ផ្ទាល់ (Live Dynamic Blur):</span>
+                                                        <span class="blur-slider-badge" id="blur-slider-badge">25px (មធ្យម)</span>
+                                                    </div>
+                                                    <div class="blur-slider-track-wrap">
+                                                        <span class="slider-side-txt">ស្រាល (5px)</span>
+                                                        <input type="range" id="input-blur-intensity" min="5" max="80" value="25" class="blur-range-slider" oninput="onBlurSliderChange(this.value, event)">
+                                                        <span class="slider-side-txt">ខ្លាំង (80px)</span>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Presets in EXACT reference image format -->
+                                                <div class="blur-opt-item" data-blur="12" onclick="selectBlurPreset(12, 'Light Blur (កម្រិតស្រាល)', '12px (ស្រាល)', event)">
+                                                    <div class="opt-left">
+                                                        <span class="opt-emoji">💧</span>
+                                                        <div class="opt-text">
+                                                            <span class="opt-title">Light Blur (កម្រិតស្រាល - 12px)</span>
+                                                            <span class="opt-sub">សម្រាប់បិទបាំង Logo ស្តើង ឬអក្សរតូចៗ (Subtle Blur)</span>
+                                                        </div>
+                                                    </div>
+                                                    <i class="fa-solid fa-check opt-check"></i>
+                                                </div>
+
+                                                <div class="blur-opt-item active" data-blur="25" onclick="selectBlurPreset(25, 'Medium Blur (កម្រិតមធ្យម)', '25px (មធ្យម)', event)">
+                                                    <div class="opt-left">
+                                                        <span class="opt-emoji">🌫️</span>
+                                                        <div class="opt-text">
+                                                            <span class="opt-title">Medium Blur (កម្រិតមធ្យម - 25px)</span>
+                                                            <span class="opt-sub">កម្រិតស្តង់ដារទូទៅ បិទបាំង Logo/Watermark &amp; NetShort បានស្អាត (Recommended)</span>
+                                                        </div>
+                                                    </div>
+                                                    <i class="fa-solid fa-check opt-check"></i>
+                                                </div>
+
+                                                <div class="blur-opt-item" data-blur="45" onclick="selectBlurPreset(45, 'Strong Blur (កម្រិតខ្លាំង)', '45px (ខ្លាំង)', event)">
+                                                    <div class="opt-left">
+                                                        <span class="opt-emoji">🔒</span>
+                                                        <div class="opt-text">
+                                                            <span class="opt-title">Strong Blur (កម្រិតខ្លាំង - 45px)</span>
+                                                            <span class="opt-sub">ព្រិលកម្រិតខ្ពស់ បិទបាំង Watermark ក្រាស់ៗ ឬអក្សរចិនដិតខ្លាំង</span>
+                                                        </div>
+                                                    </div>
+                                                    <i class="fa-solid fa-check opt-check"></i>
+                                                </div>
+
+                                                <div class="blur-opt-item" data-blur="70" onclick="selectBlurPreset(70, 'Extreme Blackout (បិទបាំងជិត)', '70px (ជិត ១០០%)', event)">
+                                                    <div class="opt-left">
+                                                        <span class="opt-emoji">⬛</span>
+                                                        <div class="opt-text">
+                                                            <span class="opt-title">Extreme Blackout (កម្រិតបិទបាំងជិត - 70px)</span>
+                                                            <span class="opt-sub">ព្រិលខ្លាំងបំផុតលាយពណ៌ស្រអាប់ខ្មៅ បិទជិត ១០០% មិនឱ្យឃើញដាច់ខាត</span>
+                                                        </div>
+                                                    </div>
+                                                    <i class="fa-solid fa-check opt-check"></i>
+                                                </div>
+
+                                                <div class="blur-opt-divider"></div>
+
+                                                <!-- Position, Zoom, and Remove Controls Tray -->
+                                                <div class="blur-quick-action-tray">
+                                                    <div class="blur-tray-group">
+                                                        <span class="tray-label">ទីតាំង:</span>
+                                                        <button type="button" class="blur-tray-pill-btn active" id="btn-blur-pos-tr" onclick="setOverlayPosition('blur', 'top-right', event)">TR ស្តាំលើ</button>
+                                                        <button type="button" class="blur-tray-pill-btn" id="btn-blur-pos-tl" onclick="setOverlayPosition('blur', 'top-left', event)">TL ឆ្វេងលើ</button>
+                                                        <button type="button" class="blur-tray-pill-btn" id="btn-blur-pos-bc" onclick="setOverlayPosition('blur', 'bottom-center', event)">BC ក្រោម</button>
+                                                    </div>
+                                                    <div class="blur-tray-group">
+                                                        <span class="tray-label">ទំហំ:</span>
+                                                        <button type="button" class="blur-tray-zoom-btn" onclick="adjustOverlaySize('blur', -0.15, event)" title="បង្រួម"><i class="fa-solid fa-minus"></i></button>
+                                                        <span class="blur-tray-size-val" id="blur-tray-size-val">100%</span>
+                                                        <button type="button" class="blur-tray-zoom-btn" onclick="adjustOverlaySize('blur', 0.15, event)" title="ពង្រីក"><i class="fa-solid fa-plus"></i></button>
+                                                    </div>
+                                                    <button type="button" class="blur-tray-remove-btn" onclick="toggleBlurMaskTool(event, false)" title="បិទ Blur Mask">
+                                                        <i class="fa-solid fa-trash-can"></i> ដក Blur
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -1822,6 +1917,6 @@
 
     <!-- HLS.js for Live Stream M3U8 Video Previews -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <script src="app.js?v=16.0"></script>
+    <script src="app.js?v=17.0"></script>
 </body>
 </html>
