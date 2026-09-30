@@ -12,7 +12,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=33.0">
+    <link rel="stylesheet" href="style.css?v=34.0">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
@@ -296,23 +296,103 @@
                                             <button type="button" class="track-speaker-btn" id="btn-bgm-track-speaker" onclick="toggleBgmMute(event)" title="Mute/Unmute BGM">
                                                 <i class="fa-solid fa-volume-high" id="bgm-track-vol-icon"></i>
                                             </button>
-                                            <div class="track-main-pill bgm-selector-pill" id="track-bgm-pill" title="ជ្រើសរើសសំឡេង Background Sound">
+                                            <div class="track-main-pill bgm-selector-pill" id="track-bgm-pill" onclick="toggleTrackBgmDropdown(event)" title="ជ្រើសរើសសំឡេង Background Sound">
                                                 <div class="track-pill-content">
                                                     <i class="fa-solid fa-headphones track-inner-icon"></i>
                                                     <span class="track-main-title" id="staged-track-bgmname">Choose background sound...</span>
                                                 </div>
-                                                <i class="fa-solid fa-chevron-down track-dropdown-arrow"></i>
-                                                <select id="select-track-bgm" class="track-bgm-hidden-select" onchange="onTrackBgmSelected(this.value)" title="Choose background sound">
-                                                    <option value="" disabled selected>Choose background sound...</option>
-                                                    <option value="smart_drama">🎵 Smart Drama BGM (Original + Ducking)</option>
-                                                    <option value="cinematic">🎻 Cinematic Emotional Ambient</option>
-                                                    <option value="piano">🎹 Melancholy Piano Ballad</option>
-                                                    <option value="suspense">⚡ Suspense &amp; Dark Thriller</option>
-                                                    <option value="action">🔥 Action Pulse &amp; Rhythmic Beats</option>
-                                                    <option value="traditional">🪕 Traditional Asian Classical</option>
-                                                    <option value="custom">📁 Upload Custom BGM Audio (MP3)...</option>
-                                                    <option value="none">🔇 No BGM (Speech Only)</option>
-                                                </select>
+                                                <i class="fa-solid fa-chevron-down track-dropdown-arrow" id="track-bgm-chevron"></i>
+                                                
+                                                <!-- Custom Obsidian Dark Glass Popover Menu (Matches Tool Palette, No White Screen) -->
+                                                <div class="track-bgm-custom-dropdown" id="track-bgm-custom-dropdown" onclick="event.stopPropagation()">
+                                                    <div class="track-bgm-dropdown-header">
+                                                        <i class="fa-solid fa-music"></i>
+                                                        <span>ជ្រើសរើសភ្លេង Background Sound (BGM)</span>
+                                                    </div>
+                                                    <div class="track-bgm-opt-item" data-value="smart_drama" onclick="selectBgmOption('smart_drama', 'Smart Drama BGM (Original + Ducking)', '🎵', event)">
+                                                        <div class="opt-left">
+                                                            <span class="opt-emoji">🎵</span>
+                                                            <div class="opt-text">
+                                                                <span class="opt-title">Smart Drama BGM (Original + Ducking)</span>
+                                                                <span class="opt-sub">ភ្លេងរឿងដើម + បន្ថយសំឡេងស្វ័យប្រវត្តិពេលមានសន្ទនា</span>
+                                                            </div>
+                                                        </div>
+                                                        <i class="fa-solid fa-check opt-check"></i>
+                                                    </div>
+                                                    <div class="track-bgm-opt-item" data-value="cinematic" onclick="selectBgmOption('cinematic', 'Cinematic Emotional Ambient', '🎻', event)">
+                                                        <div class="opt-left">
+                                                            <span class="opt-emoji">🎻</span>
+                                                            <div class="opt-text">
+                                                                <span class="opt-title">Cinematic Emotional Ambient</span>
+                                                                <span class="opt-sub">ភ្លេងកំសត់ មនោសញ្ចេតនាជ្រាលជ្រៅ (Deep Orchestral)</span>
+                                                            </div>
+                                                        </div>
+                                                        <i class="fa-solid fa-check opt-check"></i>
+                                                    </div>
+                                                    <div class="track-bgm-opt-item" data-value="piano" onclick="selectBgmOption('piano', 'Melancholy Piano Ballad', '🎹', event)">
+                                                        <div class="opt-left">
+                                                            <span class="opt-emoji">🎹</span>
+                                                            <div class="opt-text">
+                                                                <span class="opt-title">Melancholy Piano Ballad</span>
+                                                                <span class="opt-sub">ភ្លេងព្យាណូរំជួលចិត្ត (Touching Piano Ballad)</span>
+                                                            </div>
+                                                        </div>
+                                                        <i class="fa-solid fa-check opt-check"></i>
+                                                    </div>
+                                                    <div class="track-bgm-opt-item" data-value="suspense" onclick="selectBgmOption('suspense', 'Suspense & Dark Thriller', '⚡', event)">
+                                                        <div class="opt-left">
+                                                            <span class="opt-emoji">⚡</span>
+                                                            <div class="opt-text">
+                                                                <span class="opt-title">Suspense &amp; Dark Thriller</span>
+                                                                <span class="opt-sub">ភ្លេងរន្ធត់ តានតឹង អន្ទះសារ (Tense Thriller Beats)</span>
+                                                            </div>
+                                                        </div>
+                                                        <i class="fa-solid fa-check opt-check"></i>
+                                                    </div>
+                                                    <div class="track-bgm-opt-item" data-value="action" onclick="selectBgmOption('action', 'Action Pulse & Rhythmic Beats', '🔥', event)">
+                                                        <div class="opt-left">
+                                                            <span class="opt-emoji">🔥</span>
+                                                            <div class="opt-text">
+                                                                <span class="opt-title">Action Pulse &amp; Rhythmic Beats</span>
+                                                                <span class="opt-sub">ភ្លេងចង្វាក់ញាប់ វាយតប់ បែបកក្រើក (Action Beats)</span>
+                                                            </div>
+                                                        </div>
+                                                        <i class="fa-solid fa-check opt-check"></i>
+                                                    </div>
+                                                    <div class="track-bgm-opt-item" data-value="traditional" onclick="selectBgmOption('traditional', 'Traditional Asian Classical', '🪕', event)">
+                                                        <div class="opt-left">
+                                                            <span class="opt-emoji">🪕</span>
+                                                            <div class="opt-text">
+                                                                <span class="opt-title">Traditional Asian Classical</span>
+                                                                <span class="opt-sub">ភ្លេងបុរាណចិន/អាស៊ី (Guzheng &amp; Bamboo Flute)</span>
+                                                            </div>
+                                                        </div>
+                                                        <i class="fa-solid fa-check opt-check"></i>
+                                                    </div>
+                                                    <div class="track-bgm-opt-divider"></div>
+                                                    <div class="track-bgm-opt-item opt-custom" data-value="custom" onclick="selectBgmOption('custom', 'Upload Custom BGM Audio (MP3)', '📁', event)">
+                                                        <div class="opt-left">
+                                                            <span class="opt-emoji">📁</span>
+                                                            <div class="opt-text">
+                                                                <span class="opt-title">Upload Custom BGM Audio (MP3)...</span>
+                                                                <span class="opt-sub">ជ្រើសរើសឯកសារភ្លេងផ្ទាល់ខ្លួនពីកុំព្យូទ័រ</span>
+                                                            </div>
+                                                        </div>
+                                                        <i class="fa-solid fa-cloud-arrow-up opt-action-icon"></i>
+                                                    </div>
+                                                    <div class="track-bgm-opt-item opt-none" data-value="none" onclick="selectBgmOption('none', 'No BGM (Speech Only)', '🔇', event)">
+                                                        <div class="opt-left">
+                                                            <span class="opt-emoji">🔇</span>
+                                                            <div class="opt-text">
+                                                                <span class="opt-title">No BGM (Speech Only)</span>
+                                                                <span class="opt-sub">បិទភ្លេងទាំងអស់ ទុកតែសំឡេងនិយាយសុទ្ធ</span>
+                                                            </div>
+                                                        </div>
+                                                        <i class="fa-solid fa-check opt-check"></i>
+                                                    </div>
+                                                </div>
+
+                                                <input type="hidden" id="select-track-bgm" value="">
                                                 <input type="file" id="input-custom-bgm-file" accept="audio/*" style="display:none;" onchange="handleCustomBgmFile(event)">
                                             </div>
                                         </div>
@@ -1742,6 +1822,6 @@
 
     <!-- HLS.js for Live Stream M3U8 Video Previews -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <script src="app.js?v=15.0"></script>
+    <script src="app.js?v=16.0"></script>
 </body>
 </html>

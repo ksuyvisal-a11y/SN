@@ -483,39 +483,125 @@ function toggleBgmMute(e) {
     showToast(isBgmMuted ? "Background Sound (BGM) Muted" : "Background Sound (BGM) Unmuted (15%)");
 }
 
-function onTrackBgmSelected(val) {
-    const sel = document.getElementById('select-track-bgm');
-    const title = document.getElementById('staged-track-bgmname');
-    if (!sel) return;
+let currentBgmSelection = {
+    value: '',
+    title: 'Choose background sound...',
+    icon: '🎵'
+};
 
+function toggleTrackBgmDropdown(e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    const dropdown = document.getElementById('track-bgm-custom-dropdown');
+    const chevron = document.getElementById('track-bgm-chevron');
+    if (!dropdown) return;
+    
+    const isOpen = dropdown.classList.contains('show');
+    if (isOpen) {
+        dropdown.classList.remove('show');
+        if (chevron) chevron.classList.remove('open');
+    } else {
+        dropdown.classList.add('show');
+        if (chevron) chevron.classList.add('open');
+    }
+}
+
+function closeTrackBgmDropdown() {
+    const dropdown = document.getElementById('track-bgm-custom-dropdown');
+    const chevron = document.getElementById('track-bgm-chevron');
+    if (dropdown) dropdown.classList.remove('show');
+    if (chevron) chevron.classList.remove('open');
+}
+
+function selectBgmOption(val, title, icon, e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    
     if (val === 'custom') {
+        closeTrackBgmDropdown();
         const fileInput = document.getElementById('input-custom-bgm-file');
         if (fileInput) fileInput.click();
         return;
     }
 
-    const selectedOption = sel.options[sel.selectedIndex];
-    if (title && selectedOption) {
-        title.textContent = selectedOption.text;
+    currentBgmSelection = { value: val, title: title, icon: icon || '🎵' };
+    
+    const titleEl = document.getElementById('staged-track-bgmname');
+    if (titleEl) {
+        titleEl.textContent = title;
     }
+
+    const hiddenInput = document.getElementById('select-track-bgm');
+    if (hiddenInput) {
+        hiddenInput.value = val;
+    }
+
+    // Update active highlight across custom menu options
+    document.querySelectorAll('.track-bgm-opt-item').forEach(item => {
+        if (item.getAttribute('data-value') === val) {
+            item.classList.add('active');
+        } else {
+            item.classList.remove('active');
+        }
+    });
+
+    closeTrackBgmDropdown();
 
     if (val === 'none') {
         if (typeof onQuickBgmSliderChange === 'function') onQuickBgmSliderChange(0);
         showToast("BGM: បិទភ្លេង Background Sound");
+        appendLiveTerminalLine("BGM track disabled: dialogue stem isolated.", "[Audio Track]", "info");
     } else {
         if (typeof onQuickBgmSliderChange === 'function') onQuickBgmSliderChange(15);
-        showToast(`បានជ្រើសរើស BGM: ${selectedOption ? selectedOption.text : val}`);
+        showToast(`បានជ្រើសរើស BGM: ${title}`);
+        appendLiveTerminalLine(`BGM track attached: ${title}`, "[Audio Track]", "info");
     }
 }
 
 function handleCustomBgmFile(e) {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
-    const title = document.getElementById('staged-track-bgmname');
-    if (title) title.textContent = `🎵 ${file.name}`;
-    showToast(`បានដាក់ឯកសារ BGM ផ្ទាល់ខ្លួន: ${file.name}`);
-    appendLiveTerminalLine(`Custom BGM audio attached: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`, "[Audio Config]", "success");
+    
+    const fileName = file.name;
+    currentBgmSelection = { value: 'custom', title: fileName, icon: '📁' };
+    
+    const titleEl = document.getElementById('staged-track-bgmname');
+    if (titleEl) {
+        titleEl.textContent = `📁 ${fileName}`;
+    }
+
+    const hiddenInput = document.getElementById('select-track-bgm');
+    if (hiddenInput) {
+        hiddenInput.value = 'custom';
+    }
+
+    document.querySelectorAll('.track-bgm-opt-item').forEach(item => {
+        item.classList.toggle('active', item.getAttribute('data-value') === 'custom');
+    });
+
+    closeTrackBgmDropdown();
+    showToast(`បានដាក់ឯកសារ BGM ផ្ទាល់ខ្លួន: ${fileName}`);
+    appendLiveTerminalLine(`Custom BGM audio attached: ${fileName} (${(file.size / 1024).toFixed(1)} KB)`, "[Audio Config]", "success");
 }
+
+function onTrackBgmSelected(val) {
+    selectBgmOption(val, val, '🎵');
+}
+
+// Global listener to close BGM dropdown on click outside
+document.addEventListener('click', function(e) {
+    const pill = document.getElementById('track-bgm-pill');
+    const dropdown = document.getElementById('track-bgm-custom-dropdown');
+    if (dropdown && dropdown.classList.contains('show')) {
+        if (pill && !pill.contains(e.target)) {
+            closeTrackBgmDropdown();
+        }
+    }
+});
 
 function syncTrackRowsInfo(name, durationStr) {
     const nameEl = document.getElementById('staged-track-videoname');

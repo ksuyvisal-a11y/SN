@@ -1209,7 +1209,7 @@ button, input, select, textarea {
     align-items: flex-start;
     padding: 14px 18px;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
     transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
@@ -1313,7 +1313,9 @@ button, input, select, textarea {
     border-top: 1px solid rgba(255, 255, 255, 0.26);
     border-radius: 12px;
     box-sizing: border-box;
-    overflow: hidden;
+    overflow: visible;
+    position: relative;
+    z-index: 10;
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45), 
                 inset 0 1px 0 rgba(255, 255, 255, 0.14),
@@ -1350,6 +1352,11 @@ button, input, select, textarea {
 
 .overlay-row-bar:hover {
     transform: none;
+}
+
+.overlay-row-bar#card-upload-logo {
+    border-top-left-radius: 11px;
+    border-top-right-radius: 11px;
 }
 
 .overlay-row-bar#card-upload-logo:hover {
@@ -1393,6 +1400,13 @@ button, input, select, textarea {
     background: transparent;
     transition: background 0.2s ease;
     box-sizing: border-box;
+    position: relative;
+    overflow: visible;
+}
+
+.overlay-row-bar.track-row-bar#card-track-bgm {
+    border-bottom-left-radius: 11px;
+    border-bottom-right-radius: 11px;
 }
 
 .overlay-row-bar.track-row-bar:hover {
@@ -1557,15 +1571,197 @@ button, input, select, textarea {
     color: #c084fc;
 }
 
-.track-bgm-hidden-select {
+/* Universal Dark Scheme Safeguard for OS/Browser Popovers */
+select, option, optgroup {
+    color-scheme: dark !important;
+    background-color: #0d121e !important;
+    color: #f8fafc !important;
+}
+
+/* Custom Obsidian Glass BGM Dropdown Menu (Matches Tool Aesthetics) */
+.track-bgm-custom-dropdown {
     position: absolute;
-    top: 0;
+    top: calc(100% + 7px);
     left: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 0;
+    right: 0;
+    min-width: 320px;
+    max-height: 290px;
+    overflow-y: auto;
+    background: linear-gradient(165deg, rgba(16, 22, 38, 0.98) 0%, rgba(10, 14, 24, 0.99) 100%);
+    backdrop-filter: blur(28px) saturate(200%);
+    -webkit-backdrop-filter: blur(28px) saturate(200%);
+    border: 1px solid rgba(250, 204, 21, 0.42);
+    border-top: 1px solid rgba(250, 204, 21, 0.65);
+    border-radius: 12px;
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.88),
+                0 0 28px rgba(250, 204, 21, 0.16),
+                inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    padding: 7px;
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 99999;
+    user-select: none;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(250, 204, 21, 0.4) transparent;
+    animation: trackDropdownFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.track-bgm-custom-dropdown.show {
+    display: flex;
+}
+
+.track-bgm-custom-dropdown::-webkit-scrollbar {
+    width: 5px;
+}
+
+.track-bgm-custom-dropdown::-webkit-scrollbar-thumb {
+    background: rgba(250, 204, 21, 0.4);
+    border-radius: 4px;
+}
+
+@keyframes trackDropdownFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-6px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.track-bgm-dropdown-header {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 8px 7px 8px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 2px;
+}
+
+.track-bgm-dropdown-header i {
+    color: #c084fc;
+    font-size: 0.74rem;
+}
+
+.track-bgm-opt-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 7px 10px;
+    border-radius: 8px;
     cursor: pointer;
-    z-index: 10;
+    transition: all 0.16s ease;
+    background: transparent;
+    border: 1px solid transparent;
+}
+
+.track-bgm-opt-item:hover {
+    background: rgba(250, 204, 21, 0.12);
+    border-color: rgba(250, 204, 21, 0.35);
+    transform: translateX(2px);
+}
+
+.track-bgm-opt-item.active {
+    background: linear-gradient(90deg, rgba(250, 204, 21, 0.18) 0%, rgba(168, 85, 247, 0.14) 100%);
+    border-color: rgba(250, 204, 21, 0.55);
+}
+
+.track-bgm-opt-item .opt-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.track-bgm-opt-item .opt-emoji {
+    font-size: 0.95rem;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.track-bgm-opt-item:hover .opt-emoji {
+    background: rgba(250, 204, 21, 0.2);
+    border-color: rgba(250, 204, 21, 0.45);
+}
+
+.track-bgm-opt-item .opt-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.track-bgm-opt-item .opt-title {
+    font-family: 'Outfit', 'Kantumruy Pro', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #f8fafc;
+    letter-spacing: 0.2px;
+}
+
+.track-bgm-opt-item:hover .opt-title {
+    color: #fde047;
+}
+
+.track-bgm-opt-item.active .opt-title {
+    color: #facc15;
+    font-weight: 700;
+}
+
+.track-bgm-opt-item .opt-sub {
+    font-family: 'Kantumruy Pro', 'Outfit', sans-serif;
+    font-size: 0.67rem;
+    color: #94a3b8;
+    margin-top: 1px;
+}
+
+.track-bgm-opt-item .opt-check {
+    color: #facc15;
+    font-size: 0.76rem;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    flex-shrink: 0;
+}
+
+.track-bgm-opt-item.active .opt-check {
+    opacity: 1;
+}
+
+.track-bgm-opt-item .opt-action-icon {
+    color: #94a3b8;
+    font-size: 0.76rem;
+    flex-shrink: 0;
+    transition: color 0.16s ease;
+}
+
+.track-bgm-opt-item:hover .opt-action-icon {
+    color: #facc15;
+}
+
+.track-bgm-opt-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+    margin: 4px 6px;
+    flex-shrink: 0;
+}
+
+.track-dropdown-arrow.open {
+    transform: rotate(180deg);
+    color: #facc15 !important;
 }
 
 .staged-overlay-bar,
