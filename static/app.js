@@ -3722,7 +3722,8 @@ let currentOverlayAssets = {
     blurScale: 1.0,
     blurWidth: 120,
     blurHeight: 50,
-    blurRadius: 25
+    blurRadius: 25,
+    blurShape: 'rectangle'
 };
 
 function triggerOverlayUpload(type) {
@@ -3906,13 +3907,66 @@ function closeBlurMaskDropdown(e) {
 function onBlurSliderChange(val, e) {
     if (e) e.stopPropagation();
     const radius = parseInt(val, 10);
-    applyBlurIntensity(radius, `${radius}px (Custom)`);
-    
-    // Un-highlight presets if slider doesn't match
-    document.querySelectorAll('.blur-opt-item').forEach(item => {
-        const itemBlur = parseInt(item.getAttribute('data-blur'), 10);
-        item.classList.toggle('active', itemBlur === radius);
+    applyBlurIntensity(radius, `${radius}px`);
+}
+
+function selectBlurShape(shape, e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    currentOverlayAssets.blurShape = shape;
+
+    // Update active highlight across shape items
+    const shapes = ['filmstrip', 'circle', 'rectangle'];
+    shapes.forEach(s => {
+        const item = document.getElementById(`shape-opt-${s}`);
+        if (item) {
+            item.classList.toggle('active', s === shape);
+        }
     });
+
+    // Ensure blur mask tool is active on video monitor
+    if (!currentOverlayAssets.blurActive) {
+        toggleBlurMaskTool(null, true);
+    }
+
+    const monitorBlur = document.getElementById('monitor-blur-overlay');
+    const labelTag = monitorBlur ? monitorBlur.querySelector('.blur-label-tag') : null;
+
+    if (monitorBlur) {
+        monitorBlur.classList.remove('shape-filmstrip', 'shape-circle', 'shape-rectangle');
+        monitorBlur.classList.add(`shape-${shape}`);
+
+        if (shape === 'circle') {
+            monitorBlur.style.borderRadius = '50%';
+            monitorBlur.style.aspectRatio = '1 / 1';
+            monitorBlur.style.width = '95px';
+            monitorBlur.style.height = '95px';
+            if (labelTag) labelTag.innerHTML = '<i class="fa-regular fa-circle"></i> CIRCLE';
+            showToast("បានប្តូរ Blur Mask: Circle (រាងរង្វង់មូល)");
+            appendLiveTerminalLine("Blur mask shape changed to Circle.", "[Blur Engine]", "info");
+        } else if (shape === 'filmstrip') {
+            monitorBlur.style.borderRadius = '4px';
+            monitorBlur.style.aspectRatio = 'auto';
+            monitorBlur.style.width = 'calc(100% - 28px)';
+            monitorBlur.style.height = '46px';
+            monitorBlur.style.left = '14px';
+            monitorBlur.style.right = '14px';
+            if (labelTag) labelTag.innerHTML = '<i class="fa-solid fa-film"></i> FILMSTRIP';
+            showToast("បានប្តូរ Blur Mask: Filmstrip (បន្ទះខ្សែភាពយន្ត)");
+            appendLiveTerminalLine("Blur mask shape changed to Filmstrip.", "[Blur Engine]", "info");
+        } else {
+            // Rectangle
+            monitorBlur.style.borderRadius = '8px';
+            monitorBlur.style.aspectRatio = 'auto';
+            monitorBlur.style.width = '130px';
+            monitorBlur.style.height = '52px';
+            if (labelTag) labelTag.innerHTML = '<i class="fa-solid fa-eye-slash"></i> RECTANGLE';
+            showToast("បានប្តូរ Blur Mask: Rectangle (រាងចតុកោណ)");
+            appendLiveTerminalLine("Blur mask shape changed to Rectangle.", "[Blur Engine]", "info");
+        }
+    }
 }
 
 function selectBlurPreset(radius, title, labelShort, e) {
@@ -3920,19 +3974,9 @@ function selectBlurPreset(radius, title, labelShort, e) {
         e.stopPropagation();
         e.preventDefault();
     }
-    applyBlurIntensity(radius, labelShort);
-    
-    // Update active highlight across blur preset items
-    document.querySelectorAll('.blur-opt-item').forEach(item => {
-        const itemBlur = parseInt(item.getAttribute('data-blur'), 10);
-        item.classList.toggle('active', itemBlur === radius);
-    });
-
+    applyBlurIntensity(radius, labelShort || `${radius}px`);
     const slider = document.getElementById('input-blur-intensity');
     if (slider) slider.value = radius;
-
-    showToast(`កម្រិត Blur បានប្តូរទៅ: ${title}`);
-    appendLiveTerminalLine(`Blur mask intensity adjusted: ${radius}px (${title})`, "[Blur Engine]", "info");
 }
 
 function applyBlurIntensity(radius, displayLabel) {
