@@ -464,30 +464,31 @@ button, input, select, textarea {
     padding: 1px 6px;
 }
 
-/* Centered 9:16 Portrait Video Preview (OLED Glass Bezels) */
+/* Dynamic Adaptive Video Preview Screen (Adapts to original video aspect ratio with zero black bars) */
 .monitor-screen-area {
     aspect-ratio: 9 / 16;
-    height: calc(100% - 84px);
+    height: auto;
     max-height: calc(100% - 84px);
     width: auto;
     max-width: 100%;
-    margin: 0 auto;
-    background: #000000;
+    margin: auto;
+    background: transparent;
     border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     position: relative;
     overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: inset 0 0 25px rgba(0, 0, 0, 0.95), 0 8px 25px rgba(0, 0, 0, 0.7);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7), inset 0 0 1px rgba(255, 255, 255, 0.2);
     flex-shrink: 1;
+    transition: aspect-ratio 0.25s cubic-bezier(0.16, 1, 0.3, 1), width 0.25s ease, height 0.25s ease;
 }
 
 #main-video {
     width: 100%;
     height: 100%;
-    object-fit: fill !important;
+    object-fit: contain;
     background: transparent;
     cursor: pointer;
     border-radius: 8px;
@@ -1373,6 +1374,198 @@ button, input, select, textarea {
     height: 1px;
     background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.12) 15%, rgba(255, 255, 255, 0.12) 85%, transparent 100%);
     flex-shrink: 0;
+}
+
+/* ==========================================================================
+   TRACK ROW BARS (Video Track & Background Sound Track)
+   Obsidian Gold Studio Aesthetic (Strictly avoiding blue/pink colors)
+   ========================================================================== */
+.overlay-row-bar.track-row-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    height: 46px;
+    min-height: 46px;
+    max-height: 46px;
+    padding: 0 14px;
+    cursor: default;
+    background: transparent;
+    transition: background 0.2s ease;
+    box-sizing: border-box;
+}
+
+.overlay-row-bar.track-row-bar:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.track-col-left-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.track-col-left-btn.video-track-btn {
+    background: rgba(250, 204, 21, 0.12);
+    border: 1px solid rgba(250, 204, 21, 0.35);
+    color: #facc15;
+    box-shadow: 0 0 12px rgba(250, 204, 21, 0.15);
+}
+
+.track-col-left-btn.video-track-btn:hover {
+    background: rgba(250, 204, 21, 0.22);
+    border-color: #facc15;
+    transform: scale(1.06);
+    box-shadow: 0 0 16px rgba(250, 204, 21, 0.3);
+}
+
+.track-col-left-btn.bgm-track-btn {
+    background: rgba(168, 85, 247, 0.12);
+    border: 1px solid rgba(168, 85, 247, 0.35);
+    color: #c084fc;
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.15);
+}
+
+.track-col-left-btn.bgm-track-btn:hover {
+    background: rgba(168, 85, 247, 0.22);
+    border-color: #c084fc;
+    transform: scale(1.06);
+    box-shadow: 0 0 16px rgba(168, 85, 247, 0.3);
+}
+
+.track-dash-sep {
+    color: rgba(255, 255, 255, 0.25);
+    font-size: 0.9rem;
+    font-weight: 300;
+    user-select: none;
+    line-height: 1;
+    margin: 0 2px;
+}
+
+.track-speaker-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 0.82rem;
+    padding: 6px 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.18s ease;
+    border-radius: 5px;
+    flex-shrink: 0;
+}
+
+.track-speaker-btn:hover {
+    color: #facc15;
+    transform: scale(1.15);
+}
+
+.track-speaker-btn.muted {
+    color: #ef4444;
+}
+
+.track-main-pill {
+    flex: 1;
+    min-width: 0;
+    height: 32px;
+    background: rgba(0, 0, 0, 0.42);
+    border: 1px solid rgba(255, 255, 255, 0.11);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    box-sizing: border-box;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+    gap: 8px;
+}
+
+.track-main-pill:hover {
+    background: rgba(250, 204, 21, 0.06);
+    border-color: rgba(250, 204, 21, 0.4);
+    box-shadow: 0 0 14px rgba(250, 204, 21, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.track-main-pill.bgm-selector-pill:hover {
+    background: rgba(168, 85, 247, 0.06);
+    border-color: rgba(168, 85, 247, 0.4);
+    box-shadow: 0 0 14px rgba(168, 85, 247, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.track-pill-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    overflow: hidden;
+    flex: 1;
+}
+
+.track-inner-icon {
+    font-size: 0.76rem;
+    color: #facc15;
+    flex-shrink: 0;
+}
+
+.bgm-selector-pill .track-inner-icon {
+    color: #c084fc;
+}
+
+.track-main-title {
+    font-family: 'Outfit', -apple-system, sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #f1f5f9;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: 0.2px;
+}
+
+.track-main-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.70rem;
+    font-weight: 700;
+    color: #facc15;
+    background: rgba(250, 204, 21, 0.12);
+    border: 1px solid rgba(250, 204, 21, 0.28);
+    padding: 1px 7px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+}
+
+.track-dropdown-arrow {
+    font-size: 0.68rem;
+    color: #94a3b8;
+    flex-shrink: 0;
+    transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.bgm-selector-pill:hover .track-dropdown-arrow {
+    color: #c084fc;
+}
+
+.track-bgm-hidden-select {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 10;
 }
 
 .staged-overlay-bar,

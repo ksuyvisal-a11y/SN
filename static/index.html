@@ -12,7 +12,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=32.0">
+    <link rel="stylesheet" href="style.css?v=33.0">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
@@ -260,6 +260,60 @@
                                             </div>
                                             <div class="overlay-col-status" id="status-overlay-blur">
                                                 <span class="overlay-status-pill empty" id="blur-status-pill"><i class="fa-solid fa-wand-magic-sparkles"></i> ដាក់ Blur</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Clean Divider Line -->
+                                        <div class="overlay-unified-divider"></div>
+
+                                        <!-- Row 3: Video Track (Underneath ADD BLUR Mask) -->
+                                        <div class="overlay-row-bar track-row-bar" id="card-track-video" title="Video Track & Duration">
+                                            <div class="track-col-left-btn video-track-btn" title="Video Track">
+                                                <i class="fa-solid fa-clapperboard"></i>
+                                            </div>
+                                            <span class="track-dash-sep">—</span>
+                                            <button type="button" class="track-speaker-btn" id="btn-video-track-speaker" onclick="toggleVolumeMute(event)" title="Mute/Unmute Video Audio">
+                                                <i class="fa-solid fa-volume-high" id="video-track-vol-icon"></i>
+                                            </button>
+                                            <div class="track-main-pill" id="track-video-pill" onclick="openImportModal(event)" title="ចុចដើម្បីប្តូរវីដេអូ (Change Video)">
+                                                <div class="track-pill-content">
+                                                    <i class="fa-solid fa-film track-inner-icon"></i>
+                                                    <span class="track-main-title" id="staged-track-videoname">EP_01.mp4</span>
+                                                </div>
+                                                <span class="track-main-badge" id="staged-track-videodur">00:00:36</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Clean Divider Line -->
+                                        <div class="overlay-unified-divider"></div>
+
+                                        <!-- Row 4: Background Sound Track (Underneath ADD BLUR Mask) -->
+                                        <div class="overlay-row-bar track-row-bar" id="card-track-bgm" title="Background Sound / BGM Track">
+                                            <div class="track-col-left-btn bgm-track-btn" title="Background Sound Track">
+                                                <i class="fa-solid fa-music"></i>
+                                            </div>
+                                            <span class="track-dash-sep">—</span>
+                                            <button type="button" class="track-speaker-btn" id="btn-bgm-track-speaker" onclick="toggleBgmMute(event)" title="Mute/Unmute BGM">
+                                                <i class="fa-solid fa-volume-high" id="bgm-track-vol-icon"></i>
+                                            </button>
+                                            <div class="track-main-pill bgm-selector-pill" id="track-bgm-pill" title="ជ្រើសរើសសំឡេង Background Sound">
+                                                <div class="track-pill-content">
+                                                    <i class="fa-solid fa-headphones track-inner-icon"></i>
+                                                    <span class="track-main-title" id="staged-track-bgmname">Choose background sound...</span>
+                                                </div>
+                                                <i class="fa-solid fa-chevron-down track-dropdown-arrow"></i>
+                                                <select id="select-track-bgm" class="track-bgm-hidden-select" onchange="onTrackBgmSelected(this.value)" title="Choose background sound">
+                                                    <option value="" disabled selected>Choose background sound...</option>
+                                                    <option value="smart_drama">🎵 Smart Drama BGM (Original + Ducking)</option>
+                                                    <option value="cinematic">🎻 Cinematic Emotional Ambient</option>
+                                                    <option value="piano">🎹 Melancholy Piano Ballad</option>
+                                                    <option value="suspense">⚡ Suspense &amp; Dark Thriller</option>
+                                                    <option value="action">🔥 Action Pulse &amp; Rhythmic Beats</option>
+                                                    <option value="traditional">🪕 Traditional Asian Classical</option>
+                                                    <option value="custom">📁 Upload Custom BGM Audio (MP3)...</option>
+                                                    <option value="none">🔇 No BGM (Speech Only)</option>
+                                                </select>
+                                                <input type="file" id="input-custom-bgm-file" accept="audio/*" style="display:none;" onchange="handleCustomBgmFile(event)">
                                             </div>
                                         </div>
                                     </div>
@@ -1688,6 +1742,6 @@
 
     <!-- HLS.js for Live Stream M3U8 Video Previews -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <script src="app.js?v=14.0"></script>
+    <script src="app.js?v=15.0"></script>
 </body>
 </html>

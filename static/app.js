@@ -455,12 +455,73 @@ function updateScrubberUI() {
     if (waveTime) waveTime.textContent = `00:${timeStr}.000 / 00:${fullDurStr}.000`;
 }
 
-function toggleVolumeMute() {
+function toggleVolumeMute(e) {
+    if (e) e.stopPropagation();
     const mainVideo = document.getElementById('main-video');
     if (mainVideo) {
         mainVideo.muted = !mainVideo.muted;
-        showToast(mainVideo.muted ? "Audio Muted" : "Audio Unmuted");
+        const icon = document.getElementById('video-track-vol-icon');
+        const btn = document.getElementById('btn-video-track-speaker');
+        if (icon) icon.className = mainVideo.muted ? 'fa-solid fa-volume-xmark' : 'fa-solid fa-volume-high';
+        if (btn) btn.classList.toggle('muted', mainVideo.muted);
+        showToast(mainVideo.muted ? "Video Audio Muted" : "Video Audio Unmuted");
     }
+}
+
+let isBgmMuted = false;
+function toggleBgmMute(e) {
+    if (e) e.stopPropagation();
+    isBgmMuted = !isBgmMuted;
+    const icon = document.getElementById('bgm-track-vol-icon');
+    const btn = document.getElementById('btn-bgm-track-speaker');
+    if (icon) icon.className = isBgmMuted ? 'fa-solid fa-volume-xmark' : 'fa-solid fa-volume-high';
+    if (btn) btn.classList.toggle('muted', isBgmMuted);
+
+    if (typeof onQuickBgmSliderChange === 'function') {
+        onQuickBgmSliderChange(isBgmMuted ? 0 : 15);
+    }
+    showToast(isBgmMuted ? "Background Sound (BGM) Muted" : "Background Sound (BGM) Unmuted (15%)");
+}
+
+function onTrackBgmSelected(val) {
+    const sel = document.getElementById('select-track-bgm');
+    const title = document.getElementById('staged-track-bgmname');
+    if (!sel) return;
+
+    if (val === 'custom') {
+        const fileInput = document.getElementById('input-custom-bgm-file');
+        if (fileInput) fileInput.click();
+        return;
+    }
+
+    const selectedOption = sel.options[sel.selectedIndex];
+    if (title && selectedOption) {
+        title.textContent = selectedOption.text;
+    }
+
+    if (val === 'none') {
+        if (typeof onQuickBgmSliderChange === 'function') onQuickBgmSliderChange(0);
+        showToast("BGM: បិទភ្លេង Background Sound");
+    } else {
+        if (typeof onQuickBgmSliderChange === 'function') onQuickBgmSliderChange(15);
+        showToast(`បានជ្រើសរើស BGM: ${selectedOption ? selectedOption.text : val}`);
+    }
+}
+
+function handleCustomBgmFile(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const title = document.getElementById('staged-track-bgmname');
+    if (title) title.textContent = `🎵 ${file.name}`;
+    showToast(`បានដាក់ឯកសារ BGM ផ្ទាល់ខ្លួន: ${file.name}`);
+    appendLiveTerminalLine(`Custom BGM audio attached: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`, "[Audio Config]", "success");
+}
+
+function syncTrackRowsInfo(name, durationStr) {
+    const nameEl = document.getElementById('staged-track-videoname');
+    const durEl = document.getElementById('staged-track-videodur');
+    if (nameEl && name) nameEl.textContent = name;
+    if (durEl && durationStr) durEl.textContent = durationStr;
 }
 
 function toggleAudioTrack() {
@@ -468,11 +529,27 @@ function toggleAudioTrack() {
     showToast(`Audio Track: ${vLabel}`);
 }
 
-// Permanent Full Frame 100% Video Engine (No black letterbox)
+// Dynamic Video Frame Engine: Adapts monitor screen box to original video aspect ratio (Zero black bars)
+function adaptMonitorScreenToVideo() {
+    const mainVideo = document.getElementById('main-video');
+    const screenArea = document.getElementById('monitor-screen-area');
+    if (!mainVideo || !screenArea) return;
+
+    const w = mainVideo.videoWidth;
+    const h = mainVideo.videoHeight;
+    if (w && h && w > 0 && h > 0) {
+        screenArea.style.aspectRatio = `${w} / ${h}`;
+        screenArea.style.height = 'auto';
+        screenArea.style.width = 'auto';
+        screenArea.style.maxHeight = 'calc(100% - 84px)';
+        screenArea.style.maxWidth = '100%';
+        mainVideo.style.objectFit = 'contain';
+        mainVideo.style.background = 'transparent';
+    }
+}
+
 function applyVideoFitMode() {
-    const video = document.getElementById('main-video');
-    if (!video) return;
-    video.style.objectFit = 'fill';
+    adaptMonitorScreenToVideo();
 }
 
 function toggleGuidesMenu() {
@@ -776,8 +853,13 @@ function initStudioWorkspace() {
     // Initialize interactive overlays (logo & blur mask drag & resize)
     initInteractiveOverlays();
 
-    // Ensure video preview fills frame completely (no black bars)
-    applyVideoFitMode();
+    // Wire up dynamic adaptive video frame engine (Zero black bars, matches original aspect ratio)
+    if (mainVideo) {
+        mainVideo.addEventListener('loadedmetadata', adaptMonitorScreenToVideo);
+        mainVideo.addEventListener('canplay', adaptMonitorScreenToVideo);
+        mainVideo.addEventListener('loadeddata', adaptMonitorScreenToVideo);
+        if (mainVideo.videoWidth > 0) adaptMonitorScreenToVideo();
+    }
 }
 
 function selectStudioPreset(presetKey) {
@@ -4759,8 +4841,9 @@ function setStagedVideo(file) {
                     const durFormatted = `${String(durM).padStart(2,'0')}:${String(durS).padStart(2,'0')}`;
                     const stagedMeta = document.getElementById('staged-file-meta');
                     if (stagedMeta) stagedMeta.textContent = `${fileSizeMB} MB • Duration: ${durFormatted} • ត្រៀមបកប្រែជាសំឡេងខ្មែរ`;
+                    syncTrackRowsInfo(fileName, durFormatted);
                 }
-                applyVideoFitMode();
+                adaptMonitorScreenToVideo();
             };
             mainVideo.onloadedmetadata = handleMeta;
             mainVideo.ondurationchange = handleMeta;
@@ -4798,6 +4881,7 @@ function setStagedVideo(file) {
     if (stagedCard) stagedCard.style.display = 'flex';
     if (sourceLabel) sourceLabel.style.display = 'none';
     if (stagedTitle) stagedTitle.textContent = fileName;
+    syncTrackRowsInfo(fileName, null);
     refreshStagedCardVoiceMeta();
     syncStagedCardControls();
 
