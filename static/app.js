@@ -4491,9 +4491,7 @@ async function startAutoDubbingPipeline(file) {
 
     const activeDramaMode = currentStudioPreset === "narration" ? "movie_recap" : "drama_dubbing";
     const activeSourceLang = currentStoryConfig.source_lang || "auto";
-    const activeVoiceOverride = (currentStoryConfig.auto_multi_voice || currentStoryConfig.khmer_voice === "multi") 
-        ? "multi" 
-        : (currentStoryConfig.khmer_voice || "piseth");
+    const activeVoiceOverride = (currentStoryConfig.khmer_voice === "sreymom") ? "sreymom" : "piseth";
     const activeAspectRatio = currentStoryConfig.aspect_ratio || "9:16";
     const activeBurnSubs = (currentStoryConfig.subtitle_mode === "burn") ? "true" : "false";
 
@@ -4712,9 +4710,7 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
 
         const dramaMode = currentStudioPreset === "narration" ? "movie_recap" : "drama_dubbing";
         const activeSourceLang = currentStoryConfig.source_lang || "auto";
-        const activeVoiceOverride = (currentStoryConfig.auto_multi_voice || currentStoryConfig.khmer_voice === "multi") 
-            ? "multi" 
-            : (currentStoryConfig.khmer_voice || "piseth");
+        const activeVoiceOverride = (currentStoryConfig.khmer_voice === "sreymom") ? "sreymom" : "piseth";
         const activeAspectRatio = currentStoryConfig.aspect_ratio || "9:16";
         const activeBurnSubs = (currentStoryConfig.subtitle_mode === "burn") ? "true" : "false";
 

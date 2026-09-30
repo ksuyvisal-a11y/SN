@@ -25,6 +25,14 @@ else:
 STATIC_DIR = BASE_DIR / "static"
 
 app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="")
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+
+@app.after_request
+def add_no_cache_headers(response):
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '-1'
+    return response
 
 # Core Studio Modules & Engines
 from tts_engine import get_available_voices, synthesize_khmer_speech

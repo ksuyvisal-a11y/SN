@@ -8,8 +8,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=8.0">
+    <link rel="stylesheet" href="style.css?v=9.0">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
@@ -1006,7 +1009,6 @@
                     <select style="background:#080603; border:1px solid var(--border-subtle); border-radius:5px; padding:6px 10px; font-size:0.75rem; color:#fff;">
                         <option selected>Piseth Solo (Male Drama Narration)</option>
                         <option>Sreymom Solo (Female Drama Narration)</option>
-                        <option>Piseth & Sreymom (Multi-Speaker Dubbing Sync)</option>
                     </select>
                 </div>
             </div>
@@ -1070,8 +1072,7 @@
                                 <div class="ai-field-group">
                                     <label class="ai-field-label">KHMER VOICE (ជ្រើសរើសសំឡេងបកប្រែ)</label>
                                     <select id="story-voice-select" class="ai-gold-select" onchange="onStoryVoiceChange()">
-                                        <option value="multi" selected>Piseth &amp; Sreymom (សំឡេងប្រុស &amp; ស្រីតាមតួអង្គ - Recommended)</option>
-                                        <option value="piseth">Piseth (ប្រុសទោល / Male Solo)</option>
+                                        <option value="piseth" selected>Piseth (ប្រុសទោល / Male Solo)</option>
                                         <option value="sreymom">Sreymom (ស្រីទោល / Female Solo)</option>
                                     </select>
                                     <p id="story-voice-hint" class="ai-field-hint" style="margin-top:6px; margin-bottom:14px; color: var(--gold-glow); font-size: 0.82rem; line-height:1.45;"></p>
@@ -1740,6 +1741,6 @@
 
     <!-- HLS.js for Live Stream M3U8 Video Previews -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <script src="app.js?v=8.3"></script>
+    <script src="app.js?v=9.0"></script>
 </body>
 </html>
