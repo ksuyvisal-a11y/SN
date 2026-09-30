@@ -12,7 +12,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=26.0">
+    <link rel="stylesheet" href="style.css?v=27.0">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
@@ -223,8 +223,8 @@
                                         </button>
                                     </div>
 
-                                    <!-- Staged Overlay Stack: Upload LOGO on top, Add BLUR Mask directly underneath -->
-                                    <div class="staged-overlay-stack">
+                                    <!-- Unified Joined Overlay Frame (Logo on Top, Add Blur Underneath, Joined Together in 1 Frame) -->
+                                    <div class="staged-overlay-stack unified-frame" id="staged-overlay-unified-panel">
                                         <!-- Row 1: Upload LOGO -->
                                         <div class="overlay-row-bar" id="card-upload-logo" onclick="triggerOverlayUpload('logo')" title="Upload Watermark/Logo">
                                             <input type="file" id="input-overlay-logo" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;" onchange="handleOverlayFileSelect(event, 'logo')">
@@ -240,7 +240,10 @@
                                             </div>
                                         </div>
 
-                                        <!-- Row 2: Add BLUR Mask (Directly Underneath Logo Frame) -->
+                                        <!-- Clean Divider Line connecting both rows seamlessly -->
+                                        <div class="overlay-unified-divider"></div>
+
+                                        <!-- Row 2: Add BLUR Mask (Directly Underneath Logo Frame, Joined Together) -->
                                         <div class="overlay-row-bar" id="card-upload-blur" onclick="toggleBlurMaskTool(event)" title="Add Watermark Blur Mask">
                                             <div class="overlay-col-icon blur-icon">
                                                 <i class="fa-solid fa-eye-slash"></i>

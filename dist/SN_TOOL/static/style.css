@@ -1169,16 +1169,31 @@ button, input, select, textarea {
 }
 
 /* ==========================================================================
-   STAGED OVERLAY STACK (Stacked Horizontal Bars - Logo on Top, Blur Underneath)
+   STAGED OVERLAY UNIFIED PANEL (One Joined Frame - Logo on Top, Blur Underneath)
    ========================================================================== */
+.staged-overlay-unified-panel,
 .staged-overlay-stack {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 0;
     width: 100%;
     margin-top: 8px;
     flex: initial;
+    background: rgba(16, 22, 34, 0.68);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
     box-sizing: border-box;
+    overflow: hidden;
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.staged-overlay-unified-panel:hover,
+.staged-overlay-stack:hover {
+    border-color: rgba(255, 255, 255, 0.22);
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45), 0 0 16px rgba(250, 204, 21, 0.06);
 }
 
 .overlay-row-bar {
@@ -1186,39 +1201,46 @@ button, input, select, textarea {
     align-items: center;
     gap: 12px;
     width: 100%;
-    height: 42px;
-    min-height: 42px;
-    max-height: 42px;
-    padding: 0 14px;
-    background: rgba(16, 22, 34, 0.65);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 9px;
+    height: 44px;
+    min-height: 44px;
+    max-height: 44px;
+    padding: 0 16px;
+    background: transparent;
+    border: none;
+    border-radius: 0;
     box-sizing: border-box;
     cursor: pointer;
-    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: all 0.18s ease;
     user-select: none;
-    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    box-shadow: none;
 }
 
 .overlay-row-bar:hover {
-    background: rgba(22, 30, 46, 0.78);
-    transform: translateY(-1px);
+    transform: none;
 }
 
 .overlay-row-bar#card-upload-logo:hover {
-    border-color: rgba(250, 204, 21, 0.45);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45), 0 0 16px rgba(250, 204, 21, 0.12);
+    background: rgba(250, 204, 21, 0.07);
+    border-color: transparent;
+    box-shadow: none;
 }
 
 .overlay-row-bar#card-upload-blur:hover {
-    border-color: rgba(168, 85, 247, 0.45);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45), 0 0 16px rgba(168, 85, 247, 0.12);
+    background: rgba(168, 85, 247, 0.07);
+    border-color: transparent;
+    box-shadow: none;
 }
 
 .overlay-row-bar:active {
-    transform: translateY(0);
+    background: rgba(255, 255, 255, 0.05);
+    transform: none;
+}
+
+.overlay-unified-divider {
+    width: 100%;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
 }
 
 .staged-overlay-bar,
