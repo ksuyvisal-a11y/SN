@@ -468,42 +468,11 @@ function toggleAudioTrack() {
     showToast(`Audio Track: ${vLabel}`);
 }
 
-let currentVideoFitMode = 'fill'; // Default is 'fill' (100% full frame, ZERO black letterbox)
-
+// Permanent Full Frame 100% Video Engine (No black letterbox)
 function applyVideoFitMode() {
     const video = document.getElementById('main-video');
-    const label = document.getElementById('fit-mode-text');
     if (!video) return;
-
-    video.classList.remove('fit-fill', 'fit-cover', 'fit-contain');
-    if (currentVideoFitMode === 'cover') {
-        video.classList.add('fit-cover');
-        video.style.objectFit = 'cover';
-        if (label) label.textContent = 'កាត់ពេញ';
-    } else if (currentVideoFitMode === 'contain') {
-        video.classList.add('fit-contain');
-        video.style.objectFit = 'contain';
-        if (label) label.textContent = 'សមាមាត្រ';
-    } else {
-        currentVideoFitMode = 'fill';
-        video.classList.add('fit-fill');
-        video.style.objectFit = 'fill';
-        if (label) label.textContent = 'ពេញស៊ុម';
-    }
-}
-
-function toggleVideoFitMode() {
-    if (currentVideoFitMode === 'fill') {
-        currentVideoFitMode = 'cover';
-        showToast("របៀបវីដេអូ៖ កាត់ពេញស៊ុម (Cover - រក្សាសមាមាត្រ)");
-    } else if (currentVideoFitMode === 'cover') {
-        currentVideoFitMode = 'contain';
-        showToast("របៀបវីដេអូ៖ សមាមាត្រដើម (Original Fit - មានគែមខ្មៅ)");
-    } else {
-        currentVideoFitMode = 'fill';
-        showToast("របៀបវីដេអូ៖ ពេញស៊ុម ១០០% (Full Frame - គ្មានគែមខ្មៅ)");
-    }
-    applyVideoFitMode();
+    video.style.objectFit = 'fill';
 }
 
 function toggleGuidesMenu() {
