@@ -866,9 +866,9 @@ button, input, select, textarea {
     height: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;
-    gap: 10px;
-    padding: 12px 16px;
+    justify-content: center;
+    gap: 12px;
+    padding: 16px 18px;
     background: transparent;
     border: none;
     box-shadow: none;
@@ -880,6 +880,7 @@ button, input, select, textarea {
 
 /* Row 1: Compact Header with File Info & Action Buttons */
 .staged-compact-header {
+    margin-top: auto;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -4248,6 +4249,7 @@ button, input, select, textarea {
 }
 
 .staged-action-cta-row {
+    margin-bottom: auto;
     display: flex;
     align-items: center;
     justify-content: space-between;
