@@ -12,7 +12,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=20.0">
+    <link rel="stylesheet" href="style.css?v=21.0">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
@@ -209,35 +209,38 @@
                                         </button>
                                     </div>
 
-                                    <!-- Upload LOGO & Upload BLUR Grid -->
-                                    <div class="staged-overlay-upload-grid">
-                                        <!-- Card 1: Upload LOGO -->
-                                        <div class="overlay-upload-card" id="card-upload-logo" onclick="triggerOverlayUpload('logo')">
+                                    <!-- Upload LOGO & Upload BLUR Horizontal Strip (Aligned directly under Overlay) -->
+                                    <div class="staged-overlay-bar">
+                                        <!-- Item 1: Upload LOGO -->
+                                        <div class="overlay-bar-col" id="card-upload-logo" onclick="triggerOverlayUpload('logo')" title="Upload Watermark/Logo">
                                             <input type="file" id="input-overlay-logo" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;" onchange="handleOverlayFileSelect(event, 'logo')">
-                                            <div class="overlay-card-icon-box logo-icon">
+                                            <div class="overlay-col-icon logo-icon">
                                                 <i class="fa-solid fa-stamp"></i>
                                             </div>
-                                            <div class="overlay-card-info">
-                                                <div class="overlay-card-title">Upload LOGO</div>
-                                                <div class="overlay-card-desc">ជ្រើសរើសរូបភាព Logo (PNG/JPG) ដើម្បីដាក់ Watermark</div>
-                                                <div class="overlay-card-status" id="status-overlay-logo">
-                                                    <span class="overlay-status-pill empty"><i class="fa-solid fa-cloud-arrow-up"></i> ចុចដើម្បី Upload</span>
-                                                </div>
+                                            <div class="overlay-col-text">
+                                                <span class="overlay-col-title">Upload LOGO</span>
+                                                <span class="overlay-col-desc">ជ្រើសរើសរូបភាព Logo (PNG/JPG)</span>
+                                            </div>
+                                            <div class="overlay-col-status" id="status-overlay-logo">
+                                                <span class="overlay-status-pill empty"><i class="fa-solid fa-cloud-arrow-up"></i> Upload</span>
                                             </div>
                                         </div>
 
-                                        <!-- Card 2: Upload BLUR -->
-                                        <div class="overlay-upload-card" id="card-upload-blur" onclick="triggerOverlayUpload('blur')">
+                                        <!-- Center Separator -->
+                                        <div class="overlay-bar-divider"></div>
+
+                                        <!-- Item 2: Upload BLUR -->
+                                        <div class="overlay-bar-col" id="card-upload-blur" onclick="triggerOverlayUpload('blur')" title="Upload Mask/Blur image">
                                             <input type="file" id="input-overlay-blur" accept="image/*,video/*" style="display:none;" onchange="handleOverlayFileSelect(event, 'blur')">
-                                            <div class="overlay-card-icon-box blur-icon">
+                                            <div class="overlay-col-icon blur-icon">
                                                 <i class="fa-solid fa-eye-slash"></i>
                                             </div>
-                                            <div class="overlay-card-info">
-                                                <div class="overlay-card-title">Upload BLUR</div>
-                                                <div class="overlay-card-desc">ជ្រើសរើសរូបភាព ឬ Mask សម្រាប់បិទបាំង Logo/Watermark ចាស់</div>
-                                                <div class="overlay-card-status" id="status-overlay-blur">
-                                                    <span class="overlay-status-pill empty"><i class="fa-solid fa-cloud-arrow-up"></i> ចុចដើម្បី Upload</span>
-                                                </div>
+                                            <div class="overlay-col-text">
+                                                <span class="overlay-col-title">Upload BLUR</span>
+                                                <span class="overlay-col-desc">ជ្រើសរើសរូបភាព ឬ Mask បិទបាំង</span>
+                                            </div>
+                                            <div class="overlay-col-status" id="status-overlay-blur">
+                                                <span class="overlay-status-pill empty"><i class="fa-solid fa-cloud-arrow-up"></i> Upload</span>
                                             </div>
                                         </div>
                                     </div>
