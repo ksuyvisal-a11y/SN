@@ -1787,11 +1787,11 @@ select, option, optgroup {
 
 .blur-custom-dropdown {
     position: absolute;
-    top: calc(100% + 7px);
-    left: 0;
-    right: 0;
-    min-width: 330px;
-    max-height: 420px;
+    top: calc(100% + 6px);
+    left: 94px;
+    right: 14px;
+    min-width: 320px;
+    max-height: 290px;
     overflow-y: auto;
     background: linear-gradient(165deg, rgba(16, 22, 38, 0.98) 0%, rgba(10, 14, 24, 0.99) 100%);
     backdrop-filter: blur(28px) saturate(200%);
@@ -1802,7 +1802,7 @@ select, option, optgroup {
     box-shadow: 0 20px 48px rgba(0, 0, 0, 0.88),
                 0 0 28px rgba(250, 204, 21, 0.16),
                 inset 0 1px 0 rgba(255, 255, 255, 0.18);
-    padding: 8px;
+    padding: 7px;
     display: none;
     flex-direction: column;
     gap: 4px;
