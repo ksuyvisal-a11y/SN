@@ -18,11 +18,16 @@ from flask import Flask, request, jsonify, send_file, send_from_directory
 
 # Resolve base dir for PyInstaller executable support
 if getattr(sys, 'frozen', False):
+    APP_DIR = Path(os.path.dirname(sys.executable))
     BASE_DIR = Path(sys._MEIPASS)
+    if (APP_DIR / "static").exists():
+        STATIC_DIR = APP_DIR / "static"
+    else:
+        STATIC_DIR = BASE_DIR / "static"
 else:
-    BASE_DIR = Path(__file__).resolve().parent
-
-STATIC_DIR = BASE_DIR / "static"
+    APP_DIR = Path(__file__).resolve().parent
+    BASE_DIR = APP_DIR
+    STATIC_DIR = BASE_DIR / "static"
 
 app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="")
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0

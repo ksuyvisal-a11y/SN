@@ -20,6 +20,42 @@ let dlHasMore = true;
 let dlInfiniteScrollAttached = false;
 let currentHwid = "";
 
+function appMinimizeWindow() {
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.minimize_window) {
+        window.pywebview.api.minimize_window();
+    }
+}
+
+function appMaximizeWindow() {
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.maximize_window) {
+        window.pywebview.api.maximize_window();
+    } else {
+        try {
+            if (!document.fullscreenElement) {
+                if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen();
+                } else if (document.documentElement.webkitRequestFullscreen) {
+                    document.documentElement.webkitRequestFullscreen();
+                }
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                }
+            }
+        } catch(e) {}
+    }
+}
+
+function appCloseWindow() {
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.close_window) {
+        window.pywebview.api.close_window();
+    } else {
+        try { window.close(); } catch(e) {}
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     initApp();
 });
@@ -2114,7 +2150,7 @@ function switchDlViewMode(mode) {
 
     if (mode === 'queue') {
         if (catalogWrapper) catalogWrapper.style.display = 'none';
-        if (queueView) queueView.style.display = 'grid';
+        if (queueView) queueView.style.display = 'flex';
 
         if (catBtn) catBtn.classList.remove('active');
         if (qBtn) qBtn.classList.add('active');

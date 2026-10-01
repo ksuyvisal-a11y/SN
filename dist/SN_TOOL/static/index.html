@@ -1,0 +1,1783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SN TOOL</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Kantumruy+Pro:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css?v=41.0">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</head>
+<body>
+    <div class="unich-app-container">
+        <!-- ====================================================================
+             TOP NAVBAR
+             ==================================================================== -->
+        <header class="unich-header-bar pywebview-drag-region" ondblclick="appMaximizeWindow()">
+            <!-- Left Brand & 3D Logo Badge -->
+            <div class="header-brand-group">
+                <div class="brand-badge-wrapper" title="SN TOOL Studio Edition">
+                    <img src="logo.png?v=6.2" class="brand-badge-logo" alt="SN Logo">
+                </div>
+                <div class="brand-studio-title">
+                    <span class="brand-name-bold">SN TOOL</span>
+                    <span class="brand-pro-tag">STUDIO PRO</span>
+                </div>
+            </div>
+
+            <!-- Center Action Pill Buttons (Remaining studio actions) -->
+            <nav class="header-nav-pills">
+                <button class="nav-pill-btn active" id="btn-tab-translate" onclick="switchMainTab('translate')" title="Translation & Dubbing Studio">
+                    <i class="fa-solid fa-globe icon-translate"></i>
+                    <span>Translate</span>
+                </button>
+                <button class="nav-pill-btn" id="btn-tab-dl" onclick="switchMainTab('dl')" title="Drama Downloader Studio">
+                    <i class="fa-solid fa-download icon-dl"></i>
+                    <span>DL</span>
+                </button>
+                <button class="nav-pill-btn" id="btn-tab-export" onclick="switchMainTab('export')" title="Render & Export Video">
+                    <i class="fa-solid fa-box-archive icon-export"></i>
+                    <span>Export</span>
+                </button>
+                
+                <!-- Power Dropdown -->
+                <div class="power-dropdown-wrapper">
+                    <button class="nav-pill-btn" id="btn-tab-power" onclick="togglePowerMenu(event)" title="Power Processing Tools">
+                        <i class="fa-solid fa-bolt icon-power"></i>
+                        <span>Power</span>
+                    </button>
+                    <div class="power-menu-popup" id="power-menu-popup">
+                        <div class="power-item" onclick="openMergeModal()">
+                            <i class="fa-solid fa-link" style="color:#facc15;"></i>
+                            <span>Merge Video</span>
+                        </div>
+                        <div class="power-item" onclick="openSplitModal()">
+                            <i class="fa-solid fa-scissors" style="color:#ec4899;"></i>
+                            <span>Split Video</span>
+                        </div>
+                        <div class="power-item" onclick="openRenameModal()">
+                            <i class="fa-solid fa-pen-to-square" style="color:#fbbf24;"></i>
+                            <span>Rename</span>
+                        </div>
+                        <div class="power-item" onclick="openCompressModal('single')">
+                            <i class="fa-solid fa-file-zipper" style="color:#a855f7;"></i>
+                            <span>Single Compress</span>
+                        </div>
+                        <div class="power-item" onclick="openCompressModal('multi')">
+                            <i class="fa-solid fa-folder-tree" style="color:#eab308;"></i>
+                            <span>Multi Compress</span>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="nav-pill-btn" id="btn-tab-settings" onclick="openSettingsModal()" title="Studio Settings & License">
+                    <i class="fa-solid fa-gear icon-settings"></i>
+                    <span>Settings</span>
+                </button>
+            </nav>
+
+            <!-- Sleek Integrated Frameless Window Controls -->
+            <div class="header-win-controls" style="-webkit-app-region: no-drag;">
+                <button type="button" class="win-btn" title="Minimize" onclick="appMinimizeWindow()">―</button>
+                <button type="button" class="win-btn" title="Maximize" onclick="appMaximizeWindow()">▢</button>
+                <button type="button" class="win-btn close" title="Close" onclick="appCloseWindow()">✕</button>
+            </div>
+        </header>
+
+        <!-- ====================================================================
+             MAIN WORKSPACE VIEWPORT
+             ==================================================================== -->
+        <main class="unich-main-workspace">
+            <!-- ================================================================
+                 VIEW 1: TRANSLATE / STUDIO VIEW (Exact Match to Image 1)
+                 ================================================================ -->
+            <div class="studio-layout-grid" id="view-studio-translate">
+                <!-- Left 9:16 Vertical Video Monitor -->
+                <div class="studio-left-monitor-card">
+                    <!-- Monitor Header Status Bar -->
+                    <div class="monitor-header-kicker">
+                        <div class="monitor-kicker-left">
+                            <span class="monitor-kicker-dot"></span>
+                            <span class="monitor-kicker-title">PREVIEW MONITOR</span>
+                        </div>
+                        <div class="monitor-mini-bars-badge" id="monitor-visualizer-bars" title="Audio Visualizer">
+                            <span></span><span></span><span></span><span></span><span></span>
+                        </div>
+                    </div>
+
+                    <div class="monitor-screen-area" id="monitor-screen-area" onclick="togglePlayPreview(event)">
+                        <video id="main-video" playsinline style="display:none;" onclick="togglePlayPreview(event)"></video>
+                        
+                        <!-- Live Interactive Watermark LOGO Overlay on Video Canvas -->
+                        <div class="monitor-logo-overlay" id="monitor-logo-overlay" style="display:none;" onclick="event.stopPropagation()">
+                            <img id="monitor-logo-img" src="" alt="Watermark Logo">
+                            <button type="button" class="overlay-quick-remove-btn" onclick="clearOverlayFile(event, 'logo')" title="Remove Logo">×</button>
+                            <div class="overlay-resize-handle" id="logo-resize-handle" title="ទាញដើម្បីពង្រីក/បង្រួម Logo (Drag to Resize)">
+                                <i class="fa-solid fa-up-right-and-down-left-from-center"></i>
+                            </div>
+                        </div>
+
+                        <!-- Live Interactive Watermark BLUR Box Mask Overlay on Video Canvas -->
+                        <div class="monitor-blur-overlay" id="monitor-blur-overlay" style="display:none;" onclick="event.stopPropagation()">
+                            <div class="blur-box-content">
+                                <span class="blur-label-tag"><i class="fa-solid fa-eye-slash"></i> BLUR MASK</span>
+                            </div>
+                            <button type="button" class="blur-quick-remove-btn" onclick="toggleBlurMaskTool(event, false)" title="Remove Blur Mask">×</button>
+                            <div class="overlay-resize-handle blur-handle" id="blur-resize-handle" title="ទាញដើម្បីពង្រីក/បង្រួម Blur Mask (Drag to Resize)">
+                                <i class="fa-solid fa-up-right-and-down-left-from-center"></i>
+                            </div>
+                        </div>
+
+                        <!-- Floating YouTube-style Back Button in Fullscreen -->
+                        <button type="button" class="fullscreen-back-btn" id="fullscreen-back-btn" onclick="exitFullscreenMode(event)" title="Exit Fullscreen / Back (Esc)">
+                            <i class="fa-solid fa-arrow-left"></i> <span>Back</span>
+                        </button>
+
+                        <!-- Glowing Center Play Button -->
+                        <div class="monitor-center-play-button" id="center-play-btn" onclick="togglePlayPreview(event)">
+                            <i class="fa-solid fa-play" id="center-play-icon"></i>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Scrubber & Transport (Exact Match to Image 2) -->
+                    <div class="monitor-bottom-controls" id="monitor-bottom-controls">
+                        <div class="monitor-seek-bar-track" onclick="handleSeekClick(event)">
+                            <div class="monitor-seek-bar-fill" id="seek-fill-bar"></div>
+                            <div class="monitor-seek-bar-handle" id="seek-handle-dot"></div>
+                        </div>
+                        <div class="monitor-playback-meta-row">
+                            <!-- Left: Gold Monospace Timecode (e.g. 00:00 / 03:00) -->
+                            <div class="monitor-timecode-text" id="monitor-timecode-display">00:00 / 00:00</div>
+
+                            <!-- Right: Action Buttons ([▶] [🎵] [GUIDES ▾] [⛶]) -->
+                            <div class="monitor-actions-right-group">
+                                <button type="button" class="monitor-gold-btn play-btn" id="bottom-play-btn" onclick="togglePlayPreview(event)" title="Play / Pause">
+                                    <i class="fa-solid fa-play" id="bottom-play-icon"></i>
+                                </button>
+                                <button type="button" class="monitor-gold-btn" onclick="toggleAudioTrack()" title="Audio Track (Piseth / Sreymom)">
+                                    <i class="fa-solid fa-music"></i>
+                                </button>
+                                <button type="button" class="monitor-gold-btn guides-btn" onclick="toggleGuidesMenu()" title="Guides">
+                                    <span>GUIDES ▾</span>
+                                </button>
+                                <button type="button" class="monitor-gold-btn fullscreen-btn" id="btn-fullscreen-toggle" onclick="toggleFullscreen()" title="Fullscreen">
+                                    <i class="fa-solid fa-expand" id="fullscreen-btn-icon"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Workspace Setup & Dialogue Grid (Top) + Studio Engine & Render Monitor (Bottom) -->
+                <div class="studio-right-column">
+                    <!-- Top Box: Studio Workspace (Exact Match to Image 2) -->
+                    <div class="studio-sources-box" id="studio-sources-box">
+                        <!-- STATE 0: Exact Image 2 Clean Layout (Default View) -->
+                        <div class="studio-source-clean-view" id="studio-source-clean-view">
+                            <div class="clean-source-label" id="clean-source-label">Translation source</div>
+                            
+                            <!-- Initial Empty State: Clean Frosted Glass Media Ingest Dropzone -->
+                            <div class="clean-import-center-cta" id="clean-import-prompt" onclick="openImportModal()">
+                                <div class="clean-import-icon-box">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                                </div>
+                                <div class="clean-import-text">Import Media / Drama Folder</div>
+                                <div class="clean-import-sub">Drag &amp; drop video files or series folder to begin dubbing</div>
+                                <div class="clean-import-formats">
+                                    <span class="media-fmt-chip">MP4</span>
+                                    <span class="media-fmt-chip">MKV</span>
+                                    <span class="media-fmt-chip">MOV</span>
+                                    <span class="media-fmt-chip highlight">SERIES FOLDER</span>
+                                </div>
+                            </div>
+
+                            <!-- Staged Video Ready to Export State -->
+                            <!-- Staged Video Ready State (Direct Voice Selector & BGM Audio Controls) -->
+                            <!-- Staged Video Ready State (Ultra-Clean, Full-Frame Studio Layout) -->
+                            <div class="staged-video-ready-card" id="staged-video-card" style="display:none;">
+                                <!-- Header Row: Source Kicker, File Name, Size/Duration & Quick Action Buttons -->
+                                <div class="staged-compact-header">
+                                    <div class="staged-file-info-left">
+                                        <span class="staged-source-kicker"><i class="fa-solid fa-film"></i> SOURCE</span>
+                                        <span class="staged-status-pill"><i class="fa-solid fa-circle-check" style="color:#22c55e;"></i> READY</span>
+                                        <span class="staged-card-title" id="staged-file-title">Drama_Episode_01.mp4</span>
+                                        <span class="staged-card-meta" id="staged-file-meta">44.1 MB • 03:00</span>
+                                    </div>
+                                    <div class="staged-file-actions-right">
+                                        <button type="button" class="staged-mini-btn" onclick="openImportModal()" title="ប្តូរវីដេអូ ឬ Folder ផ្សេង">
+                                            <i class="fa-solid fa-arrows-rotate"></i> ប្តូរវីដេអូ / Folder
+                                        </button>
+                                        <button type="button" class="staged-mini-btn" onclick="openStorySettingsModal()" title="ការកំណត់បន្ថែម">
+                                            <i class="fa-solid fa-sliders"></i> Settings
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Center Glass Workspace Frame Box (Clean Frosted Studio Canvas) -->
+                                <div class="staged-workspace-frame" id="staged-workspace-frame">
+                                    <div class="staged-frame-toolbar">
+                                        <button type="button" class="staged-frame-overlay-btn" id="btn-tab-overlay" onclick="switchMainTab('overlay')" title="Overlay & Watermark Tools">
+                                            <i class="fa-solid fa-folder icon-overlay"></i>
+                                            <span>Overlay</span>
+                                        </button>
+                                    </div>
+
+                                    <!-- Unified Joined Overlay Frame (Logo on Top, Add Blur Underneath, Joined Together in 1 Frame) -->
+                                    <div class="staged-overlay-stack unified-frame" id="staged-overlay-unified-panel">
+                                        <!-- Row 1: Upload LOGO -->
+                                        <div class="overlay-row-bar" id="card-upload-logo" onclick="triggerOverlayUpload('logo')" title="Upload Watermark/Logo">
+                                            <input type="file" id="input-overlay-logo" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;" onchange="handleOverlayFileSelect(event, 'logo')">
+                                            <div class="overlay-col-icon logo-icon">
+                                                <i class="fa-solid fa-stamp"></i>
+                                            </div>
+                                            <div class="overlay-col-text">
+                                                <span class="overlay-col-title">Upload LOGO</span>
+                                                <span class="overlay-col-desc">ជ្រើសរើសរូបភាព Logo (PNG/JPG) ដើម្បីដាក់ Watermark</span>
+                                            </div>
+                                            <div class="overlay-col-status" id="status-overlay-logo">
+                                                <span class="overlay-status-pill empty"><i class="fa-solid fa-cloud-arrow-up"></i> Upload</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Clean Divider Line connecting both rows seamlessly -->
+                                        <div class="overlay-unified-divider"></div>
+
+                                        <!-- Row 2: Add BLUR Mask (With Obsidian Glass Intensity Selector Matching Reference Image) -->
+                                        <div class="overlay-row-bar blur-row-bar" id="card-upload-blur" onclick="toggleBlurMaskDropdown(event)" title="Add Watermark Blur Mask & Adjust Blur Level">
+                                            <div class="overlay-col-icon blur-icon">
+                                                <i class="fa-solid fa-eye-slash"></i>
+                                            </div>
+                                            <div class="overlay-col-text">
+                                                <span class="overlay-col-title">Add BLUR Mask</span>
+                                                <span class="overlay-col-desc" id="blur-intensity-desc-label">បិទបាំង Logo/Watermark ចាស់ផ្ទាល់លើវីដេអូ Preview</span>
+                                            </div>
+                                            <div class="overlay-col-status" id="status-overlay-blur">
+                                                <span class="overlay-status-pill empty" id="blur-status-pill">
+                                                    <i class="fa-solid fa-wand-magic-sparkles"></i> <span id="blur-status-label">ចុចដើម្បីដាក់ Blur</span>
+                                                    <i class="fa-solid fa-chevron-down blur-dropdown-arrow" id="blur-dropdown-chevron"></i>
+                                                </span>
+                                            </div>
+
+                                            <!-- Custom Obsidian Dark Glass Blur Intensity Panel (Matching Reference Image) -->
+                                            <div class="blur-custom-dropdown" id="blur-custom-dropdown" onclick="event.stopPropagation()">
+                                                <div class="blur-dropdown-header">
+                                                    <div class="blur-header-left">
+                                                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                                        <span>ជ្រើសរើសកម្រិត BLUR MASK (BLUR INTENSITY)</span>
+                                                    </div>
+                                                    <button type="button" class="blur-panel-close-btn" onclick="closeBlurMaskDropdown(event)" title="បិទផ្ទាំង (Close)">
+                                                        <i class="fa-solid fa-xmark"></i>
+                                                    </button>
+                                                </div>
+
+                                                <!-- Dynamic Live Slider -->
+                                                <div class="blur-slider-card">
+                                                    <div class="blur-slider-header">
+                                                        <span class="blur-slider-title"><i class="fa-solid fa-sliders"></i> សារ៉េកម្រិត Blur ផ្ទាល់ (Live Dynamic Blur):</span>
+                                                        <span class="blur-slider-badge" id="blur-slider-badge">25px (មធ្យម)</span>
+                                                    </div>
+                                                    <div class="blur-slider-track-wrap">
+                                                        <span class="slider-side-txt">ស្រាល (5px)</span>
+                                                        <input type="range" id="input-blur-intensity" min="5" max="80" value="25" class="blur-range-slider" oninput="onBlurSliderChange(this.value, event)">
+                                                        <span class="slider-side-txt">ខ្លាំង (80px)</span>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Mask Shapes Grid (Filmstrip, Circle, Rectangle) Matching Reference Image -->
+                                                <div class="mask-shapes-container">
+                                                    <!-- Filmstrip -->
+                                                    <div class="mask-shape-item" id="shape-opt-filmstrip" onclick="selectBlurShape('filmstrip', event)" title="Filmstrip (បិទបាំងបែបបន្ទះខ្សែភាពយន្ត)">
+                                                        <div class="mask-shape-card">
+                                                            <svg class="mask-shape-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                <rect x="4.5" y="6" width="31" height="28" rx="3" stroke="currentColor" stroke-width="2" fill="none" />
+                                                                <line x1="4.5" y1="13.5" x2="35.5" y2="13.5" stroke="currentColor" stroke-width="2" />
+                                                                <line x1="4.5" y1="26.5" x2="35.5" y2="26.5" stroke="currentColor" stroke-width="2" />
+                                                            </svg>
+                                                            <div class="mask-shape-badge">
+                                                                <i class="fa-solid fa-rotate-right"></i>
+                                                            </div>
+                                                        </div>
+                                                        <span class="mask-shape-label">Filmstrip</span>
+                                                    </div>
+
+                                                    <!-- Circle -->
+                                                    <div class="mask-shape-item" id="shape-opt-circle" onclick="selectBlurShape('circle', event)" title="Circle (បិទបាំងរាងរង្វង់មូល)">
+                                                        <div class="mask-shape-card">
+                                                            <svg class="mask-shape-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                <rect x="5" y="5" width="30" height="30" rx="3" stroke="currentColor" stroke-width="2" fill="none" />
+                                                                <circle cx="20" cy="20" r="9.5" stroke="currentColor" stroke-width="2" fill="none" />
+                                                            </svg>
+                                                            <div class="mask-shape-badge">
+                                                                <i class="fa-solid fa-rotate-right"></i>
+                                                            </div>
+                                                        </div>
+                                                        <span class="mask-shape-label">Circle</span>
+                                                    </div>
+
+                                                    <!-- Rectangle (Active / Selected Default) -->
+                                                    <div class="mask-shape-item active" id="shape-opt-rectangle" onclick="selectBlurShape('rectangle', event)" title="Rectangle (បិទបាំងរាងចតុកោណកែង)">
+                                                        <div class="mask-shape-card">
+                                                            <svg class="mask-shape-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                <rect x="5" y="5" width="30" height="30" rx="3" stroke="currentColor" stroke-width="2" fill="none" />
+                                                                <rect x="10.5" y="11.5" width="19" height="17" rx="1.5" stroke="currentColor" stroke-width="2" fill="none" />
+                                                            </svg>
+                                                            <div class="mask-shape-badge">
+                                                                <i class="fa-solid fa-rotate-right"></i>
+                                                            </div>
+                                                        </div>
+                                                        <span class="mask-shape-label">Rectangle</span>
+                                                    </div>
+                                                </div>
+
+                                                <div class="blur-opt-divider"></div>
+
+                                                <!-- Position, Zoom, and Remove Controls Tray -->
+                                                <div class="blur-quick-action-tray">
+                                                    <div class="blur-tray-group">
+                                                        <span class="tray-label">ទីតាំង:</span>
+                                                        <button type="button" class="blur-tray-pill-btn active" id="btn-blur-pos-tr" onclick="setOverlayPosition('blur', 'top-right', event)">TR ស្តាំលើ</button>
+                                                        <button type="button" class="blur-tray-pill-btn" id="btn-blur-pos-tl" onclick="setOverlayPosition('blur', 'top-left', event)">TL ឆ្វេងលើ</button>
+                                                        <button type="button" class="blur-tray-pill-btn" id="btn-blur-pos-bc" onclick="setOverlayPosition('blur', 'bottom-center', event)">BC ក្រោម</button>
+                                                    </div>
+                                                    <div class="blur-tray-group">
+                                                        <span class="tray-label">ទំហំ:</span>
+                                                        <button type="button" class="blur-tray-zoom-btn" onclick="adjustOverlaySize('blur', -0.15, event)" title="បង្រួម"><i class="fa-solid fa-minus"></i></button>
+                                                        <span class="blur-tray-size-val" id="blur-tray-size-val">100%</span>
+                                                        <button type="button" class="blur-tray-zoom-btn" onclick="adjustOverlaySize('blur', 0.15, event)" title="ពង្រីក"><i class="fa-solid fa-plus"></i></button>
+                                                    </div>
+                                                    <button type="button" class="blur-tray-remove-btn" onclick="toggleBlurMaskTool(event, false)" title="បិទ Blur Mask">
+                                                        <i class="fa-solid fa-trash-can"></i> ដក Blur
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Quick Export Action Trigger (Pinned to Bottom) -->
+                                <div class="staged-action-cta-row">
+                                    <div class="staged-cta-hint">
+                                        <i class="fa-solid fa-circle-check" style="color:#22c55e;"></i>
+                                        <span>វីដេអូត្រៀមរួចរាល់ សូមចុច <strong>Export ឥឡូវនេះ</strong> ដើម្បីចាប់ផ្តើមបកប្រែវីដេអូ</span>
+                                    </div>
+                                    <button type="button" class="staged-main-export-btn" id="btn-staged-export-direct" onclick="startStudioExportJob()" title="Start Dubbing & Export Video">
+                                        <i class="fa-solid fa-bolt"></i>
+                                        <span>Export ឥឡូវនេះ (Start Export)</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="clean-view-switch-tray" style="display: none !important;">
+                                <button type="button" class="clean-tray-pill-btn" onclick="toggleSetupPresetsView()" title="Workflow Presets & Quick Setup" style="display: none !important;">
+                                    <i class="fa-solid fa-sliders"></i> Presets
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- STATE 1: Studio Project Setup & Preset Cards (Hidden by default, toggleable) -->
+                        <div class="studio-preset-setup-view" id="studio-preset-setup-view" style="display: none;">
+                            <div class="preset-cards-hero">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <div class="preset-hero-title">Studio Project Setup & Presets</div>
+                                    <button class="clean-tray-pill-btn" onclick="showCleanSourceView()" style="font-size:0.68rem;">← Back to Clean View</button>
+                                </div>
+                                <div class="preset-hero-sub">Select a dubbing workflow preset or import media files to initialize Dialogue Grid</div>
+                            </div>
+
+                            <div class="studio-preset-cards-grid">
+                                <!-- Card 1: Drama Dubbing Mode (16:9 / 9:16) -->
+                                <div class="studio-preset-card active" id="card-preset-drama" onclick="selectStudioPreset('drama')">
+                                    <div class="preset-card-icon-wrap">
+                                        <i class="fa-solid fa-clapperboard"></i>
+                                    </div>
+                                    <div class="preset-card-body">
+                                        <div class="preset-card-title">Drama Dubbing Mode</div>
+                                        <div class="preset-card-subtitle">(16:9 / 9:16)</div>
+                                        <div class="preset-card-desc">Dual aspect ratio video dubbing, frame-accurate timeline re-framing and lip-sync alignment.</div>
+                                    </div>
+                                    <div class="preset-card-footer">
+                                        <span class="preset-tag active-tag">Active Preset</span>
+                                        <span class="preset-select-arrow"><i class="fa-solid fa-arrow-right"></i></span>
+                                    </div>
+                                </div>
+
+                                <!-- Card 2: Voiceover Narration (Piseth / Sreymom Audio) -->
+                                <div class="studio-preset-card" id="card-preset-narration" onclick="selectStudioPreset('narration')">
+                                    <div class="preset-card-icon-wrap">
+                                        <i class="fa-solid fa-microphone-lines"></i>
+                                    </div>
+                                    <div class="preset-card-body">
+                                        <div class="preset-card-title">Voiceover &amp; Narration</div>
+                                        <div class="preset-card-subtitle">(Piseth / Sreymom Audio)</div>
+                                        <div class="preset-card-desc">Expressive cinematic dual-speaker narration with natural Khmer tone modulation and clarity.</div>
+                                    </div>
+                                    <div class="preset-card-footer">
+                                        <span class="preset-tag">Select Preset</span>
+                                        <span class="preset-select-arrow"><i class="fa-solid fa-arrow-right"></i></span>
+                                    </div>
+                                </div>
+
+                                <!-- Card 3: Subtitle Extraction & Khmer Sync -->
+                                <div class="studio-preset-card" id="card-preset-subtitle" onclick="selectStudioPreset('subtitle')">
+                                    <div class="preset-card-icon-wrap">
+                                        <i class="fa-solid fa-closed-captioning"></i>
+                                    </div>
+                                    <div class="preset-card-body">
+                                        <div class="preset-card-title">Speech-to-Text &amp; Khmer Sync</div>
+                                        <div class="preset-card-subtitle">(Speech Recognition &amp; Subtitle Sync)</div>
+                                        <div class="preset-card-desc">High-precision acoustic speech recognition, automatic timestamp extraction and Khmer subtitle sync.</div>
+                                    </div>
+                                    <div class="preset-card-footer">
+                                        <span class="preset-tag">Select Preset</span>
+                                        <span class="preset-select-arrow"><i class="fa-solid fa-arrow-right"></i></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Fast Import Dropzone Card -->
+                            <div class="studio-quick-import-dropzone" onclick="openImportModal()">
+                                <div class="quick-import-icon-wrap">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                                </div>
+                                <div class="quick-import-texts">
+                                    <span class="quick-import-heading">Click or Drag & Drop Episodes to Start</span>
+                                    <span class="quick-import-sub">Supports MP4, MKV, MOV, TS or full series folders. Automatically extracts audio & subtitle grid.</span>
+                                </div>
+                                <button type="button" class="quick-import-browse-btn">
+                                    <i class="fa-solid fa-folder-open"></i> Browse Files
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- STATE 2: Dialogue Grid & Waveform Player (Hidden for clean uncluttered layout) -->
+                        <div class="studio-dialogue-waveform-view" id="studio-dialogue-waveform-view" style="display:none !important;">
+                            <!-- Waveform Player Header -->
+                            <div class="studio-waveform-player-card">
+                                <div class="waveform-player-top">
+                                    <div class="waveform-track-info">
+                                        <span class="waveform-badge-live"><i class="fa-solid fa-circle-dot"></i> MASTER AUDIO</span>
+                                        <span class="waveform-filename" id="waveform-track-name">EP01_Master_Khmer_Dub.wav</span>
+                                        <span class="waveform-spec">48kHz • 24-bit • Stereo</span>
+                                    </div>
+                                    <div class="waveform-controls-group">
+                                        <button class="waveform-control-btn" onclick="togglePlayPreview()"><i class="fa-solid fa-play" id="waveform-play-icon"></i> Play</button>
+                                        <button class="waveform-control-btn" onclick="seekRelative(-5)"><i class="fa-solid fa-backward-step"></i> -5s</button>
+                                        <button class="waveform-control-btn" onclick="seekRelative(5)"><i class="fa-solid fa-forward-step"></i> +5s</button>
+                                        <span class="waveform-time-display" id="waveform-time-display">00:00:00.000 / 00:01:54.000</span>
+                                    </div>
+                                </div>
+                                <!-- Waveform Visualizer Canvas / Bars -->
+                                <div class="waveform-visualizer-track" id="waveform-visualizer-track" onclick="handleWaveformClick(event)">
+                                    <div class="waveform-wave-bars-container" id="waveform-bars"></div>
+                                    <div class="waveform-playhead-line" id="waveform-playhead" style="left: 0%;"></div>
+                                </div>
+                            </div>
+
+                            <!-- Dialogue Grid Table -->
+                            <div class="dialogue-grid-table-container">
+                                <table class="dialogue-grid-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 45px;">#</th>
+                                            <th style="width: 145px;">Timecode (In - Out)</th>
+                                            <th style="width: 130px;">Speaker Voice</th>
+                                            <th style="width: 250px;">Original Script</th>
+                                            <th>Khmer Dubbing & Subtitle Sync</th>
+                                            <th style="width: 100px; text-align: center;">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dialogue-grid-rows"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Box: Studio Engine & Render Monitor (Standby / Ready State) -->
+                    <!-- Bottom Box: Studio Engine Live Terminal Output (Exact Match to User Image 2) -->
+                    <div class="studio-engine-monitor-box" id="studio-terminal-box">
+                        <div class="engine-monitor-top-bar">
+                            <div class="engine-monitor-title-group">
+                                <i class="fa-solid fa-wave-square" style="color:#facc15;"></i>
+                                <span class="engine-monitor-heading">Studio Processing &amp; Activity Console</span>
+                                <span class="engine-status-pill standby" id="monitor-engine-status-pill">
+                                    <span class="pulse-indicator standby" id="monitor-pulse-dot"></span> <span id="monitor-engine-status-text">STANDBY</span>
+                                </span>
+                            </div>
+                            <div class="terminal-top-right-group">
+                                <div class="terminal-progress-badge-wrap">
+                                    <span class="terminal-prog-lbl">Progress:</span>
+                                    <span class="terminal-prog-val" id="monitor-export-percent">0%</span>
+                                </div>
+                                <button type="button" class="terminal-clear-action-btn" onclick="clearLiveTerminal()" title="Clear Live Output">
+                                    <i class="fa-solid fa-trash-can"></i> Clear
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Live Console Terminal Screen (Exact Match to User Image 2) -->
+                        <div class="studio-live-terminal-stream" id="studio-live-terminal-stream">
+                            <div class="term-stream-row term-init">
+                                <span class="term-ts">[Ready]</span>
+                                <span class="term-tag">[SN Studio]</span>
+                                <span class="term-msg">System initialized and ready. Import a video and click <strong style="color:#facc15;">Export</strong> to start dubbing.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================================================================
+                 VIEW 2: DOWNLOADER STUDIO (`DL` Tab)
+                 ================================================================ -->
+            <div class="dl-workspace-root" id="view-downloader-workspace" style="display:none;">
+                <!-- 1. CATALOG 3-COLUMN MODE -->
+                <div class="dl-studio-3col-layout" id="dl-catalog-view-wrapper">
+                    <!-- LEFT COLUMN: Platforms List & Save Location -->
+                    <div class="dl-col-left" id="dl-col-platforms">
+                    <div class="dl-section-header-title">PLATFORMS</div>
+                    <div class="dl-platforms-scroll-list" id="dl-platforms-list">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+
+                    <!-- Save Location Section (Clean Modern Style matching Image 2, Cyber-Gold Theme) -->
+                    <div class="dl-save-location-box">
+                        <div class="dl-clean-save-title">SAVE LOCATION</div>
+
+                        <!-- Path Input & Folder Picker Button -->
+                        <div class="dl-clean-path-row">
+                            <input type="text" id="dl-save-path-input" value="D:/SN_Dramas" spellcheck="false" placeholder="Select save folder..." title="Click folder icon to change directory or paste path">
+                            <button type="button" class="dl-clean-folder-btn" onclick="browseSaveLocation()" title="Select folder on Laptop">
+                                <i class="fa-solid fa-folder"></i>
+                            </button>
+                        </div>
+
+                        <!-- Save drama poster Checkbox -->
+                        <label class="dl-clean-checkbox-row" for="dl-save-poster-check">
+                            <input type="checkbox" id="dl-save-poster-check" checked>
+                            <span class="dl-custom-checkbox"><i class="fa-solid fa-check"></i></span>
+                            <span class="dl-checkbox-text">Save drama poster</span>
+                        </label>
+
+                        <!-- Download Action Buttons Stack -->
+                        <div class="dl-clean-action-stack">
+                            <button type="button" class="dl-clean-btn-start dl-big-btn-yellow" id="btn-dl-start-batch" onclick="startBatchDownload()">
+                                <i class="fa-solid fa-play"></i>
+                                <span>Download selected</span>
+                            </button>
+                            <button type="button" class="dl-clean-btn-stop dl-btn-dark-outline" id="btn-dl-stop-batch" onclick="stopBatchDownload()">
+                                <i class="fa-solid fa-square"></i>
+                                <span>Stop download</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CENTER COLUMN: Analyzer & Drama Cards Grid -->
+                <div class="dl-col-center" id="dl-col-catalog">
+                    <div class="dl-center-top-analyzer">
+                        <div class="dl-analyzer-header-row">
+                            <span class="dl-analyzer-heading-text">PASTE A DRAMA OR MEDIA LINK</span>
+                            <div class="dl-mode-toggle-group">
+                                <button class="dl-mode-tab-btn active" id="btn-mode-catalog" onclick="switchDlViewMode('catalog')">Catalog</button>
+                                <button class="dl-mode-tab-btn" id="btn-mode-queue" onclick="switchDlViewMode('queue')">Queue</button>
+                            </div>
+                        </div>
+                        <div class="dl-input-analyze-row">
+                            <input type="text" class="dl-link-input-box" id="dl-link-url-input" placeholder="Paste online link (Douyin, TikTok, YouTube...) or search 49,509 dramas..." onkeydown="handleDlLinkKey(event)">
+                            <button class="dl-btn-analyze-yellow" onclick="analyzeEnteredLink()">
+                                <i class="fa-solid fa-magnifying-glass"></i> Analyze
+                            </button>
+                            <button type="button" class="dl-btn-import-folder" onclick="importLocalDramaFolder()" title="នាំចូល Folder រឿងភាគដែលបានទាញយក (Select Folder of Downloaded Short Drama Episodes)">
+                                <i class="fa-solid fa-folder-open"></i> <span>នាំចូល Folder រឿង</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="dl-catalog-top-header-row">
+                        <div class="dl-catalog-count-badge" id="dl-catalog-count-label">
+                            <span class="dl-clapper-emoji">🎬</span> Top 100 on 红果 right now (49,509)
+                        </div>
+                        <div class="dl-header-actions-right" style="display:flex; align-items:center; gap:8px;">
+                            <span class="dl-header-tip-text">Tip: click any poster to preview and open episode player</span>
+                            <button type="button" class="dl-catalog-refresh-btn" id="btn-dl-refresh-catalog" onclick="refreshDramaCatalog()" title="Refresh Catalog">
+                                <i class="fa-solid fa-arrows-rotate"></i> Refresh
+                            </button>
+                            <button type="button" class="dl-toggle-ep-panel-btn" id="btn-toggle-ep-panel" onclick="toggleEpisodesPanel()" title="Toggle Episodes & Drama Details Panel">
+                                <i class="fa-solid fa-list-ul"></i> Episodes
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Category Pills Navigation (ប្រភេទទិន្នន័យ / Categories) -->
+                    <div class="dl-catalog-filter-tags-scroll" id="dl-category-chips-bar">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+
+                    <!-- Drama Cards Grid (3 Columns) -->
+                    <div class="dl-drama-cards-grid" id="dl-drama-cards-container">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+                </div>
+
+                <!-- RIGHT COLUMN: Drama Info, Episodes & Activity Log -->
+                <div class="dl-col-right" id="dl-col-details">
+                    <!-- Drama Info -->
+                    <div class="dl-drama-info-container">
+                        <div class="dl-section-header-title">DRAMA INFO</div>
+                        <div class="dl-info-main-content">
+                            <div class="dl-info-poster-box">
+                                <img id="dl-info-poster-img" src="posters/poster_yan_lu.jpg" alt="Drama Poster" style="width:100%; height:100%; object-fit:cover; border-radius:6px;">
+                            </div>
+                            <div class="dl-info-text-col">
+                                <div class="dl-info-title-main" id="dl-info-title-text">No drama loaded</div>
+                                <div class="dl-info-platform-tag" id="dl-info-platform-badge">HONGGUO</div>
+                                <div class="dl-info-stats-row" id="dl-info-stats-text">Episodes 0 • Locked 0 • Selected 0</div>
+                            </div>
+                        </div>
+                        <button class="dl-btn-preview-wide" onclick="previewLoadedDrama()">Preview Video</button>
+                        <button class="dl-btn-preview-wide dl-catalog-dl-all-btn" id="btn-dl-catalog-all" onclick="downloadCurrentDramaFullSeries()">
+                            <i class="fa-solid fa-bolt-lightning" style="font-size:1.15rem; color:#facc15;"></i>
+                            <span id="dl-catalog-dl-all-text">⚡ ទាញយកល្បឿនលឿន & រឿងពេញ ១០០% (Turbo Full Series)</span>
+                        </button>
+                        <!-- Dedicated Folder Destination & Explorer Manager -->
+                        <div class="dl-folder-manager-box">
+                            <div class="dl-fmb-header">
+                                <div class="dl-fmb-title">
+                                    <i class="fa-solid fa-folder-tree"></i>
+                                    <span>ទីតាំងទុកក្នុងកុំព្យូទ័រ</span>
+                                </div>
+                                <button type="button" class="dl-fmb-browse-btn" onclick="selectCustomDownloadFolder()" title="ជ្រើសរើស Folder ថ្មីនៅលើកុំព្យូទ័រ (Browse Folder)">
+                                    <i class="fa-solid fa-folder-open"></i>
+                                    <span>ប្តូរ Folder</span>
+                                </button>
+                            </div>
+                            <div class="dl-fmb-path-bar" onclick="selectCustomDownloadFolder()" title="ចុចទីនេះដើម្បីជ្រើសរើសទីតាំង Folder លើកុំព្យូទ័រ">
+                                <i class="fa-solid fa-hard-drive dl-fmb-drive-icon"></i>
+                                <span class="dl-fmb-path-text" id="dl-catalog-save-folder-path">D:\SN_Dramas\东北话事人\</span>
+                                <span class="dl-fmb-edit-badge"><i class="fa-solid fa-pen"></i> រើស</span>
+                            </div>
+                            <button type="button" class="dl-fmb-open-btn" onclick="openCurrentDramaFolder()" title="បើកមើល Folder រឿងក្នុងកុំព្យូទ័រ (Open in File Explorer)">
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                <span>បើកមើល Folder រឿងក្នុងកុំព្យូទ័រ</span>
+                            </button>
+                        </div>
+                        <div class="dl-info-synopsis-snippet" id="dl-info-desc-text">
+                            Paste a supported URL to inspect its episode catalog and prepare the download queue.
+                        </div>
+                    </div>
+
+                    <!-- Episodes Section -->
+                    <div class="dl-episodes-section">
+                        <div class="dl-episodes-header-row">
+                            <span class="dl-section-header-title" style="margin-bottom:0;">EPISODES</span>
+                            <span class="dl-ep-range-pill" id="dl-episodes-range-tag">EP 0-0</span>
+                        </div>
+                        <div class="dl-episodes-scroll-list" id="dl-episodes-list-box">
+                            <!-- Populated dynamically via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Activity Log Section -->
+                    <div class="dl-activity-log-section">
+                        <div class="dl-episodes-header-row">
+                            <span class="dl-section-header-title" style="margin-bottom:0;">ACTIVITY LOG</span>
+                            <button style="background:transparent; border:none; font-size:0.65rem; color:#facc15; cursor:pointer;" onclick="clearDownloaderLog()">Clear</button>
+                        </div>
+                        <div class="dl-activity-terminal-box" id="dl-activity-terminal-box"></div>
+                    </div>
+                </div>
+            </div> <!-- END 1. CATALOG 3-COL MODE (#dl-catalog-view-wrapper) -->
+
+            <!-- ================================================================
+                 2. DEDICATED QUEUE & 9:16 EPISODE PLAYER WORKSPACE (Exact Match to Image 2, Cyber-Gold Theme)
+                 ================================================================ -->
+            <div class="dl-queue-view-container" id="dl-queue-player-view" style="display:none;">
+                <!-- 1. TOP HEADER BAR: Metadata + Link Analyze/Import + Mode & Close -->
+                <div class="dl-theater-topbar">
+                    <div class="dl-theater-meta-left">
+                        <span class="dl-q2-platform-badge" id="dl-q-platform-badge">HONGGUO</span>
+                        <div class="dl-theater-drama-name" id="dl-q-now-title">EP01 - រឿងភាគ</div>
+                        <span class="dl-theater-ep-pill" id="dl-q-now-ep-indicator">EPISODE 1 / 80</span>
+                    </div>
+
+                    <div class="dl-theater-search-center">
+                        <div class="dl-q2-input-wrap">
+                            <input type="text" class="dl-q2-input-field" id="dl-qview-url-input" placeholder="Paste link (Douyin, TikTok, YouTube, Hongguo...) or search..." onkeydown="handleDlLinkKey(event)">
+                            <button type="button" class="dl-q2-clear-icon" onclick="clearDlUrlInput()" title="Clear link">✕</button>
+                        </div>
+                        <button type="button" class="dl-q2-btn-analyze" onclick="analyzeEnteredLink()" title="Analyze link">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <span>Analyze</span>
+                        </button>
+                        <button type="button" class="dl-btn-import-folder" onclick="importLocalDramaFolder()" title="នាំចូល Folder រឿងភាគដែលបានទាញយក">
+                            <i class="fa-solid fa-folder-open"></i>
+                            <span>នាំចូល Folder</span>
+                        </button>
+                    </div>
+
+                    <div class="dl-theater-actions-right">
+                        <div class="dl-q2-tab-toggles">
+                            <button type="button" class="dl-q2-tab-pill" id="btn-qview-catalog" onclick="switchDlViewMode('catalog')">Catalog</button>
+                            <button type="button" class="dl-q2-tab-pill active" id="btn-qview-queue" onclick="switchDlViewMode('queue')">Player</button>
+                        </div>
+                        <button type="button" class="dl-q2-close-btn" onclick="switchDlViewMode('catalog')" title="Close preview (Esc)">✕</button>
+                    </div>
+                </div>
+
+                <!-- 2. MAIN WORKSPACE: 3-Column Cinema Studio (Left: Video Stage | Center: Action Console | Right: Episode Hub) -->
+                <div class="dl-theater-main-grid">
+                    <!-- COLUMN 1: Large 9:16 Vertical Video Stage & Controls -->
+                    <div class="dl-theater-stage-card">
+                        <!-- 9:16 Vertical Video Screen -->
+                        <div class="dl-theater-screen-wrapper">
+                            <div class="dl-theater-screen" id="dl-q-monitor-screen" onclick="toggleQueuePlay()">
+                                <video id="dl-q-video-elem" playsinline preload="metadata" ontimeupdate="onQueueVideoTimeUpdate()" onended="onQueueVideoEnded()"></video>
+                                <div class="dl-q2-video-subtitles" id="dl-q-video-subtitles" style="display:none;"></div>
+                                <div class="dl-q2-center-play-glow" id="dl-q-center-play">
+                                    <i class="fa-solid fa-play"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Integrated Sleek Playback Controller -->
+                        <div class="dl-theater-controls-panel">
+                            <!-- Timecode & Scrubber -->
+                            <div class="dl-theater-scrubber-row">
+                                <span class="dl-theater-timecode" id="dl-q-timecode">00:00 / 00:00</span>
+                                <div class="dl-theater-slider-wrap">
+                                    <input type="range" class="dl-q2-range" id="dl-q-seek-slider" min="0" max="100" value="0" step="0.1" oninput="handleQueueScrubber(this.value)">
+                                </div>
+                            </div>
+
+                            <!-- Play / Nav / Action Buttons Row -->
+                            <div class="dl-theater-playback-btns">
+                                <button type="button" class="dl-ctrl-btn" onclick="queuePrevEpisode()" title="Previous Episode">
+                                    <i class="fa-solid fa-backward-step"></i> <span>Prev</span>
+                                </button>
+                                <button type="button" class="dl-ctrl-play-btn" id="dl-q-play-pause-btn" onclick="toggleQueuePlay()">
+                                    <i class="fa-solid fa-play" id="dl-q-play-icon"></i>
+                                    <span id="dl-q-play-text">Play</span>
+                                </button>
+                                <button type="button" class="dl-ctrl-btn" onclick="queueNextEpisode()" title="Next Episode">
+                                    <span>Next</span> <i class="fa-solid fa-forward-step"></i>
+                                </button>
+                                <button type="button" class="dl-ctrl-btn" onclick="queueStopVideo()" title="Stop">
+                                    <i class="fa-solid fa-stop"></i>
+                                </button>
+                                <button type="button" class="dl-ctrl-btn" id="dl-q-mute-btn" onclick="queueToggleMute()" title="Mute/Unmute">
+                                    <i class="fa-solid fa-volume-high" id="dl-q-mute-icon"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Keyboard Shortcuts Hint -->
+                        <div class="dl-theater-shortcuts">
+                            <span><kbd>Space</kbd> Play/Pause</span>
+                            <span><kbd>Esc</kbd> Close</span>
+                            <span><kbd>←</kbd> / <kbd>→</kbd> Prev/Next</span>
+                        </div>
+                    </div>
+
+                    <!-- COLUMN 2: AI COMMAND CENTER & ACTIONS CONSOLE (High-Tech AI Studio) -->
+                    <div class="dl-theater-actions-card">
+                        <!-- AI Drama Header Banner with Poster & Chips -->
+                        <div class="dl-ai-drama-header">
+                            <div class="dl-ai-poster-box">
+                                <img id="dl-center-poster-img" src="posters/poster_sample_ceo.jpg" alt="Poster" class="dl-ai-poster-thumb">
+                                <span class="dl-ai-poster-badge"><i class="fa-solid fa-sparkles"></i> AI PRO</span>
+                            </div>
+                            <div class="dl-ai-meta-content">
+                                <div class="dl-dib-badge-row">
+                                    <span class="dl-dib-badge" id="dl-center-platform-badge">HONGGUO AI PIPELINE</span>
+                                    <span class="dl-dib-count" id="dl-center-ep-count">80 Episodes</span>
+                                    <span class="dl-ai-chip-pill"><i class="fa-solid fa-microchip"></i> AI Studio</span>
+                                </div>
+                                <h3 class="dl-dib-title" id="dl-center-drama-title">EP01 - រឿងភាគ</h3>
+                                <p class="dl-dib-desc">ទាញយកគ្រប់ភាគ 1080p, ផ្គុំជារឿងពេញ ឬបញ្ចូលសំឡេងខ្មែរ AI ស្វ័យប្រវត្តិ។</p>
+                            </div>
+                        </div>
+
+                        <!-- Primary Hero: Turbo Download All Episodes -->
+                        <button type="button" class="dl-hero-dl-btn" id="btn-q-download-all" onclick="downloadAllQueueEpisodes()">
+                            <i class="fa-solid fa-bolt-lightning"></i>
+                            <span id="dl-q-download-all-text">⚡ ទាញយកគ្រប់ភាគទាំងអស់ (Download All EP 1 - 80)</span>
+                        </button>
+
+                        <!-- Secondary Quick Action Grid (3 Balanced Utility Buttons) -->
+                        <div class="dl-theater-action-row dl-ai-action-grid">
+                            <button type="button" class="dl-action-pill" id="btn-q-download-current" onclick="downloadCurrentQueueEpisode()">
+                                <i class="fa-solid fa-download"></i>
+                                <span id="dl-q-download-btn-text">Download Current EP</span>
+                            </button>
+                            <button type="button" class="dl-action-pill dl-pill-poster" id="btn-q-download-poster" onclick="downloadCurrentDramaPoster()" title="ទាញយករូបភាព Poster កម្រិត HD ច្បាស់ (Download HD Poster)">
+                                <i class="fa-solid fa-image"></i>
+                                <span>🖼️ ទាញយក Poster</span>
+                            </button>
+                            <button type="button" class="dl-action-pill dl-pill-merge" id="btn-q-merge-full" onclick="mergeCurrentDramaFullMovie()" title="ផ្គុំគ្រប់ភាគទាំងអស់ចេញជាវីដេអូរឿងពេញ ១០៨០p តែមួយ (Merge Full Movie)">
+                                <i class="fa-solid fa-film"></i>
+                                <span>🎬 ផ្គុំរឿងពេញ (Full Movie)</span>
+                            </button>
+                        </div>
+
+                        <!-- Streamlined Executive Save Folder Bar (Single Clean Row) -->
+                        <div class="dl-ai-folder-bar">
+                            <div class="dl-afb-icon"><i class="fa-solid fa-folder-tree"></i></div>
+                            <div class="dl-afb-info">
+                                <span class="dl-afb-label">ទីតាំង Folder កុំព្យូទ័រ:</span>
+                                <span class="dl-afb-path" id="dl-q2-save-folder-path" onclick="selectCustomDownloadFolder()" title="ចុចដើម្បីជ្រើសរើស Folder">D:\SN_Dramas\东北话事人\</span>
+                            </div>
+                            <div class="dl-afb-actions">
+                                <button type="button" class="dl-afb-btn" onclick="selectCustomDownloadFolder()" title="ជ្រើសរើស Folder ថ្មី">
+                                    <i class="fa-solid fa-pen-to-square"></i> <span>ប្តូរ</span>
+                                </button>
+                                <button type="button" class="dl-afb-btn dl-afb-open" onclick="openCurrentDramaFolder()" title="បើកមើលក្នុង File Explorer">
+                                    <i class="fa-solid fa-arrow-up-right-from-square"></i> <span>បើកមើល</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Episode Grid Hub (Image 2) -->
+                        <div class="dl-episodes-hub-card dl-hub-in-center">
+                            <!-- Header Matching Image 2: Episodes (100 total) + Complete Episode List + Auto-Next -->
+                            <div class="dl-hub-header">
+                                <div class="dl-hub-title-block">
+                                    <h2 class="dl-hub-main-title" id="dl-hub-episodes-title">Episodes (80 total)</h2>
+                                    <span class="dl-hub-subtitle">Complete Episode List</span>
+                                </div>
+
+                                <!-- Auto-Next Toggle Switch matching Image 2 -->
+                                <div class="dl-hub-autonext-wrap">
+                                    <span class="dl-hub-autonext-label">Auto-Next</span>
+                                    <label class="dl-toggle-switch">
+                                        <input type="checkbox" id="dl-auto-next-toggle" checked onchange="toggleAutoNext(this.checked)">
+                                        <span class="dl-toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Filter Tabs / Range Bar matching Image 2 -->
+                            <div class="dl-hub-filter-bar" id="dl-hub-filter-pills-bar">
+                                <button type="button" class="dl-hub-pill active" id="dl-filter-pill-all" onclick="filterEpisodeRange('all')">
+                                    All (<span id="dl-hub-pill-total">80</span>)
+                                </button>
+                            </div>
+
+                            <!-- Episode Card Grid matching Image 2 -->
+                            <div class="dl-hub-grid" id="dl-episodes-grid-box">
+                                <!-- Populated dynamically via JS matching Image 2 -->
+                            </div>
+                        </div>
+
+                        <!-- Hidden Legacy Compatibility Elements -->
+                        <div style="display:none;">
+                            <select id="dl-q-select-dropdown"></select>
+                            <span id="dl-qstat-status-text"></span>
+                            <span id="dl-qstat-speed-text"></span>
+                            <button id="btn-q-send-all-to-studio"></button>
+                            <button id="btn-q-send-to-studio" onclick="sendCurrentQueueToStudio()"></button>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT COLUMN: Episode Download Queue Panel (Image 1) -->
+                    <div class="dl-queue-panel-card">
+                        <div class="dl-q2-queue-wrapper">
+                            <div class="dl-q2-queue-header">
+                                <div class="dl-q2-queue-title">
+                                    <span>Episode queue</span>
+                                    <span class="dl-q2-qh-count"><b id="dl-q-eps-count-bold">0</b> episodes loaded</span>
+                                </div>
+                                <button type="button" class="dl-q2-select-all-btn" id="btn-q-select-all" onclick="toggleSelectAllQueueEpisodes()">Select all</button>
+                            </div>
+                            <div class="dl-q2-table-frame">
+                                <div class="dl-q2-thead">
+                                    <div class="dl-q2-th-ep">EPISODE</div>
+                                    <div class="dl-q2-th-status">ACCESS / STATUS</div>
+                                    <div class="dl-q2-th-prog">PROGRESS</div>
+                                </div>
+                                <div class="dl-q2-tbody" id="dl-queue-tbody">
+                                    <!-- Populated dynamically via JS matching Image 1 -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div> <!-- END dl-queue-player-view -->
+        </div> <!-- END #view-downloader-workspace -->
+    </main>
+
+        <!-- ====================================================================
+             BOTTOM STATUS FOOTER
+             ==================================================================== -->
+        <!-- Footer 1: Translate Studio Footer (Exact Match to Image 1) -->
+        <footer class="studio-bottom-footer-bar" id="footer-studio-main">
+            <div>Status: Idle</div>
+            <div class="footer-progress-line-track">
+                <div class="footer-progress-fill" id="footer-studio-progress"></div>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span>0%</span>
+                <i class="fa-solid fa-arrows-rotate" style="cursor:pointer;" onclick="refreshAppTelemetry()"></i>
+            </div>
+        </footer>
+
+        <!-- Footer 2: Downloader Stats Footer (Exact Match to Image 2) -->
+        <footer class="dl-bottom-stats-bar" id="footer-dl-stats" style="display:none;">
+            <div class="dl-stats-group">
+                <div class="dl-stat-pill-item"><span class="dot-green">●</span> Completed <strong id="dl-stat-completed">0</strong></div>
+                <div class="dl-stat-pill-item"><span class="dot-red">●</span> Failed <strong id="dl-stat-failed">0</strong></div>
+                <div class="dl-stat-pill-item"><span class="dot-yellow">●</span> Locked <strong id="dl-stat-locked">0</strong></div>
+            </div>
+            <div class="dl-overall-progress-box">
+                <span class="dl-overall-text">Overall <strong id="dl-stat-overall-percent">0%</strong></span>
+            </div>
+        </footer>
+
+        <!-- Hidden Inputs for File/Folder Dialogs -->
+        <input type="file" id="batch-files-input" multiple accept="video/*,.mp4,.mkv,.mov,.avi,.webm,.flv,.ts,.m4v" style="display:none;" onchange="handleSelectedFiles(this.files); this.value=''">
+        <input type="file" id="batch-folder-input" webkitdirectory directory multiple style="display:none;" onchange="handleSelectedFiles(this.files); this.value=''">
+
+        <!-- ====================================================================
+             MODALS (Exact Match to Images 3, 4 & Power Tools)
+             ==================================================================== -->
+        <!-- MODAL 1: GENERAL SETTINGS (Exact Match to Image 3) -->
+        <div class="modal-backdrop-overlay" id="modal-settings">
+            <div class="modal-content-card">
+                <div class="modal-top-header">
+                    <div class="modal-title">
+                        <i class="fa-solid fa-gear" style="color:#94a3b8;"></i>
+                        <span>General Settings</span>
+                    </div>
+                    <button class="modal-close-icon-btn" onclick="closeModal('modal-settings')">✕</button>
+                </div>
+                <div class="modal-inner-body" id="settings-main-hub-view">
+                    <!-- Row 1: Studio Translation Engine (Engine & Keys) -->
+                    <div class="modal-nav-row-card" onclick="openAiProvidingModal()">
+                        <div class="modal-card-left-col">
+                            <div class="modal-icon-badge badge-engine">
+                                <i class="fa-solid fa-server" style="font-size:1rem; color:#facc15;"></i>
+                            </div>
+                            <div class="modal-card-titles">
+                                <div class="modal-card-title-main">Studio Engine &amp; API Keys</div>
+                                <div class="modal-card-desc-sub">Translation engine, audio stem models &amp; API keys</div>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right modal-chevron-arrow"></i>
+                    </div>
+
+                    <!-- Row 2: License -->
+                    <div class="modal-nav-row-card" onclick="openSettingsSubpage('license')">
+                        <div class="modal-card-left-col">
+                            <div class="modal-icon-badge badge-license">
+                                <i class="fa-solid fa-shield-halved"></i>
+                            </div>
+                            <div class="modal-card-titles">
+                                <div class="modal-card-title-main">License</div>
+                                <div class="modal-card-desc-sub">Activation status and device license</div>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right modal-chevron-arrow"></i>
+                    </div>
+
+                    <!-- Row 3: Story Settings -->
+                    <div class="modal-nav-row-card" onclick="openStorySettingsModal()">
+                        <div class="modal-card-left-col">
+                            <div class="modal-icon-badge badge-story">
+                                <i class="fa-solid fa-film"></i>
+                            </div>
+                            <div class="modal-card-titles">
+                                <div class="modal-card-title-main">Story Settings</div>
+                                <div class="modal-card-desc-sub">Single/Multi Khmer Voice, Whisper model & dubbing options</div>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right modal-chevron-arrow"></i>
+                    </div>
+                </div>
+
+                <!-- Subpage 1: Studio Translation Engine -->
+                <div class="modal-inner-body" id="settings-subpage-ai" style="display:none;">
+                    <button style="background:transparent; border:none; color:var(--gold-glow); font-size:0.75rem; cursor:pointer; align-self:flex-start; margin-bottom:4px;" onclick="backToSettingsHub()">← Back to General Settings</button>
+                    <label style="font-size:0.75rem; color:#cbd5e1;">Cloud Engine Token (Studio Translation Engine)</label>
+                    <input type="password" id="input-api-key" placeholder="Enter engine token (e.g. SN-ENGINE-KEY...)" style="background:#080603; border:1px solid var(--border-subtle); border-radius:5px; padding:6px 10px; font-size:0.75rem; color:#fff;">
+                    <button class="dl-big-btn-yellow" style="margin-top:6px;" onclick="saveApiKey()">Save Engine Token</button>
+                </div>
+
+                <!-- Subpage 2: License -->
+                <div class="modal-inner-body" id="settings-subpage-license" style="display:none;">
+                    <button style="background:transparent; border:none; color:var(--gold-glow); font-size:0.75rem; cursor:pointer; align-self:flex-start; margin-bottom:4px;" onclick="backToSettingsHub()">← Back to General Settings</button>
+                    
+                    <div style="background: rgba(250, 204, 21, 0.05); border: 1px solid rgba(250, 204, 21, 0.2); border-radius: 8px; padding: 12px; margin-top: 6px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-size: 0.75rem; color: #94a3b8;">License Status:</span>
+                            <span id="settings-lic-status-badge" style="background: rgba(34,197,94,0.15); border: 1px solid #22c55e; color: #4ade80; border-radius: 4px; padding: 2px 8px; font-size: 0.7rem; font-weight: bold;">ACTIVE</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-size: 0.75rem; color: #94a3b8;">Plan:</span>
+                            <strong id="settings-lic-plan-text" style="font-size: 0.75rem; color: #facc15;">VIP Lifetime</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-size: 0.75rem; color: #94a3b8;">Expires At:</span>
+                            <span id="settings-lic-expiry-text" style="font-size: 0.75rem; color: #e2e8f0; font-family: var(--font-mono);">LIFETIME</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 0.75rem; color: #94a3b8;">Device HWID:</span>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <code id="settings-hwid-text" style="color:var(--gold-glow); font-family:var(--font-mono); font-size:0.75rem;">FETCHING...</code>
+                                <button type="button" onclick="copyHwid('settings-hwid-text')" style="background: rgba(250,204,21,0.15); border: 1px solid rgba(250,204,21,0.3); color: #facc15; border-radius: 4px; padding: 2px 6px; font-size: 0.68rem; cursor: pointer;"><i class="fa-solid fa-copy"></i></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <label style="font-size:0.75rem; color:#cbd5e1; margin-top:12px; display:block;"><i class="fa-solid fa-key" style="color:#facc15; margin-right:4px;"></i> Enter / Renew VIP License Key</label>
+                    <input type="text" id="input-license-key" placeholder="SN-VIP-XXXX-XXXX-XXXX-XXXX" style="background:#080603; border:1px solid var(--border-subtle); border-radius:5px; padding:8px 10px; font-size:0.75rem; color:#fff; font-family:var(--font-mono); text-transform:uppercase;">
+                    <button class="dl-big-btn-yellow" style="margin-top:8px;" onclick="confirmActivateLicense()"><i class="fa-solid fa-shield-halved"></i> Update / Activate License</button>
+                </div>
+
+                <!-- Subpage 3: Story -->
+                <div class="modal-inner-body" id="settings-subpage-story" style="display:none;">
+                    <button style="background:transparent; border:none; color:var(--gold-glow); font-size:0.75rem; cursor:pointer; align-self:flex-start; margin-bottom:4px;" onclick="backToSettingsHub()">← Back to General Settings</button>
+                    <label style="font-size:0.75rem; color:#cbd5e1;">Default Khmer Neural Voice</label>
+                    <select style="background:#080603; border:1px solid var(--border-subtle); border-radius:5px; padding:6px 10px; font-size:0.75rem; color:#fff;">
+                        <option selected>Piseth Solo (Male Drama Narration)</option>
+                        <option>Sreymom Solo (Female Drama Narration)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====================================================================
+             MODAL: STORY SETTINGS (Exact Match to User Attached Image)
+             Theme: Obsidian Gold & Warm Amber (Matching SN Tool Theme)
+             ==================================================================== -->
+        <div class="modal-backdrop-overlay" id="modal-story-settings">
+            <div class="modal-content-card modal-ai-providing-card">
+                <!-- Top Header Bar -->
+                <div class="modal-top-header">
+                    <div class="modal-title">
+                        <i class="fa-solid fa-clapperboard" style="color:var(--gold-glow); font-size:1.05rem;"></i>
+                        <span class="ai-header-title-text" style="margin-left:4px;">Story settings</span>
+                    </div>
+                    <button class="modal-close-icon-btn" onclick="closeModal('modal-story-settings')">✕</button>
+                </div>
+
+                <!-- 2-Column Body -->
+                <div class="ai-providing-body">
+                    <!-- Left Sidebar Navigation -->
+                    <aside class="ai-providing-sidebar">
+                        <button type="button" class="ai-sidebar-tab active" id="story-tab-btn-voice" onclick="switchStoryTab('voice')">
+                            <i class="fa-solid fa-microphone-lines ai-tab-icon-fa" style="color:var(--gold-glow);"></i>
+                            <span class="ai-tab-label">Voice &amp; Language</span>
+                        </button>
+                        <button type="button" class="ai-sidebar-tab" id="story-tab-btn-video" onclick="switchStoryTab('video')">
+                            <i class="fa-solid fa-film ai-tab-icon-fa" style="color:var(--gold-glow);"></i>
+                            <span class="ai-tab-label">Video &amp; Framing</span>
+                        </button>
+                        <button type="button" class="ai-sidebar-tab" id="story-tab-btn-audio" onclick="switchStoryTab('audio')">
+                            <i class="fa-solid fa-sliders ai-tab-icon-fa" style="color:var(--gold-glow);"></i>
+                            <span class="ai-tab-label">Audio &amp; Ducking</span>
+                        </button>
+                        <button type="button" class="ai-sidebar-tab" id="story-tab-btn-vocal" style="display:none;" onclick="switchStoryTab('vocal')">
+                            <i class="fa-solid fa-layer-group ai-tab-icon-fa" style="color:var(--gold-glow);"></i>
+                            <span class="ai-tab-label">Vocal Separation</span>
+                        </button>
+                        <button type="button" class="ai-sidebar-tab" id="story-tab-btn-export" style="display:none;" onclick="switchStoryTab('export')">
+                            <i class="fa-solid fa-folder-open ai-tab-icon-fa" style="color:var(--gold-glow);"></i>
+                            <span class="ai-tab-label">Export &amp; Output</span>
+                        </button>
+                        <button type="button" class="ai-sidebar-tab" id="story-tab-btn-dictionary" style="display:none;" onclick="switchStoryTab('dictionary')">
+                            <i class="fa-solid fa-book-bookmark ai-tab-icon-fa" style="color:var(--gold-glow);"></i>
+                            <span class="ai-tab-label">Drama Terminology</span>
+                        </button>
+                    </aside>
+
+                    <!-- Right Main Content Area -->
+                    <section class="ai-providing-main">
+                        <!-- TAB 1: Voice & Language -->
+                        <div class="ai-tab-view" id="story-view-voice">
+                            <div class="ai-view-header">
+                                <h2 class="ai-view-title">Voice &amp; Language</h2>
+                                <p class="ai-view-subtitle">Dubbing vocal track and whisper transcription model</p>
+                            </div>
+
+                            <div class="ai-card-frame">
+                                <div class="ai-field-group">
+                                    <label class="ai-field-label">KHMER VOICE (ជ្រើសរើសសំឡេងបកប្រែ)</label>
+                                    <select id="story-voice-select" class="ai-gold-select" onchange="onStoryVoiceChange()">
+                                        <option value="piseth" selected>Piseth (ប្រុសទោល / Male Solo)</option>
+                                        <option value="sreymom">Sreymom (ស្រីទោល / Female Solo)</option>
+                                    </select>
+                                    <p id="story-voice-hint" class="ai-field-hint" style="margin-top:6px; margin-bottom:14px; color: var(--gold-glow); font-size: 0.82rem; line-height:1.45;"></p>
+                                </div>
+
+                                <div class="ai-field-group" style="margin-bottom:14px;">
+                                    <label class="ai-field-label">SOURCE LANGUAGE</label>
+                                    <select id="story-source-lang" class="ai-gold-select">
+                                        <option value="auto" selected>Auto Detect</option>
+                                        <option value="zh">Chinese (Mandarin - zh)</option>
+                                        <option value="ko">Korean (ko)</option>
+                                        <option value="en">English (en)</option>
+                                        <option value="th">Thai (th)</option>
+                                        <option value="ja">Japanese (ja)</option>
+                                    </select>
+                                </div>
+
+                                <div class="ai-field-group">
+                                    <label class="ai-field-label">TRANSCRIPTION MODEL (WHISPER)</label>
+                                    <select id="story-whisper-model" class="ai-gold-select">
+                                        <option value="medium" selected>Medium</option>
+                                        <option value="large-v3">Large-v3</option>
+                                        <option value="small">Small</option>
+                                        <option value="base">Base</option>
+                                        <option value="tiny">Tiny</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB 2: Video & Look -->
+                        <div class="ai-tab-view" id="story-view-video" style="display:none;">
+                            <div class="ai-view-header">
+                                <h2 class="ai-view-title">Video & Look</h2>
+                                <p class="ai-view-subtitle">Aspect ratio, video framing & subtitle styling</p>
+                            </div>
+
+                            <div class="ai-card-frame">
+                                <div class="ai-field-group" style="margin-bottom:14px;">
+                                    <label class="ai-field-label">TARGET ASPECT RATIO</label>
+                                    <select id="story-aspect-ratio" class="ai-gold-select">
+                                        <option value="9:16" selected>9:16 Vertical (TikTok, Reels, Shorts)</option>
+                                        <option value="16:9">16:9 Landscape (YouTube, Facebook)</option>
+                                        <option value="original">Original Aspect Ratio</option>
+                                    </select>
+                                </div>
+
+                                <div class="ai-field-group">
+                                    <label class="ai-field-label">SUBTITLE MODE (ការបង្ហាញអក្សររត់លើវីដេអូ)</label>
+                                    <select id="story-subtitle-mode" class="ai-gold-select">
+                                        <option value="none" selected>No Subtitles / Hide (Dubbed Voice Only - លាក់អក្សររត់)</option>
+                                        <option value="burn">Burn Subtitles into Video (Hardsub - បង្ហាញអក្សររត់)</option>
+                                        <option value="srt">Export Separate .SRT Subtitle File</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB 3: Audio & Music -->
+                        <div class="ai-tab-view" id="story-view-audio" style="display:none;">
+                            <div class="ai-view-header">
+                                <h2 class="ai-view-title">Audio &amp; Ducking</h2>
+                                <p class="ai-view-subtitle">BGM ducking volume and Khmer speech clarity</p>
+                            </div>
+
+                            <input type="hidden" id="story-dubbing-mode" value="smart_bgm">
+                            <input type="hidden" id="story-ducking-vol" value="0.15">
+                            <input type="hidden" id="story-speech-boost" value="2.5">
+
+                            <div class="studio-audio-rack">
+                                <!-- Channel 1: BGM Volume -->
+                                <div class="studio-audio-channel">
+                                    <div class="studio-channel-top">
+                                        <div class="studio-channel-info">
+                                            <div class="studio-channel-icon-wrap bgm-icon">
+                                                <i class="fa-solid fa-music"></i>
+                                            </div>
+                                            <div>
+                                                <div class="studio-channel-label">BGM Music Volume</div>
+                                                <div class="studio-channel-sub">កម្រិតសំឡេងភ្លេងផ្ទៃក្រោយ</div>
+                                            </div>
+                                        </div>
+                                        <div class="studio-channel-readout" id="story-ducking-badge">15% • ស្តង់ដារណែនាំ</div>
+                                    </div>
+
+                                    <div class="studio-fader-wrap">
+                                        <input type="range" id="story-ducking-slider" class="studio-fader-slider" min="0" max="40" step="1" value="15" oninput="onStoryDuckingSliderChange(this.value)">
+                                    </div>
+
+                                    <div class="studio-scale-bar">
+                                        <span>0% (បិទភ្លេង)</span>
+                                        <span class="scale-rec">15% (ស្តង់ដារណែនាំ)</span>
+                                        <span>40% (ឮខ្លាំង)</span>
+                                    </div>
+
+                                    <div class="studio-card-hint">
+                                        <i class="fa-solid fa-circle-check" style="color:#facc15;"></i>
+                                        <span>ណែនាំ 15%៖ ភ្លេង BGM ឮស្រាលពិរោះ ស៊ីចង្វាក់ជាមួយសំឡេងនិយាយ</span>
+                                    </div>
+                                </div>
+
+                                <!-- Channel 2: Khmer Speech Boost -->
+                                <div class="studio-audio-channel">
+                                    <div class="studio-channel-top">
+                                        <div class="studio-channel-info">
+                                            <div class="studio-channel-icon-wrap speech-icon">
+                                                <i class="fa-solid fa-microphone-lines"></i>
+                                            </div>
+                                            <div>
+                                                <div class="studio-channel-label">Khmer Speech Boost</div>
+                                                <div class="studio-channel-sub">កម្លាំងសំឡេងនិយាយខ្មែរ (Clarity)</div>
+                                            </div>
+                                        </div>
+                                        <div class="studio-channel-readout" id="story-speech-badge">+2.5 dB • ច្បាស់ណែនាំ</div>
+                                    </div>
+
+                                    <div class="studio-fader-wrap">
+                                        <input type="range" id="story-speech-slider" class="studio-fader-slider" min="0" max="8" step="0.5" value="2.5" oninput="onStorySpeechSliderChange(this.value)">
+                                    </div>
+
+                                    <div class="studio-scale-bar">
+                                        <span>0.0 dB (ធម្មតា)</span>
+                                        <span class="scale-rec">+2.5 dB (ច្បាស់ណែនាំ)</span>
+                                        <span>+8.0 dB (ខ្លាំងបំផុត)</span>
+                                    </div>
+
+                                    <div class="studio-card-hint">
+                                        <i class="fa-solid fa-shield-halved" style="color:#38bdf8;"></i>
+                                        <span>ណែនាំ +2.5 dB៖ សំឡេងខ្មែរឮច្បាស់ណែន មាន Limiter ការពារមិនឲ្យបែក</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB 4: Vocal Separation -->
+                        <div class="ai-tab-view" id="story-view-vocal" style="display:none;">
+                            <div class="ai-view-header">
+                                <h2 class="ai-view-title">Vocal Separation</h2>
+                                <p class="ai-view-subtitle">Multi-track acoustic stem isolation engine</p>
+                            </div>
+
+                            <div class="ai-card-frame">
+                                <div class="ai-field-group" style="margin-bottom:14px;">
+                                    <label class="ai-field-label">SEPARATION ENGINE</label>
+                                    <select class="ai-gold-select">
+                                        <option selected>MDX-Net / Demucs (Deep Vocal Isolation)</option>
+                                        <option>Fast Spectral Subtraction</option>
+                                    </select>
+                                </div>
+                                <div class="ai-field-group">
+                                    <label class="ai-field-label">VOCAL LEAKAGE MASKING</label>
+                                    <select class="ai-gold-select">
+                                        <option selected>High (Zero Vocal Leakage)</option>
+                                        <option>Normal</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB 5: Export & Path -->
+                        <div class="ai-tab-view" id="story-view-export" style="display:none;">
+                            <div class="ai-view-header">
+                                <h2 class="ai-view-title">Export &amp; Output</h2>
+                                <p class="ai-view-subtitle">Output directories and rendering preferences</p>
+                            </div>
+
+                            <div class="ai-card-frame">
+                                <div class="ai-field-group" style="margin-bottom:14px;">
+                                    <label class="ai-field-label">OUTPUT DIRECTORY</label>
+                                    <input type="text" value="data/exports" class="ai-gold-input" readonly>
+                                </div>
+                                <div class="ai-field-group">
+                                    <label class="ai-field-label">AUTO OPEN FOLDER</label>
+                                    <select class="ai-gold-select">
+                                        <option selected>Yes, open folder after rendering completes</option>
+                                        <option>No, keep inside studio</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB 6: Drama Terminology & Custom Terms -->
+                        <div class="ai-tab-view" id="story-view-dictionary" style="display:none;">
+                            <div class="ai-view-header">
+                                <h2 class="ai-view-title">Drama Terminology (វចនានុក្រមរឿង)</h2>
+                                <p class="ai-view-subtitle">Define custom character names, titles &amp; terminology for 100% accurate translation</p>
+                            </div>
+
+                            <div class="ai-card-frame">
+                                <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+                                    <button type="button" class="ai-outline-action-btn" onclick="applyDramaDictionaryPreset('modern_ceo')" style="padding:4px 10px; font-size:12px;"><i class="fa-solid fa-briefcase"></i> Modern / CEO</button>
+                                    <button type="button" class="ai-outline-action-btn" onclick="applyDramaDictionaryPreset('family_inlaw')" style="padding:4px 10px; font-size:12px;"><i class="fa-solid fa-users"></i> Family &amp; In-Laws</button>
+                                    <button type="button" class="ai-outline-action-btn" onclick="applyDramaDictionaryPreset('palace_royal')" style="padding:4px 10px; font-size:12px;"><i class="fa-solid fa-crown"></i> Period / Palace</button>
+                                    <button type="button" class="ai-outline-action-btn" onclick="applyDramaDictionaryPreset('wuxia_martial')" style="padding:4px 10px; font-size:12px;"><i class="fa-solid fa-shield-halved"></i> Wuxia / Martial Arts</button>
+                                </div>
+
+                                <div class="ai-field-group">
+                                    <label class="ai-field-label">CUSTOM MAPPINGS (ឈ្មោះចិន = ឈ្មោះខ្មែរ / ពាក្យចិន = ពាក្យខ្មែរ)</label>
+                                    <textarea id="story-dictionary-textarea" class="ai-editor-textarea" style="height:170px; font-family:monospace; padding:10px; border-radius:6px; border:1px solid rgba(212,175,55,0.3); background:#0c0d10; color:#fff;" placeholder="李沐谦 = លីមូឈៀន&#10;张昭 = ចាងចាវ&#10;总裁 = លោកប្រធាន&#10;婆婆 = ម្តាយក្មេក&#10;龙胎 = កូននាគរាជ"></textarea>
+                                    <div class="ai-field-hint" style="color:var(--gold-glow); margin-top:6px;">
+                                        <i class="fa-solid fa-circle-info" style="color:var(--gold-glow); margin-right:4px;"></i> ដាក់មួយជួរមួយពាក្យ តាមទម្រង់៖ <strong>ពាក្យចិន = ពាក្យខ្មែរ</strong>។ ប្រព័ន្ធនឹងបកប្រែចំៗពាក្យដែលបងចង់បាន ១០០%។
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Modal Footer Bar -->
+                <div class="ai-modal-footer">
+                    <div class="ai-footer-note">
+                        <i class="fa-solid fa-bolt" style="color:var(--gold-glow);"></i>
+                        <span>Settings apply automatically when saved</span>
+                    </div>
+                    <div class="ai-footer-btn-group">
+                        <button type="button" class="ai-footer-cancel-btn" onclick="closeModal('modal-story-settings')">Cancel</button>
+                        <button type="button" class="ai-footer-save-btn" onclick="saveStorySettings()">
+                            <i class="fa-solid fa-check"></i>
+                            <span>Save</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====================================================================
+             MODAL: STUDIO ENGINE & API KEY POOL
+             Theme: Obsidian Gold & Warm Amber (Matching SN Tool Theme)
+             ==================================================================== -->
+        <div class="modal-backdrop-overlay" id="modal-ai-providing">
+            <div class="modal-content-card modal-ai-providing-card">
+                <!-- Top Header Bar -->
+                <div class="modal-top-header">
+                    <div class="modal-title">
+                        <i class="fa-solid fa-server" style="color:var(--gold-glow); font-size:1.05rem;"></i>
+                        <span class="ai-header-title-text" style="margin-left:4px;">Studio Engine &amp; API Keys</span>
+                    </div>
+                    <button class="modal-close-icon-btn" onclick="closeModal('modal-ai-providing')">✕</button>
+                </div>
+
+                <!-- 2-Column Body -->
+                <div class="ai-providing-body">
+                    <!-- Left Sidebar Navigation -->
+                    <aside class="ai-providing-sidebar">
+                        <button type="button" class="ai-sidebar-tab active" id="ai-tab-btn-provider" onclick="switchAiProvidingTab('provider')">
+                            <i class="fa-solid fa-key ai-tab-icon-fa" style="color:var(--gold-glow);"></i>
+                            <span class="ai-tab-label">Engine &amp; Keys</span>
+                        </button>
+                        <button type="button" class="ai-sidebar-tab" id="ai-tab-btn-models" onclick="switchAiProvidingTab('models')">
+                            <i class="fa-solid fa-sliders ai-tab-icon-fa" style="color:var(--gold-glow);"></i>
+                            <span class="ai-tab-label">Model Parameters</span>
+                        </button>
+                        <button type="button" class="ai-sidebar-tab" id="ai-tab-btn-speechgen" onclick="switchAiProvidingTab('speechgen')" style="display:none;">
+                            <i class="fa-solid fa-microphone-lines ai-tab-icon-fa" style="color:#38bdf8;"></i>
+                            <span class="ai-tab-label">SpeechGen.io (សំឡេង)</span>
+                        </button>
+                        <button type="button" class="ai-sidebar-tab" id="ai-tab-btn-backup" onclick="switchAiProvidingTab('backup')">
+                            <i class="fa-solid fa-floppy-disk ai-tab-icon-fa" style="color:#f59e0b;"></i>
+                            <span class="ai-tab-label">Backup Recovery</span>
+                        </button>
+                    </aside>
+
+                    <!-- Right Main Content Area -->
+                    <section class="ai-providing-main">
+                        <!-- TAB VIEW 1: Engine & Keys -->
+                        <div class="ai-tab-view" id="ai-view-provider">
+                            <div class="ai-view-header">
+                                <h2 class="ai-view-title">Engine &amp; Keys</h2>
+                                <p class="ai-view-subtitle">Translation engine configuration &amp; Gemini API key pool</p>
+                            </div>
+
+                            <div class="ai-card-frame">
+                                <div class="ai-field-group">
+                                    <label class="ai-field-label">TRANSLATION ENGINE (ប្រព័ន្ធបកប្រែ)</label>
+                                    <select id="ai-engine-select" class="ai-gold-select" onchange="onAiEngineChange()">
+                                        <option value="auto" selected>Auto Smart (Dedicated VIP Engine - Built-in)</option>
+                                        <option value="gemini_pool">Cloud API Engine (Gemini Key Pool)</option>
+                                        <option value="local_drama">Fast Local Drama Engine</option>
+                                    </select>
+                                </div>
+
+                                <div class="ai-field-group" style="margin-top: 14px;">
+                                    <div class="ai-label-split-row">
+                                        <label class="ai-field-label">GEMINI API KEYS (MULTIPLE KEYS)</label>
+                                        <span class="ai-key-count-badge" id="ai-key-count-badge">0 loaded</span>
+                                    </div>
+
+                                    <!-- Code Editor Box with Line Numbers Gutter -->
+                                    <div class="ai-code-editor-box">
+                                        <div class="ai-editor-gutter" id="ai-editor-gutter">1</div>
+                                        <textarea id="ai-keys-pool-textarea" class="ai-editor-textarea" placeholder="AIzaSy...&#10;AIzaSy...&#10;One key per line (starts with AIzaSy)..." spellcheck="false" oninput="handleAiKeysInput()" onscroll="syncAiEditorScroll()"></textarea>
+                                    </div>
+                                    <div class="ai-field-hint">សោរ Gemini ត្រឹមត្រូវចាប់ផ្តើមដោយ 'AIzaSy' — One key per line.</div>
+                                </div>
+
+                                <div class="ai-actions-btn-row" style="margin-top: 12px;">
+                                    <button type="button" class="ai-outline-action-btn" id="btn-check-keys-live" onclick="checkKeysLive()" style="padding: 7px 18px; font-size: 0.8rem; font-weight: 600; border-color: rgba(250, 204, 21, 0.4); background: rgba(250, 204, 21, 0.05); display: inline-flex; align-items: center; gap: 8px;">
+                                        <i class="fa-solid fa-circle-check" style="color: #4ade80; font-size: 0.9rem;"></i>
+                                        <span>Check Keys (Live)</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB VIEW 2: Model Parameters -->
+                        <div class="ai-tab-view" id="ai-view-models" style="display:none;">
+                            <div class="ai-view-header">
+                                <h2 class="ai-view-title">Model Parameters</h2>
+                                <p class="ai-view-subtitle">Configure translation model and temperature</p>
+                            </div>
+
+                            <div class="ai-card-frame">
+                                <div class="ai-field-group">
+                                    <label class="ai-field-label">TRANSLATION MODEL</label>
+                                    <select id="ai-model-select" class="ai-gold-select">
+                                        <option value="gemini-2.5-flash" selected>gemini-2.5-flash (Fast Asian Drama Dubbing)</option>
+                                        <option value="gemini-2.5-pro">gemini-2.5-pro (Deep Drama Reasoning & Context)</option>
+                                    </select>
+                                </div>
+
+                                <div class="ai-field-group" style="margin-top: 14px;">
+                                    <div class="ai-label-split-row">
+                                        <label class="ai-field-label">TEMPERATURE</label>
+                                        <span class="ai-key-count-badge" id="ai-temp-val">0.3</span>
+                                    </div>
+                                    <input type="range" id="ai-temperature-slider" min="0" max="1" step="0.05" value="0.3" class="ai-gold-slider" oninput="document.getElementById('ai-temp-val').textContent = this.value">
+                                </div>
+
+                                <div class="ai-field-group" style="display: none;">
+                                    <label class="ai-field-label">SYSTEM TRANSLATION GUIDELINES</label>
+                                    <textarea id="ai-system-prompt-input" class="ai-gold-textarea" rows="3">You are a master Cambodian film dubbing scriptwriter and voice director specializing in Asian TV dramas. Translate dialogue lines into natural, emotional, authentic spoken Khmer film dubbing language (ពិសិដ្ឋ & ស្រីមុំ).</textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB VIEW 3: Backup Recovery -->
+                        <div class="ai-tab-view" id="ai-view-backup" style="display:none;">
+                            <div class="ai-view-header">
+                                <h2 class="ai-view-title">Backup Recovery</h2>
+                                <p class="ai-view-subtitle">Backup your API keys or restore previous configurations</p>
+                            </div>
+
+                            <div class="ai-card-frame">
+                                <p style="font-size:0.75rem; color:#cbd5e1; margin-bottom:14px; line-height:1.5;">
+                                    Export your current Gemini API key pool to a backup text file, or clear all saved keys securely.
+                                </p>
+                                <div class="ai-actions-btn-row">
+                                    <button type="button" class="ai-outline-action-btn" onclick="exportKeysBackup()">
+                                        <i class="fa-solid fa-download"></i>
+                                        <span>Export Keys (.txt)</span>
+                                    </button>
+                                    <button type="button" class="ai-outline-action-btn" onclick="clearAllKeysPool()" style="border-color: rgba(239, 68, 68, 0.4); color:#f87171;">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                        <span>Clear All Keys</span>
+                                    </button>
+                                </div>
+                            </div>
+                        <!-- TAB VIEW 4: SpeechGen.io API Integration -->
+                        <div class="ai-tab-view" id="ai-view-speechgen" style="display:none;">
+                            <div class="ai-view-header">
+                                <h2 class="ai-view-title">SpeechGen.io Voice Integration</h2>
+                                <p class="ai-view-subtitle">ភ្ជាប់ទៅកាន់ SpeechGen.io API ដោយផ្ទាល់សម្រាប់សំឡេង ពិសិដ្ឋ &amp; ស្រីមុំ</p>
+                            </div>
+
+                            <div class="ai-card-frame">
+                                <div class="ai-field-group">
+                                    <label class="ai-field-label">SPEECHGEN API TOKEN</label>
+                                    <input type="password" id="speechgen-token-input" class="ai-gold-input" placeholder="Enter your SpeechGen.io API token...">
+                                    <div class="ai-field-hint">Token ពីគណនី SpeechGen.io របស់អ្នក (ចូល speechgen.io -&gt; Profile -&gt; API)។</div>
+                                </div>
+
+                                <div class="ai-field-group" style="margin-top: 14px;">
+                                    <label class="ai-field-label">SPEECHGEN ACCOUNT EMAIL</label>
+                                    <input type="email" id="speechgen-email-input" class="ai-gold-input" placeholder="email@example.com">
+                                    <div class="ai-field-hint">Email នៃគណនី SpeechGen.io របស់អ្នក។</div>
+                                </div>
+
+                                <div class="ai-field-group" style="margin-top: 14px; background: rgba(56, 189, 248, 0.08); padding: 12px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.2);">
+                                    <div style="font-size: 0.78rem; color: #38bdf8; font-weight: 600; display:flex; align-items:center; gap:6px;">
+                                        <i class="fa-solid fa-circle-check"></i> Built-in SpeechGen.io Quality Matching (សកម្មជានិច្ច)
+                                    </div>
+                                    <div style="font-size: 0.72rem; color: #cbd5e1; margin-top: 6px; line-height: 1.5;">
+                                        ប្រសិនបើលោកអ្នកពុំមាន SpeechGen.io Token ទេ កម្មវិធីបានបំពាក់ **High-Fidelity Studio Mastering 48000 Hz / 128 kbps** រួចជាស្រេច ដែលសំយោគសំឡេង <strong>ពិសិដ្ឋ (Piseth)</strong> និង <strong>ស្រីមុំ (Sreymom)</strong> ធម្មជាតិ ១០០% ពិរោះ ស្រទន់ ដូច SpeechGen.io បេះបិទ។
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Modal Footer Bar -->
+                <div class="ai-modal-footer">
+                    <div class="ai-footer-note">
+                        <i class="fa-solid fa-bolt" style="color:var(--gold-glow);"></i>
+                        <span>Settings apply automatically when saved</span>
+                    </div>
+                    <div class="ai-footer-btn-group">
+                        <button type="button" class="ai-footer-cancel-btn" onclick="closeModal('modal-ai-providing')">Cancel</button>
+                        <button type="button" class="ai-footer-save-btn" onclick="saveAiProvidingConfig()">
+                            <i class="fa-solid fa-check"></i>
+                            <span>Save</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-backdrop-overlay" id="modal-import">
+            <div class="modal-content-card">
+                <div class="modal-top-header">
+                    <div class="modal-title">
+                        <i class="fa-solid fa-inbox icon-import"></i>
+                        <span>Import</span>
+                    </div>
+                    <button class="modal-close-icon-btn" onclick="closeModal('modal-import')">✕</button>
+                </div>
+                <div class="modal-inner-body">
+                    <!-- Row 1: Files -->
+                    <div class="modal-nav-row-card" onclick="triggerFileSelect()">
+                        <div class="modal-card-left-col">
+                            <div class="modal-icon-badge badge-files">
+                                <i class="fa-solid fa-clapperboard"></i>
+                            </div>
+                            <div class="modal-card-titles">
+                                <div class="modal-card-title-main">Files</div>
+                                <div class="modal-card-desc-sub">Pick one or more videos</div>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right modal-chevron-arrow"></i>
+                    </div>
+
+                    <!-- Row 2: Folder (series) -->
+                    <div class="modal-nav-row-card" onclick="triggerFolderSelect()">
+                        <div class="modal-card-left-col">
+                            <div class="modal-icon-badge badge-folder">
+                                <i class="fa-solid fa-folder"></i>
+                            </div>
+                            <div class="modal-card-titles">
+                                <div class="modal-card-title-main">Folder (series)</div>
+                                <div class="modal-card-desc-sub">Every episode in a folder, in story order</div>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right modal-chevron-arrow"></i>
+                    </div>
+
+                    <div class="modal-bottom-tip-text">
+                        Tip: you can also drag a video or a whole folder onto the window.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====================================================================
+             MODAL: OUTPUT EXPORT OPTIONS (Separate / One Full Video / Both)
+             ==================================================================== -->
+        <div class="modal-backdrop-overlay" id="modal-export-options">
+            <div class="modal-content-card export-output-modal-card">
+                <!-- Modal Top Header -->
+                <div class="modal-top-header">
+                    <div class="modal-title">
+                        <i class="fa-solid fa-file-export" style="color: #facc15;"></i>
+                        <span>Output (ទម្រង់ Export វីដេអូ)</span>
+                    </div>
+                    <button type="button" class="modal-close-icon-btn" onclick="closeModal('modal-export-options')">✕</button>
+                </div>
+
+                <div class="modal-inner-body" style="padding: 16px 22px 20px 22px; gap: 14px;">
+                    <!-- Episode Chain Subtitle -->
+                    <div class="export-output-meta-sub" id="export-output-meta-sub">
+                        <span id="export-output-ep-count">3 episodes</span> • <span id="export-output-ep-chain">Ep1 → Ep2 → Ep3</span>
+                    </div>
+
+                    <!-- 3 Selectable Output Cards -->
+                    <div class="export-options-list">
+                        <!-- Option 1: Separate episodes -->
+                        <div class="export-opt-card active" id="export-opt-separate" onclick="selectExportOutputMode('separate')">
+                            <div class="export-opt-icon-wrap">
+                                <i class="fa-solid fa-clapperboard"></i>
+                            </div>
+                            <div class="export-opt-text-wrap">
+                                <div class="export-opt-title">Separate episodes (បកប្រែជាភាគៗ)</div>
+                                <div class="export-opt-desc">One translated file per episode (សម្រាប់ផុសជាភាគៗ)</div>
+                            </div>
+                            <div class="export-opt-check-wrap">
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+                        </div>
+
+                        <!-- Option 2: One full video -->
+                        <div class="export-opt-card" id="export-opt-full" onclick="selectExportOutputMode('full')">
+                            <div class="export-opt-icon-wrap">
+                                <i class="fa-solid fa-film"></i>
+                            </div>
+                            <div class="export-opt-text-wrap">
+                                <div class="export-opt-title">One full video (បញ្ចូលគ្នាជារឿងពេញមួយចប់)</div>
+                                <div class="export-opt-desc" id="export-desc-full">Joined into drama_Full_Movie.mp4 — episodes merged</div>
+                            </div>
+                            <div class="export-opt-check-wrap">
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+                        </div>
+
+                        <!-- Option 3: Both -->
+                        <div class="export-opt-card" id="export-opt-both" onclick="selectExportOutputMode('both')">
+                            <div class="export-opt-icon-wrap">
+                                <i class="fa-solid fa-folder-tree"></i>
+                            </div>
+                            <div class="export-opt-text-wrap">
+                                <div class="export-opt-title">Both (យកទាំងពីរ - ភាគៗ &amp; រឿងពេញ)</div>
+                                <div class="export-opt-desc" id="export-desc-both">Episodes + drama_Full_Movie.mp4 (ទទួលបានទាំងពីរ)</div>
+                            </div>
+                            <div class="export-opt-check-wrap">
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Location Hint -->
+                    <div class="export-output-location-row">
+                        <i class="fa-solid fa-folder" style="color: #facc15;"></i>
+                        <span>Beside each video (creates an <strong>SN TOOL</strong> folder)</span>
+                    </div>
+
+                    <!-- Footer Action Buttons -->
+                    <div class="export-output-footer-btns">
+                        <button type="button" class="export-btn-cancel" onclick="closeModal('modal-export-options')">Cancel</button>
+                        <button type="button" class="export-btn-start" onclick="confirmAndExecuteExport()">
+                            <i class="fa-solid fa-play"></i> Start
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL 3: MERGE VIDEO -->
+        <div class="modal-backdrop-overlay" id="modal-power-merge">
+            <div class="modal-content-card">
+                <div class="modal-top-header">
+                    <div class="modal-title"><i class="fa-solid fa-link" style="color:#facc15;"></i> Merge Video (Concat)</div>
+                    <button class="modal-close-icon-btn" onclick="closeModal('modal-power-merge')">✕</button>
+                </div>
+                <div class="modal-inner-body">
+                    <p style="font-size:0.75rem; color:#cbd5e1;">Combine multiple video segments into one continuous video file (Lossless stream-copy concat).</p>
+                    <button class="dl-btn-dark-outline" onclick="triggerFileSelect()"><i class="fa-solid fa-folder-open"></i> Choose Videos to Merge</button>
+                    <button class="dl-big-btn-yellow" onclick="executeVideoMerge()" style="margin-top:6px;">Merge Now</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL 4: SPLIT VIDEO -->
+        <div class="modal-backdrop-overlay" id="modal-power-split">
+            <div class="modal-content-card">
+                <div class="modal-top-header">
+                    <div class="modal-title"><i class="fa-solid fa-scissors" style="color:#ec4899;"></i> Split Video</div>
+                    <button class="modal-close-icon-btn" onclick="closeModal('modal-power-split')">✕</button>
+                </div>
+                <div class="modal-inner-body">
+                    <label style="font-size:0.75rem; color:#cbd5e1;">Chunk Duration (seconds)</label>
+                    <input type="number" id="split-duration-val" value="60" style="background:#080603; border:1px solid var(--border-subtle); border-radius:5px; padding:6px 10px; font-size:0.75rem; color:#fff;">
+                    <button class="dl-big-btn-yellow" onclick="executeVideoSplit()" style="margin-top:6px;">Split Video</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL 5: RENAME -->
+        <div class="modal-backdrop-overlay" id="modal-power-rename">
+            <div class="modal-content-card">
+                <div class="modal-top-header">
+                    <div class="modal-title"><i class="fa-solid fa-pen-to-square" style="color:#fbbf24;"></i> Batch Rename</div>
+                    <button class="modal-close-icon-btn" onclick="closeModal('modal-power-rename')">✕</button>
+                </div>
+                <div class="modal-inner-body">
+                    <label style="font-size:0.75rem; color:#cbd5e1;">Series Prefix Name</label>
+                    <input type="text" id="rename-prefix-input" value="The_Demoness_Fairy_EP" style="background:#080603; border:1px solid var(--border-subtle); border-radius:5px; padding:6px 10px; font-size:0.75rem; color:#fff;">
+                    <button class="dl-big-btn-yellow" onclick="executeBatchRename()" style="margin-top:6px;">Rename All</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL 6: COMPRESS -->
+        <div class="modal-backdrop-overlay" id="modal-power-compress">
+            <div class="modal-content-card">
+                <div class="modal-top-header">
+                    <div class="modal-title"><i class="fa-solid fa-file-zipper" style="color:#a855f7;"></i> Video Compressor</div>
+                    <button class="modal-close-icon-btn" onclick="closeModal('modal-power-compress')">✕</button>
+                </div>
+                <div class="modal-inner-body">
+                    <label style="font-size:0.75rem; color:#cbd5e1;">CRF Compression Level (18-32)</label>
+                    <input type="number" id="compress-crf-val" value="26" min="18" max="32" style="background:#080603; border:1px solid var(--border-subtle); border-radius:5px; padding:6px 10px; font-size:0.75rem; color:#fff;">
+                    <button class="dl-big-btn-yellow" onclick="executeVideoCompress()" style="margin-top:6px;">Compress Now</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL 7: LICENSE ACTIVATION GATE (Cyber-Gold Lock Screen) -->
+        <div class="license-gate-overlay" id="modal-license-gate">
+            <div class="license-gate-card">
+                <!-- Header -->
+                <div class="license-gate-header">
+                    <div class="license-gate-logo-wrap">
+                        <img src="logo.png" alt="SN Logo">
+                    </div>
+                    <div class="license-gate-brand">
+                        <span class="license-gate-brand-name">SN TOOL</span>
+                        <span class="license-gate-tag">STUDIO PRO</span>
+                    </div>
+                    <div class="license-gate-badge">
+                        <i class="fa-solid fa-crown" style="color:#facc15;"></i>
+                        <span>VIP LICENSE ACTIVATION</span>
+                    </div>
+                    <div class="license-gate-subtitle">
+                        សូមបញ្ចូល License Key របស់អ្នកដើម្បីបើកដំណើរការកម្មវិធី
+                    </div>
+                </div>
+
+                <!-- Body -->
+                <div class="license-gate-body">
+                    <!-- HWID Container -->
+                    <div class="license-gate-hwid-card">
+                        <div class="license-gate-hwid-top">
+                            <span><i class="fa-solid fa-desktop" style="color:#94a3b8; margin-right:4px;"></i> ម៉ាស៊ីន HWID (ផ្ញើជូន Admin ប្រសិនបើទាមទារ):</span>
+                        </div>
+                        <div class="license-gate-hwid-row">
+                            <span class="license-gate-hwid-code" id="gate-hwid-text">FETCHING...</span>
+                            <button type="button" class="license-gate-btn-copy" onclick="copyHwid('gate-hwid-text')">
+                                <i class="fa-solid fa-copy"></i> Copy HWID
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Key Input -->
+                    <div class="license-gate-input-group">
+                        <label class="license-gate-input-label" for="gate-license-input">
+                            <i class="fa-solid fa-key" style="color:#facc15;"></i> បញ្ចូល VIP LICENSE KEY (ទទួលបានពី Admin):
+                        </label>
+                        <div class="license-gate-input-wrap">
+                            <input type="text" id="gate-license-input" class="license-gate-input-field" placeholder="SN-VIP-XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false" onkeyup="if(event.key==='Enter') submitGateLicense()">
+                            <button type="button" class="license-gate-btn-paste" onclick="pasteGateLicense()">
+                                <i class="fa-solid fa-paste"></i> Paste
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Status Alert Message -->
+                    <div id="gate-status-msg" class="license-gate-status-msg"></div>
+
+                    <!-- Activate Button -->
+                    <button type="button" class="license-gate-btn-activate" onclick="submitGateLicense()">
+                        <i class="fa-solid fa-unlock-keyhole"></i> បើកដំណើរការ (ACTIVATE NOW)
+                    </button>
+
+                    <!-- Footer Note -->
+                    <div class="license-gate-footer">
+                        <div class="license-gate-footer-badge">
+                            <i class="fa-solid fa-shield-halved" style="color:#facc15;"></i>
+                            <span>SN TOOL VIP Security Engine • v6.3</span>
+                        </div>
+                        <div>ទំនាក់ទំនង Admin (Telegram / Facebook) ដើម្បីទទួលបាន License Key ផ្លូវការ</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Banner -->
+        <div class="unich-toast-box" id="toast"></div>
+    </div>
+
+    <!-- HLS.js for Live Stream M3U8 Video Previews -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="app.js?v=24.0"></script>
+</body>
+</html>

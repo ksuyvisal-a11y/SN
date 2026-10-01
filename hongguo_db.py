@@ -15,8 +15,15 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 
 def _resolve_db_path() -> Path:
-    base = Path(__file__).resolve().parent
+    if getattr(sys, 'frozen', False):
+        app_dir = Path(os.path.dirname(sys.executable))
+        base = Path(sys._MEIPASS)
+    else:
+        app_dir = Path(__file__).resolve().parent
+        base = app_dir
     candidates = [
+        app_dir / "data" / "hongguo_catalog.db",
+        app_dir / "hongguo_catalog.db",
         base / "hongguo_catalog.db",
         base / "data" / "hongguo_catalog.db",
         Path("data/hongguo_catalog.db"),

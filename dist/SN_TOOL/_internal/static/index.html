@@ -12,7 +12,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=38.0">
+    <link rel="stylesheet" href="style.css?v=41.0">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
@@ -20,7 +20,7 @@
         <!-- ====================================================================
              TOP NAVBAR
              ==================================================================== -->
-        <header class="unich-header-bar">
+        <header class="unich-header-bar pywebview-drag-region" ondblclick="appMaximizeWindow()">
             <!-- Left Brand & 3D Logo Badge -->
             <div class="header-brand-group">
                 <div class="brand-badge-wrapper" title="SN TOOL Studio Edition">
@@ -83,11 +83,11 @@
                 </button>
             </nav>
 
-            <!-- Window Header Controls in sleek rounded frame (Image 2 style) -->
-            <div class="header-win-controls">
-                <button class="win-btn" title="Minimize">―</button>
-                <button class="win-btn" title="Maximize">▢</button>
-                <button class="win-btn close" title="Close">✕</button>
+            <!-- Sleek Integrated Frameless Window Controls -->
+            <div class="header-win-controls" style="-webkit-app-region: no-drag;">
+                <button type="button" class="win-btn" title="Minimize" onclick="appMinimizeWindow()">―</button>
+                <button type="button" class="win-btn" title="Maximize" onclick="appMaximizeWindow()">▢</button>
+                <button type="button" class="win-btn close" title="Close" onclick="appCloseWindow()">✕</button>
             </div>
         </header>
 
@@ -613,6 +613,8 @@
                                 <i class="fa-solid fa-list-ul"></i> Episodes
                             </button>
                         </div>
+                    </div>
+
                     <!-- Category Pills Navigation (ប្រភេទទិន្នន័យ / Categories) -->
                     <div class="dl-catalog-filter-tags-scroll" id="dl-category-chips-bar">
                         <!-- Populated dynamically via JS -->
@@ -622,7 +624,6 @@
                     <div class="dl-drama-cards-grid" id="dl-drama-cards-container">
                         <!-- Populated dynamically via JS -->
                     </div>
-
                 </div>
 
                 <!-- RIGHT COLUMN: Drama Info, Episodes & Activity Log -->
@@ -1777,6 +1778,6 @@
 
     <!-- HLS.js for Live Stream M3U8 Video Previews -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <script src="app.js?v=20.0"></script>
+    <script src="app.js?v=24.0"></script>
 </body>
 </html>

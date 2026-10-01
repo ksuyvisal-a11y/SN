@@ -118,6 +118,16 @@ button, input, select, textarea {
     border: 1px solid var(--glass-border);
     border-radius: 12px;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 var(--glass-highlight);
+    -webkit-app-region: drag;
+    user-select: none;
+}
+
+.unich-header-bar button,
+.unich-header-bar .brand-badge-wrapper,
+.unich-header-bar .power-dropdown-wrapper,
+.unich-header-bar .header-win-controls,
+.unich-header-bar .win-btn {
+    -webkit-app-region: no-drag;
 }
 
 /* Left Brand & 3D Logo Badge */

@@ -106,30 +106,108 @@ def start_server():
     log.setLevel(logging.ERROR)
     app.run(host="127.0.0.1", port=8000, debug=False, use_reloader=False)
 
+_main_window = None
+class NativeWindowApi:
+    def minimize_window(self):
+        global _main_window
+        if _main_window:
+            try:
+                _main_window.minimize()
+            except Exception:
+                pass
+
+    def maximize_window(self):
+        global _main_window
+        if _main_window:
+            try:
+                import webview
+                screens = getattr(webview, 'screens', None)
+                s = screens[0] if screens else None
+                sw = s.width if s else 1920
+                sh = s.height if s else 1080
+                # If window is already filling 90% of screen width and 85% of height, toggle restore
+                if _main_window.width >= int(sw * 0.9) and _main_window.height >= int(sh * 0.85):
+                    _main_window.restore()
+                else:
+                    _main_window.maximize()
+            except Exception:
+                try:
+                    _main_window.maximize()
+                except Exception:
+                    pass
+
+    def toggle_fullscreen(self):
+        global _main_window
+        if _main_window:
+            try:
+                _main_window.toggle_fullscreen()
+            except Exception:
+                pass
+
+    def force_maximize(self):
+        global _main_window
+        if _main_window:
+            try:
+                _main_window.maximize()
+            except Exception:
+                pass
+
+    def close_window(self):
+        global _main_window
+        if _main_window:
+            try:
+                _main_window.destroy()
+            except Exception:
+                pass
+
 def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PRO"):
     """
     Open application in a dedicated standalone native desktop window:
-    1. Try pywebview (Edge WebView2 native embed)
-    2. Try Standalone App Window Mode via Microsoft Edge or Google Chrome (--app=)
+    1. Try pywebview (Edge WebView2 native embed) in maximized mode
+    2. Try Standalone App Window Mode via Microsoft Edge or Google Chrome (--app=) maximized
     3. Fallback to default browser
     """
     # 1. Try pywebview
     try:
         import webview
+        global _main_window
+        screens = getattr(webview, 'screens', None)
+        s = screens[0] if screens else None
+        sw = s.width if s else 1536
+        sh = s.height if s else 864
+
+        api = NativeWindowApi()
         window = webview.create_window(
             title=title,
             url=url,
-            width=1360,
-            height=860,
+            frameless=True,
+            easy_drag=True,
+            maximized=True,
+            width=sw,
+            height=sh,
+            x=0,
+            y=0,
             min_size=(1024, 680),
-            background_color="#08090d"
+            background_color="#08090d",
+            text_select=True,
+            zoomable=True,
+            js_api=api
         )
-        webview.start()
+        _main_window = window
+
+        def on_gui_ready(w):
+            try:
+                time.sleep(0.2)
+                w.maximize()
+            except Exception:
+                pass
+
+        webview.start(on_gui_ready, window, private_mode=False, gui='edgechromium')
         return
     except Exception as e:
         print(f"pywebview notice: {e}")
 
-    # 2. Try Native Desktop App Mode via Edge or Chrome (Standalone window, zero browser chrome/tabs)
+    # 2. Try Native Desktop App Mode via Edge or Chrome (Standalone window, zero browser chrome/tabs, maximized)
     app_browsers = [
         os.path.expandvars(r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"),
         os.path.expandvars(r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"),
@@ -141,7 +219,7 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
     for exe in app_browsers:
         if os.path.exists(exe):
             try:
-                cmd = [exe, f"--app={url}", "--window-size=1360,860"]
+                cmd = [exe, f"--app={url}", "--start-maximized", "--window-position=0,0"]
                 t0 = time.time()
                 proc = subprocess.Popen(cmd)
                 proc.wait()
@@ -172,13 +250,8 @@ def main():
     # 3. Launch native window
     launch_native_window()
 
-    # 4. Keep server alive until user closes or presses Ctrl+C
-    print("\n[INFO] កម្មវិធីកំពុងដំណើរការ! (ចុច Ctrl+C ដើម្បីបិទកម្មវិធី)\n")
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        print("\nកំពុងបិទកម្មវិធី...")
+    # 4. Clean exit once native window is closed
+    sys.exit(0)
 
 if __name__ == "__main__":
     main()
