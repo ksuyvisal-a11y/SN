@@ -28,11 +28,11 @@ def _resolve_db_path() -> Path:
     return base / "hongguo_catalog.db"
 
 DB_PATH = _resolve_db_path()
-TARGET_DRAMA_COUNT = 78878
+TARGET_DRAMA_COUNT = 79004
 EXPLORER_API_BASE = "https://explorer.hongguodownloader.com"
 
 CATEGORIES = [
-    {"id": "all", "name": "All", "name_kh": "ទាំងអស់ (78,878)", "badge": "🔥 All", "genre": ""},
+    {"id": "all", "name": "All", "name_kh": "ទាំងអស់ (79,004)", "badge": "🔥 All", "genre": ""},
     {"id": "ai_drama", "name": "AI", "name_kh": "រឿង AI កំពូល (24,081)", "badge": "🤖 AI", "genre": "AI"},
     {"id": "urban_revenge", "name": "Revenge", "name_kh": "រឿងសងសឹក (5,745)", "badge": "⚡ Revenge", "genre": "逆袭"},
     {"id": "billionaire_ceo", "name": "CEO", "name_kh": "រឿងចៅហ្វាយនាយ (6,654)", "badge": "💎 CEO", "genre": "总裁"},
