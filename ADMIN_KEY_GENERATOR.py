@@ -37,32 +37,33 @@ from license_engine import (
 import threading
 import time
 import urllib.request
-import webbrowser
+ADMIN_PORT = 8888
+ADMIN_URL = f"http://127.0.0.1:{ADMIN_PORT}/admin"
 
 def is_server_running() -> bool:
     try:
-        with urllib.request.urlopen("http://127.0.0.1:8000/api/license/status", timeout=1) as r:
+        with urllib.request.urlopen(f"http://127.0.0.1:{ADMIN_PORT}/api/license/status", timeout=1) as r:
             return r.status == 200
     except Exception:
         return False
 
-def ensure_server_running(timeout: float = 8.0) -> bool:
-    """Ensure local API server is active on port 8000 so http://127.0.0.1:8000/admin works."""
+def ensure_server_running(timeout: float = 6.0) -> bool:
+    """Ensure dedicated Admin server is active on port 8888."""
     if is_server_running():
         return True
     def run_app():
         import logging
-        from server import app
+        from admin_dashboard import admin_app
         log = logging.getLogger('werkzeug')
         log.setLevel(logging.ERROR)
-        app.run(host="127.0.0.1", port=8000, debug=False, use_reloader=False)
+        admin_app.run(host="127.0.0.1", port=ADMIN_PORT, debug=False, use_reloader=False)
     t = threading.Thread(target=run_app, daemon=True)
     t.start()
     t_end = time.time() + timeout
     while time.time() < t_end:
         if is_server_running():
             return True
-        time.sleep(0.25)
+        time.sleep(0.2)
     return is_server_running()
 
 def copy_to_clipboard(text: str):
@@ -76,13 +77,13 @@ def copy_to_clipboard(text: str):
 
 def print_header():
     lic_mode = "🟢 ON (ត្រូវវាយ Key ទើបប្រើបាន)" if is_license_required() else "🟡 OFF (Free Mode - ប្រើបានភ្លាមៗមិនបាច់ Key)"
-    server_status = "🟢 ដំណើរការស្រេច (http://127.0.0.1:8000/admin)" if is_server_running() else "🟡 កំពុងបើក..."
+    server_status = f"🟢 ដំណើរការស្រេច ({ADMIN_URL})" if is_server_running() else "🟡 កំពុងបើក..."
     print("\n" + "=" * 65)
     print(" 👑 SN STUDIO - ADMIN KEY GENERATOR (ប្រព័ន្ធគ្រប់គ្រង KEY ជូន USER)")
     print("=" * 65)
     print(f" 💻 Admin Machine HWID: {get_machine_hwid()}")
     print(f" 🛡️  License Gate Mode:  {lic_mode}")
-    print(f" 🌐 Web Dashboard:      {server_status}")
+    print(f" 🌐 Admin Dashboard:    {server_status}")
     print("=" * 65)
 
 def print_key_card(record):
@@ -129,13 +130,14 @@ def interactive_menu():
         choice = input("👉 សូមជ្រើសរើសជម្រើស (0-9): ").strip()
 
         if choice == "1":
-            print("\n⏳ កំពុងត្រួតពិនិត្យ និងបើកដំណើរការ Server...")
-            ready = ensure_server_running(timeout=10.0)
-            url = "http://127.0.0.1:8000/admin"
+            import webbrowser
+            print("\n⏳ កំពុងត្រួតពិនិត្យ និងបើកដំណើរការ Admin Server (Port 8888)...")
+            ready = ensure_server_running(timeout=6.0)
+            url = ADMIN_URL
             if ready:
-                print(f"🌐 Server ដំណើរការរួចរាល់! កំពុងបើកផ្ទាំង Dashboard ក្នុង Browser ({url})...")
+                print(f"🌐 Admin Server ដំណើរការរួចរាល់! កំពុងបើកផ្ទាំង Dashboard ក្នុង Browser ({url})...")
             else:
-                print(f"⚠️ Server កំពុងបើកយឺតបន្តិច ប៉ុន្តែកំពុងព្យាយាមបើក Browser ទៅកាន់៖ {url}")
+                print(f"⚠️ Admin Server កំពុងបើកយឺតបន្តិច ប៉ុន្តែកំពុងព្យាយាមបើក Browser ទៅកាន់៖ {url}")
             try:
                 webbrowser.open(url)
             except Exception:

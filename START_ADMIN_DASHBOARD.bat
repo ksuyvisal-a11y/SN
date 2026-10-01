@@ -3,16 +3,17 @@ chcp 65001 > nul
 set PYTHONUTF8=1
 set PYTHONIOENCODING=utf-8
 cd /d "%~dp0"
-title 👑 SN TOOL - VIP License Admin Dashboard
+title 👑 SN TOOL - VIP License Admin Control Center (Port 8888)
 color 0b
 cls
 
 echo ========================================================================
-echo  👑 SN TOOL - VIP LICENSE ADMIN DASHBOARD (ORION LIGHT THEME)
+echo  👑 SN TOOL - VIP LICENSE ADMIN CONTROL CENTER (ORION LIGHT THEME)
+echo  🛡️  Port: 8888 (ដំណើរការដាច់ដោយឡែកពី Tool ភ្ញៀវ Port 8000)
 echo  🔐 ប្រព័ន្ធគ្រប់គ្រង និងបង្កើត KEY ជូនអតិថិជន
 echo ========================================================================
 echo.
-echo [INFO] កំពុងចាប់ផ្តើម Server និងបើក Dashboard ក្នុង Browser...
+echo [INFO] កំពុងចាប់ផ្តើម Admin Server (Port 8888) និងបើក Browser...
 echo.
 
 where python >nul 2>nul
