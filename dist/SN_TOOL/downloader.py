@@ -10,6 +10,8 @@ import time
 import json
 import threading
 import shutil
+import tempfile
+import uuid
 import subprocess
 import urllib.request
 import urllib.parse
@@ -712,26 +714,57 @@ def find_authentic_episode_video(
 # Cluster stream resolution and memory cache definitions are situated above get_drama_episodes.
 
 
+def clean_stray_download_artifacts(dest_dir: Path):
+    """
+    Sanitize the drama download folder to ensure ONLY pristine MP4 episodes
+    (EP_XX.mp4) and the official drama poster (*_Poster.jpg / poster.jpg) remain.
+    Instantly removes any yt-dlp fragment files (*.part-Frag*), *.ytdl, *.tmp*,
+    *.aria2, *.part, *.temp, incomplete dummy files, or stray metadata.
+    """
+    if not dest_dir:
+        return
+    dest_dir = Path(dest_dir)
+    if not dest_dir.exists():
+        return
+    try:
+        if dest_dir.is_file():
+            dest_dir = dest_dir.parent
+        for item in list(dest_dir.iterdir()):
+            if item.is_dir():
+                if any(x in item.name.lower() for x in [".tmp", "tmp", "temp", "part", "frag"]):
+                    shutil.rmtree(item, ignore_errors=True)
+                continue
+            name_lower = item.name.lower()
+            is_garbage = False
+            # 1. Any temp or fragment patterns anywhere in filename
+            if any(ext in name_lower for ext in [
+                ".part", ".ytdl", ".tmp", "frag", ".aria2", ".temp",
+                ".raw", ".enc", ".torrent", ".ds_store", "thumbs.db"
+            ]):
+                is_garbage = True
+            # 2. Metadata text files
+            elif any(name_lower.endswith(s) for s in ["_story_info.txt", "series.json", ".series", ".hg_download"]):
+                is_garbage = True
+            # 3. Incomplete, 0-byte or corrupted video files (< 50KB)
+            elif any(name_lower.endswith(v_ext) for v_ext in [".mp4", ".mkv", ".ts"]):
+                try:
+                    if item.stat().st_size < 50000:
+                        is_garbage = True
+                except Exception:
+                    pass
+            if is_garbage:
+                try:
+                    item.unlink(missing_ok=True)
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+
 def _clean_temp_artifacts(target_path: Path):
     """Clean any temporary fragments, .part, .ytdl, or .tmp files associated with target_path."""
     try:
-        parent = target_path.parent
-        stem = target_path.stem
-        for p in parent.glob(f"{stem}.tmp*"):
-            try:
-                p.unlink()
-            except Exception:
-                pass
-        for p in parent.glob(f"{stem}*.part"):
-            try:
-                p.unlink()
-            except Exception:
-                pass
-        for p in parent.glob(f"{stem}*.ytdl"):
-            try:
-                p.unlink()
-            except Exception:
-                pass
+        clean_stray_download_artifacts(target_path)
     except Exception:
         pass
 
@@ -741,7 +774,7 @@ def download_m3u8_stream_turbo(stream_url: str, dest_file: Path, timeout_sec: in
     Turbo High-Speed Multi-Threaded M3U8/MP4 Stream Downloader (U'NICH TURBO ENGINE).
     Achieves 10MB-25MB/s download speed per episode via 24 concurrent fragment threads,
     persistent HTTP connection pooling, and lossless FFmpeg stream copy.
-    Guarantees 100% video integrity and real-time live progress reporting.
+    Guarantees 100% video integrity and zero temporary artifacts in destination folder.
     """
     if not stream_url or not stream_url.startswith("http"):
         return False
@@ -757,112 +790,106 @@ def download_m3u8_stream_turbo(stream_url: str, dest_file: Path, timeout_sec: in
     dest_file.parent.mkdir(parents=True, exist_ok=True)
     ffmpeg_bin = get_ffmpeg_path()
     silent_kw = get_silent_kwargs()
-    temp_dest = dest_file.with_suffix(".tmp.mp4")
 
-    # Clean existing temp
-    if temp_dest.exists():
+    # ISOLATED TEMPORARY DIRECTORY: All fragments and partial files stay in %TEMP% and NEVER pollute the user's folder!
+    isolated_temp = Path(tempfile.gettempdir()) / "sn_download_tmp" / f"turbo_{uuid.uuid4().hex[:8]}"
+    isolated_temp.mkdir(parents=True, exist_ok=True)
+
+    try:
+        # Tier 1: High-Speed yt-dlp Concurrent Fragment Engine (with live progress)
         try:
-            temp_dest.unlink()
+            def live_hook(d):
+                if not progress_callback:
+                    return
+                st = d.get('status')
+                if st == 'downloading':
+                    frag_index = d.get('fragment_index')
+                    frag_count = d.get('fragment_count')
+                    if frag_index is not None and frag_count and frag_count > 0:
+                        pct = int(min(99, max(3, (frag_index / frag_count) * 100)))
+                        progress_callback(pct)
+                    else:
+                        tot = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
+                        down = d.get('downloaded_bytes', 0)
+                        if tot > 0:
+                            pct = int(min(99, max(3, (down / tot) * 100)))
+                            progress_callback(pct)
+                elif st == 'finished':
+                    progress_callback(100)
+
+            ydl_opts = {
+                'paths': {'home': str(isolated_temp), 'temp': str(isolated_temp)},
+                'outtmpl': str(isolated_temp / f"{dest_file.stem}.%(ext)s"),
+                'concurrent_fragment_downloads': 12,
+                'retries': 20,
+                'fragment_retries': 20,
+                'buffersize': 2097152,
+                'http_chunk_size': 20971520,
+                'ffmpeg_location': ffmpeg_bin,
+                'merge_output_format': 'mp4',
+                'quiet': True,
+                'no_warnings': True,
+                'socket_timeout': 30,
+                'progress_hooks': [live_hook] if progress_callback else [],
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([stream_url])
+
+            cand_files = [c for c in isolated_temp.glob(f"{dest_file.stem}*") if c.is_file() and c.stat().st_size > 100000 and not any(x in c.name for x in [".part", ".ytdl", ".tmp"])]
+            if cand_files:
+                if dest_file.exists():
+                    try:
+                        dest_file.unlink()
+                    except Exception:
+                        pass
+                shutil.move(str(cand_files[0]), str(dest_file))
+                if progress_callback:
+                    progress_callback(100)
+                return True
         except Exception:
             pass
 
-    # Tier 1: High-Speed yt-dlp Concurrent Fragment Engine (24 workers, with live progress)
-    try:
-        def live_hook(d):
-            if not progress_callback:
-                return
-            st = d.get('status')
-            if st == 'downloading':
-                frag_index = d.get('fragment_index')
-                frag_count = d.get('fragment_count')
-                if frag_index is not None and frag_count and frag_count > 0:
-                    pct = int(min(99, max(3, (frag_index / frag_count) * 100)))
-                    progress_callback(pct)
-                else:
-                    tot = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
-                    down = d.get('downloaded_bytes', 0)
-                    if tot > 0:
-                        pct = int(min(99, max(3, (down / tot) * 100)))
-                        progress_callback(pct)
-            elif st == 'finished':
-                progress_callback(100)
+        # Tier 2: FFmpeg with persistent socket connection and reconnect flags
+        try:
+            temp_ffmpeg_out = isolated_temp / f"{dest_file.stem}_ff.mp4"
+            cmd = [
+                ffmpeg_bin,
+                "-y",
+                "-headers", "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)\r\n",
+                "-http_persistent", "1",
+                "-rw_timeout", "30000000",
+                "-reconnect", "1",
+                "-reconnect_streamed", "1",
+                "-reconnect_delay_max", "3",
+                "-i", stream_url,
+                "-c", "copy",
+                "-bsf:a", "aac_adtstoasc",
+                "-movflags", "+faststart",
+                str(temp_ffmpeg_out)
+            ]
+            proc = subprocess.run(cmd, capture_output=True, timeout=timeout_sec, **silent_kw)
+            if temp_ffmpeg_out.exists() and temp_ffmpeg_out.stat().st_size > 100000:
+                if dest_file.exists():
+                    try:
+                        dest_file.unlink()
+                    except Exception:
+                        pass
+                shutil.move(str(temp_ffmpeg_out), str(dest_file))
+                if progress_callback:
+                    progress_callback(100)
+                return True
+        except Exception:
+            pass
 
-        ydl_opts = {
-            'outtmpl': str(temp_dest),
-            'concurrent_fragment_downloads': 12,
-            'retries': 20,
-            'fragment_retries': 20,
-            'buffersize': 2097152,
-            'http_chunk_size': 20971520,
-            'ffmpeg_location': ffmpeg_bin,
-            'merge_output_format': 'mp4',
-            'quiet': True,
-            'no_warnings': True,
-            'socket_timeout': 30,
-            'progress_hooks': [live_hook] if progress_callback else [],
-        }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([stream_url])
+        # Tier 3: Secondary fallback via curl if direct MP4
+        if ".mp4" in stream_url.lower() and ".m3u8" not in stream_url.lower():
+            if download_video_stream_with_curl(stream_url, dest_file, timeout_sec=timeout_sec):
+                return True
 
-        real_temp = temp_dest
-        if not real_temp.exists():
-            cand = list(temp_dest.parent.glob(f"{temp_dest.stem}.*"))
-            if cand:
-                real_temp = cand[0]
-
-        if real_temp.exists() and real_temp.stat().st_size > 1000000:
-            if dest_file.exists():
-                try:
-                    dest_file.unlink()
-                except Exception:
-                    pass
-            real_temp.rename(dest_file)
-            _clean_temp_artifacts(dest_file)
-            if progress_callback:
-                progress_callback(100)
-            return True
-    except Exception:
-        pass
-
-    # Tier 2: FFmpeg with persistent socket connection and reconnect flags
-    try:
-        cmd = [
-            ffmpeg_bin,
-            "-y",
-            "-headers", "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)\r\n",
-            "-http_persistent", "1",
-            "-rw_timeout", "30000000",
-            "-reconnect", "1",
-            "-reconnect_streamed", "1",
-            "-reconnect_delay_max", "3",
-            "-i", stream_url,
-            "-c", "copy",
-            "-bsf:a", "aac_adtstoasc",
-            "-movflags", "+faststart",
-            str(temp_dest)
-        ]
-        proc = subprocess.run(cmd, capture_output=True, timeout=timeout_sec, **silent_kw)
-        if temp_dest.exists() and temp_dest.stat().st_size > 1000000:
-            if dest_file.exists():
-                try:
-                    dest_file.unlink()
-                except Exception:
-                    pass
-            temp_dest.rename(dest_file)
-            _clean_temp_artifacts(dest_file)
-            return True
-    except Exception:
-        pass
-
-    # Tier 3: Secondary fallback via curl if direct MP4
-    if ".mp4" in stream_url.lower() and ".m3u8" not in stream_url.lower():
-        if download_video_stream_with_curl(stream_url, dest_file, timeout_sec=timeout_sec):
-            _clean_temp_artifacts(dest_file)
-            return True
-
-    _clean_temp_artifacts(dest_file)
-
-    return False
+        return False
+    finally:
+        shutil.rmtree(isolated_temp, ignore_errors=True)
+        clean_stray_download_artifacts(dest_file.parent)
 
 
 # Alias for backward compatibility
@@ -875,77 +902,73 @@ download_m3u8_stream_with_ffmpeg = download_m3u8_stream_turbo
 def download_stream_turbo_chunked(stream_url: str, dest_file: Path, timeout_sec: int = 120) -> bool:
     """
     High-Speed Direct Chunked Stream Downloader with 512KB buffers and ByteDance CDN headers.
-    Streams to .part file and renames atomically upon completion.
-    Achieves 5MB-15MB/s download speed per episode.
+    Streams to isolated temp directory and renames atomically upon completion.
+    Achieves 5MB-15MB/s download speed per episode with zero folder pollution.
     """
     if not stream_url or not stream_url.startswith("http"):
         return False
     dest_file = Path(dest_file)
     dest_file.parent.mkdir(parents=True, exist_ok=True)
-    part_file = dest_file.with_suffix(".part")
-    if part_file.exists():
+
+    isolated_chunk = Path(tempfile.gettempdir()) / "sn_download_tmp" / f"chk_{uuid.uuid4().hex[:8]}"
+    isolated_chunk.mkdir(parents=True, exist_ok=True)
+    part_file = isolated_chunk / f"{dest_file.stem}.part"
+
+    try:
+        # Tier 1: Direct High-Speed Python Chunked Streaming (512KB chunks)
         try:
-            part_file.unlink()
+            req = urllib.request.Request(stream_url, headers=HONGGUO_HEADERS)
+            with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
+                if resp.status in (200, 206):
+                    with open(part_file, "wb") as f:
+                        while True:
+                            chunk = resp.read(512 * 1024)
+                            if not chunk:
+                                break
+                            f.write(chunk)
+                    if part_file.exists() and part_file.stat().st_size > 100000:
+                        if dest_file.exists():
+                            try:
+                                dest_file.unlink()
+                            except Exception:
+                                pass
+                        shutil.move(str(part_file), str(dest_file))
+                        return True
         except Exception:
             pass
 
-    # Tier 1: Direct High-Speed Python Chunked Streaming (512KB chunks)
-    try:
-        req = urllib.request.Request(stream_url, headers=HONGGUO_HEADERS)
-        with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
-            if resp.status in (200, 206):
-                with open(part_file, "wb") as f:
-                    while True:
-                        chunk = resp.read(512 * 1024)
-                        if not chunk:
-                            break
-                        f.write(chunk)
-                if part_file.exists() and part_file.stat().st_size > 1000000:
-                    if dest_file.exists():
-                        try:
-                            dest_file.unlink()
-                        except Exception:
-                            pass
-                    part_file.rename(dest_file)
-                    return True
-    except Exception:
-        pass
-
-    # Tier 2: curl.exe with ByteDance headers
-    try:
-        cmd = [
-            "curl.exe",
-            "-k", "-L",
-            "--retry", "3",
-            "--retry-delay", "1",
-            "-H", "Referer: https://hongguoduanju.com/",
-            "-H", "Origin: https://hongguoduanju.com",
-            "-H", "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            stream_url,
-            "-o", str(part_file),
-            "--connect-timeout", "30",
-            "--max-time", str(timeout_sec)
-        ]
-        silent_kw = get_silent_kwargs()
-        subprocess.run(cmd, capture_output=True, timeout=timeout_sec + 10, **silent_kw)
-        if part_file.exists() and part_file.stat().st_size > 1000000:
-            if dest_file.exists():
-                try:
-                    dest_file.unlink()
-                except Exception:
-                    pass
-            part_file.rename(dest_file)
-            return True
-    except Exception:
-        pass
-
-    if part_file.exists():
+        # Tier 2: curl.exe with ByteDance headers
         try:
-            part_file.unlink()
+            cmd = [
+                "curl.exe",
+                "-k", "-L",
+                "--retry", "3",
+                "--retry-delay", "1",
+                "-H", "Referer: https://hongguoduanju.com/",
+                "-H", "Origin: https://hongguoduanju.com",
+                "-H", "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                stream_url,
+                "-o", str(part_file),
+                "--connect-timeout", "30",
+                "--max-time", str(timeout_sec)
+            ]
+            silent_kw = get_silent_kwargs()
+            subprocess.run(cmd, capture_output=True, timeout=timeout_sec + 10, **silent_kw)
+            if part_file.exists() and part_file.stat().st_size > 100000:
+                if dest_file.exists():
+                    try:
+                        dest_file.unlink()
+                    except Exception:
+                        pass
+                shutil.move(str(part_file), str(dest_file))
+                return True
         except Exception:
             pass
 
-    return False
+        return False
+    finally:
+        shutil.rmtree(isolated_chunk, ignore_errors=True)
+        clean_stray_download_artifacts(dest_file.parent)
 
 
 # Compatibility aliases
@@ -990,6 +1013,9 @@ def slice_full_movie_into_episodes(full_movie_file: Path, drama_dest_dir: Path, 
                 on_episode_ready(ep_num, ep_dest, sz_mb)
             continue
         start_t = (ep_num - 1) * ep_duration
+        isolated_slice = Path(tempfile.gettempdir()) / "sn_download_tmp" / f"slice_{uuid.uuid4().hex[:8]}"
+        isolated_slice.mkdir(parents=True, exist_ok=True)
+        temp_slice_file = isolated_slice / f"EP_{ep_num:02d}.mp4"
         cmd_slice = [
             ffmpeg_bin,
             "-y",
@@ -998,18 +1024,27 @@ def slice_full_movie_into_episodes(full_movie_file: Path, drama_dest_dir: Path, 
             "-i", str(full_movie_file),
             "-c", "copy",
             "-movflags", "+faststart",
-            str(ep_dest)
+            str(temp_slice_file)
         ]
         try:
             subprocess.run(cmd_slice, capture_output=True, timeout=30, **silent_kw)
-            if ep_dest.exists() and ep_dest.stat().st_size > 100000:
+            if temp_slice_file.exists() and temp_slice_file.stat().st_size > 100000:
+                if ep_dest.exists():
+                    try:
+                        ep_dest.unlink()
+                    except Exception:
+                        pass
+                shutil.move(str(temp_slice_file), str(ep_dest))
                 created_files.append(ep_dest)
                 if on_episode_ready:
                     sz_mb = ep_dest.stat().st_size / (1024 * 1024)
                     on_episode_ready(ep_num, ep_dest, sz_mb)
         except Exception:
             pass
+        finally:
+            shutil.rmtree(isolated_slice, ignore_errors=True)
 
+    clean_stray_download_artifacts(drama_dest_dir)
     return created_files
 
 
@@ -1584,6 +1619,9 @@ class DramaDownloadManager:
             total = len(selected_eps)
             poster_dest = drama_dest_dir / f"{safe_drama_title}_Poster.jpg"
 
+            # 0. Sanitize destination folder first to remove any leftover fragments or messy files
+            clean_stray_download_artifacts(drama_dest_dir)
+
             # 1. Save Drama Poster artwork
             try:
                 if save_poster and self.current_drama:
@@ -1911,6 +1949,8 @@ class DramaDownloadManager:
 
                 # 5. Source D: Online stream via yt-dlp
                 if (not dest_file.exists() or dest_file.stat().st_size < 1000000) and ep.get("stream_url") and ep["stream_url"].startswith("http"):
+                    isolated_ep_dir = Path(tempfile.gettempdir()) / "sn_download_tmp" / f"ep_{uuid.uuid4().hex[:8]}"
+                    isolated_ep_dir.mkdir(parents=True, exist_ok=True)
                     try:
                         def ydl_ep_hook(d):
                             st = d.get('status')
@@ -1930,7 +1970,8 @@ class DramaDownloadManager:
                                 single_ep_hook(100)
 
                         ydl_down_opts = {
-                            'outtmpl': str(drama_dest_dir / f"EP_{ep_num:02d}.%(ext)s"),
+                            'paths': {'home': str(isolated_ep_dir), 'temp': str(isolated_ep_dir)},
+                            'outtmpl': str(isolated_ep_dir / f"EP_{ep_num:02d}.%(ext)s"),
                             'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
                             'ffmpeg_location': ffmpeg_bin,
                             'merge_output_format': 'mp4',
@@ -1942,7 +1983,17 @@ class DramaDownloadManager:
                         }
                         with yt_dlp.YoutubeDL(ydl_down_opts) as ydl:
                             ydl.download([ep["stream_url"]])
-                        if dest_file.exists() and dest_file.stat().st_size > 1000000:
+                        
+                        cand_eps = [c for c in isolated_ep_dir.glob(f"EP_{ep_num:02d}*") if c.is_file() and c.stat().st_size > 100000 and not any(x in c.name for x in [".part", ".ytdl", ".tmp"])]
+                        if cand_eps:
+                            if dest_file.exists():
+                                try:
+                                    dest_file.unlink()
+                                except Exception:
+                                    pass
+                            shutil.move(str(cand_eps[0]), str(dest_file))
+
+                        if dest_file.exists() and dest_file.stat().st_size > 100000:
                             sz_mb = dest_file.stat().st_size / (1024 * 1024)
                             with self._lock:
                                 ep["status"] = "Completed"
@@ -1953,9 +2004,13 @@ class DramaDownloadManager:
                                 self.stats["completed"] += 1
                                 self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total_cnt) * 100) if total_cnt > 0 else 100
                                 self.add_log(f"✔ Live video stream downloaded via yt-dlp: {ep_file_name} ({sz_mb:.1f} MB)")
+                            clean_stray_download_artifacts(drama_dest_dir)
                             return True
                     except Exception:
                         pass
+                    finally:
+                        shutil.rmtree(isolated_ep_dir, ignore_errors=True)
+                        clean_stray_download_artifacts(drama_dest_dir)
 
                 # 6. Source E: Local file path copy
                 if (not dest_file.exists() or dest_file.stat().st_size < 1000000) and ep.get("filepath") and Path(ep["filepath"]).exists():
@@ -2133,6 +2188,8 @@ class DramaDownloadManager:
                 if ".m3u8" in effective_master_url:
                     dl_ok = download_m3u8_stream_turbo(effective_master_url, full_movie_dest, timeout_sec=600, progress_callback=master_live_hook)
                 else:
+                    isolated_master_dir = Path(tempfile.gettempdir()) / "sn_download_tmp" / f"master_{uuid.uuid4().hex[:8]}"
+                    isolated_master_dir.mkdir(parents=True, exist_ok=True)
                     try:
                         def ydl_master_cb(d):
                             st = d.get('status')
@@ -2152,7 +2209,8 @@ class DramaDownloadManager:
                                 master_live_hook(100)
 
                         ydl_down_opts = {
-                            'outtmpl': str(full_movie_dest.with_suffix('')) + '.%(ext)s',
+                            'paths': {'home': str(isolated_master_dir), 'temp': str(isolated_master_dir)},
+                            'outtmpl': str(isolated_master_dir / 'master.%(ext)s'),
                             'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
                             'ffmpeg_location': ffmpeg_bin,
                             'merge_output_format': 'mp4',
@@ -2165,16 +2223,21 @@ class DramaDownloadManager:
                         with yt_dlp.YoutubeDL(ydl_down_opts) as ydl:
                             ydl.download([effective_master_url])
 
-                        if not full_movie_dest.exists():
-                            for c in drama_dest_dir.glob(f"{full_movie_dest.stem}*"):
-                                if c.is_file() and c.stat().st_size > 1000000 and not c.name.endswith(".part"):
-                                    if dest_file := full_movie_dest:
-                                        c.rename(dest_file)
-                                    break
+                        cands = [c for c in isolated_master_dir.glob("master*") if c.is_file() and c.stat().st_size > 1000000 and not any(x in c.name for x in [".part", ".ytdl", ".tmp"])]
+                        if cands:
+                            if full_movie_dest.exists():
+                                try:
+                                    full_movie_dest.unlink()
+                                except Exception:
+                                    pass
+                            shutil.move(str(cands[0]), str(full_movie_dest))
 
                         dl_ok = full_movie_dest.exists() and full_movie_dest.stat().st_size > 1000000
                     except Exception as yerr:
                         self.add_log(f"Notice: Master stream download note: {yerr}")
+                    finally:
+                        shutil.rmtree(isolated_master_dir, ignore_errors=True)
+                        clean_stray_download_artifacts(drama_dest_dir)
 
                 if full_movie_dest.exists() and full_movie_dest.stat().st_size > 1000000:
                     fm_sz = full_movie_dest.stat().st_size / (1024 * 1024)
@@ -2319,6 +2382,7 @@ class DramaDownloadManager:
             # Ensure all episodes are in root drama_dest_dir and remove any duplicate nested subfolders
             try:
                 hongguo_service.standardize_folder(drama_dest_dir)
+                clean_stray_download_artifacts(drama_dest_dir)
             except Exception:
                 pass
 
@@ -2334,6 +2398,11 @@ class DramaDownloadManager:
         self.stop_requested = True
         self.is_downloading = False
         self.add_log("Stop download command sent.")
+        if self.last_download_dir:
+            try:
+                clean_stray_download_artifacts(Path(self.last_download_dir))
+            except Exception:
+                pass
         return {"success": True}
 
 

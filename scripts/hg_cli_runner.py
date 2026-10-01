@@ -270,6 +270,16 @@ def cmd_download(args):
                     shutil.rmtree(meta_file, ignore_errors=True)
             except Exception:
                 pass
+
+    # Sweep all temporary fragments, .part, .tmp, .ytdl
+    for extra_file in list(out_dir.iterdir()):
+        if extra_file.is_file():
+            nl = extra_file.name.lower()
+            if any(x in nl for x in [".part", ".tmp", ".ytdl", "frag", ".aria2", ".temp", ".raw", ".enc"]):
+                try:
+                    extra_file.unlink(missing_ok=True)
+                except Exception:
+                    pass
                         
     out = {
         "ok": True,

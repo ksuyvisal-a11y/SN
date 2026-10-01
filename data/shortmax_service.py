@@ -10,6 +10,9 @@ import json
 import base64
 import ssl
 import subprocess
+import shutil
+import tempfile
+import uuid
 import urllib.request
 import urllib.parse
 from pathlib import Path
@@ -316,90 +319,83 @@ def download_and_remux_shortmax_m3u8(m3u8_url: str, dest_file: Path, progress_ca
 
     dest_file = Path(dest_file)
     dest_file.parent.mkdir(parents=True, exist_ok=True)
-    temp_ts = dest_file.with_suffix(".tmp.ts")
-    temp_mp4 = dest_file.with_suffix(".tmp.mp4")
+    isolated_sm_dir = Path(tempfile.gettempdir()) / "sn_download_tmp" / f"sm_{uuid.uuid4().hex[:8]}"
+    isolated_sm_dir.mkdir(parents=True, exist_ok=True)
+    temp_ts = isolated_sm_dir / f"{dest_file.stem}.ts"
+    temp_mp4 = isolated_sm_dir / f"{dest_file.stem}.mp4"
 
-    # Fetch m3u8 playlist
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Referer': 'https://www.shorttv.live/',
-        'Origin': 'https://www.shorttv.live',
-    }
-    base_url = m3u8_url.rsplit('/', 1)[0]
-    req = urllib.request.Request(m3u8_url, headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=12, context=_SSL_CTX) as resp:
-            m3u8_text = resp.read().decode('utf-8')
-    except Exception as e:
-        print(f"[ShortMax Download] Error fetching m3u8: {e}")
-        return False
-
-    seg_urls = []
-    for line in m3u8_text.splitlines():
-        line = line.strip()
-        if line and not line.startswith('#'):
-            if line.startswith('http'):
-                seg_urls.append(line)
-            else:
-                seg_urls.append(f"{base_url}/{line}")
-
-    if not seg_urls:
-        return False
-
-    if progress_callback:
-        progress_callback(5)
-
-    # Download and decrypt segments concurrently
-    tasks = [(i, u) for i, u in enumerate(seg_urls)]
-    results = {}
-    total_segments = len(seg_urls)
-    completed_segments = 0
-
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        for idx, dec_data in executor.map(_download_single_segment, tasks):
-            results[idx] = dec_data
-            completed_segments += 1
-            if progress_callback:
-                pct = int(min(90, 5 + (completed_segments / total_segments) * 85))
-                progress_callback(pct)
-
-    # Concatenate all decrypted TS segments in order
-    with open(temp_ts, 'wb') as f:
-        for i in range(total_segments):
-            seg = results.get(i, b'')
-            f.write(seg)
-
-    if progress_callback:
-        progress_callback(92)
-
-    # Remux to MP4
-    ffmpeg_bin = get_ffmpeg_path()
-    cmd = [ffmpeg_bin, '-y', '-i', str(temp_ts), '-c', 'copy', '-movflags', '+faststart', str(temp_mp4)]
-    res = subprocess.run(cmd, capture_output=True)
-
-    if temp_ts.exists():
+        # Fetch m3u8 playlist
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Referer': 'https://www.shorttv.live/',
+            'Origin': 'https://www.shorttv.live',
+        }
+        base_url = m3u8_url.rsplit('/', 1)[0]
+        req = urllib.request.Request(m3u8_url, headers=headers)
         try:
-            temp_ts.unlink()
-        except Exception:
-            pass
+            with urllib.request.urlopen(req, timeout=12, context=_SSL_CTX) as resp:
+                m3u8_text = resp.read().decode('utf-8')
+        except Exception as e:
+            print(f"[ShortMax Download] Error fetching m3u8: {e}")
+            return False
 
-    if res.returncode == 0 and temp_mp4.exists() and temp_mp4.stat().st_size > 100000:
-        if dest_file.exists():
-            try:
-                dest_file.unlink()
-            except Exception:
-                pass
-        temp_mp4.rename(dest_file)
+        seg_urls = []
+        for line in m3u8_text.splitlines():
+            line = line.strip()
+            if line and not line.startswith('#'):
+                if line.startswith('http'):
+                    seg_urls.append(line)
+                else:
+                    seg_urls.append(f"{base_url}/{line}")
+
+        if not seg_urls:
+            return False
+
         if progress_callback:
-            progress_callback(100)
-        return True
-    else:
-        if temp_mp4.exists():
-            try:
-                temp_mp4.unlink()
-            except Exception:
-                pass
+            progress_callback(5)
+
+        # Download and decrypt segments concurrently
+        tasks = [(i, u) for i, u in enumerate(seg_urls)]
+        results = {}
+        total_segments = len(seg_urls)
+        completed_segments = 0
+
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            for idx, dec_data in executor.map(_download_single_segment, tasks):
+                results[idx] = dec_data
+                completed_segments += 1
+                if progress_callback:
+                    pct = int(min(90, 5 + (completed_segments / total_segments) * 85))
+                    progress_callback(pct)
+
+        # Concatenate all decrypted TS segments in order
+        with open(temp_ts, 'wb') as f:
+            for i in range(total_segments):
+                seg = results.get(i, b'')
+                f.write(seg)
+
+        if progress_callback:
+            progress_callback(92)
+
+        # Remux to MP4
+        ffmpeg_bin = get_ffmpeg_path()
+        cmd = [ffmpeg_bin, '-y', '-i', str(temp_ts), '-c', 'copy', '-movflags', '+faststart', str(temp_mp4)]
+        res = subprocess.run(cmd, capture_output=True)
+
+        if res.returncode == 0 and temp_mp4.exists() and temp_mp4.stat().st_size > 100000:
+            if dest_file.exists():
+                try:
+                    dest_file.unlink()
+                except Exception:
+                    pass
+            shutil.move(str(temp_mp4), str(dest_file))
+            if progress_callback:
+                progress_callback(100)
+            return True
         return False
+    finally:
+        shutil.rmtree(isolated_sm_dir, ignore_errors=True)
 
 
 def get_or_create_preview_video(short_play_id: int, ep_num: int = 1) -> Optional[Path]:

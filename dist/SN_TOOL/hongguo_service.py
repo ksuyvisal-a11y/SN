@@ -239,10 +239,56 @@ def download_episodes_batch(
         return {"ok": False, "error": str(e)}
 
 
+def clean_stray_download_artifacts(dest_dir: Path):
+    """
+    Sanitize the drama download folder to ensure ONLY pristine MP4 episodes
+    (EP_XX.mp4) and the official drama poster (*_Poster.jpg / poster.jpg) remain.
+    Instantly removes any yt-dlp fragment files (*.part-Frag*), *.ytdl, *.tmp*,
+    *.aria2, *.part, *.temp, incomplete dummy files, or stray metadata.
+    """
+    if not dest_dir:
+        return
+    dest_dir = Path(dest_dir)
+    if not dest_dir.exists():
+        return
+    try:
+        for item in list(dest_dir.iterdir()):
+            if item.is_dir():
+                if any(x in item.name.lower() for x in [".tmp", "tmp", "temp", "part", "frag"]):
+                    shutil.rmtree(item, ignore_errors=True)
+                continue
+            name_lower = item.name.lower()
+            is_garbage = False
+            # 1. Any temp or fragment patterns anywhere in filename
+            if any(ext in name_lower for ext in [
+                ".part", ".ytdl", ".tmp", "frag", ".aria2", ".temp",
+                ".raw", ".enc", ".torrent", ".ds_store", "thumbs.db"
+            ]):
+                is_garbage = True
+            # 2. Metadata text files
+            elif any(name_lower.endswith(s) for s in ["_story_info.txt", "series.json", ".series", ".hg_download"]):
+                is_garbage = True
+            # 3. Incomplete, 0-byte or corrupted video files (< 50KB)
+            elif any(name_lower.endswith(v_ext) for v_ext in [".mp4", ".mkv", ".ts"]):
+                try:
+                    if item.stat().st_size < 50000:
+                        is_garbage = True
+                except Exception:
+                    pass
+            if is_garbage:
+                try:
+                    item.unlink(missing_ok=True)
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+
 def standardize_folder(dest_dir: Path):
     """
     Ensure all downloaded episode files in dest_dir are standardized as EP_XX.mp4,
     flatten all nested subdirectories, and delete any duplicate files or subfolders.
+    Purges all temporary fragments, .part-Frag*, .ytdl, .tmp, or non-video garbage.
     """
     if not dest_dir:
         return
@@ -250,13 +296,16 @@ def standardize_folder(dest_dir: Path):
     if not dest_dir.exists():
         return
 
+    # Run aggressive temp/fragment cleanup first
+    clean_stray_download_artifacts(dest_dir)
+
     # 1. Flatten all subdirectories inside dest_dir
     for sub in list(dest_dir.iterdir()):
         if sub.is_dir():
             # Check all video files in sub
             video_candidates = list(sub.glob("*.mp4")) + list(sub.glob("*.mkv")) + list(sub.glob("*.ts"))
             for f in video_candidates:
-                if any(x in f.name for x in [".raw", ".part", ".enc", ".tmp"]):
+                if any(x in f.name.lower() for x in [".raw", ".part", ".enc", ".tmp", "frag", ".ytdl"]):
                     try:
                         f.unlink()
                     except Exception:
@@ -303,7 +352,7 @@ def standardize_folder(dest_dir: Path):
 
     # 2. Check root dest_dir for any Chinese named or non-standard files
     for f in list(dest_dir.glob("*.mp4")):
-        if any(x in f.name for x in [".raw", ".part", ".enc", ".tmp"]):
+        if any(x in f.name.lower() for x in [".raw", ".part", ".enc", ".tmp", "frag", ".ytdl"]):
             try:
                 f.unlink()
             except Exception:
@@ -352,3 +401,6 @@ def standardize_folder(dest_dir: Path):
                     shutil.rmtree(meta_file, ignore_errors=True)
             except Exception:
                 pass
+
+    # Final sweep of any remaining temporary files
+    clean_stray_download_artifacts(dest_dir)

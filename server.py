@@ -1312,6 +1312,7 @@ def downloader_open_folder_endpoint():
 
     try:
         hongguo_service.standardize_folder(p)
+        hongguo_service.clean_stray_download_artifacts(p)
     except Exception:
         pass
 
