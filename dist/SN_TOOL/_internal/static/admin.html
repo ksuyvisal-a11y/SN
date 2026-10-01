@@ -1696,10 +1696,15 @@
                             <span class="stat-badge-pill stat-pill-blue">STUDIO ISSUER</span>
                         </div>
 
-                        <!-- Quick 1-Click Duration Presets -->
-                        <div class="presets-row">
-                            <span class="presets-label">ជ្រើសរើសកញ្ចប់លឿន (Quick Presets):</span>
-                            <div class="presets-grid">
+                        <!-- Unified Plan Duration Selector -->
+                        <div class="input-group">
+                            <label class="input-label">
+                                <span>កាលកំណត់សុពលភាព (Duration Plan):</span>
+                                <span class="input-hint" id="active-plan-hint">👑 Lifetime VIP (គ្មានថ្ងៃផុតកំណត់)</span>
+                            </label>
+                            <input type="hidden" id="selected-duration" value="LIFETIME:0">
+                            
+                            <div class="presets-grid" style="grid-template-columns: repeat(3, 1fr); gap: 10px;">
                                 <button type="button" class="btn-preset active" onclick="applyPreset('LIFETIME:0', this)">
                                     <span class="title">👑 មួយជីវិត</span>
                                     <span class="desc">Lifetime VIP</span>
@@ -1724,53 +1729,15 @@
                                     <span class="title">🧪 តេស្ត</span>
                                     <span class="desc">3-Day Trial</span>
                                 </button>
-                            </div>
-                        </div>
-
-                        <!-- Client Name Input -->
-                        <div class="input-group">
-                            <label class="input-label" for="input-client-name">
-                                <span>ឈ្មោះ Client / អតិថិជន (Client Name):</span>
-                                <span class="input-hint">ឧ. Sokha_FB, @sal_vip</span>
-                            </label>
-                            <input type="text" id="input-client-name" class="light-input" placeholder="បញ្ចូលឈ្មោះអតិថិជន..." value="VIP_Customer">
-                        </div>
-
-                        <!-- Custom Key Input -->
-                        <div class="input-group">
-                            <label class="input-label" for="input-custom-key">
-                                <span>Key ឬ ពាក្យសម្ងាត់ផ្ទាល់ខ្លួន (Custom Key):</span>
-                                <span class="input-hint">Optional</span>
-                            </label>
-                            <div class="input-field-row">
-                                <input type="text" id="input-custom-key" class="light-input mono" placeholder="ឧ. SAL-VIP-2026 (ទុកទំនេរបើចង់ Auto Hash)">
-                                <button type="button" class="btn-input-addon" onclick="generateRandomCustomKey()" title="Random Easy Key">
-                                    <i class="fa-solid fa-dice"></i> Random
+                                <button type="button" class="btn-preset" onclick="applyPreset('CUSTOM:CUSTOM', this)" style="grid-column: span 3; padding: 12px;">
+                                    <span class="title"><i class="fa-solid fa-pen-ruler"></i> ✍️ កំណត់ចំនួនថ្ងៃតាមចិត្ត (Custom Days)</span>
+                                    <span class="desc">វាយចំនួនថ្ងៃផ្ទាល់ខ្លួន ឧ. 15, 45, 60, 180...</span>
                                 </button>
                             </div>
-                        </div>
 
-                        <!-- Duration Dropdown -->
-                        <div class="input-group">
-                            <label class="input-label" for="select-duration">
-                                <span>កាលកំណត់សុពលភាព (Duration Plan):</span>
-                            </label>
-                            <div class="select-wrapper">
-                                <select id="select-duration" class="light-select" onchange="handleDurationChange()">
-                                    <option value="LIFETIME:0">👑 Lifetime VIP (ប្រើបានមួយជីវិត - គ្មានថ្ងៃផុតកំណត់)</option>
-                                    <option value="365D:365">📅 365 ថ្ងៃ (1 ឆ្នាំពេញ)</option>
-                                    <option value="90D:90">📅 90 ថ្ងៃ (3 ខែ)</option>
-                                    <option value="30D:30">📅 30 ថ្ងៃ (1 ខែ)</option>
-                                    <option value="7D:7">⚡ 7 ថ្ងៃ (1 សប្ដាហ៍)</option>
-                                    <option value="3D:3">🧪 3 ថ្ងៃ (Free Trial)</option>
-                                    <option value="CUSTOM:CUSTOM">✍️ កំណត់ចំនួនថ្ងៃតាមចិត្ត (Custom Days)...</option>
-                                </select>
-                                <i class="fa-solid fa-chevron-down select-chevron"></i>
-                            </div>
-
-                            <!-- Custom Days Extra Field -->
-                            <div id="row-custom-days" class="input-field-row" style="display: none; margin-top: 6px;">
-                                <input type="number" id="input-custom-days" class="light-input" placeholder="បញ្ចូលចំនួនថ្ងៃ (ឧ. 15, 45, 60... ឬ 0 សម្រាប់មួយជីវិត)" min="0" value="30">
+                            <!-- Custom Days Input Field -->
+                            <div id="row-custom-days" class="input-field-row" style="display: none; margin-top: 10px;">
+                                <input type="number" id="input-custom-days" class="light-input" placeholder="👉 បញ្ចូលចំនួនថ្ងៃ (ឧ. 15, 45, 60... ឬ 0 សម្រាប់មួយជីវិត)" min="0" value="30">
                             </div>
                         </div>
 
@@ -2194,23 +2161,35 @@
             }
         }
 
-        // 4. Quick Presets
+        // 4. Quick Presets (Unified Plan Selector)
         function applyPreset(presetVal, btnElem) {
             document.querySelectorAll('.btn-preset').forEach(b => b.classList.remove('active'));
             if (btnElem) btnElem.classList.add('active');
 
-            const select = document.getElementById('select-duration');
-            select.value = presetVal;
-            handleDurationChange();
-        }
+            const hiddenInput = document.getElementById('selected-duration');
+            if (hiddenInput) hiddenInput.value = presetVal;
 
-        function handleDurationChange() {
-            const val = document.getElementById('select-duration').value;
             const customRow = document.getElementById('row-custom-days');
-            if (val === 'CUSTOM:CUSTOM') {
-                customRow.style.display = 'flex';
+            const hintElem = document.getElementById('active-plan-hint');
+
+            const hintMap = {
+                'LIFETIME:0': '👑 Lifetime VIP (ប្រើបានមួយជីវិត - គ្មានថ្ងៃផុតកំណត់)',
+                '365D:365': '📅 1 ឆ្នាំ (365 ថ្ងៃពេញ)',
+                '90D:90': '📅 3 ខែ (90 ថ្ងៃ)',
+                '30D:30': '📅 1 ខែ (30 ថ្ងៃ)',
+                '7D:7': '⚡ 1 សប្ដាហ៍ (7 ថ្ងៃ)',
+                '3D:3': '🧪 3-Day Trial (តេស្ត 3 ថ្ងៃ)',
+                'CUSTOM:CUSTOM': '✍️ កំណត់ចំនួនថ្ងៃផ្ទាល់ខ្លួន'
+            };
+
+            if (hintElem) hintElem.textContent = hintMap[presetVal] || presetVal;
+
+            if (presetVal === 'CUSTOM:CUSTOM') {
+                if (customRow) customRow.style.display = 'flex';
+                const inputDays = document.getElementById('input-custom-days');
+                if (inputDays) inputDays.focus();
             } else {
-                customRow.style.display = 'none';
+                if (customRow) customRow.style.display = 'none';
             }
         }
 
@@ -2240,7 +2219,7 @@
             const customKey = document.getElementById('input-custom-key').value.trim();
             const clientName = document.getElementById('input-client-name').value.trim() || "VIP_Customer";
             const hwid = document.getElementById('input-hwid').value.trim();
-            const durationVal = document.getElementById('select-duration').value;
+            const durationVal = (document.getElementById('selected-duration') || {}).value || "LIFETIME:0";
 
             let durationDays = 0;
             let planTag = "VIP_PRO";
