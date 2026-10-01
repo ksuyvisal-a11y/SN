@@ -71,6 +71,9 @@ from license_engine import (
     activate_license_on_device,
     generate_license_key,
     register_custom_key,
+    revoke_license_key,
+    unrevoke_license_key,
+    get_revoked_keys,
     is_license_required,
     set_license_required,
     get_machine_hwid,
@@ -962,6 +965,35 @@ def admin_license_config_endpoint():
         set_license_required(req)
         return jsonify({"success": True, "require_license": req})
     return jsonify({"success": True, "require_license": is_license_required()})
+
+
+@app.route("/api/admin/revoke-key", methods=["POST"])
+def admin_revoke_key_endpoint():
+    """Admin endpoint to block / revoke a client's key."""
+    data = request.get_json(force=True) or {}
+    key = data.get("license_key", "").strip()
+    reason = data.get("reason", "Admin revoked")
+    if not key:
+        return jsonify({"success": False, "error": "សូមបញ្ចូល Key ដែលត្រូវ Revoke"}), 400
+    ok, msg = revoke_license_key(key, reason)
+    return jsonify({"success": ok, "message": msg})
+
+
+@app.route("/api/admin/unrevoke-key", methods=["POST"])
+def admin_unrevoke_key_endpoint():
+    """Admin endpoint to unban / restore a revoked key."""
+    data = request.get_json(force=True) or {}
+    key = data.get("license_key", "").strip()
+    if not key:
+        return jsonify({"success": False, "error": "សូមបញ្ចូល Key ដែលត្រូវ Unban"}), 400
+    ok, msg = unrevoke_license_key(key)
+    return jsonify({"success": ok, "message": msg})
+
+
+@app.route("/api/admin/revoked-keys", methods=["GET"])
+def admin_revoked_keys_endpoint():
+    """Admin endpoint to list all revoked keys."""
+    return jsonify({"success": True, "revoked_keys": get_revoked_keys()})
 
 
 @app.route("/api/update/check", methods=["GET"])

@@ -14,7 +14,7 @@ import platform
 import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List
 
 SECRET_ADMIN_SALT = "SN_TOOL_U_NICH_AI_DRAMA_STUDIO_2026_MASTER_SECRET_KEY"
 LICENSE_FILE = Path("license.key")
@@ -22,6 +22,7 @@ ADMIN_HISTORY_FILE = Path("admin_key_history.json")
 GENERATED_KEYS_LOG = Path("generated_keys_log.txt")
 CUSTOM_KEYS_FILE = Path("custom_keys.json")
 LICENSE_CONFIG_FILE = Path("license_config.json")
+REVOKED_KEYS_FILE = Path("revoked_keys.json")
 
 # Built-in Master Keys that work permanently out of the box
 DEFAULT_MASTER_KEYS: Dict[str, Dict[str, Any]] = {
@@ -128,6 +129,143 @@ def get_all_custom_keys() -> Dict[str, Any]:
         except Exception:
             return {}
     return {}
+
+
+def get_revoked_keys() -> List[str]:
+    """Get list of all revoked / banned license keys."""
+    if REVOKED_KEYS_FILE.exists():
+        try:
+            with open(REVOKED_KEYS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    return [k.strip().upper() for k in data]
+                elif isinstance(data, dict):
+                    return [k.strip().upper() for k in data.get("revoked_keys", [])]
+        except Exception:
+            return []
+    return []
+
+
+def revoke_license_key(target_key: str, reason: str = "Banned by Admin") -> Tuple[bool, str]:
+    """Revoke/Ban a license key so the user cannot use the tool anymore."""
+    cleaned = target_key.strip().upper()
+    if not cleaned:
+        return False, "សូមបញ្ចូល Key ដែលត្រូវ Revoke"
+
+    revoked_list = get_revoked_keys()
+    if cleaned not in revoked_list:
+        revoked_list.append(cleaned)
+        try:
+            with open(REVOKED_KEYS_FILE, "w", encoding="utf-8") as f:
+                json.dump({"revoked_keys": revoked_list, "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            return False, f"Failed saving revoked_keys.json: {e}"
+
+    # Also update admin_key_history.json
+    if ADMIN_HISTORY_FILE.exists():
+        try:
+            with open(ADMIN_HISTORY_FILE, "r", encoding="utf-8") as f:
+                history = json.load(f)
+            for r in history:
+                if r.get("license_key", "").upper() == cleaned:
+                    r["status"] = "REVOKED"
+                    r["revoked_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    r["revoke_reason"] = reason
+            with open(ADMIN_HISTORY_FILE, "w", encoding="utf-8") as f:
+                json.dump(history, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
+    # Also update custom_keys.json
+    if CUSTOM_KEYS_FILE.exists():
+        try:
+            with open(CUSTOM_KEYS_FILE, "r", encoding="utf-8") as f:
+                ck = json.load(f)
+            if cleaned in ck:
+                ck[cleaned]["status"] = "REVOKED"
+                ck[cleaned]["revoked_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                with open(CUSTOM_KEYS_FILE, "w", encoding="utf-8") as f:
+                    json.dump(ck, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
+    # If the current machine is using this revoked key, delete license.key
+    if LICENSE_FILE.exists():
+        try:
+            with open(LICENSE_FILE, "r", encoding="utf-8") as f:
+                current_lic = json.load(f)
+            if current_lic.get("license_key", "").upper() == cleaned:
+                LICENSE_FILE.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+    return True, f"🚫 បាន Revoke / Ban Key {cleaned} ជោគជ័យ!"
+
+
+def unrevoke_license_key(target_key: str) -> Tuple[bool, str]:
+    """Unban / Restore a revoked license key."""
+    cleaned = target_key.strip().upper()
+    revoked_list = get_revoked_keys()
+    if cleaned in revoked_list:
+        revoked_list.remove(cleaned)
+        try:
+            with open(REVOKED_KEYS_FILE, "w", encoding="utf-8") as f:
+                json.dump({"revoked_keys": revoked_list, "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
+    # Restore in admin_key_history.json
+    if ADMIN_HISTORY_FILE.exists():
+        try:
+            with open(ADMIN_HISTORY_FILE, "r", encoding="utf-8") as f:
+                history = json.load(f)
+            for r in history:
+                if r.get("license_key", "").upper() == cleaned:
+                    r["status"] = "ACTIVE"
+            with open(ADMIN_HISTORY_FILE, "w", encoding="utf-8") as f:
+                json.dump(history, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
+    # Restore in custom_keys.json
+    if CUSTOM_KEYS_FILE.exists():
+        try:
+            with open(CUSTOM_KEYS_FILE, "r", encoding="utf-8") as f:
+                ck = json.load(f)
+            if cleaned in ck:
+                ck[cleaned]["status"] = "ACTIVE"
+                with open(CUSTOM_KEYS_FILE, "w", encoding="utf-8") as f:
+                    json.dump(ck, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
+    return True, f"✅ បានដោះសោ (Unban) Key {cleaned} ឱ្យដំណើរការឡើងវិញជោគជ័យ!"
+
+
+def check_remote_revocation_online(cleaned_key: str, current_hwid: str) -> Optional[str]:
+    """Check online remote blacklist endpoint if configured (quick 1.5s timeout)."""
+    if not LICENSE_CONFIG_FILE.exists():
+        return None
+    try:
+        with open(LICENSE_CONFIG_FILE, "r", encoding="utf-8") as f:
+            cfg = json.load(f)
+        remote_url = cfg.get("remote_revocation_url")
+        if not remote_url:
+            return None
+        import urllib.request
+        req = urllib.request.Request(remote_url, headers={"User-Agent": "SN_Studio_License_Agent"})
+        with urllib.request.urlopen(req, timeout=1.5) as res:
+            if res.status == 200:
+                data = json.loads(res.read().decode('utf-8'))
+                remote_revoked = [k.strip().upper() for k in data.get("revoked_keys", [])]
+                remote_hwids = [h.strip().upper() for h in data.get("revoked_hwids", [])]
+                if cleaned_key in remote_revoked:
+                    return "❌ License Key នេះត្រូវបាន Admin បញ្ឈប់ពីចម្ងាយ (Remote Revoked by Admin)"
+                if current_hwid in remote_hwids:
+                    return "❌ ម៉ាស៊ីននេះត្រូវបាន Admin បញ្ឈប់ពីចម្ងាយ (Device Banned by Admin)"
+    except Exception:
+        pass
+    return None
 
 
 def get_machine_hwid() -> str:
@@ -250,6 +388,14 @@ def verify_license_key(input_key: str, current_hwid: Optional[str] = None) -> Tu
 
     if not current_hwid:
         current_hwid = get_machine_hwid()
+
+    # 0. Check Blacklist / Revocations (Local & Remote Kill Switch)
+    if cleaned_key in get_revoked_keys():
+        return False, "❌ License Key នេះត្រូវបាន Admin បញ្ឈប់/ផ្អាកការប្រើប្រាស់ (Revoked/Suspended by Admin)", {}
+
+    remote_msg = check_remote_revocation_online(cleaned_key, current_hwid)
+    if remote_msg:
+        return False, remote_msg, {}
 
     # 1. Check Default Master Keys
     if cleaned_key in DEFAULT_MASTER_KEYS:

@@ -22,6 +22,9 @@ from license_engine import (
     generate_license_key,
     verify_license_key,
     register_custom_key,
+    revoke_license_key,
+    unrevoke_license_key,
+    get_revoked_keys,
     is_license_required,
     set_license_required,
     get_machine_hwid,
@@ -72,14 +75,16 @@ def interactive_menu():
         print_header()
         print(" [1] 🔑 បង្កើត License Key ថ្មី (កំណត់ចំនួនថ្ងៃតាមចិត្ត ឬ មួយជីវិត)")
         print(" [2] ✍️ បង្កើត Custom Key ផ្ទាល់ខ្លួន (វាយអក្សរ Key តាមចិត្ត ឧ. SAL-2026)")
-        print(" [3] 🔓 បិទ / បើក ការទាមទារ Key (Toggle Free Mode - មិនបាច់វាយ Key ក៏ប្រើបាន)")
-        print(" [4] 📜 មើលប្រវត្តិ Key ទាំងអស់ (View All Generated Keys)")
-        print(" [5] 🔍 ត្រួតពិនិត្យ និង Verify License Key")
-        print(" [6] 🌟 បង្កើត Lifetime Permanent Key ភ្លាមៗ (Quick Lifetime Key)")
-        print(" [7] 🚪 ចាកចេញ (Exit)")
+        print(" [3] 🚫 បញ្ឈប់ / Block Key របស់ User (Revoke / Ban Key មិនឱ្យប្រើ)")
+        print(" [4] ♻️ ដោះសោ / Unban Key (Restore Key ឱ្យដំណើរការវិញ)")
+        print(" [5] 🔓 បិទ / បើក ការទាមទារ Key (Toggle Free Mode - មិនបាច់វាយ Key ក៏ប្រើបាន)")
+        print(" [6] 📜 មើលប្រវត្តិ Key ទាំងអស់ (View All Generated Keys)")
+        print(" [7] 🔍 ត្រួតពិនិត្យ និង Verify License Key")
+        print(" [8] 🌟 បង្កើត Lifetime Permanent Key ភ្លាមៗ (Quick Lifetime Key)")
+        print(" [9] 🚪 ចាកចេញ (Exit)")
         print("-" * 65)
         
-        choice = input("👉 សូមជ្រើសរើសជម្រើស (1-7): ").strip()
+        choice = input("👉 សូមជ្រើសរើសជម្រើស (1-9): ").strip()
 
         if choice == "1":
             client_name = input("\n👤 បញ្ចូលឈ្មោះ Client/User (ឧ. Sokha_FB): ").strip() or "VIP_Client"
@@ -145,6 +150,33 @@ def interactive_menu():
             input("\nចុច Enter ដើម្បីបន្ត...")
 
         elif choice == "3":
+            print("\n🚫 បញ្ឈប់ / Block Key របស់ User (Revoke / Ban Key):")
+            key_to_ban = input("👉 បញ្ចូល Key ដែលបងចង់ Block មិនឱ្យប្រើ: ").strip()
+            if not key_to_ban:
+                print("⚠️ មិនបានបញ្ចូល Key ទេ!")
+                input("\nចុច Enter ដើម្បីបន្ត...")
+                continue
+            
+            confirm = input(f"⚠️ តើបងប្រាកដទេថាចង់បញ្ឈប់/Block Key '{key_to_ban}'? (y/n): ").strip().lower()
+            if confirm in ('y', 'yes', 'បាទ', 'ចាស'):
+                ok, msg = revoke_license_key(key_to_ban, reason="Admin manual revoke")
+                print(f"\n{msg}")
+            else:
+                print("🚫 បានបោះបង់ប្រតិបត្តិការ។")
+            input("\nចុច Enter ដើម្បីបន្ត...")
+
+        elif choice == "4":
+            print("\n♻️ ដោះសោ / Unban Key (Restore Key):")
+            key_to_unban = input("👉 បញ្ចូល Key ដែលចង់ Unblock ឱ្យដំណើរការវិញ: ").strip()
+            if not key_to_unban:
+                print("⚠️ មិនបានបញ្ចូល Key ទេ!")
+                input("\nចុច Enter ដើម្បីបន្ត...")
+                continue
+            ok, msg = unrevoke_license_key(key_to_unban)
+            print(f"\n{msg}")
+            input("\nចុច Enter ដើម្បីបន្ត...")
+
+        elif choice == "5":
             current_status = is_license_required()
             print(f"\n⚙️ ស្ថានភាពបច្ចុប្បន្ន៖ {'🟢 កំពុងទាមទារ License Key (ON)' if current_status else '🟡 កំពុងបើក Free Mode (OFF - មិនបាច់វាយ Key)'}")
             print(" [1] បើកការទាមទារ Key (User ត្រូវតែមាន Key ទើបប្រើបាន)")
@@ -158,20 +190,21 @@ def interactive_menu():
                 print("🎉 បានបើក Free Mode (User មិនបាច់វាយ Key ទេ បើកមកប្រើបានភ្លាមៗ)")
             input("\nចុច Enter ដើម្បីបន្ត...")
 
-        elif choice == "4":
+        elif choice == "6":
             if ADMIN_HISTORY_FILE.exists():
                 with open(ADMIN_HISTORY_FILE, "r", encoding="utf-8") as f:
                     history = json.load(f)
                 print(f"\n📜 បញ្ជី License Keys ទាំងអស់ ({len(history)} Keys):")
                 print("-" * 65)
                 for idx, k in enumerate(history, 1):
-                    print(f"{idx}. [{k.get('status', 'ACTIVE')}] {k.get('license_key')} | {k.get('client_name')} | Plan: {k.get('plan')} | Expiry: {k.get('expires_at')} | HWID: {k.get('bound_hwid')}")
+                    status_badge = "🔴 REVOKED" if k.get('status') == 'REVOKED' else "🟢 ACTIVE"
+                    print(f"{idx}. [{status_badge}] {k.get('license_key')} | {k.get('client_name')} | Plan: {k.get('plan')} | Expiry: {k.get('expires_at')} | HWID: {k.get('bound_hwid')}")
                 print("-" * 65)
             else:
                 print("\n⚠️ មិនទាន់មាន Key ណាមួយត្រូវបានបង្កើតនៅឡើយទេ។")
             input("\nចុច Enter ដើម្បីបន្ត...")
 
-        elif choice == "5":
+        elif choice == "7":
             test_key = input("\n🔍 បញ្ចូល License Key ដែលចង់ Check: ").strip()
             valid, msg, record = verify_license_key(test_key)
             print(f"\nResult: {msg}")
@@ -179,13 +212,13 @@ def interactive_menu():
                 print(f"Client: {record.get('client_name')}, Plan: {record.get('plan')}, Expiry: {record.get('expires_at')}")
             input("\nចុច Enter ដើម្បីបន្ត...")
 
-        elif choice == "6":
+        elif choice == "8":
             name = input("\n👤 ឈ្មោះ Client: ").strip() or "User_Lifetime"
             rec = generate_license_key(client_name=name, duration_days=0, plan="VIP_LIFETIME")
             print_key_card(rec)
             input("\nចុច Enter ដើម្បីបន្ត...")
 
-        elif choice == "7":
+        elif choice == "9":
             print("\n👋 អរគុណ! ចាកចេញពី Admin Key Generator។\n")
             break
 

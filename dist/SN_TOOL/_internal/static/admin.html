@@ -826,22 +826,36 @@
                         const hwidText = item.bound_hwid === "ANY" ? "ANY" : item.bound_hwid;
                         const dateText = item.created_at || "Recent";
 
+                        const isRevoked = item.status === "REVOKED";
                         const row = document.createElement('div');
                         row.className = 'log-item-row';
+                        if (isRevoked) row.style.borderColor = 'rgba(239, 68, 68, 0.4)';
                         row.innerHTML = `
                             <div class="log-item-left">
                                 <div class="log-key-line">
                                     <i class="fa-solid fa-key" style="color:var(--gold-primary); font-size:0.75rem;"></i>
-                                    <span>${item.license_key}</span>
+                                    <span style="${isRevoked ? 'text-decoration: line-through; color: #ef4444;' : ''}">${item.license_key}</span>
                                     <span class="plan-tag-badge">[${planLabel}]</span>
+                                    ${isRevoked ? '<span style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); padding: 1px 6px; border-radius: 4px; font-size: 0.68rem; font-weight: 800;">REVOKED</span>' : ''}
                                 </div>
                                 <div class="log-meta-line">
-                                    HWID: ${hwidText} | ${dateText}
+                                    HWID: ${hwidText} | Client: ${item.client_name || 'VIP'} | ${dateText}
                                 </div>
                             </div>
-                            <button type="button" class="btn-row-copy" onclick="copySingleKey('${item.license_key}')">
-                                Copy
-                            </button>
+                            <div style="display: flex; gap: 6px; align-items: center;">
+                                <button type="button" class="btn-row-copy" onclick="copySingleKey('${item.license_key}')">
+                                    Copy
+                                </button>
+                                ${isRevoked ? `
+                                    <button type="button" class="btn-row-copy" style="background: rgba(34, 197, 94, 0.2); border-color: #22c55e; color: #4ade80;" onclick="handleUnrevokeFromWeb('${item.license_key}')">
+                                        <i class="fa-solid fa-unlock"></i> Unban
+                                    </button>
+                                ` : `
+                                    <button type="button" class="btn-row-copy" style="background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); color: #f87171;" onclick="handleRevokeFromWeb('${item.license_key}')">
+                                        <i class="fa-solid fa-ban"></i> Block
+                                    </button>
+                                `}
+                            </div>
                         `;
                         container.appendChild(row);
                     });
@@ -850,6 +864,47 @@
                 }
             } catch (err) {
                 console.error(err);
+            }
+        }
+
+        // Revoke Key from Web
+        async function handleRevokeFromWeb(keyStr) {
+            if (!confirm(`⚠️ តើបងប្រាកដទេថាចង់បញ្ឈប់/Block Key: "${keyStr}" មិនឱ្យ User ប្រើប្រាស់?`)) return;
+            try {
+                const res = await fetch('/api/admin/revoke-key', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ license_key: keyStr, reason: "Admin web revoked" })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast("🚫 បាន Block Key ជោគជ័យ!");
+                    fetchKeysHistory();
+                } else {
+                    showToast("❌ " + (data.error || "បរាជ័យក្នុងការ Block"));
+                }
+            } catch (e) {
+                showToast("❌ Network error");
+            }
+        }
+
+        // Unban Key from Web
+        async function handleUnrevokeFromWeb(keyStr) {
+            try {
+                const res = await fetch('/api/admin/unrevoke-key', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ license_key: keyStr })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast("✅ បានដោះសោ (Unban) Key ជោគជ័យ!");
+                    fetchKeysHistory();
+                } else {
+                    showToast("❌ " + (data.error || "បរាជ័យក្នុងការ Unban"));
+                }
+            } catch (e) {
+                showToast("❌ Network error");
             }
         }
 
