@@ -26,9 +26,22 @@ AES_KEY = b"shortwebapiaesen"
 AES_IV = b"shortwebapiaesen"
 TS_IV = bytes([115, 104, 111, 114, 116, 109, 97, 120, 48, 48, 48, 48, 48, 48, 48, 48])
 
-CACHE_DIR = Path("data/cache/shortmax")
+def _resolve_data_path(rel_name: str) -> Path:
+    base = Path(__file__).resolve().parent
+    candidates = [
+        base / rel_name,
+        base / "data" / rel_name,
+        Path("data") / rel_name,
+        base.parent / "data" / rel_name
+    ]
+    for c in candidates:
+        if c.exists():
+            return c
+    return base / rel_name
+
+CACHE_DIR = _resolve_data_path("cache/shortmax")
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
-CACHE_FILE = Path("data/shortmax_streams_cache.json")
+CACHE_FILE = _resolve_data_path("shortmax_streams_cache.json")
 
 # In-memory stream cache
 _SHORTMAX_DETAIL_CACHE: Dict[str, Dict[str, Any]] = {}
@@ -87,7 +100,7 @@ def _get_drama_language(short_play_id: int) -> str:
     global _LANG_MAP
     sp_str = str(short_play_id)
     if not _LANG_MAP:
-        all_dramas_path = Path("data/shortmax_all_dramas.json")
+        all_dramas_path = _resolve_data_path("shortmax_all_dramas.json")
         if all_dramas_path.exists():
             try:
                 with open(all_dramas_path, "r", encoding="utf-8") as f:

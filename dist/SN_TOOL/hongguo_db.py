@@ -14,8 +14,21 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 
-DB_PATH = Path("data/hongguo_catalog.db")
-TARGET_DRAMA_COUNT = 49509
+def _resolve_db_path() -> Path:
+    base = Path(__file__).resolve().parent
+    candidates = [
+        base / "data" / "hongguo_catalog.db",
+        base / "hongguo_catalog.db",
+        Path("data/hongguo_catalog.db"),
+        base.parent / "data" / "hongguo_catalog.db"
+    ]
+    for c in candidates:
+        if c.exists() and c.stat().st_size > 1000000:
+            return c
+    return base / "data" / "hongguo_catalog.db"
+
+DB_PATH = _resolve_db_path()
+TARGET_DRAMA_COUNT = 78878
 EXPLORER_API_BASE = "https://explorer.hongguodownloader.com"
 
 CATEGORIES = [
@@ -288,9 +301,10 @@ def query_dramas(category: Optional[str] = None, query: Optional[str] = None, pl
             params.extend([cat_lower, cat_lower, f"%{cat_lower}%"])
 
         if query and query.strip():
-            q_clean = f"%{query.strip().lower()}%"
-            sql_clauses.append("(LOWER(title) LIKE ? OR LOWER(title_cn) LIKE ? OR LOWER(description) LIKE ? OR LOWER(tags) LIKE ?)")
-            params.extend([q_clean, q_clean, q_clean, q_clean])
+            raw_q = query.strip().lower()
+            q_clean = f"%{raw_q}%"
+            sql_clauses.append("(LOWER(id) = ? OR LOWER(id) LIKE ? OR LOWER(title) LIKE ? OR LOWER(title_cn) LIKE ? OR LOWER(description) LIKE ? OR LOWER(tags) LIKE ?)")
+            params.extend([raw_q, q_clean, q_clean, q_clean, q_clean, q_clean])
 
         where_stmt = (" WHERE " + " AND ".join(sql_clauses)) if sql_clauses else ""
 
@@ -325,7 +339,10 @@ def get_drama_by_id(drama_id: str) -> Optional[Dict[str, Any]]:
     conn = get_db_connection()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT * FROM hongguo_dramas WHERE id = ?", (drama_id,))
+        clean_id = str(drama_id).strip()
+        prefixed = f"hg_{clean_id}" if not clean_id.startswith("hg_") else clean_id
+        unprefixed = clean_id.replace("hg_", "")
+        cur.execute("SELECT * FROM hongguo_dramas WHERE id = ? OR id = ? OR id = ? LIMIT 1", (clean_id, prefixed, unprefixed))
         row = cur.fetchone()
         if not row:
             return None

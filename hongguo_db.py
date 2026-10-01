@@ -14,8 +14,21 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 
-DB_PATH = Path("data/hongguo_catalog.db")
-TARGET_DRAMA_COUNT = 49509
+def _resolve_db_path() -> Path:
+    base = Path(__file__).resolve().parent
+    candidates = [
+        base / "data" / "hongguo_catalog.db",
+        base / "hongguo_catalog.db",
+        Path("data/hongguo_catalog.db"),
+        base.parent / "data" / "hongguo_catalog.db"
+    ]
+    for c in candidates:
+        if c.exists() and c.stat().st_size > 1000000:
+            return c
+    return base / "data" / "hongguo_catalog.db"
+
+DB_PATH = _resolve_db_path()
+TARGET_DRAMA_COUNT = 78878
 EXPLORER_API_BASE = "https://explorer.hongguodownloader.com"
 
 CATEGORIES = [

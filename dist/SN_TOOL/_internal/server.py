@@ -25,6 +25,14 @@ else:
 STATIC_DIR = BASE_DIR / "static"
 
 app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="")
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+
+@app.after_request
+def add_no_cache_headers(response):
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '-1'
+    return response
 
 # Core Studio Modules & Engines
 from tts_engine import get_available_voices, synthesize_khmer_speech
@@ -49,6 +57,7 @@ from downloader import (
     get_hongguo_episode_real_stream_url
 )
 import hongguo_db
+import shortmax_service
 from recap_engine import RecapEngine, VIRAL_KHMER_HOOKS
 from batch_engine import batch_manager, EXPORTS_DIR
 from video_processor import (
@@ -1053,6 +1062,26 @@ def downloader_preview_endpoint(drama_id):
             "episode": ep_num
         })
 
+    # 2.5 Special handler for ShortMax preview video
+    is_shortmax = (drama and drama.get("platform_id") == "shortmax") or str(drama_id).startswith("shortmax_")
+    if is_shortmax:
+        sp_id_str = str(drama_id).replace("shortmax_", "").strip()
+        try:
+            sp_id = int(sp_id_str)
+        except Exception:
+            sp_id = 0
+        if sp_id:
+            pv_path = shortmax_service.get_or_create_preview_video(sp_id, ep_num)
+            if pv_path and pv_path.exists():
+                rel_or_abs = str(pv_path.resolve()).replace("\\", "/")
+                return jsonify({
+                    "success": True,
+                    "video_url": f"/media/{rel_or_abs}",
+                    "title": drama.get("title") if drama else f"Episode {ep_num}",
+                    "poster": drama.get("poster") if drama else "posters/poster_sample_ceo.jpg",
+                    "episode": ep_num
+                })
+
     # 3. If authentic live stream is available, provide direct stream URL for 9:16 preview
     if drama_downloader.episodes:
         for ep in drama_downloader.episodes:
@@ -1143,6 +1172,52 @@ def downloader_download_episodes_endpoint():
     
     res = drama_downloader.start_download_batch(episode_ids, save_location, save_poster, auto_merge_full=auto_merge_full)
     return jsonify(res)
+
+
+@app.route("/api/downloader/download_poster", methods=["POST"])
+def downloader_download_poster_endpoint():
+    """Download authentic high-resolution drama poster to local computer and return media link."""
+    data = request.get_json(force=True) or {}
+    poster_url = data.get("poster_url", "")
+    drama_id = data.get("drama_id", "")
+    title = data.get("title", "Drama")
+    save_location = data.get("save_location") or ("D:/SN_Dramas" if os.path.exists("D:/") else "C:/SN_Dramas")
+    
+    if not poster_url and drama_id:
+        d_info = hongguo_db.get_drama_by_id(drama_id)
+        if d_info:
+            poster_url = d_info.get("poster") or d_info.get("cover_url")
+            if not title or title == "Drama":
+                title = d_info.get("title_cn") or d_info.get("title") or "Drama"
+                
+    if not poster_url:
+        return jsonify({"success": False, "message": "No poster URL available"}), 400
+
+    safe_title = "".join(c for c in title if c.isalnum() or c in (" ", "_", "-")).strip() or "Drama"
+    dest_dir = Path(save_location) / safe_title
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    poster_file = dest_dir / f"{safe_title}_Poster.jpg"
+    
+    cmd = [
+        'curl.exe', '-4', '-s', '-m', '20',
+        '-A', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        '-o', str(poster_file),
+        poster_url
+    ]
+    try:
+        subprocess.run(cmd, timeout=25)
+        if poster_file.exists() and poster_file.stat().st_size > 500:
+            return jsonify({
+                "success": True,
+                "message": "Poster downloaded successfully",
+                "path": str(poster_file),
+                "filename": f"{safe_title}_Poster.jpg",
+                "file_url": f"/media/{str(poster_file.resolve()).replace(chr(92), '/')}"
+            })
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Download failed: {e}"}), 500
+        
+    return jsonify({"success": False, "message": "Failed to download poster file"}), 500
 
 
 @app.route("/api/downloader/queue", methods=["GET", "POST", "DELETE"])
