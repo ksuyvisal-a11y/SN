@@ -4372,8 +4372,28 @@ select, option, optgroup {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 16px 12px;
-    padding: 6px 8px 24px 6px;
+    padding: 6px 8px 24px 8px;
     box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(250, 204, 21, 0.28) rgba(15, 23, 42, 0.4);
+}
+
+.dl-drama-cards-grid::-webkit-scrollbar {
+    width: 6px;
+}
+
+.dl-drama-cards-grid::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.4);
+    border-radius: 4px;
+}
+
+.dl-drama-cards-grid::-webkit-scrollbar-thumb {
+    background: rgba(250, 204, 21, 0.28);
+    border-radius: 4px;
+}
+
+.dl-drama-cards-grid::-webkit-scrollbar-thumb:hover {
+    background: rgba(250, 204, 21, 0.55);
 }
 
 .dl-btn-load-more {
@@ -4399,7 +4419,7 @@ select, option, optgroup {
     transform: translateY(-1px);
 }
 
-/* Individual Card (Clean, Compact, Frameless with Rounded Portrait Poster) */
+/* Individual Card (Clean, Compact, Frameless with Rounded Portrait Poster matching Image 2) */
 .dl-card-item {
     background: transparent;
     border: none;
@@ -4411,8 +4431,8 @@ select, option, optgroup {
     position: relative;
     user-select: none;
     width: 100%;
-    max-width: 148px;
-    margin: 0 auto;
+    max-width: 100%;
+    margin: 0;
 }
 
 .dl-card-item:hover {
@@ -4426,8 +4446,7 @@ select, option, optgroup {
 
 .dl-card-thumb-wrap {
     width: 100%;
-    aspect-ratio: 3 / 4.1;
-    max-height: 195px;
+    aspect-ratio: 3 / 4.15;
     position: relative;
     background: #140f0b;
     border-radius: 8px;
