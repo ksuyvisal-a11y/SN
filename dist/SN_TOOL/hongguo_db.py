@@ -28,11 +28,11 @@ def _resolve_db_path() -> Path:
     return base / "data" / "hongguo_catalog.db"
 
 DB_PATH = _resolve_db_path()
-TARGET_DRAMA_COUNT = 79004
+TARGET_DRAMA_COUNT = 80291
 EXPLORER_API_BASE = "https://explorer.hongguodownloader.com"
 
 CATEGORIES = [
-    {"id": "all", "name": "All", "name_kh": "ទាំងអស់ (79,004)", "badge": "🔥 All", "genre": ""},
+    {"id": "all", "name": "All", "name_kh": "ទាំងអស់ (80,291)", "badge": "🔥 All", "genre": ""},
     {"id": "ai_drama", "name": "AI", "name_kh": "រឿង AI កំពូល (24,081)", "badge": "🤖 AI", "genre": "AI"},
     {"id": "urban_revenge", "name": "Revenge", "name_kh": "រឿងសងសឹក (5,745)", "badge": "⚡ Revenge", "genre": "逆袭"},
     {"id": "billionaire_ceo", "name": "CEO", "name_kh": "រឿងចៅហ្វាយនាយ (6,654)", "badge": "💎 CEO", "genre": "总裁"},
@@ -106,10 +106,10 @@ def ensure_db_initialized():
     count = cur.fetchone()[0]
 
     # Verify if rank 1 is 东北话事人 (Image 2)
-    cur.execute("SELECT title_cn FROM hongguo_dramas WHERE rank_num = 1")
+    cur.execute("SELECT title_cn FROM hongguo_dramas WHERE rank_num = 1 AND (platform_id = 'hongguo' OR platform = 'Hongguo')")
     rank1 = cur.fetchone()
 
-    if count < TARGET_DRAMA_COUNT or not rank1 or rank1[0] != "东北话事人":
+    if count < 50000 or not rank1 or rank1[0] != "东北话事人":
         print(f"[HongguoDB] Initializing complete 49,509 catalog with Image 2 leaderboard (current: {count})...")
         cur.execute("DELETE FROM hongguo_dramas")
 
