@@ -16,6 +16,8 @@ let dlCurrentPage = 1;
 let dlTotalDramasCount = 49509;
 let dlSearchQuery = "";
 let dlIsLoadingMore = false;
+let dlHasMore = true;
+let dlInfiniteScrollAttached = false;
 let currentHwid = "";
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1644,7 +1646,7 @@ function filterByPlatform(platId, platName, totalCount, platLogo) {
     if (countLabel) {
         const countDisplay = (totalCount !== undefined && totalCount !== null)
             ? totalCount.toLocaleString()
-            : (platId === 'hongguo' ? '49,591' : (platId === 'ai_drama' ? '24,081' : (platId === 'shortmax' ? '5,206' : (platId === 'reelshort' ? '126' : '79,004'))));
+            : (platId === 'hongguo' ? '49,591' : (platId === 'ai_drama' ? '24,081' : (platId === 'shortmax' ? '5,206' : (platId === 'reelshort' ? '5,723' : '84,601'))));
         let headerTitle = `Top Dramas on ${escapeHtml(platName)}`;
         if (platId === 'hongguo') headerTitle = 'Top 100 on 红果 right now';
         else if (platId === 'ai_drama') headerTitle = 'Top Authentic Chinese AI Short Dramas (AI漫剧)';
@@ -1765,11 +1767,12 @@ function showSavedFavoritesModal() {
 
 async function loadDramaCatalog(platformId = "hongguo", query = "", category = "all", append = false) {
     const container = document.getElementById('dl-drama-cards-container');
-    const loadMoreWrap = document.getElementById('dl-load-more-wrap');
     if (!container) return;
+    setupCatalogInfiniteScroll();
 
     if (!append) {
         dlCurrentPage = 1;
+        dlHasMore = true;
         let platTitle = 'Hongguo';
         if (platformId === 'shortmax') platTitle = 'ShortMax';
         else if (platformId === 'ai_drama') platTitle = 'AI Dramas';
@@ -1785,6 +1788,7 @@ async function loadDramaCatalog(platformId = "hongguo", query = "", category = "
         if (!append) container.innerHTML = '';
 
         if (data.success && data.dramas && data.dramas.length > 0) {
+            dlHasMore = (data.has_more !== undefined) ? !!data.has_more : (data.dramas.length >= 50);
             dlTotalDramasCount = data.total_count || data.dramas.length;
             const countLabel = document.getElementById('dl-catalog-count-label');
             if (countLabel) {
@@ -1811,7 +1815,6 @@ async function loadDramaCatalog(platformId = "hongguo", query = "", category = "
                 const isTopRank = rank <= 3;
                 const ratingBadge = drama.rating ? `<span class="lb-score">★ ${escapeHtml(drama.rating)}</span>` : '';
                 const heatBadge = `<span class="lb-eps">${drama.heat ? '🔥 ' + escapeHtml(drama.heat) : (drama.total_episodes ? drama.total_episodes + ' eps' : '')}</span>`;
-                const isFav = isDramaFavorite(drama.id);
 
                 card.innerHTML = `
                     <div class="dl-card-thumb-wrap">
@@ -1830,11 +1833,8 @@ async function loadDramaCatalog(platformId = "hongguo", query = "", category = "
             if (!append && !dlCurrentDrama) {
                 selectDramaCard(data.dramas[0].id, false);
             }
-
-            if (loadMoreWrap) {
-                loadMoreWrap.style.display = data.has_more ? 'block' : 'none';
-            }
         } else if (!append) {
+            dlHasMore = false;
             if (platformId === 'shortmax') {
                 const countLabel = document.getElementById('dl-catalog-count-label');
                 if (countLabel) {
@@ -1858,22 +1858,49 @@ async function loadDramaCatalog(platformId = "hongguo", query = "", category = "
                     </div>
                 `;
             }
-            if (loadMoreWrap) loadMoreWrap.style.display = 'none';
+        } else {
+            dlHasMore = false;
         }
     } catch (e) {
         if (!append) container.innerHTML = '<div style="grid-column: 1 / -1; color:#ef4444; padding:30px; text-align:center;">Network error loading catalog.</div>';
     }
 }
 
+function setupCatalogInfiniteScroll() {
+    const container = document.getElementById('dl-drama-cards-container');
+    if (!container || dlInfiniteScrollAttached) return;
+    dlInfiniteScrollAttached = true;
+    container.addEventListener('scroll', () => {
+        if (dlIsLoadingMore || !dlHasMore) return;
+        if (container.scrollTop + container.clientHeight >= container.scrollHeight - 350) {
+            loadMoreDramas();
+        }
+    }, { passive: true });
+}
+
 async function loadMoreDramas() {
-    if (dlIsLoadingMore) return;
+    if (dlIsLoadingMore || !dlHasMore) return;
     dlIsLoadingMore = true;
-    const btn = document.getElementById('btn-dl-load-more');
-    if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading...';
+
+    const container = document.getElementById('dl-drama-cards-container');
+    let loader = document.getElementById('dl-infinite-loader');
+    if (container && !loader) {
+        loader = document.createElement('div');
+        loader.id = 'dl-infinite-loader';
+        loader.style.cssText = 'grid-column: 1 / -1; display:flex; align-items:center; justify-content:center; padding:16px 0 24px 0; color:#38bdf8; gap:8px; font-size:0.85rem; font-weight:600;';
+        loader.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>កំពុងទាញយករឿងភាគបន្ថែម...</span>';
+        container.appendChild(loader);
+    }
+
     dlCurrentPage++;
-    await loadDramaCatalog(dlSelectedPlatform, dlSearchQuery, dlSelectedCategory, true);
-    if (btn) btn.innerHTML = '<i class="fa-solid fa-angles-down"></i> <span>Load More Dramas (+60)</span>';
-    dlIsLoadingMore = false;
+    try {
+        await loadDramaCatalog(dlSelectedPlatform, dlSearchQuery, dlSelectedCategory, true);
+    } finally {
+        if (loader && loader.parentNode) {
+            loader.parentNode.removeChild(loader);
+        }
+        dlIsLoadingMore = false;
+    }
 }
 
 async function selectDramaCard(dramaId, openQueueMode = false) {

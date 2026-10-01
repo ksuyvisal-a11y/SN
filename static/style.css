@@ -4347,7 +4347,11 @@ select, option, optgroup {
 }
 
 .dl-saved-badge-btn,
-#btn-dl-saved-badge {
+#btn-dl-saved-badge,
+.dl-load-more-wrap,
+#dl-load-more-wrap,
+.dl-btn-load-more,
+#btn-dl-load-more {
     display: none !important;
     visibility: hidden !important;
     width: 0 !important;
