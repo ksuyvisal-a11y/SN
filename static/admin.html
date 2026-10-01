@@ -523,14 +523,54 @@
             </div>
         </div>
 
+        <!-- License Mode Switch Banner -->
+        <div class="dashboard-card" style="background: rgba(250, 204, 21, 0.05); border-color: rgba(250, 204, 21, 0.3); padding: 12px 18px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+                <div>
+                    <div style="font-size: 0.85rem; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-shield-halved" style="color: var(--gold-primary);"></i>
+                        <span>ស្ថានភាពប្រព័ន្ធ License Gate:</span>
+                        <span id="badge-gate-status" style="padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 800; background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4);">
+                            ON (ទាមទារ KEY)
+                        </span>
+                    </div>
+                    <div style="font-size: 0.73rem; color: var(--text-sub); margin-top: 3px;">
+                        ប្រសិនបើបិទ (Free Mode) អ្នកប្រើប្រាស់អាចបើកប្រើប្រាស់ Tool ភ្លាមៗដោយមិនបាច់វាយ Key
+                    </div>
+                </div>
+                <button type="button" id="btn-toggle-gate" class="btn-paste" style="background: #181d2a; border-color: var(--gold-primary);" onclick="handleToggleGate()">
+                    <i class="fa-solid fa-power-off"></i> ប្ដូរ Free Mode / Lock
+                </button>
+            </div>
+        </div>
+
         <!-- 2. Generation Control Card -->
         <div class="dashboard-card">
-            <!-- HWID Field -->
+            <!-- Custom Key Field -->
             <div class="card-label">
-                1. Customer Machine HWID (Optional, leave blank for Global Key):
+                <i class="fa-solid fa-pen-to-square" style="color: var(--gold-primary);"></i>
+                1. វាយ Key ឬ ពាក្យសម្ងាត់ផ្ទាល់ខ្លួន (Optional - ទុកទំនេរបើចង់ឱ្យបង្កើតស្វ័យប្រវត្ត):
             </div>
             <div class="input-group-row">
-                <input type="text" id="input-hwid" class="text-input-field" placeholder="Leave blank or paste client HWID (e.g. AA17A78CD76E342C)">
+                <input type="text" id="input-custom-key" class="text-input-field" placeholder="ឧ. SAL-VIP-2026, SAL2026, MYPASS-888 (អក្សរអ្វីក៏បាន)">
+            </div>
+
+            <!-- Client Name Field -->
+            <div class="card-label" style="margin-top: 4px;">
+                <i class="fa-solid fa-user" style="color: var(--gold-primary);"></i>
+                2. ឈ្មោះ Client / អតិថិជន (Optional):
+            </div>
+            <div class="input-group-row">
+                <input type="text" id="input-client-name" class="text-input-field" placeholder="ឧ. Sokha_FB, Client_VIP">
+            </div>
+
+            <!-- HWID Field -->
+            <div class="card-label" style="margin-top: 4px;">
+                <i class="fa-solid fa-desktop" style="color: var(--gold-primary);"></i>
+                3. Customer Machine HWID (Optional - ទុកទំនេរដើម្បីប្រើបានគ្រប់ម៉ាស៊ីន):
+            </div>
+            <div class="input-group-row">
+                <input type="text" id="input-hwid" class="text-input-field" placeholder="Leave blank for ANY machine or paste client HWID">
                 <button type="button" class="btn-paste" onclick="pasteHwidFromClipboard()">
                     <i class="fa-solid fa-paste"></i> Paste
                 </button>
@@ -538,25 +578,32 @@
 
             <!-- Duration Dropdown -->
             <div class="card-label" style="margin-top: 4px;">
-                2. Select License Plan Duration:
+                <i class="fa-solid fa-clock" style="color: var(--gold-primary);"></i>
+                4. Select License Plan Duration (កំណត់រយៈពេល):
             </div>
             <div class="select-container">
-                <select id="select-duration" class="select-dropdown">
-                    <option value="LIFETIME:0">Lifetime VIP (No Expiration)</option>
-                    <option value="365D:365">365 Days VIP (1 Year)</option>
-                    <option value="90D:90">90 Days VIP (3 Months)</option>
-                    <option value="30D:30">30 Days VIP (1 Month)</option>
-                    <option value="7D:7">7 Days Free Trial (1 Week)</option>
-                    <option value="3D:3">3 Days Free Trial (Test)</option>
+                <select id="select-duration" class="select-dropdown" onchange="handleDurationChange()">
+                    <option value="LIFETIME:0">Lifetime VIP (ប្រើបានមួយជីវិត - គ្មានថ្ងៃផុតកំណត់)</option>
+                    <option value="365D:365">365 ថ្ងៃ (1 ឆ្នាំ)</option>
+                    <option value="90D:90">90 ថ្ងៃ (3 ខែ)</option>
+                    <option value="30D:30">30 ថ្ងៃ (1 ខែ)</option>
+                    <option value="7D:7">7 ថ្ងៃ (1 សប្ដាហ៍)</option>
+                    <option value="3D:3">3 ថ្ងៃ (Free Trial)</option>
+                    <option value="CUSTOM:CUSTOM">កំណត់ចំនួនថ្ងៃតាមចិត្ត (Custom Days)...</option>
                 </select>
                 <div class="select-chevron-box">
                     <i class="fa-solid fa-chevron-down"></i>
                 </div>
             </div>
 
+            <!-- Custom Days Input Row (Hidden by default) -->
+            <div id="row-custom-days" class="input-group-row" style="display: none; margin-top: 4px;">
+                <input type="number" id="input-custom-days" class="text-input-field" placeholder="បញ្ចូលចំនួនថ្ងៃ (ឧ. 5, 14, 60, 180... ឬ 0 សម្រាប់មួយជីវិត)" min="0" value="30">
+            </div>
+
             <!-- Action Button -->
             <button type="button" class="btn-generate-main" onclick="handleGenerateKey()">
-                <i class="fa-solid fa-crown"></i> GENERATE VIP LICENSE KEY
+                <i class="fa-solid fa-crown"></i> GENERATE / REGISTER VIP LICENSE KEY
             </button>
         </div>
 
@@ -597,10 +644,74 @@
 
     <script>
         let currentActiveKey = "";
+        let gateRequired = true;
 
         document.addEventListener('DOMContentLoaded', () => {
             fetchKeysHistory();
+            fetchGateStatus();
         });
+
+        // 0. License Gate Status & Toggle
+        async function fetchGateStatus() {
+            try {
+                const res = await fetch('/api/admin/license-config');
+                const data = await res.json();
+                if (data.success) {
+                    gateRequired = data.require_license;
+                    updateGateStatusUI();
+                }
+            } catch (e) {
+                console.error("Gate status fetch error:", e);
+            }
+        }
+
+        function updateGateStatusUI() {
+            const badge = document.getElementById('badge-gate-status');
+            const btn = document.getElementById('btn-toggle-gate');
+            if (gateRequired) {
+                badge.textContent = "ON (ទាមទារ KEY)";
+                badge.style.background = "rgba(34, 197, 94, 0.2)";
+                badge.style.color = "#4ade80";
+                badge.style.borderColor = "rgba(34, 197, 94, 0.4)";
+                btn.innerHTML = `<i class="fa-solid fa-lock-open"></i> ប្ដូរទៅ Free Mode (បិទ Key)`;
+            } else {
+                badge.textContent = "FREE MODE (មិនបាច់ KEY)";
+                badge.style.background = "rgba(250, 204, 21, 0.2)";
+                badge.style.color = "#fde047";
+                badge.style.borderColor = "rgba(250, 204, 21, 0.4)";
+                btn.innerHTML = `<i class="fa-solid fa-lock"></i> បើកការទាមទារ Key វិញ`;
+            }
+        }
+
+        async function handleToggleGate() {
+            const newRequired = !gateRequired;
+            try {
+                const res = await fetch('/api/admin/license-config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ require_license: newRequired })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    gateRequired = data.require_license;
+                    updateGateStatusUI();
+                    showToast(gateRequired ? "🔒 បានបើកការទាមទារ Key វិញហើយ!" : "🎉 បានបើក Free Mode (ប្រើបានភ្លាមៗមិនបាច់ Key)!");
+                }
+            } catch (e) {
+                showToast("❌ បរាជ័យក្នុងការប្ដូរស្ថានភាព");
+            }
+        }
+
+        // Duration select dropdown change handler
+        function handleDurationChange() {
+            const val = document.getElementById('select-duration').value;
+            const customRow = document.getElementById('row-custom-days');
+            if (val === 'CUSTOM:CUSTOM') {
+                customRow.style.display = 'flex';
+            } else {
+                customRow.style.display = 'none';
+            }
+        }
 
         // 1. Paste HWID from Clipboard
         async function pasteHwidFromClipboard() {
@@ -615,26 +726,56 @@
             }
         }
 
-        // 2. Generate Key Handler
+        // 2. Generate Key Handler (Supports Custom Keys and Custom Days)
         async function handleGenerateKey() {
+            const customKeyInput = document.getElementById('input-custom-key').value.trim();
+            const clientNameInput = document.getElementById('input-client-name').value.trim() || "VIP_Client";
             const hwidInput = document.getElementById('input-hwid').value.trim();
             const durationVal = document.getElementById('select-duration').value;
-            const [planTag, daysStr] = durationVal.split(':');
-            const durationDays = parseInt(daysStr, 10);
+
+            let durationDays = 0;
+            let planTag = "VIP_PRO";
+
+            if (durationVal === 'CUSTOM:CUSTOM') {
+                const customDays = parseInt(document.getElementById('input-custom-days').value, 10);
+                durationDays = isNaN(customDays) ? 30 : customDays;
+                planTag = durationDays > 0 ? `VIP_${durationDays}D` : "VIP_LIFETIME";
+            } else {
+                const [tag, daysStr] = durationVal.split(':');
+                planTag = tag;
+                durationDays = parseInt(daysStr, 10);
+            }
 
             try {
-                const res = await fetch('/api/admin/generate-key', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        client_name: "Customer_VIP",
-                        duration_days: durationDays,
-                        hwid: hwidInput || null,
-                        plan: planTag
-                    })
-                });
+                let res, data;
+                if (customKeyInput) {
+                    // Register user's custom defined key
+                    res = await fetch('/api/admin/custom-key', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            custom_key: customKeyInput,
+                            client_name: clientNameInput,
+                            duration_days: durationDays,
+                            hwid: hwidInput || null,
+                            plan: planTag
+                        })
+                    });
+                } else {
+                    // Standard auto-generated cryptographic key
+                    res = await fetch('/api/admin/generate-key', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            client_name: clientNameInput,
+                            duration_days: durationDays,
+                            hwid: hwidInput || null,
+                            plan: planTag
+                        })
+                    });
+                }
 
-                const data = await res.json();
+                data = await res.json();
                 if (data.success && data.key_record) {
                     const rec = data.key_record;
                     currentActiveKey = rec.license_key;
@@ -647,7 +788,7 @@
                     // Refresh log list
                     fetchKeysHistory();
                 } else {
-                    showToast("❌ Failed to generate key");
+                    showToast("❌ " + (data.error || "Failed to generate key"));
                 }
             } catch (err) {
                 showToast("❌ Network connection error");

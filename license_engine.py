@@ -20,6 +20,114 @@ SECRET_ADMIN_SALT = "SN_TOOL_U_NICH_AI_DRAMA_STUDIO_2026_MASTER_SECRET_KEY"
 LICENSE_FILE = Path("license.key")
 ADMIN_HISTORY_FILE = Path("admin_key_history.json")
 GENERATED_KEYS_LOG = Path("generated_keys_log.txt")
+CUSTOM_KEYS_FILE = Path("custom_keys.json")
+LICENSE_CONFIG_FILE = Path("license_config.json")
+
+# Built-in Master Keys that work permanently out of the box
+DEFAULT_MASTER_KEYS: Dict[str, Dict[str, Any]] = {
+    "SN-ADMIN-MASTER-2026-VIP": {"client_name": "VIP Administrator", "plan": "LIFETIME_VIP"},
+    "SN-VIP-LIFETIME-PRO-2026": {"client_name": "VIP Administrator", "plan": "LIFETIME_VIP"},
+    "SN-PRO-8888-9999-VIP": {"client_name": "VIP Administrator", "plan": "LIFETIME_VIP"},
+    "SAL-VIP-2026": {"client_name": "VIP Sal", "plan": "LIFETIME_VIP"},
+    "SAL-2026": {"client_name": "VIP Sal", "plan": "LIFETIME_VIP"},
+    "SN-VIP": {"client_name": "VIP Member", "plan": "LIFETIME_VIP"},
+    "VIP2026": {"client_name": "VIP Member", "plan": "LIFETIME_VIP"},
+}
+
+
+def is_license_required() -> bool:
+    """Check if the system requires a license key or is in Free / Open Access mode."""
+    if LICENSE_CONFIG_FILE.exists():
+        try:
+            with open(LICENSE_CONFIG_FILE, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+                return bool(cfg.get("require_license", True))
+        except Exception:
+            pass
+    return True
+
+
+def set_license_required(required: bool) -> bool:
+    """Turn license gate requirement ON or OFF."""
+    cfg = {}
+    if LICENSE_CONFIG_FILE.exists():
+        try:
+            with open(LICENSE_CONFIG_FILE, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+        except Exception:
+            cfg = {}
+    cfg["require_license"] = bool(required)
+    try:
+        with open(LICENSE_CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, indent=2, ensure_ascii=False)
+        return True
+    except Exception:
+        return False
+
+
+def register_custom_key(custom_key: str, client_name: str = "VIP Client", duration_days: int = 0, hwid: Optional[str] = None, plan: str = "CUSTOM_VIP") -> Dict[str, Any]:
+    """
+    Register an arbitrary custom key/password created directly by the user.
+    duration_days: 0 for Lifetime VIP, or any positive number of days (e.g. 5, 10, 45, 60, etc.)
+    """
+    cleaned_key = custom_key.strip().upper()
+    created_at = datetime.now()
+
+    if duration_days <= 0:
+        expiry_str = "LIFETIME"
+        expiry_timestamp = 0
+    else:
+        exp_dt = created_at + timedelta(days=duration_days)
+        expiry_str = exp_dt.strftime("%Y-%m-%d")
+        epoch_days = int(exp_dt.timestamp()) // 86400
+        expiry_timestamp = epoch_days * 86400 + 86399
+
+    bound_hwid_str = hwid.strip().upper() if (hwid and hwid.strip() not in ("ANY", "*", "")) else "ANY"
+
+    record = {
+        "license_key": cleaned_key,
+        "client_name": client_name or "VIP Client",
+        "plan": plan or "CUSTOM_VIP",
+        "duration_days": duration_days,
+        "created_at": created_at.strftime("%Y-%m-%d %H:%M:%S"),
+        "expires_at": expiry_str,
+        "expiry_timestamp": expiry_timestamp,
+        "bound_hwid": bound_hwid_str,
+        "raw_payload": f"CUSTOM:{cleaned_key}:{client_name}",
+        "signature": "CUSTOM_ADMIN",
+        "status": "ACTIVE"
+    }
+
+    # Save to custom_keys.json
+    custom_keys = {}
+    if CUSTOM_KEYS_FILE.exists():
+        try:
+            with open(CUSTOM_KEYS_FILE, "r", encoding="utf-8") as f:
+                custom_keys = json.load(f)
+        except Exception:
+            custom_keys = {}
+
+    custom_keys[cleaned_key] = record
+    try:
+        with open(CUSTOM_KEYS_FILE, "w", encoding="utf-8") as f:
+            json.dump(custom_keys, f, indent=2, ensure_ascii=False)
+    except Exception:
+        pass
+
+    # Save to history & log
+    _save_to_admin_history(record)
+    return record
+
+
+def get_all_custom_keys() -> Dict[str, Any]:
+    """Retrieve all custom keys defined by admin."""
+    if CUSTOM_KEYS_FILE.exists():
+        try:
+            with open(CUSTOM_KEYS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
 
 
 def get_machine_hwid() -> str:
@@ -143,16 +251,39 @@ def verify_license_key(input_key: str, current_hwid: Optional[str] = None) -> Tu
     if not current_hwid:
         current_hwid = get_machine_hwid()
 
-    # 1. Check Master Keys
-    if cleaned_key in ("SN-ADMIN-MASTER-2026-VIP", "SN-VIP-LIFETIME-PRO-2026", "SN-PRO-8888-9999-VIP"):
+    # 1. Check Default Master Keys
+    if cleaned_key in DEFAULT_MASTER_KEYS:
+        master_info = DEFAULT_MASTER_KEYS[cleaned_key]
         return True, "✅ Master VIP License Key ត្រឹមត្រូវ!", {
             "license_key": cleaned_key,
-            "client_name": "VIP Administrator",
-            "plan": "LIFETIME_VIP",
+            "client_name": master_info.get("client_name", "VIP Administrator"),
+            "plan": master_info.get("plan", "LIFETIME_VIP"),
             "expires_at": "LIFETIME",
             "expiry_timestamp": 0,
             "status": "ACTIVE"
         }
+
+    # 1.5. Check Custom Keys defined by Admin
+    if CUSTOM_KEYS_FILE.exists():
+        try:
+            with open(CUSTOM_KEYS_FILE, "r", encoding="utf-8") as f:
+                custom_dict = json.load(f)
+            if cleaned_key in custom_dict:
+                rec = custom_dict[cleaned_key]
+                if rec.get("status") == "REVOKED":
+                    return False, "❌ Custom Key នេះត្រូវបានផ្អាកដោយ Admin", {}
+
+                bound_hwid = rec.get("bound_hwid", "ANY")
+                if bound_hwid not in ("ANY", "*") and bound_hwid != current_hwid:
+                    return False, "❌ Custom Key នេះត្រូវបានចាក់សោសម្រាប់តែម៉ាស៊ីនមួយប៉ុណ្ណោះ (HWID មិនត្រឹមត្រូវ)", {}
+
+                expiry_ts = rec.get("expiry_timestamp", 0)
+                if expiry_ts > 0 and time.time() > expiry_ts:
+                    return False, f"⚠️ Custom Key នេះបានផុតកំណត់កាលបរិច្ឆេទហើយ ({rec.get('expires_at')})", {}
+
+                return True, "✅ Custom Key ផ្ទាល់ខ្លួនត្រឹមត្រូវ និងសកម្ម!", rec
+        except Exception:
+            pass
 
     # 2. Check Admin History (if revoked or found)
     if ADMIN_HISTORY_FILE.exists():
@@ -249,6 +380,18 @@ def activate_license_on_device(license_key: str) -> Tuple[bool, str, Dict[str, A
 def check_current_device_license() -> Dict[str, Any]:
     """Check if the current device is activated with a valid license."""
     current_hwid = get_machine_hwid()
+
+    # 0. Check if license requirement is disabled (Free / Open Access mode)
+    if not is_license_required():
+        return {
+            "is_activated": True,
+            "license_key": "FREE-OPEN-ACCESS",
+            "client_name": "Free / Open User",
+            "plan": "LIFETIME_UNLOCKED",
+            "expires_at": "LIFETIME",
+            "hwid": current_hwid,
+            "message": "License Gate ត្រូវបានបិទ (បើកដំណើរការដោយសេរី Free 100%)"
+        }
 
     # Development / Antigravity testing mode: Auto-activate Lifetime VIP without requiring key entry
     if not getattr(sys, 'frozen', False):

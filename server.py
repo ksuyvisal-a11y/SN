@@ -70,6 +70,9 @@ from license_engine import (
     check_current_device_license,
     activate_license_on_device,
     generate_license_key,
+    register_custom_key,
+    is_license_required,
+    set_license_required,
     get_machine_hwid,
     ADMIN_HISTORY_FILE
 )
@@ -933,6 +936,32 @@ def admin_export_txt_endpoint():
     if not GENERATED_KEYS_LOG.exists():
         GENERATED_KEYS_LOG.write_text("# SN STUDIO - Generated Keys Log\n", encoding="utf-8")
     return send_file(str(GENERATED_KEYS_LOG.resolve()), as_attachment=True, download_name="SN_STUDIO_Generated_Keys.txt")
+
+
+@app.route("/api/admin/custom-key", methods=["POST"])
+def admin_register_custom_key_endpoint():
+    """Admin endpoint to create a custom key / password."""
+    data = request.get_json(force=True) or {}
+    custom_key = data.get("custom_key", "").strip()
+    if not custom_key:
+        return jsonify({"success": False, "error": "សូមបញ្ចូល Custom Key"}), 400
+    client_name = data.get("client_name", "VIP_Client")
+    duration_days = int(data.get("duration_days", 0))
+    hwid = data.get("hwid") or None
+    plan = data.get("plan", "CUSTOM_VIP")
+    rec = register_custom_key(custom_key, client_name, duration_days, hwid, plan)
+    return jsonify({"success": True, "key_record": rec})
+
+
+@app.route("/api/admin/license-config", methods=["GET", "POST"])
+def admin_license_config_endpoint():
+    """Get or toggle license requirement (Free mode vs Locked mode)."""
+    if request.method == "POST":
+        data = request.get_json(force=True) or {}
+        req = bool(data.get("require_license", True))
+        set_license_required(req)
+        return jsonify({"success": True, "require_license": req})
+    return jsonify({"success": True, "require_license": is_license_required()})
 
 
 @app.route("/api/update/check", methods=["GET"])
