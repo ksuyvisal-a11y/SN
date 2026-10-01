@@ -4346,24 +4346,15 @@ select, option, optgroup {
     box-shadow: 0 0 14px rgba(234, 179, 8, 0.45);
 }
 
-.dl-saved-badge-btn {
-    background: #0f172a;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 6px;
-    padding: 5px 12px;
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: #cbd5e1;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    transition: all 0.2s ease;
-}
-
-.dl-saved-badge-btn:hover {
-    border-color: #ef4444;
-    color: #ffffff;
-    box-shadow: 0 0 10px rgba(239, 68, 68, 0.35);
+.dl-saved-badge-btn,
+#btn-dl-saved-badge {
+    display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
 }
 
 /* Drama Cards Grid (Compact & Sleek Layout: 6 to 7 compact columns per row) */
