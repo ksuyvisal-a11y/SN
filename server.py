@@ -73,6 +73,7 @@ from license_engine import (
     register_custom_key,
     revoke_license_key,
     unrevoke_license_key,
+    delete_license_key_record,
     get_revoked_keys,
     is_license_required,
     set_license_required,
@@ -994,6 +995,17 @@ def admin_unrevoke_key_endpoint():
 def admin_revoked_keys_endpoint():
     """Admin endpoint to list all revoked keys."""
     return jsonify({"success": True, "revoked_keys": get_revoked_keys()})
+
+
+@app.route("/api/admin/delete-key", methods=["POST"])
+def admin_delete_key_endpoint():
+    """Admin endpoint to permanently delete a key record from history."""
+    data = request.get_json(force=True) or {}
+    key = data.get("license_key", "").strip()
+    if not key:
+        return jsonify({"success": False, "error": "សូមបញ្ចូល Key ដែលត្រូវលុប"}), 400
+    ok, msg = delete_license_key_record(key)
+    return jsonify({"success": ok, "message": msg})
 
 
 @app.route("/api/update/check", methods=["GET"])

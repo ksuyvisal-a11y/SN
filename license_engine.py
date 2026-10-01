@@ -242,6 +242,48 @@ def unrevoke_license_key(target_key: str) -> Tuple[bool, str]:
     return True, f"✅ បានដោះសោ (Unban) Key {cleaned} ឱ្យដំណើរការឡើងវិញជោគជ័យ!"
 
 
+def delete_license_key_record(target_key: str) -> Tuple[bool, str]:
+    """Delete a key record completely from history, custom keys, and revocations."""
+    cleaned = target_key.strip().upper()
+    if not cleaned:
+        return False, "សូមជ្រើសរើស Key ដែលត្រូវលុប"
+
+    # Remove from admin_key_history.json
+    if ADMIN_HISTORY_FILE.exists():
+        try:
+            with open(ADMIN_HISTORY_FILE, "r", encoding="utf-8") as f:
+                history = json.load(f)
+            history = [r for r in history if r.get("license_key", "").upper() != cleaned]
+            with open(ADMIN_HISTORY_FILE, "w", encoding="utf-8") as f:
+                json.dump(history, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
+    # Remove from custom_keys.json
+    if CUSTOM_KEYS_FILE.exists():
+        try:
+            with open(CUSTOM_KEYS_FILE, "r", encoding="utf-8") as f:
+                ck = json.load(f)
+            if cleaned in ck:
+                del ck[cleaned]
+                with open(CUSTOM_KEYS_FILE, "w", encoding="utf-8") as f:
+                    json.dump(ck, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
+    # Remove from revoked_keys.json if present
+    revoked = get_revoked_keys()
+    if cleaned in revoked:
+        revoked.remove(cleaned)
+        try:
+            with open(REVOKED_KEYS_FILE, "w", encoding="utf-8") as f:
+                json.dump({"revoked_keys": revoked, "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
+    return True, f"🗑️ បានលុប Key {cleaned} ចេញពីបញ្ជីជោគជ័យ!"
+
+
 def check_remote_revocation_online(cleaned_key: str, current_hwid: str) -> Optional[str]:
     """Check online remote blacklist endpoint if configured (quick 1.5s timeout)."""
     if not LICENSE_CONFIG_FILE.exists():
