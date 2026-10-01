@@ -32,10 +32,10 @@ DRAMA_CATALOG: List[Dict[str, Any]] = []
 
 # Dynamic platform registry matching user preferences
 SUPPORTED_PLATFORMS: List[Dict[str, Any]] = [
-    {"id": "all", "name": "All platforms", "icon": "fa-solid fa-globe", "count": 50751},
-    {"id": "hongguo", "name": "Hongguo", "logo": "hongguo_logo.png", "icon": "fa-solid fa-play", "count": 49509},
-    {"id": "shortmax", "name": "ShortMax", "logo": "shortmax_logo.png", "icon": "fa-solid fa-play", "count": 0},
-    {"id": "ai_drama", "name": "AI Dramas", "logo": "ai_drama_logo.png", "icon": "fa-solid fa-robot", "count": 1160},
+    {"id": "all", "name": "All platforms", "icon": "fa-solid fa-globe", "count": 67457},
+    {"id": "hongguo", "name": "Hongguo", "logo": "hongguo_logo.png", "icon": "fa-solid fa-play", "count": 49591},
+    {"id": "shortmax", "name": "ShortMax", "logo": "shortmax_logo.png", "icon": "fa-solid fa-play", "count": 5206},
+    {"id": "ai_drama", "name": "AI Dramas", "logo": "ai_drama_logo.png", "icon": "fa-solid fa-robot", "count": 12660},
 ]
 
 

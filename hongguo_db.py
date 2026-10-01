@@ -19,8 +19,8 @@ TARGET_DRAMA_COUNT = 49509
 EXPLORER_API_BASE = "https://explorer.hongguodownloader.com"
 
 CATEGORIES = [
-    {"id": "all", "name": "All", "name_kh": "ទាំងអស់ (51,907)", "badge": "🔥 All", "genre": ""},
-    {"id": "ai_drama", "name": "AI", "name_kh": "រឿង AI កំពូល (7,377)", "badge": "🤖 AI", "genre": "AI"},
+    {"id": "all", "name": "All", "name_kh": "ទាំងអស់ (67,457)", "badge": "🔥 All", "genre": ""},
+    {"id": "ai_drama", "name": "AI", "name_kh": "រឿង AI កំពូល (12,660)", "badge": "🤖 AI", "genre": "AI"},
     {"id": "urban_revenge", "name": "Revenge", "name_kh": "រឿងសងសឹក (5,745)", "badge": "⚡ Revenge", "genre": "逆袭"},
     {"id": "billionaire_ceo", "name": "CEO", "name_kh": "រឿងចៅហ្វាយនាយ (6,654)", "badge": "💎 CEO", "genre": "总裁"},
     {"id": "sweet_romance", "name": "Romance", "name_kh": "រឿងស្នេហា (8,609)", "badge": "💖 Romance", "genre": "恋爱"},

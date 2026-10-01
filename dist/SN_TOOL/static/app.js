@@ -1644,7 +1644,7 @@ function filterByPlatform(platId, platName, totalCount, platLogo) {
     if (countLabel) {
         const countDisplay = (totalCount !== undefined && totalCount !== null)
             ? totalCount.toLocaleString()
-            : (platId === 'hongguo' ? '49,509' : (platId === 'ai_drama' ? '1,160' : (platId === 'shortmax' ? '1,078' : '51,829')));
+            : (platId === 'hongguo' ? '49,591' : (platId === 'ai_drama' ? '12,660' : (platId === 'shortmax' ? '5,206' : '67,457')));
         let headerTitle = `Top Dramas on ${escapeHtml(platName)}`;
         if (platId === 'hongguo') headerTitle = 'Top 100 on 红果 right now';
         else if (platId === 'ai_drama') headerTitle = 'Top Authentic Chinese AI Short Dramas (AI漫剧)';
@@ -1660,7 +1660,7 @@ function filterByPlatform(platId, platName, totalCount, platLogo) {
         } else if (platId === 'ai_drama') {
             input.placeholder = 'Search Chinese AI short dramas (ស្វែងរក រឿង AI ចិន)...';
         } else {
-            input.placeholder = 'Paste a Hongguo/ShortMax URL or search 51,829 dramas...';
+            input.placeholder = 'Paste a Hongguo/ShortMax URL or search 67,457 dramas...';
         }
     }
 
