@@ -34,6 +34,37 @@ from license_engine import (
     DEFAULT_MASTER_KEYS
 )
 
+import threading
+import time
+import urllib.request
+import webbrowser
+
+def is_server_running() -> bool:
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:8000/api/license/status", timeout=1) as r:
+            return r.status == 200
+    except Exception:
+        return False
+
+def ensure_server_running(timeout: float = 8.0) -> bool:
+    """Ensure local API server is active on port 8000 so http://127.0.0.1:8000/admin works."""
+    if is_server_running():
+        return True
+    def run_app():
+        import logging
+        from server import app
+        log = logging.getLogger('werkzeug')
+        log.setLevel(logging.ERROR)
+        app.run(host="127.0.0.1", port=8000, debug=False, use_reloader=False)
+    t = threading.Thread(target=run_app, daemon=True)
+    t.start()
+    t_end = time.time() + timeout
+    while time.time() < t_end:
+        if is_server_running():
+            return True
+        time.sleep(0.25)
+    return is_server_running()
+
 def copy_to_clipboard(text: str):
     """Copy text to Windows clipboard."""
     try:
@@ -45,11 +76,13 @@ def copy_to_clipboard(text: str):
 
 def print_header():
     lic_mode = "🟢 ON (ត្រូវវាយ Key ទើបប្រើបាន)" if is_license_required() else "🟡 OFF (Free Mode - ប្រើបានភ្លាមៗមិនបាច់ Key)"
+    server_status = "🟢 ដំណើរការស្រេច (http://127.0.0.1:8000/admin)" if is_server_running() else "🟡 កំពុងបើក..."
     print("\n" + "=" * 65)
     print(" 👑 SN STUDIO - ADMIN KEY GENERATOR (ប្រព័ន្ធគ្រប់គ្រង KEY ជូន USER)")
     print("=" * 65)
     print(f" 💻 Admin Machine HWID: {get_machine_hwid()}")
     print(f" 🛡️  License Gate Mode:  {lic_mode}")
+    print(f" 🌐 Web Dashboard:      {server_status}")
     print("=" * 65)
 
 def print_key_card(record):
@@ -71,22 +104,39 @@ def print_key_card(record):
     print(" (✨ បាន Copy Key ចូល Clipboard ស្វ័យប្រវត្ត រួចជាស្រេច!)")
 
 def interactive_menu():
+    ensure_server_running()
     while True:
         print_header()
-        print(" [1] 🔑 បង្កើត License Key ថ្មី (កំណត់ចំនួនថ្ងៃតាមចិត្ត ឬ មួយជីវិត)")
-        print(" [2] ✍️ បង្កើត Custom Key ផ្ទាល់ខ្លួន (វាយអក្សរ Key តាមចិត្ត ឧ. SAL-2026)")
-        print(" [3] 🚫 បញ្ឈប់ / Block Key របស់ User (Revoke / Ban Key មិនឱ្យប្រើ)")
-        print(" [4] ♻️ ដោះសោ / Unban Key (Restore Key ឱ្យដំណើរការវិញ)")
-        print(" [5] 🔓 បិទ / បើក ការទាមទារ Key (Toggle Free Mode - មិនបាច់វាយ Key ក៏ប្រើបាន)")
-        print(" [6] 📜 មើលប្រវត្តិ Key ទាំងអស់ (View All Generated Keys)")
-        print(" [7] 🔍 ត្រួតពិនិត្យ និង Verify License Key")
-        print(" [8] 🌟 បង្កើត Lifetime Permanent Key ភ្លាមៗ (Quick Lifetime Key)")
-        print(" [9] 🚪 ចាកចេញ (Exit)")
+        print(" [1] 🌐 បើកផ្ទាំង Admin Dashboard លើ Web Browser (http://127.0.0.1:8000/admin)")
+        print(" [2] 🔑 បង្កើត License Key ថ្មី (កំណត់ចំនួនថ្ងៃតាមចិត្ត ឬ មួយជីវិត)")
+        print(" [3] ✍️ បង្កើត Custom Key ផ្ទាល់ខ្លួន (វាយអក្សរ Key តាមចិត្ត ឧ. SAL-2026)")
+        print(" [4] 🚫 បញ្ឈប់ / Block Key របស់ User (Revoke / Ban Key មិនឱ្យប្រើ)")
+        print(" [5] ♻️ ដោះសោ / Unban Key (Restore Key ឱ្យដំណើរការវិញ)")
+        print(" [6] 🔓 បិទ / បើក ការទាមទារ Key (Toggle Free Mode - មិនបាច់វាយ Key ក៏ប្រើបាន)")
+        print(" [7] 📜 មើលប្រវត្តិ Key ទាំងអស់ (View All Generated Keys)")
+        print(" [8] 🔍 ត្រួតពិនិត្យ និង Verify License Key")
+        print(" [9] 🌟 បង្កើត Lifetime Permanent Key ភ្លាមៗ (Quick Lifetime Key)")
+        print(" [0] 🚪 ចាកចេញ (Exit)")
         print("-" * 65)
         
-        choice = input("👉 សូមជ្រើសរើសជម្រើស (1-9): ").strip()
+        choice = input("👉 សូមជ្រើសរើសជម្រើស (0-9): ").strip()
 
         if choice == "1":
+            print("\n⏳ កំពុងត្រួតពិនិត្យ និងបើកដំណើរការ Server...")
+            ready = ensure_server_running(timeout=10.0)
+            url = "http://127.0.0.1:8000/admin"
+            if ready:
+                print(f"🌐 Server ដំណើរការរួចរាល់! កំពុងបើកផ្ទាំង Dashboard ក្នុង Browser ({url})...")
+            else:
+                print(f"⚠️ Server កំពុងបើកយឺតបន្តិច ប៉ុន្តែកំពុងព្យាយាមបើក Browser ទៅកាន់៖ {url}")
+            try:
+                webbrowser.open(url)
+            except Exception:
+                pass
+            print(f"✅ ប្រសិនបើ Browser មិនបើកដោយស្វ័យប្រវត្ត សូមចុចបើកតំណភ្ជាប់នេះ៖ {url}")
+            input("\nចុច Enter ដើម្បីបន្ត...")
+
+        elif choice == "2":
             client_name = input("\n👤 បញ្ចូលឈ្មោះ Client/User (ឧ. Sokha_FB): ").strip() or "VIP_Client"
             print("\nជ្រើសរើសកាលកំណត់ (Duration):")
             print(" [1] 30 ថ្ងៃ (1 Month)")
@@ -118,7 +168,7 @@ def interactive_menu():
             print_key_card(record)
             input("\nចុច Enter ដើម្បីបន្ត...")
 
-        elif choice == "2":
+        elif choice == "3":
             print("\n✍️ បង្កើត Custom Key ផ្ទាល់ខ្លួន (User-Defined Key / Password):")
             print(" (ឧទាហរណ៍៖ SAL-VIP-2026, SAL2026, VIP8888, KHMER-STUDIO)")
             custom_key = input("👉 បញ្ចូល Key ឬពាក្យសម្ងាត់ដែលបងចង់បាន: ").strip()
@@ -149,7 +199,7 @@ def interactive_menu():
             print_key_card(rec)
             input("\nចុច Enter ដើម្បីបន្ត...")
 
-        elif choice == "3":
+        elif choice == "4":
             print("\n🚫 បញ្ឈប់ / Block Key របស់ User (Revoke / Ban Key):")
             key_to_ban = input("👉 បញ្ចូល Key ដែលបងចង់ Block មិនឱ្យប្រើ: ").strip()
             if not key_to_ban:
@@ -165,7 +215,7 @@ def interactive_menu():
                 print("🚫 បានបោះបង់ប្រតិបត្តិការ។")
             input("\nចុច Enter ដើម្បីបន្ត...")
 
-        elif choice == "4":
+        elif choice == "5":
             print("\n♻️ ដោះសោ / Unban Key (Restore Key):")
             key_to_unban = input("👉 បញ្ចូល Key ដែលចង់ Unblock ឱ្យដំណើរការវិញ: ").strip()
             if not key_to_unban:
@@ -176,7 +226,7 @@ def interactive_menu():
             print(f"\n{msg}")
             input("\nចុច Enter ដើម្បីបន្ត...")
 
-        elif choice == "5":
+        elif choice == "6":
             current_status = is_license_required()
             print(f"\n⚙️ ស្ថានភាពបច្ចុប្បន្ន៖ {'🟢 កំពុងទាមទារ License Key (ON)' if current_status else '🟡 កំពុងបើក Free Mode (OFF - មិនបាច់វាយ Key)'}")
             print(" [1] បើកការទាមទារ Key (User ត្រូវតែមាន Key ទើបប្រើបាន)")
@@ -190,7 +240,7 @@ def interactive_menu():
                 print("🎉 បានបើក Free Mode (User មិនបាច់វាយ Key ទេ បើកមកប្រើបានភ្លាមៗ)")
             input("\nចុច Enter ដើម្បីបន្ត...")
 
-        elif choice == "6":
+        elif choice == "7":
             if ADMIN_HISTORY_FILE.exists():
                 with open(ADMIN_HISTORY_FILE, "r", encoding="utf-8") as f:
                     history = json.load(f)
@@ -204,7 +254,7 @@ def interactive_menu():
                 print("\n⚠️ មិនទាន់មាន Key ណាមួយត្រូវបានបង្កើតនៅឡើយទេ។")
             input("\nចុច Enter ដើម្បីបន្ត...")
 
-        elif choice == "7":
+        elif choice == "8":
             test_key = input("\n🔍 បញ្ចូល License Key ដែលចង់ Check: ").strip()
             valid, msg, record = verify_license_key(test_key)
             print(f"\nResult: {msg}")
@@ -212,13 +262,13 @@ def interactive_menu():
                 print(f"Client: {record.get('client_name')}, Plan: {record.get('plan')}, Expiry: {record.get('expires_at')}")
             input("\nចុច Enter ដើម្បីបន្ត...")
 
-        elif choice == "8":
+        elif choice == "9":
             name = input("\n👤 ឈ្មោះ Client: ").strip() or "User_Lifetime"
             rec = generate_license_key(client_name=name, duration_days=0, plan="VIP_LIFETIME")
             print_key_card(rec)
             input("\nចុច Enter ដើម្បីបន្ត...")
 
-        elif choice == "9":
+        elif choice in ("0", "exit", "quit"):
             print("\n👋 អរគុណ! ចាកចេញពី Admin Key Generator។\n")
             break
 
