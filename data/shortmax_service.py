@@ -81,8 +81,29 @@ def decrypt_payload(b64_str: str) -> Optional[Dict[str, Any]]:
     return json.loads(unpadded.decode('utf-8'))
 
 
-def call_shortmax_api(endpoint: str, body: dict) -> Optional[Dict[str, Any]]:
-    """Call encrypted ShortMax CMS API endpoint."""
+_LANG_MAP: Dict[str, str] = {}
+
+def _get_drama_language(short_play_id: int) -> str:
+    global _LANG_MAP
+    sp_str = str(short_play_id)
+    if not _LANG_MAP:
+        all_dramas_path = Path("data/shortmax_all_dramas.json")
+        if all_dramas_path.exists():
+            try:
+                with open(all_dramas_path, "r", encoding="utf-8") as f:
+                    items = json.load(f)
+                    for it in items:
+                        pid = str(it.get("shortPlayId") or "")
+                        lcode = it.get("languageCode") or "en"
+                        if pid:
+                            _LANG_MAP[pid] = lcode
+            except Exception:
+                pass
+    return _LANG_MAP.get(sp_str, "en")
+
+
+def call_shortmax_api(endpoint: str, body: dict, lang: str = "en") -> Optional[Dict[str, Any]]:
+    """Call encrypted ShortMax CMS API endpoint with proper language header."""
     url = f"{API_BASE}{endpoint}"
     encrypted_body = encrypt_payload(body)
     cmd = [
@@ -90,7 +111,7 @@ def call_shortmax_api(endpoint: str, body: dict) -> Optional[Dict[str, Any]]:
         '-X', 'POST', url,
         '-H', 'Content-Type: application/json',
         '-H', 'X-Encrypted: true',
-        '-H', 'Language-Code: en',
+        '-H', f'Language-Code: {lang}',
         '-H', 'Origin: https://www.shorttv.live',
         '-H', 'Referer: https://www.shorttv.live/',
         '-H', 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -127,14 +148,26 @@ def _save_cache():
         pass
 
 
-def get_shortmax_drama_detail(short_play_id: int) -> Optional[Dict[str, Any]]:
-    """Retrieve full detail and episode list with encrypted video stream URLs."""
+def get_shortmax_drama_detail(short_play_id: int, lang: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Retrieve full detail and episode list with encrypted video stream URLs for any language region."""
     _load_cache()
     sp_str = str(short_play_id)
     if sp_str in _SHORTMAX_DETAIL_CACHE:
-        return _SHORTMAX_DETAIL_CACHE[sp_str]
+        cached = _SHORTMAX_DETAIL_CACHE[sp_str]
+        # Verify cached detail actually has episodeList
+        if cached.get("episodeList") or cached.get("shortPlayEpisodeList"):
+            return cached
 
-    res = call_shortmax_api('/cmsShortPlay/queryDetail', {'shortPlayId': int(short_play_id)})
+    target_lang = lang or _get_drama_language(short_play_id)
+    res = call_shortmax_api('/cmsShortPlay/queryDetail', {'shortPlayId': int(short_play_id)}, lang=target_lang)
+    
+    # Fallback to English if target language returned empty episodes
+    if not res or not res.get('data') or not (res['data'].get('episodeList') or res['data'].get('shortPlayEpisodeList')):
+        if target_lang != 'en':
+            res_en = call_shortmax_api('/cmsShortPlay/queryDetail', {'shortPlayId': int(short_play_id)}, lang='en')
+            if res_en and res_en.get('data') and (res_en['data'].get('episodeList') or res_en['data'].get('shortPlayEpisodeList')):
+                res = res_en
+
     if res and res.get('data'):
         data = res['data']
         _SHORTMAX_DETAIL_CACHE[sp_str] = data
