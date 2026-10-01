@@ -15,7 +15,16 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional, Callable
 from concurrent.futures import ThreadPoolExecutor
 
-sys.stdout.reconfigure(encoding='utf-8')
+if sys.platform == "win32" and sys.stdout is not None:
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+if sys.platform == "win32" and sys.stderr is not None:
+    try:
+        sys.stderr.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
 
 # Constants
 BASE_URL = "https://www.reelshort.com"

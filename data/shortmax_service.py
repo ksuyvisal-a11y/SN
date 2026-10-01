@@ -16,12 +16,21 @@ import uuid
 import urllib.request
 import urllib.parse
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Callable
+from typing import Dict, Any, List, Optional, Callable, Tuple
 from concurrent.futures import ThreadPoolExecutor
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 
-sys.stdout.reconfigure(encoding='utf-8')
+if sys.platform == "win32" and sys.stdout is not None:
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+if sys.platform == "win32" and sys.stderr is not None:
+    try:
+        sys.stderr.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
 
 # Constants
 API_BASE = "https://shortweb.shorttv.live/app-api/app"

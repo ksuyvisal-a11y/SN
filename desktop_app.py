@@ -31,9 +31,28 @@ if sys.platform == "win32":
                 ctypes.windll.user32.SetProcessDPIAware()
             except Exception:
                 pass
+# Safe stdout/stderr fallback for windowed / GUI mode where sys.stdout is None
+class _SafeStream:
+    def write(self, s): pass
+    def flush(self): pass
+    def reconfigure(self, **kwargs): pass
+    def isatty(self): return False
+
+if sys.stdout is None:
+    sys.stdout = _SafeStream()
+else:
     try:
-        sys.stdout.reconfigure(encoding="utf-8")
-        sys.stderr.reconfigure(encoding="utf-8")
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
+if sys.stderr is None:
+    sys.stderr = _SafeStream()
+else:
+    try:
+        if hasattr(sys.stderr, 'reconfigure'):
+            sys.stderr.reconfigure(encoding="utf-8")
     except Exception:
         pass
 
