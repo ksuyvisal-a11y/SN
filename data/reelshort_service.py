@@ -127,13 +127,21 @@ def resolve_reelshort_episodes(drama: Dict[str, Any]) -> List[Dict[str, Any]]:
             total_eps = int(cached_stream["chapter_count"])
             drama["total_episodes"] = total_eps
 
+    # Look up in drama catalog if slug or first_chapter_id is missing
+    cached_drama = get_reelshort_drama_by_id(book_id)
+    slug = drama.get("slug") or (cached_drama.get("slug") if cached_drama else "")
+    first_ch = drama.get("first_chapter_id") or (cached_drama.get("first_chapter_id") if cached_drama else "0001")
+    locale = drama.get("locale") or (cached_drama.get("locale") if cached_drama else "en") or "en"
+
     # If stream URL not in cache, query live from ReelShort
     if not ep1_stream and book_id:
         try:
-            slug = re.sub(r'[^a-zA-Z0-9]+', '-', title).strip('-').lower()
-            api_url = f"https://www.reelshort.com/_next/data/1790563283648/en/episodes/episode-1-{slug}-{book_id}-0001.json"
+            if not slug:
+                clean_title = re.sub(r'[^a-zA-Z0-9]+', '-', title).strip('-').lower() or "drama"
+                slug = f"episode-1-{clean_title}-{book_id}-{first_ch}"
+            api_url = f"https://www.reelshort.com/_next/data/1790563283648/{locale}/episodes/{slug}.json?play_time=1&slug={slug}"
             req = urllib.request.Request(api_url, headers=HEADERS)
-            with urllib.request.urlopen(req, timeout=5, context=_SSL_CTX) as resp:
+            with urllib.request.urlopen(req, timeout=6, context=_SSL_CTX) as resp:
                 d = json.loads(resp.read().decode('utf-8'))
                 d_data = d.get('pageProps', {}).get('data', {})
                 if d_data and d_data.get('video_url'):
@@ -151,8 +159,15 @@ def resolve_reelshort_episodes(drama: Dict[str, Any]) -> List[Dict[str, Any]]:
                         "stream_url": ep1_stream,
                         "video_pic": ep1_thumb,
                         "chapter_count": total_eps,
-                        "duration": duration_sec
+                        "duration": duration_sec,
+                        "slug": slug
                     }
+                    # Persist to disk
+                    try:
+                        with open(STREAMS_FILE, "w", encoding="utf-8") as sf:
+                            json.dump(streams_cache, sf, ensure_ascii=False, indent=2)
+                    except Exception:
+                        pass
         except Exception:
             pass
 
