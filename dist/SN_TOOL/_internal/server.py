@@ -1082,6 +1082,21 @@ def downloader_preview_endpoint(drama_id):
                     "episode": ep_num
                 })
 
+    # 2.6 Special handler for ReelShort preview video
+    is_reelshort = (drama and drama.get("platform_id") == "reelshort") or str(drama_id).startswith("reelshort_")
+    if is_reelshort:
+        import reelshort_service
+        pv_path = reelshort_service.get_or_create_preview_video(str(drama_id), ep_num)
+        if pv_path and pv_path.exists():
+            rel_or_abs = str(pv_path.resolve()).replace("\\", "/")
+            return jsonify({
+                "success": True,
+                "video_url": f"/media/{rel_or_abs}",
+                "title": drama.get("title") if drama else f"Episode {ep_num}",
+                "poster": drama.get("poster") if drama else "reelshort_logo.png",
+                "episode": ep_num
+            })
+
     # 3. If authentic live stream is available, provide direct stream URL for 9:16 preview
     if drama_downloader.episodes:
         for ep in drama_downloader.episodes:

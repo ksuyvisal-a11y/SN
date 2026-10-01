@@ -24,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).parent / "data"))
 import hongguo_db
 import hongguo_service
 import shortmax_service
+import reelshort_service
 
 DOWNLOADS_DIR = Path("data/uploads/downloads")
 DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
@@ -463,6 +464,17 @@ def get_drama_episodes(drama: Dict[str, Any]) -> List[Dict[str, Any]]:
                 return sm_eps
         except Exception as sm_e:
             print(f"[ShortMax Resolver] Error: {sm_e}")
+
+    # 1.5 Special handler for ReelShort dramas
+    is_reelshort = drama.get("platform_id") == "reelshort" or drama_id.startswith("reelshort_")
+    if is_reelshort:
+        try:
+            rs_eps = reelshort_service.resolve_reelshort_episodes(drama)
+            if rs_eps:
+                drama["total_episodes"] = len(rs_eps)
+                return rs_eps
+        except Exception as rs_e:
+            print(f"[ReelShort Resolver] Error: {rs_e}")
 
     # 2. Check in-memory AI Dramas Stream Cache (37,078 stream manifests)
     ai_cache, ai_title_index = get_ai_streams_cache()
@@ -1782,9 +1794,10 @@ class DramaDownloadManager:
 
                 # 2. Source A: Multi-source VOD Cluster with Turbo 16-fragment concurrency
                 is_shortmax = (self.current_drama and self.current_drama.get("platform_id") == "shortmax") or str(ep.get("id", "")).startswith("shortmax_")
+                is_reelshort = (self.current_drama and self.current_drama.get("platform_id") == "reelshort") or str(ep.get("id", "")).startswith("reelshort_")
                 stream_obj = cluster_streams.get(ep_num)
                 primary_url = ""
-                if is_shortmax and ep.get("stream_url"):
+                if (is_shortmax or is_reelshort) and ep.get("stream_url"):
                     primary_url = ep["stream_url"]
                 elif stream_obj and stream_obj.get("stream_url"):
                     primary_url = stream_obj["stream_url"]
@@ -1799,6 +1812,13 @@ class DramaDownloadManager:
                     for alt_u in alt_streams_map[ep_num]:
                         if alt_u not in cand_urls:
                             cand_urls.append(alt_u)
+
+                # Dynamically check ReelShort stream cache if empty
+                if is_reelshort and not cand_urls:
+                    rs_c = reelshort_service.get_reelshort_streams_cache()
+                    did = str(self.current_drama.get("id") or "")
+                    if did in rs_c and rs_c[did].get("stream_url"):
+                        cand_urls.append(rs_c[did]["stream_url"])
 
                 # Dynamically check AI streams cache for this specific episode
                 if not cand_urls:
