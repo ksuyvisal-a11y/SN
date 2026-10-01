@@ -11,9 +11,11 @@ build/
 
 # Temp & Caches
 cache/
+data/cache/
 data/uploads/
 data/projects/
 data/exports/
+scratch/
 dist/**/cache/
 dist/**/data/
 dist/**/license.key

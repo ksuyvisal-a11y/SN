@@ -188,7 +188,42 @@ def ensure_db_initialized():
             cur.executemany("INSERT OR IGNORE INTO hongguo_dramas VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", records)
             conn.commit()
 
-
+    # Ensure ShortMax catalog (1,078 dramas) is automatically seeded if missing
+    try:
+        cur.execute("SELECT count(*) FROM hongguo_dramas WHERE LOWER(platform_id) = 'shortmax'")
+        sm_count = cur.fetchone()[0]
+        if sm_count == 0:
+            json_path = Path("data/shortmax_all_dramas.json")
+            if json_path.exists():
+                with open(json_path, "r", encoding="utf-8") as f:
+                    sm_dramas = json.load(f)
+                sm_records = []
+                for rank, d in enumerate(sm_dramas, 1):
+                    sm_records.append((
+                        d.get("id"),
+                        d.get("title"),
+                        d.get("title_cn"),
+                        d.get("title_kh"),
+                        "ShortMax",
+                        "shortmax",
+                        d.get("total_episodes") or 50,
+                        d.get("category") or "All",
+                        d.get("category_id") or "all",
+                        d.get("rating") or "9.2",
+                        d.get("release_year") or "2025",
+                        d.get("poster") or "",
+                        d.get("description") or "",
+                        d.get("tags") or "[]",
+                        d.get("heat") or "100K views",
+                        d.get("status") or "completed",
+                        rank
+                    ))
+                if sm_records:
+                    cur.executemany("INSERT OR IGNORE INTO hongguo_dramas VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", sm_records)
+                    conn.commit()
+                    print(f"[HongguoDB] Seeded {len(sm_records)} ShortMax dramas into catalog DB.")
+    except Exception as e:
+        print(f"[HongguoDB] ShortMax seed check warning: {e}")
 
     conn.close()
     _DB_INITIALIZED = True

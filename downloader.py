@@ -23,6 +23,7 @@ from audio_processor import get_ffmpeg_path, get_silent_kwargs
 sys.path.insert(0, str(Path(__file__).parent / "data"))
 import hongguo_db
 import hongguo_service
+import shortmax_service
 
 DOWNLOADS_DIR = Path("data/uploads/downloads")
 DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
@@ -32,9 +33,9 @@ DRAMA_CATALOG: List[Dict[str, Any]] = []
 
 # Dynamic platform registry matching user preferences
 SUPPORTED_PLATFORMS: List[Dict[str, Any]] = [
-    {"id": "all", "name": "All platforms", "icon": "fa-solid fa-globe", "count": 50751},
+    {"id": "all", "name": "All platforms", "icon": "fa-solid fa-globe", "count": 51829},
     {"id": "hongguo", "name": "Hongguo", "logo": "hongguo_logo.png", "icon": "fa-solid fa-play", "count": 49509},
-    {"id": "shortmax", "name": "ShortMax", "logo": "shortmax_logo.png", "icon": "fa-solid fa-play", "count": 0},
+    {"id": "shortmax", "name": "ShortMax", "logo": "shortmax_logo.png", "icon": "fa-solid fa-play", "count": 1078},
     {"id": "ai_drama", "name": "AI Dramas", "logo": "ai_drama_logo.png", "icon": "fa-solid fa-robot", "count": 1160},
 ]
 
@@ -75,7 +76,17 @@ def get_drama_episodes(drama: Dict[str, Any]) -> List[Dict[str, Any]]:
     if total_expected <= 0:
         total_expected = 80
 
-    # 1. Special handler for Chinese AI short dramas
+    # 1. Special handler for ShortMax (ShortTV) dramas
+    is_shortmax = drama.get("platform_id") == "shortmax" or str(drama_id).startswith("shortmax_")
+    if is_shortmax:
+        try:
+            sm_eps = shortmax_service.resolve_shortmax_episodes(drama)
+            if sm_eps:
+                return sm_eps
+        except Exception as sm_e:
+            print(f"[ShortMax Resolver] Error: {sm_e}")
+
+    # 2. Special handler for Chinese AI short dramas
     is_ai_drama = drama.get("platform_id") == "ai_drama" or str(drama_id).startswith("ai_")
     if is_ai_drama:
         ai_cache_file = Path("data/ai_dramas_streams.json")
@@ -483,6 +494,13 @@ def download_m3u8_stream_turbo(stream_url: str, dest_file: Path, timeout_sec: in
     """
     if not stream_url or not stream_url.startswith("http"):
         return False
+
+    # ShortMax / ShortTV custom AES-CBC encrypted HLS stream
+    if "hls-encrypted" in stream_url or "shorttv.live" in stream_url:
+        try:
+            return shortmax_service.download_and_remux_shortmax_m3u8(stream_url, dest_file, progress_callback=progress_callback)
+        except Exception as sm_err:
+            print(f"[ShortMax Download] Error: {sm_err}")
 
     dest_file = Path(dest_file)
     dest_file.parent.mkdir(parents=True, exist_ok=True)
@@ -1049,6 +1067,56 @@ class DramaDownloadManager:
         url_clean = url.strip()
         self.add_log(f"Analyzing drama link/query: {url_clean}")
 
+        # Case 0.1: Direct ShortMax / ShortTV link or ID
+        is_shortmax_url = "shorttv" in url_clean.lower() or "shortmax" in url_clean.lower()
+        if is_shortmax_url:
+            sm_id = ""
+            m_sm = re.search(r'-(\d+)(?:-\d+)?/?$', url_clean)
+            if m_sm:
+                sm_id = m_sm.group(1)
+            elif url_clean.startswith("shortmax_"):
+                sm_id = url_clean.replace("shortmax_", "").strip()
+            elif url_clean.isdigit():
+                sm_id = url_clean
+
+            if sm_id:
+                drama = hongguo_db.get_drama_by_id(f"shortmax_{sm_id}")
+                if not drama:
+                    # Try queryDetail to build drama on the fly
+                    try:
+                        detail = shortmax_service.get_shortmax_drama_detail(int(sm_id))
+                        if detail:
+                            name = detail.get("shortPlayName") or f"ShortMax #{sm_id}"
+                            drama = {
+                                "id": f"shortmax_{sm_id}",
+                                "title": f"《{name}》 - {name}",
+                                "title_cn": name,
+                                "title_kh": f"រឿងភាគ ShortMax {name}",
+                                "platform": "ShortMax",
+                                "platform_id": "shortmax",
+                                "total_episodes": len(detail.get("episodeList", [])),
+                                "category": "All",
+                                "category_id": "all",
+                                "rating": "9.6",
+                                "poster": detail.get("coverId") or "",
+                                "description": detail.get("summary") or "",
+                                "tags": ["ShortMax", "1080p Full HD"]
+                            }
+                    except Exception:
+                        pass
+
+                if drama:
+                    self.current_drama = drama
+                    self.episodes = get_drama_episodes(drama)
+                    return {
+                        "success": True,
+                        "type": "catalog_drama",
+                        "title": drama.get("title"),
+                        "drama": drama,
+                        "episodes": self.episodes,
+                        "total_episodes": len(self.episodes)
+                    }
+
         # Case 0: Direct Hongguo link or series_id digits
         is_hongguo_url = (
             "hongguo" in url_clean.lower()
@@ -1538,9 +1606,12 @@ class DramaDownloadManager:
                     self.add_log(f"⚡ Downloading EP {ep_num:02d}/{total_cnt:02d} (1080p Full HD Turbo)...")
 
                 # 2. Source A: Multi-source VOD Cluster with Turbo 16-fragment concurrency
+                is_shortmax = (self.current_drama and self.current_drama.get("platform_id") == "shortmax") or str(ep.get("id", "")).startswith("shortmax_")
                 stream_obj = cluster_streams.get(ep_num)
                 primary_url = ""
-                if stream_obj and stream_obj.get("stream_url"):
+                if is_shortmax and ep.get("stream_url"):
+                    primary_url = ep["stream_url"]
+                elif stream_obj and stream_obj.get("stream_url"):
                     primary_url = stream_obj["stream_url"]
                 elif ep.get("stream_url") and (".m3u8" in ep["stream_url"] or str(ep["stream_url"]).startswith("http")):
                     primary_url = ep["stream_url"]

@@ -1,0 +1,374 @@
+{
+  "41554": {
+    "shortPlayId": 41554,
+    "shortPlayCode": "870909",
+    "shortPlayName": "The Arcane Fraud",
+    "collectNum": 47895,
+    "convertCollectNum": "47.9K",
+    "playNum": 143685,
+    "convertPlayNum": "144K",
+    "summary": "Tier-1 mage Soren can only fake forbidden spells, yet one desperate bluff makes a dark dragon kneel.Mistaken for the God of Magic and revealed as Kai Merlin, he enters a war of bloodlines, crowns, and\nfaith-where every lie may become the truth he must protect.",
+    "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+    "horizontalCoverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/c1d13c39fd41416889324120123e06e1.jpg",
+    "lockBegin": 7,
+    "lanShortPlayName": "The Arcane Fraud",
+    "lanShortPlayDescription": "Tier-1 mage Soren can only fake forbidden spells, yet one desperate bluff makes a dark dragon kneel.Mistaken for the God of Magic and revealed as Kai Merlin, he enters a war of bloodlines, crowns, and\nfaith-where every lie may become the truth he must protect.",
+    "lanShortPlayRecommend": null,
+    "lanCoverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+    "rawName": "The Arcane Fraud",
+    "creator": "Kevin McKinley",
+    "isUgcSource": true,
+    "labelList": [
+      {
+        "id": 513,
+        "labelId": 200052,
+        "labelName": "现代",
+        "labelType": 1,
+        "displayName": "Modern"
+      },
+      {
+        "id": 789,
+        "labelId": 200075,
+        "labelName": "玄幻",
+        "labelType": 2,
+        "displayName": "High Fantasy"
+      }
+    ],
+    "classList": [
+      {
+        "id": 155,
+        "classId": 200012,
+        "className": "玄幻",
+        "displayName": "High Fantasy"
+      },
+      {
+        "id": 239,
+        "classId": 200018,
+        "className": "战神",
+        "displayName": "Legendary Warrior"
+      }
+    ],
+    "episodeList": [
+      {
+        "episodeNum": 1,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/e9f4d94e65e54d1289651f680492cd21.jpg",
+        "encryptedVideoUrl": "{\"video_720\":\"https://akamai-static.shorttv.live/hls-encrypted/43d773f278f141be8e356c1c79cdedde_720/main.m3u8\",\"video_1080\":\"https://akamai-static.shorttv.live/hls-encrypted/a8b645492639442ea18852b09dc23a5b_1080/main.m3u8\",\"video_480\":\"https://akamai-static.shorttv.live/hls-encrypted/4d5b7ae54db74ba5a0ed4149e192c9ef_480/main.m3u8\"}"
+      },
+      {
+        "episodeNum": 2,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/b8667034327c47068bad3fb970114108.jpg",
+        "encryptedVideoUrl": "{\"video_720\":\"https://akamai-static.shorttv.live/hls-encrypted/2e90c1f42a9445b39b78dd5278ff598f_720/main.m3u8\",\"video_1080\":\"https://akamai-static.shorttv.live/hls-encrypted/46c7135c6f4a4664891d78293d4fae23_1080/main.m3u8\",\"video_480\":\"https://akamai-static.shorttv.live/hls-encrypted/627d6ddbd05a41a6bfec3b9e42b8af66_480/main.m3u8\"}"
+      },
+      {
+        "episodeNum": 3,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/8b0d8adfcec7413b88cb55ef5e8abd7a.jpg",
+        "encryptedVideoUrl": "{\"video_720\":\"https://akamai-static.shorttv.live/hls-encrypted/ccebcf49c7a643b58e743cf16d36dd20_720/main.m3u8\",\"video_1080\":\"https://akamai-static.shorttv.live/hls-encrypted/097f91422b0c4e59918c49d260b0a7ce_1080/main.m3u8\",\"video_480\":\"https://akamai-static.shorttv.live/hls-encrypted/22a053d453d545f4a2b76144b8ba8f7c_480/main.m3u8\"}"
+      },
+      {
+        "episodeNum": 4,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/95463d5b82bb49338b3e318f5949ea44.jpg",
+        "encryptedVideoUrl": "{\"video_720\":\"https://akamai-static.shorttv.live/hls-encrypted/aefa08ccdee044f695c611c3c6964a41_720/main.m3u8\",\"video_1080\":\"https://akamai-static.shorttv.live/hls-encrypted/0b788e1aa4a146bcb79ce96806aaf296_1080/main.m3u8\",\"video_480\":\"https://akamai-static.shorttv.live/hls-encrypted/2b3045ba9d3d437cb54d14998acfcafd_480/main.m3u8\"}"
+      },
+      {
+        "episodeNum": 5,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/98198e1b3e174655ab6c51a326dba8c3.jpg",
+        "encryptedVideoUrl": "{\"video_720\":\"https://akamai-static.shorttv.live/hls-encrypted/e1354b5f7a394c8e99b4b1bf1623f14d_720/main.m3u8\",\"video_1080\":\"https://akamai-static.shorttv.live/hls-encrypted/0816e5d4da1b440db5d0ef50731ffe60_1080/main.m3u8\",\"video_480\":\"https://akamai-static.shorttv.live/hls-encrypted/895ae8f7032044938f6fb57e1141781e_480/main.m3u8\"}"
+      },
+      {
+        "episodeNum": 6,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/6f9823652f2a44f6acf948113d0ce70c.jpg",
+        "encryptedVideoUrl": "{\"video_720\":\"https://akamai-static.shorttv.live/hls-encrypted/028cd97a65334d5cbb21cee990c1b3ea_720/main.m3u8\",\"video_1080\":\"https://akamai-static.shorttv.live/hls-encrypted/13f9176b5ebc410c9424ded942ee33a3_1080/main.m3u8\",\"video_480\":\"https://akamai-static.shorttv.live/hls-encrypted/d0f961e789004caca12c195b2e4f79f3_480/main.m3u8\"}"
+      },
+      {
+        "episodeNum": 7,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/8dc31a0d90c04925a2b6d5fc9bbbf34c.jpg",
+        "encryptedVideoUrl": "{\"video_720\":\"https://akamai-static.shorttv.live/hls-encrypted/c0279026c261471e8d6253cc5d741639_720/main.m3u8\",\"video_1080\":\"https://akamai-static.shorttv.live/hls-encrypted/440f5a1143b148369b986c24c864b885_1080/main.m3u8\",\"video_480\":\"https://akamai-static.shorttv.live/hls-encrypted/6bee7749409547869467fb79872bf012_480/main.m3u8\"}"
+      },
+      {
+        "episodeNum": 8,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/a90004d0c54b47b2aca1023960298135.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 9,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/43f5e856e6034016b2e47b36296064bf.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 10,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/1bf9e2d9c02945d1bdec37e36370f1b7.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 11,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/004d07f93fe64250abdc828636fdffc2.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 12,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/3f5423a312d14449be150efb92f6acee.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 13,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/6d97f8a763554b4b86bc3478f21a5ae9.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 14,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/684097ef9f0041d9a0ee2a4b3ad08cbf.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 15,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/add8c560de6340b5a1c3bae347c58bef.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 16,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/9f56e9a0f76a40ea82e02d7b650367cc.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 17,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/45e560856e944ae0a1131ae6085619bd.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 18,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/a3db6e929bd64d82bf6607c5492380e7.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 19,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/243bde3c73eb4614b0128e432ce3f22c.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 20,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/678bca3d99804a0ab9db55dd1e12f8bf.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 21,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/7544cbf4d5f34d7792e766fa1f799f88.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 22,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/20db2806f1a04a72ab5074d1e0f198e9.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 23,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/3888114431464b80b77dbed21f59a080.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 24,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/315fbd89c88647b2b68d8dddc0fd043e.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 25,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/eef62517b7934ce7a767b02e337eb48b.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 26,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/29b0f94b279246f093dd93408c9902ed.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 27,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/2213319147be4431ab92c4f89a2f0cf6.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 28,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/427c074a83ac4728ae161755c5523afd.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 29,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/7d28a70d25394f0ba541fbdff974b224.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 30,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/a51ce9a5a08b4362a192c3771364cbbb.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 31,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/a345b29882fd4c20b54f1cb6dd9e371f.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 32,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/178711ce29dd4fe5801d470a4350d2fe.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 33,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/de90d1a7dcbf44499258621b542b54c7.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 34,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/9c62e9d26e414cfd89be62cfb06b150f.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 35,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/854e613b12ac450199ec1929cd3cd95b.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 36,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/9d62ba4f985749c9b7822feaef6b433c.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 37,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/7659ad2d9b264d979056080b0eccf281.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 38,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/6fe0cec913ef4ac98b523fe93e46678b.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 39,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/0984dae6745541f684da47ddf5acd8c2.jpg",
+        "encryptedVideoUrl": ""
+      },
+      {
+        "episodeNum": 40,
+        "playNum": 0,
+        "convertPlayNum": "0",
+        "coverId": "https://akamai-static.shorttv.live/images/cover/2026/09/22/d903a49c255f4f678f09d28dd5c0d8f7.jpg",
+        "frameExtractionCover": "https://akamai-static.shorttv.live/images/cover/2026/09/22/dcabd25adc0e41dca4b39f6d8c1a328c.jpg",
+        "encryptedVideoUrl": ""
+      }
+    ]
+  }
+}

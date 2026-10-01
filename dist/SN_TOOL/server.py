@@ -57,6 +57,7 @@ from downloader import (
     get_hongguo_episode_real_stream_url
 )
 import hongguo_db
+import shortmax_service
 from recap_engine import RecapEngine, VIRAL_KHMER_HOOKS
 from batch_engine import batch_manager, EXPORTS_DIR
 from video_processor import (
@@ -1060,6 +1061,26 @@ def downloader_preview_endpoint(drama_id):
             "poster": drama.get("poster") if drama else "posters/poster_sample_ceo.jpg",
             "episode": ep_num
         })
+
+    # 2.5 Special handler for ShortMax preview video
+    is_shortmax = (drama and drama.get("platform_id") == "shortmax") or str(drama_id).startswith("shortmax_")
+    if is_shortmax:
+        sp_id_str = str(drama_id).replace("shortmax_", "").strip()
+        try:
+            sp_id = int(sp_id_str)
+        except Exception:
+            sp_id = 0
+        if sp_id:
+            pv_path = shortmax_service.get_or_create_preview_video(sp_id, ep_num)
+            if pv_path and pv_path.exists():
+                rel_or_abs = str(pv_path.resolve()).replace("\\", "/")
+                return jsonify({
+                    "success": True,
+                    "video_url": f"/media/{rel_or_abs}",
+                    "title": drama.get("title") if drama else f"Episode {ep_num}",
+                    "poster": drama.get("poster") if drama else "posters/poster_sample_ceo.jpg",
+                    "episode": ep_num
+                })
 
     # 3. If authentic live stream is available, provide direct stream URL for 9:16 preview
     if drama_downloader.episodes:
