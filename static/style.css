@@ -4365,13 +4365,13 @@ select, option, optgroup {
     box-shadow: 0 0 10px rgba(239, 68, 68, 0.35);
 }
 
-/* Drama Cards Grid (5 Columns Layout per user request: exactly 5 dramas per row) */
+/* Drama Cards Grid (Compact & Sleek Layout: 6 to 7 compact columns per row) */
 .dl-drama-cards-grid {
     flex: 1;
     overflow-y: auto;
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 16px 12px;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 14px 10px;
     padding: 6px 8px 24px 8px;
     box-sizing: border-box;
     scrollbar-width: thin;
@@ -4423,7 +4423,7 @@ select, option, optgroup {
 .dl-card-item {
     background: transparent;
     border: none;
-    border-radius: 8px;
+    border-radius: 7px;
     cursor: pointer;
     transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
@@ -4449,9 +4449,9 @@ select, option, optgroup {
     aspect-ratio: 3 / 4.15;
     position: relative;
     background: #140f0b;
-    border-radius: 8px;
+    border-radius: 7px;
     overflow: hidden;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.55);
 }
 
 .dl-card-thumb-wrap img {
@@ -4459,7 +4459,7 @@ select, option, optgroup {
     height: 100%;
     object-fit: cover;
     display: block;
-    border-radius: 8px;
+    border-radius: 7px;
     transition: transform 0.25s ease;
 }
 
@@ -4474,20 +4474,20 @@ select, option, optgroup {
 /* Rank Badge on Top-Left of Poster */
 .lb-rank {
     position: absolute;
-    top: 5px;
-    left: 5px;
+    top: 4px;
+    left: 4px;
     z-index: 2;
-    min-width: 20px;
-    height: 20px;
-    padding: 0 5px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 4px;
+    border-radius: 3px;
     background: rgba(15, 23, 42, 0.85);
     color: #fff;
     font-weight: 800;
-    font-size: 11px;
+    font-size: 10px;
 }
 
 .lb-rank.top {
@@ -4499,39 +4499,39 @@ select, option, optgroup {
 /* Score Badge on Top-Right of Poster */
 .lb-score {
     position: absolute;
-    top: 5px;
-    right: 5px;
+    top: 4px;
+    right: 4px;
     z-index: 2;
-    font-size: 10.5px;
+    font-size: 9.5px;
     font-weight: 700;
     color: #ffffff;
-    background: rgba(0, 0, 0, 0.72);
+    background: rgba(0, 0, 0, 0.75);
     backdrop-filter: blur(4px);
-    padding: 2px 6px;
-    border-radius: 4px;
+    padding: 2px 5px;
+    border-radius: 3px;
 }
 
 /* Heat / Episode Badge on Bottom-Left of Poster */
 .lb-eps {
     position: absolute;
-    bottom: 5px;
-    left: 6px;
+    bottom: 4px;
+    left: 5px;
     z-index: 2;
-    font-size: 10.5px;
+    font-size: 9.5px;
     font-weight: 700;
     color: rgba(255, 255, 255, 0.95);
     text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95);
 }
 
 .dl-card-details-box {
-    padding: 6px 1px 0 1px;
+    padding: 5px 1px 0 1px;
     display: flex;
     flex-direction: column;
     width: 100%;
 }
 
 .dl-card-title-line {
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 700;
     color: #f8fafc;
     white-space: nowrap;
