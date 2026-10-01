@@ -375,8 +375,11 @@ def _auto_install_official_extension(short_name: str) -> Path | None:
         out.confirm(f"'{short_name}' is an official Hugging Face extension ({owner}/{repo_name}). Install it?")
     except ConfirmationError:
         return None
-    manifest = _install_extension(owner=owner, repo_name=repo_name, short_name=short_name)
-    return Path(manifest.executable_path).expanduser()
+    try:
+        manifest = _install_extension(owner=owner, repo_name=repo_name, short_name=short_name)
+        return Path(manifest.executable_path).expanduser()
+    except Exception:
+        return None
 
 
 def _load_installed_extension_for_update(name: str) -> ExtensionManifest:
@@ -432,11 +435,6 @@ def _install_extension(
             binary = None
 
         if binary is not None:
-            if os.name == "nt":
-                raise CLIError(
-                    f"'{owner}/{repo_name}' is a shell-script extension, which is not supported on Windows. "
-                    "Only Python extensions can be installed on Windows."
-                )
             executable_path = _install_binary_extension(
                 extension_dir=extension_dir, short_name=short_name, binary=binary
             )
@@ -502,7 +500,8 @@ def _fetch_latest_commit_sha(*, owner: str, repo_name: str) -> str:
 
 
 def _fetch_remote_binary(*, owner: str, repo_name: str, short_name: str) -> bytes:
-    raw_url = f"https://raw.githubusercontent.com/{owner}/{repo_name}/HEAD/hf-{short_name}"
+    executable_name = _get_executable_name(short_name)
+    raw_url = f"https://raw.githubusercontent.com/{owner}/{repo_name}/HEAD/{executable_name}"
     response = _github_request("GET", raw_url)
     return response.content
 

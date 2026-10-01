@@ -201,42 +201,72 @@ def ensure_db_initialized():
             cur.executemany("INSERT OR IGNORE INTO hongguo_dramas VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", records)
             conn.commit()
 
-    # Ensure ShortMax catalog (1,078 dramas) is automatically seeded if missing
+    # Ensure ShortMax catalog (5,206 dramas) is automatically seeded if missing
     try:
         cur.execute("SELECT count(*) FROM hongguo_dramas WHERE LOWER(platform_id) = 'shortmax'")
         sm_count = cur.fetchone()[0]
         if sm_count == 0:
             json_path = Path("data/shortmax_all_dramas.json")
+            if not json_path.exists():
+                json_path = base / "data" / "shortmax_all_dramas.json"
             if json_path.exists():
                 with open(json_path, "r", encoding="utf-8") as f:
                     sm_dramas = json.load(f)
                 sm_records = []
                 for rank, d in enumerate(sm_dramas, 1):
+                    sp_id = str(d.get("shortPlayId") or d.get("id") or f"sm_{rank}")
+                    did = f"shortmax_{sp_id}" if not sp_id.startswith("shortmax_") else sp_id
+                    title = d.get("shortPlayName") or d.get("title") or "ShortMax Drama"
+                    title_cn = d.get("rawName") or d.get("title_cn") or title
+                    title_kh = f"រឿងភាគ {title}"
+                    poster = d.get("coverId") or d.get("lanCoverId") or d.get("poster") or ""
+                    desc = d.get("summary") or d.get("lanShortPlayDescription") or d.get("description") or ""
+                    heat = d.get("convertPlayNum") or d.get("convertCollectNum") or "100K views"
+                    tags = json.dumps(["ShortMax", d.get("languageCode", "en"), "Short Drama"], ensure_ascii=False)
+                    total_eps = int(d.get("total_episodes") or d.get("episodeNum") or 50)
                     sm_records.append((
-                        d.get("id"),
-                        d.get("title"),
-                        d.get("title_cn"),
-                        d.get("title_kh"),
-                        "ShortMax",
-                        "shortmax",
-                        d.get("total_episodes") or 50,
-                        d.get("category") or "All",
-                        d.get("category_id") or "all",
-                        d.get("rating") or "9.2",
-                        d.get("release_year") or "2025",
-                        d.get("poster") or "",
-                        d.get("description") or "",
-                        d.get("tags") or "[]",
-                        d.get("heat") or "100K views",
-                        d.get("status") or "completed",
-                        rank
+                        did, title, title_cn, title_kh, "ShortMax", "shortmax",
+                        total_eps, "All", "all", "9.3", "2025", poster, desc, tags,
+                        f"{heat} views" if not str(heat).endswith("views") else str(heat),
+                        "completed", rank
                     ))
                 if sm_records:
-                    cur.executemany("INSERT OR IGNORE INTO hongguo_dramas VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", sm_records)
+                    cur.executemany("INSERT OR REPLACE INTO hongguo_dramas VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", sm_records)
                     conn.commit()
                     print(f"[HongguoDB] Seeded {len(sm_records)} ShortMax dramas into catalog DB.")
     except Exception as e:
         print(f"[HongguoDB] ShortMax seed check warning: {e}")
+
+    # Ensure ReelShort catalog (5,723 dramas) is automatically seeded if missing
+    try:
+        cur.execute("SELECT count(*) FROM hongguo_dramas WHERE LOWER(platform_id) = 'reelshort'")
+        rs_count = cur.fetchone()[0]
+        if rs_count == 0:
+            json_path = Path("data/reelshort_all_dramas.json")
+            if not json_path.exists():
+                json_path = base / "data" / "reelshort_all_dramas.json"
+            if json_path.exists():
+                with open(json_path, "r", encoding="utf-8") as f:
+                    rs_dramas = json.load(f)
+                rs_records = []
+                for rank, d in enumerate(rs_dramas, 1):
+                    b_id = str(d.get("book_id") or f"rs_{rank}")
+                    did = f"reelshort_{b_id}" if not b_id.startswith("reelshort_") else b_id
+                    title = d.get("title") or "ReelShort Drama"
+                    tags = json.dumps(d.get("tags") or ["ReelShort", "Vertical"], ensure_ascii=False)
+                    reads = d.get("reads") or 100000
+                    heat = f"{reads // 1000}K views" if reads >= 1000 else f"{reads} views"
+                    rs_records.append((
+                        did, title, title, f"រឿងភាគ {title}", "ReelShort", "reelshort",
+                        int(d.get("chapter_count") or 50), "All", "all", "9.4", "2025",
+                        d.get("poster") or "", d.get("description") or "", tags, heat, "completed", rank
+                    ))
+                if rs_records:
+                    cur.executemany("INSERT OR REPLACE INTO hongguo_dramas VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", rs_records)
+                    conn.commit()
+                    print(f"[HongguoDB] Seeded {len(rs_records)} ReelShort dramas into catalog DB.")
+    except Exception as e:
+        print(f"[HongguoDB] ReelShort seed check warning: {e}")
 
     conn.close()
     _DB_INITIALIZED = True

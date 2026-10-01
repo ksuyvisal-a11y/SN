@@ -4296,15 +4296,16 @@ select, option, optgroup {
     box-shadow: 0 0 12px rgba(56, 189, 248, 0.45);
 }
 
-/* Category Filter Tags Scroll - Hidden as requested */
+/* Category Filter Tags Scroll */
 .dl-catalog-filter-tags-scroll,
 #dl-category-chips-bar {
-    display: none !important;
-    height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: hidden !important;
-    visibility: hidden !important;
+    display: flex !important;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+    scrollbar-width: thin;
+    visibility: visible !important;
 }
 
 .dl-catalog-filter-tags-scroll::-webkit-scrollbar {
