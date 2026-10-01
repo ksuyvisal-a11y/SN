@@ -41,6 +41,17 @@ if exist "%LOCALAPPDATA%\Python\pythoncore-3.14-64\python.exe" (
     goto :END
 )
 
+if exist "dist\SN_TOOL\SN_TOOL.exe" (
+    echo [INFO] Python មិនទាន់បានដំឡើង ដូច្នេះកំពុងបើកដំណើរការតាមរយៈ Standalone EXE...
+    start "" "dist\SN_TOOL\SN_TOOL.exe"
+    goto :END
+)
+
+if exist "SN_TOOL.exe" (
+    start "" "SN_TOOL.exe"
+    goto :END
+)
+
 echo [ERROR] Python not found! Please install Python 3.10-3.14.
 pause
 
