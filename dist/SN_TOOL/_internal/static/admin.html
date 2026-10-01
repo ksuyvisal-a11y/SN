@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SN TOOL - VIP License & Customer Control Center</title>
+    <title>SN TOOL - Orion VIP License Dashboard</title>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,31 +11,49 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         :root {
-            --bg-base: #06070a;
-            --bg-card: rgba(13, 16, 24, 0.85);
-            --bg-card-hover: rgba(18, 22, 33, 0.95);
-            --bg-input: #080a10;
-            --border-card: rgba(250, 204, 21, 0.16);
-            --border-hover: rgba(250, 204, 21, 0.45);
-            --border-subtle: rgba(255, 255, 255, 0.08);
+            --bg-body: #f8fafc;
+            --bg-sidebar: #ffffff;
+            --bg-card: #ffffff;
+            --bg-input: #ffffff;
             
-            --gold-primary: #facc15;
-            --gold-bright: #fde047;
-            --gold-dim: #ca8a04;
-            --gold-glow: rgba(250, 204, 21, 0.35);
-            
-            --text-main: #f8fafc;
-            --text-sub: #94a3b8;
+            --border-color: #e2e8f0;
+            --border-hover: #cbd5e1;
+            --border-focus: #3b82f6;
+
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --primary-soft: #eff6ff;
+            --primary-border: #bfdbfe;
+
+            --text-title: #0f172a;
+            --text-body: #334155;
             --text-muted: #64748b;
-            --text-gold: #fde047;
-            
-            --color-green: #10b981;
-            --color-green-glow: rgba(16, 185, 129, 0.25);
-            --color-red: #ef4444;
-            --color-red-glow: rgba(239, 68, 68, 0.25);
-            
+            --text-light: #94a3b8;
+
+            --badge-green-bg: #dcfce7;
+            --badge-green-text: #15803d;
+            --badge-green-border: #bbf7d0;
+
+            --badge-red-bg: #fee2e2;
+            --badge-red-text: #b91c1c;
+            --badge-red-border: #fecaca;
+
+            --badge-blue-bg: #e0f2fe;
+            --badge-blue-text: #0284c7;
+            --badge-blue-border: #bae6fd;
+
+            --badge-amber-bg: #fef3c7;
+            --badge-amber-text: #b45309;
+            --badge-amber-border: #fde68a;
+
             --font-main: 'Plus Jakarta Sans', 'Kantumruy Pro', -apple-system, sans-serif;
             --font-mono: 'JetBrains Mono', monospace;
+            
+            --shadow-subtle: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+            --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+            --shadow-float: 0 12px 24px -4px rgba(0, 0, 0, 0.08);
+            
+            --radius-sm: 8px;
             --radius-md: 12px;
             --radius-lg: 16px;
         }
@@ -47,455 +65,565 @@
         }
 
         body {
-            background: var(--bg-base);
-            background-image: 
-                radial-gradient(ellipse at 20% 0%, rgba(250, 204, 21, 0.08) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 0%, rgba(202, 138, 4, 0.06) 0%, transparent 50%),
-                radial-gradient(ellipse at 50% 100%, rgba(16, 185, 129, 0.04) 0%, transparent 60%);
-            color: var(--text-main);
+            background-color: var(--bg-body);
+            color: var(--text-body);
             font-family: var(--font-main);
             min-height: 100vh;
             display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 24px 20px 40px;
             user-select: none;
             overflow-x: hidden;
         }
 
-        /* Top Command Header */
-        .admin-header-wrapper {
-            width: 100%;
-            max-width: 1360px;
+        /* 1. Left Sidebar Navigation (Matching Orion Dashboard) */
+        .sidebar {
+            width: 240px;
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
-            gap: 16px;
-            margin-bottom: 24px;
+            padding: 24px 16px;
+            gap: 28px;
+            flex-shrink: 0;
+            min-height: 100vh;
         }
 
-        .header-top-bar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            flex-wrap: wrap;
-            padding-bottom: 16px;
-            border-bottom: 1px solid var(--border-subtle);
-        }
-
-        .header-brand {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-        }
-
-        .brand-logo-frame {
-            width: 54px;
-            height: 54px;
-            border-radius: 14px;
-            background: linear-gradient(135deg, rgba(250, 204, 21, 0.2) 0%, rgba(202, 138, 4, 0.1) 100%);
-            border: 1px solid var(--border-card);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 0 24px rgba(250, 204, 21, 0.25);
-            transition: transform 0.3s ease;
-        }
-
-        .brand-logo-frame:hover {
-            transform: scale(1.05);
-        }
-
-        .brand-logo-frame img {
-            max-width: 78%;
-            max-height: 78%;
-            object-fit: contain;
-        }
-
-        .brand-text-col {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-
-        .brand-title-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .brand-title {
-            font-size: 1.45rem;
-            font-weight: 800;
-            letter-spacing: 0.8px;
-            background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .badge-pro {
-            background: rgba(250, 204, 21, 0.15);
-            border: 1px solid rgba(250, 204, 21, 0.45);
-            color: var(--gold-primary);
-            font-size: 0.7rem;
-            font-weight: 800;
-            padding: 3px 8px;
-            border-radius: 6px;
-            letter-spacing: 0.8px;
-        }
-
-        .brand-subtitle {
-            font-size: 0.82rem;
-            color: var(--text-sub);
-            font-weight: 500;
-        }
-
-        .header-actions {
+        .sidebar-brand {
             display: flex;
             align-items: center;
             gap: 12px;
-            flex-wrap: wrap;
+            padding: 0 8px;
         }
 
-        .btn-header-link {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--border-subtle);
-            color: var(--text-main);
-            text-decoration: none;
-            padding: 9px 16px;
+        .brand-logo-circle {
+            width: 38px;
+            height: 38px;
             border-radius: 10px;
-            font-size: 0.82rem;
-            font-weight: 700;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.2s ease;
-        }
-
-        .btn-header-link:hover {
-            background: rgba(250, 204, 21, 0.12);
-            border-color: var(--gold-primary);
-            color: var(--gold-primary);
-            box-shadow: 0 0 16px rgba(250, 204, 21, 0.2);
-            transform: translateY(-1px);
-        }
-
-        /* Metric Stats Banner */
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 14px;
-        }
-
-        .metric-card {
-            background: var(--bg-card);
-            backdrop-filter: blur(16px);
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-md);
-            padding: 14px 18px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            transition: all 0.25s ease;
-        }
-
-        .metric-card:hover {
-            border-color: var(--border-card);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-        }
-
-        .metric-info {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .metric-label {
-            font-size: 0.74rem;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.6px;
-        }
-
-        .metric-val {
-            font-size: 1.45rem;
-            font-weight: 800;
-            font-family: var(--font-mono);
-            color: #fff;
-        }
-
-        .metric-icon-wrap {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
+            background: #0f172a;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.15rem;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
         }
 
-        .metric-gold .metric-icon-wrap { background: rgba(250, 204, 21, 0.12); color: var(--gold-primary); }
-        .metric-green .metric-icon-wrap { background: rgba(16, 185, 129, 0.12); color: var(--color-green); }
-        .metric-red .metric-icon-wrap { background: rgba(239, 68, 68, 0.12); color: var(--color-red); }
-        .metric-blue .metric-icon-wrap { background: rgba(59, 130, 246, 0.12); color: #60a5fa; }
+        .brand-logo-circle img {
+            max-width: 80%;
+            max-height: 80%;
+            object-fit: contain;
+        }
 
-        /* Master Gate Switch Card */
-        .gate-control-strip {
-            background: linear-gradient(135deg, rgba(250, 204, 21, 0.06) 0%, rgba(13, 16, 24, 0.9) 100%);
-            border: 1px solid var(--border-card);
-            border-radius: var(--radius-md);
-            padding: 14px 20px;
+        .brand-titles {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .brand-title-main {
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: var(--text-title);
+            letter-spacing: -0.2px;
+        }
+
+        .brand-badge-tag {
+            font-size: 0.68rem;
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        .sidebar-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            list-style: none;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            color: var(--text-muted);
+            font-size: 0.86rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.18s ease;
+        }
+
+        .menu-item:hover {
+            background: #f1f5f9;
+            color: var(--text-title);
+        }
+
+        .menu-item.active {
+            background: #f1f5f9;
+            color: var(--text-title);
+            font-weight: 700;
+        }
+
+        .menu-item i {
+            font-size: 1rem;
+            width: 20px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .menu-item.active i {
+            color: var(--primary);
+        }
+
+        .sidebar-bottom {
+            margin-top: auto;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn-open-studio {
+            background: var(--primary-soft);
+            color: var(--primary);
+            border: 1px solid var(--primary-border);
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 0.82rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .btn-open-studio:hover {
+            background: var(--primary);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+        }
+
+        /* 2. Main Content Area */
+        .main-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            overflow-y: auto;
+        }
+
+        /* Top Header Navbar */
+        .top-navbar {
+            height: 64px;
+            background: #ffffff;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            gap: 20px;
+        }
+
+        .nav-search-bar {
+            position: relative;
+            width: 360px;
+        }
+
+        .nav-search-input {
+            width: 100%;
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 8px 16px 8px 38px;
+            font-size: 0.84rem;
+            color: var(--text-title);
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .nav-search-input:focus {
+            background: #ffffff;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        .nav-search-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-light);
+            font-size: 0.85rem;
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .admin-profile-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 12px 5px 6px;
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-title);
+        }
+
+        .admin-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #0f172a;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+        }
+
+        /* 3. Dashboard Body View */
+        .dashboard-body {
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            max-width: 1440px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        /* Overview Title & Actions Row */
+        .page-header-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 16px;
-            flex-wrap: wrap;
         }
 
-        .gate-status-text {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
+        .page-title {
+            font-size: 1.55rem;
+            font-weight: 800;
+            color: var(--text-title);
+            letter-spacing: -0.5px;
         }
 
-        .gate-title-line {
+        .page-actions-group {
             display: flex;
             align-items: center;
             gap: 10px;
-            font-size: 0.92rem;
-            font-weight: 800;
-            color: #fff;
         }
 
-        .gate-badge-pill {
-            font-size: 0.72rem;
-            font-weight: 800;
-            padding: 2px 10px;
-            border-radius: 20px;
-            letter-spacing: 0.6px;
-        }
-
-        .gate-badge-locked {
-            background: rgba(16, 185, 129, 0.15);
-            border: 1px solid rgba(16, 185, 129, 0.4);
-            color: #34d399;
-        }
-
-        .gate-badge-free {
-            background: rgba(250, 204, 21, 0.18);
-            border: 1px solid rgba(250, 204, 21, 0.5);
-            color: #fde047;
-        }
-
-        .gate-desc {
-            font-size: 0.76rem;
-            color: var(--text-sub);
-        }
-
-        .btn-toggle-switch {
-            background: #141824;
-            border: 1px solid var(--border-card);
-            color: var(--gold-primary);
-            padding: 9px 18px;
-            border-radius: 10px;
+        .btn-action-light {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            color: var(--text-body);
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
             font-size: 0.82rem;
             font-weight: 700;
             cursor: pointer;
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 8px;
-            transition: all 0.22s ease;
+            gap: 6px;
+            box-shadow: var(--shadow-subtle);
+            transition: all 0.2s ease;
         }
 
-        .btn-toggle-switch:hover {
-            background: #1c2233;
-            border-color: var(--gold-bright);
-            box-shadow: 0 0 16px var(--gold-glow);
-            transform: scale(1.02);
+        .btn-action-light:hover {
+            border-color: var(--border-hover);
+            background: #f8fafc;
         }
 
-        /* Main Workspace Layout (2 Columns) */
-        .workspace-grid {
-            width: 100%;
-            max-width: 1360px;
+        /* 4. Stat Metric Cards (Matching Orion Dashboard Top Cards) */
+        .stat-cards-grid {
             display: grid;
-            grid-template-columns: 480px 1fr;
-            gap: 20px;
-            align-items: start;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
         }
 
-        @media (max-width: 1080px) {
-            .workspace-grid {
+        @media (max-width: 1180px) {
+            .stat-cards-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 640px) {
+            .stat-cards-grid {
                 grid-template-columns: 1fr;
             }
         }
 
-        /* Panels / Containers */
-        .glass-panel {
+        .stat-card {
             background: var(--bg-card);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--border-card);
-            border-radius: var(--radius-lg);
-            padding: 22px;
-            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 20px 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            box-shadow: var(--shadow-card);
+            position: relative;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-float);
+        }
+
+        .stat-label-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .stat-label {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .stat-badge-pill {
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 16px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .stat-pill-green {
+            background: var(--badge-green-bg);
+            color: var(--badge-green-text);
+            border: 1px solid var(--badge-green-border);
+        }
+
+        .stat-pill-blue {
+            background: var(--badge-blue-bg);
+            color: var(--badge-blue-text);
+            border: 1px solid var(--badge-blue-border);
+        }
+
+        .stat-pill-red {
+            background: var(--badge-red-bg);
+            color: var(--badge-red-text);
+            border: 1px solid var(--badge-red-border);
+        }
+
+        .stat-pill-amber {
+            background: var(--badge-amber-bg);
+            color: var(--badge-amber-text);
+            border: 1px solid var(--badge-amber-border);
+        }
+
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: var(--text-title);
+            letter-spacing: -0.5px;
+            font-family: var(--font-main);
+        }
+
+        .stat-subtext {
+            font-size: 0.76rem;
+            color: var(--text-light);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Gate Toggle Switch Inside Stat Card */
+        .gate-toggle-btn {
+            background: #f1f5f9;
+            border: 1px solid var(--border-color);
+            color: var(--text-title);
+            padding: 6px 12px;
+            border-radius: var(--radius-sm);
+            font-size: 0.76rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: fit-content;
+        }
+
+        .gate-toggle-btn:hover {
+            background: #e2e8f0;
+        }
+
+        /* 5. Main Dashboard Split Layout (2 Columns: Generator & Customer Database) */
+        .dashboard-content-grid {
+            display: grid;
+            grid-template-columns: 460px 1fr;
+            gap: 24px;
+            align-items: start;
+        }
+
+        @media (max-width: 1080px) {
+            .dashboard-content-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Cards in Main Area */
+        .content-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 24px;
+            box-shadow: var(--shadow-card);
             display: flex;
             flex-direction: column;
             gap: 18px;
         }
 
-        .panel-header {
+        .card-header-bar {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 12px;
-            border-bottom: 1px solid var(--border-subtle);
             padding-bottom: 14px;
+            border-bottom: 1px solid var(--border-color);
         }
 
-        .panel-title-wrap {
+        .card-title {
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: var(--text-title);
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
-        .panel-title-icon {
-            color: var(--gold-primary);
-            font-size: 1.1rem;
-        }
-
-        .panel-title {
-            font-size: 1.05rem;
-            font-weight: 800;
-            color: #fff;
-            letter-spacing: 0.4px;
+        .card-title i {
+            color: var(--primary);
+            font-size: 1rem;
         }
 
         /* Quick Presets Bar */
-        .presets-bar-title {
-            font-size: 0.78rem;
-            font-weight: 700;
-            color: var(--text-sub);
+        .presets-row {
             display: flex;
-            align-items: center;
-            gap: 6px;
+            flex-direction: column;
+            gap: 8px;
         }
 
-        .presets-pill-group {
+        .presets-label {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .presets-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 8px;
         }
 
-        .btn-preset-pill {
-            background: #0d101a;
-            border: 1px solid var(--border-subtle);
-            color: var(--text-main);
-            padding: 9px 8px;
-            border-radius: 9px;
-            font-size: 0.78rem;
-            font-weight: 700;
-            cursor: pointer;
+        .btn-preset {
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 10px 8px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 3px;
-            transition: all 0.2s ease;
+            gap: 2px;
+            cursor: pointer;
+            transition: all 0.18s ease;
         }
 
-        .btn-preset-pill span.preset-sub {
+        .btn-preset span.title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-title);
+        }
+
+        .btn-preset span.desc {
             font-size: 0.68rem;
             color: var(--text-muted);
-            font-weight: 500;
         }
 
-        .btn-preset-pill:hover, .btn-preset-pill.active {
-            background: rgba(250, 204, 21, 0.12);
-            border-color: var(--gold-primary);
-            color: var(--gold-primary);
-            box-shadow: 0 0 14px rgba(250, 204, 21, 0.25);
-            transform: translateY(-1px);
+        .btn-preset:hover, .btn-preset.active {
+            background: var(--primary-soft);
+            border-color: var(--primary);
+            box-shadow: 0 0 0 1px var(--primary);
         }
 
-        .btn-preset-pill.active span.preset-sub {
-            color: var(--gold-bright);
+        .btn-preset.active span.title {
+            color: var(--primary);
         }
 
         /* Form Inputs */
-        .form-group {
+        .input-group {
             display: flex;
             flex-direction: column;
             gap: 6px;
         }
 
-        .form-label {
+        .input-label {
             font-size: 0.8rem;
             font-weight: 700;
-            color: var(--text-main);
+            color: var(--text-title);
             display: flex;
             align-items: center;
             justify-content: space-between;
         }
 
-        .form-label-left {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .form-label-left i {
-            color: var(--gold-primary);
-            font-size: 0.82rem;
-        }
-
-        .form-hint {
+        .input-hint {
             font-size: 0.72rem;
-            color: var(--text-muted);
+            color: var(--text-light);
             font-weight: 500;
         }
 
-        .input-wrap-row {
+        .input-field-row {
             display: flex;
             gap: 8px;
             align-items: center;
         }
 
-        .admin-input-field {
+        .light-input {
             width: 100%;
-            background: var(--bg-input);
-            border: 1px solid var(--border-subtle);
-            border-radius: 10px;
-            padding: 12px 14px;
-            font-size: 0.86rem;
-            color: var(--text-main);
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 11px 14px;
+            font-size: 0.88rem;
+            color: var(--text-title);
             font-family: var(--font-main);
             outline: none;
             transition: all 0.2s ease;
         }
 
-        .admin-input-field.mono-style {
+        .light-input.mono {
             font-family: var(--font-mono);
             letter-spacing: 0.5px;
         }
 
-        .admin-input-field:focus {
-            border-color: var(--gold-primary);
-            box-shadow: 0 0 16px rgba(250, 204, 21, 0.25);
+        .light-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
         }
 
-        .admin-input-field::placeholder {
-            color: #475569;
-            font-size: 0.8rem;
+        .light-input::placeholder {
+            color: var(--text-light);
+            font-size: 0.82rem;
         }
 
-        .btn-inline-action {
-            background: #121622;
-            border: 1px solid var(--border-subtle);
-            color: #cbd5e1;
-            padding: 11px 14px;
-            border-radius: 10px;
+        .btn-input-addon {
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            color: var(--text-body);
+            border-radius: var(--radius-sm);
+            padding: 10px 14px;
             font-size: 0.78rem;
             font-weight: 700;
             cursor: pointer;
@@ -506,27 +634,26 @@
             transition: all 0.2s ease;
         }
 
-        .btn-inline-action:hover {
-            background: #1c2233;
-            border-color: var(--gold-primary);
-            color: var(--gold-primary);
-            box-shadow: 0 0 12px rgba(250, 204, 21, 0.2);
+        .btn-input-addon:hover {
+            background: #f1f5f9;
+            border-color: var(--border-hover);
+            color: var(--primary);
         }
 
-        /* Select Input */
-        .select-box-wrap {
+        /* Select Box */
+        .select-wrapper {
             position: relative;
             width: 100%;
         }
 
-        .admin-select {
+        .light-select {
             width: 100%;
-            background: var(--bg-input);
-            border: 1px solid var(--border-subtle);
-            border-radius: 10px;
-            padding: 12px 14px;
-            font-size: 0.86rem;
-            color: var(--text-main);
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 11px 14px;
+            font-size: 0.88rem;
+            color: var(--text-title);
             font-weight: 600;
             font-family: var(--font-main);
             outline: none;
@@ -536,102 +663,79 @@
             transition: all 0.2s ease;
         }
 
-        .admin-select:focus {
-            border-color: var(--gold-primary);
-            box-shadow: 0 0 16px rgba(250, 204, 21, 0.25);
+        .light-select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
         }
 
-        .select-arrow {
+        .select-chevron {
             position: absolute;
             right: 14px;
             top: 50%;
             transform: translateY(-50%);
-            color: var(--gold-primary);
+            color: var(--text-muted);
             pointer-events: none;
             font-size: 0.8rem;
         }
 
-        /* Master Generate Button */
-        .btn-generate-vip {
-            background: linear-gradient(135deg, #facc15 0%, #eab308 50%, #ca8a04 100%);
-            color: #07080a;
+        /* Big Primary Generate Button */
+        .btn-generate-primary {
+            background: var(--primary);
+            color: #ffffff;
             border: none;
-            padding: 15px 20px;
-            border-radius: 11px;
-            font-size: 0.96rem;
+            border-radius: var(--radius-sm);
+            padding: 14px 20px;
+            font-size: 0.94rem;
             font-weight: 800;
-            letter-spacing: 0.6px;
+            letter-spacing: 0.3px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 10px;
-            box-shadow: 0 6px 26px rgba(250, 204, 21, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.5);
-            transition: all 0.22s ease;
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+            transition: all 0.2s ease;
             margin-top: 4px;
         }
 
-        .btn-generate-vip:hover {
-            background: linear-gradient(135deg, #fde047 0%, #facc15 100%);
-            box-shadow: 0 8px 34px rgba(250, 204, 21, 0.6);
-            transform: translateY(-2px);
+        .btn-generate-primary:hover {
+            background: var(--primary-hover);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+            transform: translateY(-1px);
         }
 
-        .btn-generate-vip:active {
+        .btn-generate-primary:active {
             transform: translateY(0);
         }
 
-        /* Customer Key Delivery Pass Card */
-        .delivery-pass-card {
-            background: linear-gradient(145deg, #10131d 0%, #090b11 100%);
-            border: 1px solid rgba(250, 204, 21, 0.35);
-            border-radius: 14px;
-            padding: 16px;
+        /* 6. VIP Delivery Pass Card (Clean Light SaaS Card) */
+        .delivery-card-light {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 1px solid #cbd5e1;
+            border-radius: var(--radius-md);
+            padding: 18px;
             display: flex;
             flex-direction: column;
             gap: 12px;
             position: relative;
-            overflow: hidden;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
         }
 
-        .delivery-pass-card::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 3px;
-            background: linear-gradient(90deg, #facc15, #ca8a04, #facc15);
-        }
-
-        .pass-header {
+        .delivery-card-top {
             display: flex;
             align-items: center;
             justify-content: space-between;
         }
 
-        .pass-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 0.72rem;
-            font-weight: 800;
-            color: var(--gold-primary);
-            text-transform: uppercase;
-            letter-spacing: 0.6px;
-        }
-
-        .pass-client-name {
+        .delivery-client-name {
             font-size: 0.95rem;
             font-weight: 800;
-            color: #fff;
+            color: var(--text-title);
         }
 
-        .pass-key-box {
-            background: #050608;
-            border: 1px dashed rgba(250, 204, 21, 0.4);
-            border-radius: 10px;
+        .delivery-key-box {
+            background: #ffffff;
+            border: 1px dashed #94a3b8;
+            border-radius: var(--radius-sm);
             padding: 12px 14px;
             display: flex;
             align-items: center;
@@ -639,78 +743,77 @@
             gap: 10px;
         }
 
-        .pass-key-code {
+        .delivery-key-text {
             font-family: var(--font-mono);
-            font-size: 0.95rem;
+            font-size: 0.98rem;
             font-weight: 800;
-            color: var(--gold-bright);
-            word-break: break-all;
+            color: var(--primary);
             letter-spacing: 0.6px;
+            word-break: break-all;
         }
 
-        .pass-meta-row {
+        .delivery-meta-grid {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            font-size: 0.75rem;
-            color: var(--text-sub);
-            padding: 0 2px;
+            font-size: 0.78rem;
+            color: var(--text-muted);
         }
 
-        .delivery-actions-row {
+        .delivery-buttons-grid {
             display: grid;
-            grid-template-columns: 1fr 1.4fr;
-            gap: 8px;
+            grid-template-columns: 1fr 1.5fr;
+            gap: 10px;
             margin-top: 2px;
         }
 
-        .btn-copy-gold {
-            background: rgba(250, 204, 21, 0.12);
-            border: 1px solid var(--gold-primary);
-            color: var(--gold-primary);
-            border-radius: 9px;
+        .btn-delivery-copy {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            color: var(--text-title);
+            border-radius: var(--radius-sm);
             padding: 10px 14px;
-            font-size: 0.78rem;
+            font-size: 0.8rem;
             font-weight: 700;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 6px;
-            transition: all 0.2s ease;
+            transition: all 0.18s ease;
         }
 
-        .btn-copy-gold:hover {
-            background: var(--gold-primary);
-            color: #07080a;
-            box-shadow: 0 0 16px var(--gold-glow);
+        .btn-delivery-copy:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--primary-soft);
         }
 
-        .btn-copy-telegram {
-            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-            border: 1px solid rgba(56, 189, 248, 0.4);
-            color: #fff;
-            border-radius: 9px;
+        .btn-delivery-send {
+            background: #0284c7;
+            color: #ffffff;
+            border: none;
+            border-radius: var(--radius-sm);
             padding: 10px 14px;
-            font-size: 0.78rem;
+            font-size: 0.8rem;
             font-weight: 700;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 6px;
-            transition: all 0.2s ease;
-            box-shadow: 0 4px 14px rgba(2, 132, 199, 0.3);
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+            transition: all 0.18s ease;
         }
 
-        .btn-copy-telegram:hover {
-            background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
-            box-shadow: 0 6px 20px rgba(56, 189, 248, 0.45);
+        .btn-delivery-send:hover {
+            background: #0369a1;
+            box-shadow: 0 6px 16px rgba(2, 132, 199, 0.35);
             transform: translateY(-1px);
         }
 
-        /* Right Panel: Customer Database & Table */
-        .table-toolbar {
+        /* 7. Right Card: Customer Key Database Table (Matching Orion Dashboard Table) */
+        .table-filter-bar {
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -718,608 +821,619 @@
             flex-wrap: wrap;
         }
 
-        .search-box-wrap {
+        .table-search-box {
             position: relative;
             flex: 1;
-            min-width: 220px;
+            min-width: 240px;
         }
 
-        .search-input {
+        .table-search-input {
             width: 100%;
-            background: var(--bg-input);
-            border: 1px solid var(--border-subtle);
-            border-radius: 9px;
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
             padding: 9px 12px 9px 36px;
-            font-size: 0.82rem;
-            color: #fff;
+            font-size: 0.84rem;
+            color: var(--text-title);
             outline: none;
-            transition: border-color 0.2s;
+            transition: all 0.2s ease;
         }
 
-        .search-input:focus {
-            border-color: var(--gold-primary);
+        .table-search-input:focus {
+            background: #ffffff;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
         }
 
-        .search-icon {
+        .table-search-icon {
             position: absolute;
             left: 12px;
             top: 50%;
             transform: translateY(-50%);
-            color: var(--text-muted);
-            font-size: 0.8rem;
+            color: var(--text-light);
+            font-size: 0.85rem;
         }
 
-        .filter-tabs {
+        .tabs-pill-group {
             display: flex;
-            background: #090b10;
-            border: 1px solid var(--border-subtle);
-            border-radius: 8px;
+            background: #f1f5f9;
+            border-radius: var(--radius-sm);
             padding: 3px;
             gap: 2px;
         }
 
-        .filter-tab {
+        .tab-pill-btn {
             background: transparent;
             border: none;
             color: var(--text-muted);
-            font-size: 0.74rem;
+            font-size: 0.76rem;
             font-weight: 700;
-            padding: 6px 12px;
+            padding: 6px 14px;
             border-radius: 6px;
             cursor: pointer;
             transition: all 0.15s ease;
         }
 
-        .filter-tab.active {
-            background: #151a26;
-            color: var(--gold-primary);
+        .tab-pill-btn.active {
+            background: #ffffff;
+            color: var(--text-title);
+            box-shadow: var(--shadow-subtle);
         }
 
-        /* Table List View */
-        .keys-table-container {
+        /* Modern Table List */
+        .table-records-list {
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            max-height: 640px;
+            gap: 8px;
+            max-height: 620px;
             overflow-y: auto;
             padding-right: 4px;
         }
 
-        .keys-table-container::-webkit-scrollbar {
-            width: 5px;
+        .table-records-list::-webkit-scrollbar {
+            width: 6px;
         }
-        .keys-table-container::-webkit-scrollbar-thumb {
-            background: rgba(250, 204, 21, 0.2);
+        .table-records-list::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
             border-radius: 4px;
         }
 
-        .customer-row-card {
-            background: rgba(8, 10, 15, 0.95);
-            border: 1px solid var(--border-subtle);
-            border-radius: 12px;
+        .record-card-row {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
             padding: 14px 16px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 14px;
-            transition: all 0.2s ease;
+            transition: all 0.18s ease;
         }
 
-        .customer-row-card:hover {
-            border-color: var(--border-card);
-            background: rgba(14, 18, 27, 0.98);
-            transform: translateY(-1px);
+        .record-card-row:hover {
+            border-color: var(--primary-border);
+            background: #fafafa;
+            box-shadow: var(--shadow-card);
         }
 
-        .customer-row-card.revoked {
-            border-color: rgba(239, 68, 68, 0.35);
-            background: rgba(18, 10, 10, 0.95);
+        .record-card-row.revoked {
+            background: #fffafa;
+            border-color: var(--badge-red-border);
         }
 
-        .row-left {
+        .record-left {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 14px;
             flex: 1;
             overflow: hidden;
+            cursor: pointer;
         }
 
-        .client-avatar-badge {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            background: rgba(250, 204, 21, 0.1);
-            border: 1px solid rgba(250, 204, 21, 0.3);
-            color: var(--gold-primary);
+        .record-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: var(--primary-soft);
+            color: var(--primary);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1rem;
+            font-size: 0.95rem;
             flex-shrink: 0;
         }
 
-        .customer-row-card.revoked .client-avatar-badge {
-            background: rgba(239, 68, 68, 0.1);
-            border-color: rgba(239, 68, 68, 0.3);
-            color: var(--color-red);
+        .record-card-row.revoked .record-avatar {
+            background: var(--badge-red-bg);
+            color: var(--badge-red-text);
         }
 
-        .row-details {
+        .record-info-col {
             display: flex;
             flex-direction: column;
             gap: 3px;
             overflow: hidden;
         }
 
-        .row-title-line {
+        .record-title-line {
             display: flex;
             align-items: center;
             gap: 8px;
             flex-wrap: wrap;
         }
 
-        .row-client-name {
+        .record-client-name {
             font-size: 0.88rem;
             font-weight: 800;
-            color: #fff;
+            color: var(--text-title);
         }
 
-        .row-key-code {
+        .record-key-tag {
             font-family: var(--font-mono);
             font-size: 0.82rem;
             font-weight: 700;
-            color: var(--gold-bright);
-            background: rgba(0, 0, 0, 0.4);
-            padding: 2px 7px;
+            color: var(--primary);
+            background: var(--primary-soft);
+            padding: 2px 8px;
             border-radius: 5px;
-            border: 1px solid rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--primary-border);
         }
 
-        .customer-row-card.revoked .row-key-code {
+        .record-card-row.revoked .record-key-tag {
+            color: var(--badge-red-text);
+            background: var(--badge-red-bg);
+            border-color: var(--badge-red-border);
             text-decoration: line-through;
-            color: #f87171;
-            border-color: rgba(239, 68, 68, 0.2);
         }
 
-        .status-pill {
-            font-size: 0.66rem;
-            font-weight: 800;
-            padding: 1px 7px;
-            border-radius: 4px;
-            letter-spacing: 0.5px;
-        }
-
-        .status-active {
-            background: rgba(16, 185, 129, 0.15);
-            color: #34d399;
-            border: 1px solid rgba(16, 185, 129, 0.3);
-        }
-
-        .status-revoked {
-            background: rgba(239, 68, 68, 0.18);
-            color: #f87171;
-            border: 1px solid rgba(239, 68, 68, 0.4);
-        }
-
-        .row-meta-line {
-            font-size: 0.73rem;
+        .record-meta-line {
+            font-size: 0.75rem;
             color: var(--text-muted);
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 14px;
             flex-wrap: wrap;
         }
 
-        .row-meta-item {
+        .record-meta-item {
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 5px;
         }
 
-        .row-actions-group {
+        .record-actions {
             display: flex;
             align-items: center;
             gap: 6px;
             flex-shrink: 0;
         }
 
-        .btn-table-action {
-            background: #111520;
-            border: 1px solid var(--border-subtle);
-            color: #cbd5e1;
-            border-radius: 8px;
+        .btn-record-action {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            color: var(--text-body);
+            border-radius: 6px;
             padding: 6px 11px;
-            font-size: 0.74rem;
+            font-size: 0.75rem;
             font-weight: 700;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
             gap: 5px;
-            transition: all 0.18s ease;
+            transition: all 0.16s ease;
         }
 
-        .btn-table-action:hover {
-            border-color: var(--gold-primary);
-            color: var(--gold-primary);
-            background: #192030;
+        .btn-record-action:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--primary-soft);
         }
 
-        .btn-action-block {
-            color: #f87171;
-            border-color: rgba(239, 68, 68, 0.3);
-            background: rgba(239, 68, 68, 0.08);
+        .btn-rec-block {
+            color: var(--badge-red-text);
+            border-color: var(--badge-red-border);
+            background: var(--badge-red-bg);
         }
 
-        .btn-action-block:hover {
-            background: rgba(239, 68, 68, 0.25);
-            border-color: #ef4444;
-            color: #fff;
-            box-shadow: 0 0 12px rgba(239, 68, 68, 0.3);
+        .btn-rec-block:hover {
+            background: #fee2e2;
+            border-color: #f87171;
+            color: #991b1b;
         }
 
-        .btn-action-unban {
-            color: #34d399;
-            border-color: rgba(16, 185, 129, 0.3);
-            background: rgba(16, 185, 129, 0.08);
+        .btn-rec-unban {
+            color: var(--badge-green-text);
+            border-color: var(--badge-green-border);
+            background: var(--badge-green-bg);
         }
 
-        .btn-action-unban:hover {
-            background: rgba(16, 185, 129, 0.25);
-            border-color: #10b981;
-            color: #fff;
-            box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
+        .btn-rec-unban:hover {
+            background: #bbf7d0;
+            color: #14532d;
         }
 
-        .btn-action-delete {
-            color: #64748b;
+        .btn-rec-delete {
+            color: var(--text-light);
             padding: 6px 8px;
         }
 
-        .btn-action-delete:hover {
-            color: #f87171;
-            border-color: rgba(239, 68, 68, 0.4);
-            background: rgba(239, 68, 68, 0.1);
+        .btn-rec-delete:hover {
+            color: var(--badge-red-text);
+            border-color: var(--badge-red-border);
+            background: var(--badge-red-bg);
         }
 
-        /* Empty State */
-        .empty-state-box {
+        .empty-placeholder {
             text-align: center;
-            padding: 40px 20px;
+            padding: 44px 20px;
             color: var(--text-muted);
-            font-size: 0.84rem;
+            font-size: 0.85rem;
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 10px;
         }
 
-        .empty-state-box i {
+        .empty-placeholder i {
             font-size: 2.2rem;
-            color: rgba(250, 204, 21, 0.2);
+            color: var(--text-light);
         }
 
-        /* Toast Popup Notification */
-        .toast-popup {
+        /* 8. Toast Notification */
+        .toast-notif {
             position: fixed;
             bottom: 28px;
-            left: 50%;
-            transform: translateX(-50%) translateY(70px);
-            background: #11141e;
-            border: 1px solid var(--gold-primary);
-            color: #fff;
-            padding: 12px 24px;
-            border-radius: 40px;
+            right: 32px;
+            background: #0f172a;
+            color: #ffffff;
+            padding: 12px 22px;
+            border-radius: var(--radius-sm);
             font-size: 0.86rem;
             font-weight: 700;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8), 0 0 24px rgba(250, 204, 21, 0.35);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25);
             opacity: 0;
+            transform: translateY(20px);
             pointer-events: none;
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            z-index: 999999;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 99999;
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
-        .toast-popup.show {
-            transform: translateX(-50%) translateY(0);
+        .toast-notif.show {
             opacity: 1;
+            transform: translateY(0);
         }
     </style>
 </head>
 <body>
 
-    <!-- 1. Executive Top Header & Metric Bar -->
-    <div class="admin-header-wrapper">
-        <div class="header-top-bar">
-            <div class="header-brand">
-                <div class="brand-logo-frame">
-                    <img src="logo.png" alt="SN Logo">
-                </div>
-                <div class="brand-text-col">
-                    <div class="brand-title-row">
-                        <span class="brand-title">SN TOOL</span>
-                        <span class="badge-pro">STUDIO PRO</span>
-                    </div>
-                    <span class="brand-subtitle">VIP License & Customer Access Control Center</span>
-                </div>
+    <!-- 1. Left Sidebar Navigation -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo-circle">
+                <img src="logo.png" alt="SN Logo">
             </div>
+            <div class="brand-titles">
+                <span class="brand-title-main">SN Dashboard</span>
+                <span class="brand-badge-tag">VIP MANAGEMENT</span>
+            </div>
+        </div>
 
-            <div class="header-actions">
-                <a href="/" class="btn-header-link">
-                    <i class="fa-solid fa-arrow-left"></i>
-                    <span>ត្រឡប់ទៅកម្មវិធីធំ (Open Studio)</span>
+        <ul class="sidebar-menu">
+            <li>
+                <a href="#overview" class="menu-item active">
+                    <i class="fa-solid fa-table-columns"></i>
+                    <span>Overview</span>
                 </a>
-                <button type="button" class="btn-inline-action" onclick="exportKeysToTxt()">
-                    <i class="fa-solid fa-file-arrow-down"></i>
-                    <span>Export .txt Log</span>
-                </button>
-            </div>
+            </li>
+            <li>
+                <a href="#generator" class="menu-item">
+                    <i class="fa-solid fa-key"></i>
+                    <span>Generate Key</span>
+                </a>
+            </li>
+            <li>
+                <a href="#customers" class="menu-item">
+                    <i class="fa-solid fa-users"></i>
+                    <span>Customers</span>
+                </a>
+            </li>
+            <li>
+                <a href="#reports" class="menu-item" onclick="exportKeysToTxt()">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>Export Reports</span>
+                </a>
+            </li>
+        </ul>
+
+        <div class="sidebar-bottom">
+            <a href="/" class="btn-open-studio">
+                <i class="fa-solid fa-arrow-left"></i>
+                <span>Open Studio Tool</span>
+            </a>
         </div>
+    </aside>
 
-        <!-- Metric Stat Cards -->
-        <div class="metrics-grid">
-            <div class="metric-card metric-gold">
-                <div class="metric-info">
-                    <span class="metric-label">Key សរុប (Total Keys)</span>
-                    <span class="metric-val" id="stat-total-keys">0</span>
-                </div>
-                <div class="metric-icon-wrap"><i class="fa-solid fa-key"></i></div>
+    <!-- 2. Main Content Wrapper -->
+    <div class="main-wrapper">
+        
+        <!-- Top Navbar -->
+        <header class="top-navbar">
+            <div class="nav-search-bar">
+                <i class="fa-solid fa-magnifying-glass nav-search-icon"></i>
+                <input type="text" id="top-nav-search" class="nav-search-input" placeholder="Search keys or customers..." onkeyup="syncSearchFromNav(this.value)">
             </div>
 
-            <div class="metric-card metric-green">
-                <div class="metric-info">
-                    <span class="metric-label">សកម្ម (Active Clients)</span>
-                    <span class="metric-val" id="stat-active-keys">0</span>
-                </div>
-                <div class="metric-icon-wrap"><i class="fa-solid fa-circle-check"></i></div>
-            </div>
-
-            <div class="metric-card metric-red">
-                <div class="metric-info">
-                    <span class="metric-label">បានផ្អាក (Revoked / Banned)</span>
-                    <span class="metric-val" id="stat-revoked-keys">0</span>
-                </div>
-                <div class="metric-icon-wrap"><i class="fa-solid fa-ban"></i></div>
-            </div>
-
-            <div class="metric-card metric-blue">
-                <div class="metric-info">
-                    <span class="metric-label">កុំព្យូទ័រ Admin (HWID)</span>
-                    <span class="metric-val" id="stat-admin-hwid" style="font-size: 0.95rem; font-weight:700;">CONNECTING...</span>
-                </div>
-                <div class="metric-icon-wrap" onclick="copyAdminHwid()" style="cursor: pointer;" title="Copy Admin HWID">
-                    <i class="fa-solid fa-copy"></i>
+            <div class="nav-actions">
+                <div class="admin-profile-pill" onclick="copyAdminHwid()" style="cursor: pointer;" title="Click to copy Admin HWID">
+                    <div class="admin-avatar"><i class="fa-solid fa-user-shield"></i></div>
+                    <span>Admin HWID: <strong id="nav-hwid-text" style="color:var(--primary);">...</strong></span>
                 </div>
             </div>
-        </div>
+        </header>
 
-        <!-- Master Gate Switch Strip -->
-        <div class="gate-control-strip">
-            <div class="gate-status-text">
-                <div class="gate-title-line">
-                    <i class="fa-solid fa-shield-halved" style="color: var(--gold-primary);"></i>
-                    <span>ស្ថានភាពប្រព័ន្ធ License Gate:</span>
-                    <span id="gate-badge-status" class="gate-badge-pill gate-badge-locked">
-                        LOCKED (ទាមទារ KEY)
+        <!-- Dashboard Body Container -->
+        <main class="dashboard-body">
+
+            <!-- Overview Header Row -->
+            <div class="page-header-row">
+                <div>
+                    <h1 class="page-title">Overview</h1>
+                    <span style="font-size: 0.82rem; color: var(--text-muted);">
+                        គ្រប់គ្រង VIP License Keys និងអតិថិជនប្រើប្រាស់កម្មវិធី SN TOOL
                     </span>
                 </div>
-                <span class="gate-desc">
-                    ប្រសិនបើប្ដូរទៅ "Free Mode" អ្នកប្រើប្រាស់ទូទៅអាចបើកប្រើប្រាស់ Tool បានភ្លាមៗដោយមិនបាច់វាយ Key
-                </span>
+
+                <div class="page-actions-group">
+                    <button type="button" class="btn-action-light" onclick="fetchKeysHistory()">
+                        <i class="fa-solid fa-rotate-right"></i> Refresh
+                    </button>
+                    <button type="button" class="btn-action-light" onclick="exportKeysToTxt()">
+                        <i class="fa-solid fa-download"></i> Export .txt
+                    </button>
+                </div>
             </div>
 
-            <button type="button" class="btn-toggle-switch" onclick="handleToggleGate()">
-                <i class="fa-solid fa-power-off"></i>
-                <span id="btn-gate-toggle-text">ប្ដូរទៅ Free Mode</span>
-            </button>
-        </div>
+            <!-- Stat Metric Cards (Matching Orion Dashboard Top Cards) -->
+            <div class="stat-cards-grid">
+                <!-- Card 1: Total Generated Keys -->
+                <div class="stat-card">
+                    <div class="stat-label-row">
+                        <span class="stat-label">Total Keys</span>
+                        <span class="stat-badge-pill stat-pill-blue">All Time</span>
+                    </div>
+                    <span class="stat-value" id="card-total-keys">0</span>
+                    <span class="stat-subtext">
+                        <i class="fa-solid fa-key" style="color:var(--primary);"></i> ចំនួន Key ទាំងអស់ដែលបានបង្កើត
+                    </span>
+                </div>
+
+                <!-- Card 2: Active Clients -->
+                <div class="stat-card">
+                    <div class="stat-label-row">
+                        <span class="stat-label">Active Users</span>
+                        <span class="stat-badge-pill stat-pill-green">🟢 Active</span>
+                    </div>
+                    <span class="stat-value" id="card-active-keys">0</span>
+                    <span class="stat-subtext">
+                        <i class="fa-solid fa-circle-check" style="color:var(--badge-green-text);"></i> អតិថិជនកំពុងដំណើរការសកម្ម
+                    </span>
+                </div>
+
+                <!-- Card 3: Revoked / Banned -->
+                <div class="stat-card">
+                    <div class="stat-label-row">
+                        <span class="stat-label">Blocked / Banned</span>
+                        <span class="stat-badge-pill stat-pill-red">🔴 Revoked</span>
+                    </div>
+                    <span class="stat-value" id="card-revoked-keys">0</span>
+                    <span class="stat-subtext">
+                        <i class="fa-solid fa-ban" style="color:var(--badge-red-text);"></i> Key ដែលបានបញ្ឈប់មិនឱ្យប្រើ
+                    </span>
+                </div>
+
+                <!-- Card 4: Master License Gate Status -->
+                <div class="stat-card">
+                    <div class="stat-label-row">
+                        <span class="stat-label">License Gate Mode</span>
+                        <span id="gate-status-pill" class="stat-badge-pill stat-pill-green">LOCKED</span>
+                    </div>
+                    <span class="stat-value" id="gate-status-title" style="font-size: 1.25rem;">ទាមទារ KEY</span>
+                    <button type="button" id="btn-gate-toggle" class="gate-toggle-btn" onclick="handleToggleGate()">
+                        <i class="fa-solid fa-power-off"></i> ប្ដូរទៅ Free Mode
+                    </button>
+                </div>
+            </div>
+
+            <!-- Two-Column Workspace: Generator & Customer Database -->
+            <div class="dashboard-content-grid">
+                
+                <!-- ============================================== -->
+                <!-- LEFT COLUMN: KEY GENERATOR STUDIO              -->
+                <!-- ============================================== -->
+                <div class="content-card" id="generator">
+                    <div class="card-header-bar">
+                        <span class="card-title">
+                            <i class="fa-solid fa-key"></i>
+                            <span>បង្កើត VIP Key ជូនភ្ញៀវ</span>
+                        </span>
+                        <span class="stat-badge-pill stat-pill-blue">KEY GENERATOR</span>
+                    </div>
+
+                    <!-- Quick 1-Click Duration Presets -->
+                    <div class="presets-row">
+                        <span class="presets-label">ជ្រើសរើសកញ្ចប់លឿន (Quick Presets):</span>
+                        <div class="presets-grid">
+                            <button type="button" class="btn-preset active" onclick="applyPreset('LIFETIME:0', this)">
+                                <span class="title">👑 មួយជីវិត</span>
+                                <span class="desc">Lifetime VIP</span>
+                            </button>
+                            <button type="button" class="btn-preset" onclick="applyPreset('365D:365', this)">
+                                <span class="title">📅 1 ឆ្នាំ</span>
+                                <span class="desc">365 ថ្ងៃ</span>
+                            </button>
+                            <button type="button" class="btn-preset" onclick="applyPreset('90D:90', this)">
+                                <span class="title">📅 3 ខែ</span>
+                                <span class="desc">90 ថ្ងៃ</span>
+                            </button>
+                            <button type="button" class="btn-preset" onclick="applyPreset('30D:30', this)">
+                                <span class="title">📅 1 ខែ</span>
+                                <span class="desc">30 ថ្ងៃ</span>
+                            </button>
+                            <button type="button" class="btn-preset" onclick="applyPreset('7D:7', this)">
+                                <span class="title">⚡ 1 សប្ដាហ៍</span>
+                                <span class="desc">7 ថ្ងៃ</span>
+                            </button>
+                            <button type="button" class="btn-preset" onclick="applyPreset('3D:3', this)">
+                                <span class="title">🧪 តេស្ត</span>
+                                <span class="desc">3-Day Trial</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Client Name Input -->
+                    <div class="input-group">
+                        <label class="input-label" for="input-client-name">
+                            <span>ឈ្មោះ Client / អតិថិជន (Client Name):</span>
+                            <span class="input-hint">ឧ. Sokha_FB, @sal_vip</span>
+                        </label>
+                        <input type="text" id="input-client-name" class="light-input" placeholder="បញ្ចូលឈ្មោះអតិថិជន..." value="VIP_Customer">
+                    </div>
+
+                    <!-- Custom Key Input -->
+                    <div class="input-group">
+                        <label class="input-label" for="input-custom-key">
+                            <span>Key ឬ ពាក្យសម្ងាត់ផ្ទាល់ខ្លួន (Custom Key):</span>
+                            <span class="input-hint">Optional</span>
+                        </label>
+                        <div class="input-field-row">
+                            <input type="text" id="input-custom-key" class="light-input mono" placeholder="ឧ. SAL-VIP-2026 (ទុកទំនេរបើចង់ Auto Hash)">
+                            <button type="button" class="btn-input-addon" onclick="generateRandomCustomKey()" title="Random Easy Key">
+                                <i class="fa-solid fa-dice"></i> Random
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Duration Dropdown -->
+                    <div class="input-group">
+                        <label class="input-label" for="select-duration">
+                            <span>កាលកំណត់សុពលភាព (Duration Plan):</span>
+                        </label>
+                        <div class="select-wrapper">
+                            <select id="select-duration" class="light-select" onchange="handleDurationChange()">
+                                <option value="LIFETIME:0">👑 Lifetime VIP (ប្រើបានមួយជីវិត - គ្មានថ្ងៃផុតកំណត់)</option>
+                                <option value="365D:365">📅 365 ថ្ងៃ (1 ឆ្នាំពេញ)</option>
+                                <option value="90D:90">📅 90 ថ្ងៃ (3 ខែ)</option>
+                                <option value="30D:30">📅 30 ថ្ងៃ (1 ខែ)</option>
+                                <option value="7D:7">⚡ 7 ថ្ងៃ (1 សប្ដាហ៍)</option>
+                                <option value="3D:3">🧪 3 ថ្ងៃ (Free Trial)</option>
+                                <option value="CUSTOM:CUSTOM">✍️ កំណត់ចំនួនថ្ងៃតាមចិត្ត (Custom Days)...</option>
+                            </select>
+                            <i class="fa-solid fa-chevron-down select-chevron"></i>
+                        </div>
+
+                        <!-- Custom Days Extra Field -->
+                        <div id="row-custom-days" class="input-field-row" style="display: none; margin-top: 6px;">
+                            <input type="number" id="input-custom-days" class="light-input" placeholder="បញ្ចូលចំនួនថ្ងៃ (ឧ. 15, 45, 60... ឬ 0 សម្រាប់មួយជីវិត)" min="0" value="30">
+                        </div>
+                    </div>
+
+                    <!-- HWID Input -->
+                    <div class="input-group">
+                        <label class="input-label" for="input-hwid">
+                            <span>ចាក់សោតាមកូដម៉ាស៊ីន (Hardware HWID):</span>
+                            <span class="input-hint">ទុកទំនេរដើម្បីប្រើបានគ្រប់ម៉ាស៊ីន</span>
+                        </label>
+                        <div class="input-field-row">
+                            <input type="text" id="input-hwid" class="light-input mono" placeholder="Leave blank for ANY machine or paste HWID">
+                            <button type="button" class="btn-input-addon" onclick="pasteHwidFromClipboard()">
+                                <i class="fa-solid fa-paste"></i> Paste
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Action Button -->
+                    <button type="button" class="btn-generate-primary" onclick="handleGenerateKey()">
+                        <i class="fa-solid fa-crown"></i>
+                        <span>បង្កើត KEY ជូនភ្ញៀវ (GENERATE VIP KEY)</span>
+                    </button>
+
+                    <!-- Delivery Pass Card -->
+                    <div class="delivery-card-light" id="delivery-card">
+                        <div class="delivery-card-top">
+                            <span class="stat-badge-pill stat-pill-blue" id="delivery-plan-badge">LIFETIME VIP</span>
+                            <span class="delivery-client-name" id="delivery-client-name">VIP Customer</span>
+                        </div>
+
+                        <div class="delivery-key-box">
+                            <span class="delivery-key-text" id="delivery-key-text">SAL-VIP-2026</span>
+                            <button type="button" class="btn-input-addon" onclick="copyCurrentGeneratedKey()" style="padding: 4px 10px; font-size: 0.72rem;">
+                                <i class="fa-solid fa-copy"></i>
+                            </button>
+                        </div>
+
+                        <div class="delivery-meta-grid">
+                            <span><i class="fa-solid fa-calendar-check" style="color:var(--primary);"></i> សុពលភាព: <strong id="delivery-expiry-text" style="color:var(--text-title);">LIFETIME</strong></span>
+                            <span><i class="fa-solid fa-desktop" style="color:var(--text-muted);"></i> ម៉ាស៊ីន: <strong id="delivery-hwid-text" style="color:var(--text-title);">ANY</strong></span>
+                        </div>
+
+                        <!-- 1-Click Action Buttons -->
+                        <div class="delivery-buttons-grid">
+                            <button type="button" class="btn-delivery-copy" onclick="copyCurrentGeneratedKey()">
+                                <i class="fa-solid fa-copy"></i> Copy Key
+                            </button>
+                            <button type="button" class="btn-delivery-send" onclick="copyTelegramDeliveryMessage()">
+                                <i class="fa-solid fa-paper-plane"></i> Copy Text ផ្ញើទៅភ្ញៀវ
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================== -->
+                <!-- RIGHT COLUMN: CUSTOMER LICENSE DATABASE        -->
+                <!-- ============================================== -->
+                <div class="content-card" id="customers">
+                    <div class="card-header-bar">
+                        <span class="card-title">
+                            <i class="fa-solid fa-users"></i>
+                            <span>បញ្ជីគ្រប់គ្រងអតិថិជន & Key (Recent Customers)</span>
+                        </span>
+                        <span class="stat-badge-pill stat-pill-green" id="badge-total-records">0 RECORDS</span>
+                    </div>
+
+                    <!-- Search & Filter Controls -->
+                    <div class="table-filter-bar">
+                        <div class="table-search-box">
+                            <i class="fa-solid fa-magnifying-glass table-search-icon"></i>
+                            <input type="text" id="table-search-input" class="table-search-input" placeholder="ស្វែងរកតាមឈ្មោះ Client ឬ Key..." onkeyup="handleSearchFilter()">
+                        </div>
+
+                        <div class="tabs-pill-group">
+                            <button type="button" class="tab-pill-btn active" data-filter="ALL" onclick="setFilter('ALL', this)">ទាំងអស់ (All)</button>
+                            <button type="button" class="tab-pill-btn" data-filter="ACTIVE" onclick="setFilter('ACTIVE', this)">🟢 សកម្ម</button>
+                            <button type="button" class="tab-pill-btn" data-filter="REVOKED" onclick="setFilter('REVOKED', this)">🔴 Blocked</button>
+                        </div>
+                    </div>
+
+                    <!-- Customer Cards List -->
+                    <div class="table-records-list" id="table-records-list">
+                        <div class="empty-placeholder">
+                            <i class="fa-solid fa-spinner fa-spin"></i>
+                            <span>កំពុងទាញទិន្នន័យ Keys...</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </main>
     </div>
 
-    <!-- 2. Main Two-Column Workspace -->
-    <div class="workspace-grid">
-        
-        <!-- ======================================================== -->
-        <!-- LEFT COLUMN: VIP KEY GENERATOR STUDIO                    -->
-        <!-- ======================================================== -->
-        <div class="glass-panel">
-            <div class="panel-header">
-                <div class="panel-title-wrap">
-                    <i class="fa-solid fa-wand-magic-sparkles panel-title-icon"></i>
-                    <span class="panel-title">ម៉ាស៊ីនបង្កើត KEY ជូនភ្ញៀវ</span>
-                </div>
-                <span class="badge-pro" style="font-size: 0.65rem;">GENERATOR</span>
-            </div>
-
-            <!-- Quick Duration Presets -->
-            <div class="form-group">
-                <div class="presets-bar-title">
-                    <i class="fa-solid fa-bolt" style="color: var(--gold-primary);"></i>
-                    <span>ជ្រើសរើសកញ្ចប់លឿន (Quick Presets 1-Click):</span>
-                </div>
-                <div class="presets-pill-group">
-                    <button type="button" class="btn-preset-pill active" onclick="applyQuickPreset('LIFETIME:0', this)">
-                        <span>👑 មួយជីវិត</span>
-                        <span class="preset-sub">Lifetime VIP</span>
-                    </button>
-                    <button type="button" class="btn-preset-pill" onclick="applyQuickPreset('365D:365', this)">
-                        <span>📅 1 ឆ្នាំ</span>
-                        <span class="preset-sub">365 ថ្ងៃ</span>
-                    </button>
-                    <button type="button" class="btn-preset-pill" onclick="applyQuickPreset('90D:90', this)">
-                        <span>📅 3 ខែ</span>
-                        <span class="preset-sub">90 ថ្ងៃ</span>
-                    </button>
-                    <button type="button" class="btn-preset-pill" onclick="applyQuickPreset('30D:30', this)">
-                        <span>📅 1 ខែ</span>
-                        <span class="preset-sub">30 ថ្ងៃ</span>
-                    </button>
-                    <button type="button" class="btn-preset-pill" onclick="applyQuickPreset('7D:7', this)">
-                        <span>⚡ 1 សប្ដាហ៍</span>
-                        <span class="preset-sub">7 ថ្ងៃ</span>
-                    </button>
-                    <button type="button" class="btn-preset-pill" onclick="applyQuickPreset('3D:3', this)">
-                        <span>🧪 តេស្ត</span>
-                        <span class="preset-sub">3-Day Trial</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Client Name Input -->
-            <div class="form-group">
-                <label class="form-label" for="input-client-name">
-                    <div class="form-label-left">
-                        <i class="fa-solid fa-user"></i>
-                        <span>ឈ្មោះ Client / អតិថិជន (Client Name):</span>
-                    </div>
-                    <span class="form-hint">ឧ. Sokha_FB, @dara_sal</span>
-                </label>
-                <input type="text" id="input-client-name" class="admin-input-field" placeholder="បញ្ចូលឈ្មោះអតិថិជន ឬទុកទំនេរ..." value="VIP_Customer">
-            </div>
-
-            <!-- Custom Key String Input -->
-            <div class="form-group">
-                <label class="form-label" for="input-custom-key">
-                    <div class="form-label-left">
-                        <i class="fa-solid fa-key"></i>
-                        <span>វាយ Key ផ្ទាល់ខ្លួន (Custom Key / Password):</span>
-                    </div>
-                    <span class="form-hint">Optional</span>
-                </label>
-                <div class="input-wrap-row">
-                    <input type="text" id="input-custom-key" class="admin-input-field mono-style" placeholder="ឧ. SAL-VIP-2026, MYPASS-888 (ទុកទំនេរបើចង់ Auto Hash)">
-                    <button type="button" class="btn-inline-action" onclick="generateRandomCustomKey()" title="Random Easy Key">
-                        <i class="fa-solid fa-dice"></i> Random
-                    </button>
-                </div>
-            </div>
-
-            <!-- Duration Select & Custom Days Input -->
-            <div class="form-group">
-                <label class="form-label" for="select-duration">
-                    <div class="form-label-left">
-                        <i class="fa-solid fa-clock"></i>
-                        <span>កាលកំណត់សុពលភាព (Duration):</span>
-                    </div>
-                </label>
-                <div class="select-box-wrap">
-                    <select id="select-duration" class="admin-select" onchange="handleDurationChange()">
-                        <option value="LIFETIME:0">👑 Lifetime VIP (ប្រើបានមួយជីវិត - គ្មានថ្ងៃផុតកំណត់)</option>
-                        <option value="365D:365">📅 365 ថ្ងៃ (1 ឆ្នាំពេញ)</option>
-                        <option value="90D:90">📅 90 ថ្ងៃ (3 ខែ)</option>
-                        <option value="30D:30">📅 30 ថ្ងៃ (1 ខែ)</option>
-                        <option value="7D:7">⚡ 7 ថ្ងៃ (1 សប្ដាហ៍)</option>
-                        <option value="3D:3">🧪 3 ថ្ងៃ (Free Trial)</option>
-                        <option value="CUSTOM:CUSTOM">✍️ កំណត់ចំនួនថ្ងៃតាមចិត្ត (Custom Days)...</option>
-                    </select>
-                    <i class="fa-solid fa-chevron-down select-arrow"></i>
-                </div>
-
-                <!-- Custom Days Extra Field -->
-                <div id="row-custom-days" class="input-wrap-row" style="display: none; margin-top: 6px;">
-                    <input type="number" id="input-custom-days" class="admin-input-field" placeholder="បញ្ចូលចំនួនថ្ងៃ (ឧ. 15, 45, 60, 180... ឬ 0 សម្រាប់មួយជីវិត)" min="0" value="30">
-                </div>
-            </div>
-
-            <!-- HWID Binding Input -->
-            <div class="form-group">
-                <label class="form-label" for="input-hwid">
-                    <div class="form-label-left">
-                        <i class="fa-solid fa-desktop"></i>
-                        <span>ចាក់សោតាម HWID ម៉ាស៊ីន (Hardware Lock):</span>
-                    </div>
-                    <span class="form-hint">ទុកទំនេរដើម្បីប្រើបានគ្រប់ម៉ាស៊ីន</span>
-                </label>
-                <div class="input-wrap-row">
-                    <input type="text" id="input-hwid" class="admin-input-field mono-style" placeholder="Leave blank for ANY machine or paste HWID">
-                    <button type="button" class="btn-inline-action" onclick="pasteHwidFromClipboard()">
-                        <i class="fa-solid fa-paste"></i> Paste
-                    </button>
-                </div>
-            </div>
-
-            <!-- Action Button -->
-            <button type="button" class="btn-generate-vip" onclick="handleGenerateKey()">
-                <i class="fa-solid fa-crown"></i>
-                <span>បង្កើត KEY ជូនភ្ញៀវ (GENERATE VIP KEY)</span>
-            </button>
-
-            <!-- Customer Key Delivery Pass Card (Live Output) -->
-            <div class="delivery-pass-card" id="delivery-card">
-                <div class="pass-header">
-                    <div class="pass-badge">
-                        <i class="fa-solid fa-certificate"></i>
-                        <span id="pass-plan-badge">LIFETIME VIP</span>
-                    </div>
-                    <span class="pass-client-name" id="pass-client-name">VIP Customer</span>
-                </div>
-
-                <div class="pass-key-box">
-                    <span class="pass-key-code" id="pass-key-code">SAL-VIP-2026</span>
-                    <button type="button" class="btn-inline-action" onclick="copyCurrentGeneratedKey()" style="padding: 6px 12px; font-size:0.75rem;">
-                        <i class="fa-solid fa-copy"></i>
-                    </button>
-                </div>
-
-                <div class="pass-meta-row">
-                    <span><i class="fa-solid fa-calendar-check"></i> សុពលភាព: <strong id="pass-expiry-text" style="color:#fff;">LIFETIME</strong></span>
-                    <span><i class="fa-solid fa-lock"></i> ម៉ាស៊ីន: <strong id="pass-hwid-text" style="color:#fff;">ANY</strong></span>
-                </div>
-
-                <!-- Easy Copy Delivery Message -->
-                <div class="delivery-actions-row">
-                    <button type="button" class="btn-copy-gold" onclick="copyCurrentGeneratedKey()">
-                        <i class="fa-solid fa-copy"></i> Copy Key
-                    </button>
-                    <button type="button" class="btn-copy-telegram" onclick="copyTelegramDeliveryMessage()">
-                        <i class="fa-solid fa-paper-plane"></i> Copy Text ផ្ញើទៅភ្ញៀវ
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- ======================================================== -->
-        <!-- RIGHT COLUMN: CUSTOMER LICENSE MANAGEMENT DATABASE       -->
-        <!-- ======================================================== -->
-        <div class="glass-panel">
-            <div class="panel-header">
-                <div class="panel-title-wrap">
-                    <i class="fa-solid fa-users-gear panel-title-icon"></i>
-                    <span class="panel-title">បញ្ជីគ្រប់គ្រង KEY & អតិថិជន (Customer Keys)</span>
-                </div>
-                <button type="button" class="btn-inline-action" onclick="fetchKeysHistory()">
-                    <i class="fa-solid fa-rotate"></i> Refresh
-                </button>
-            </div>
-
-            <!-- Table Toolbar: Search & Filter Tabs -->
-            <div class="table-toolbar">
-                <div class="search-box-wrap">
-                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                    <input type="text" id="input-search" class="search-input" placeholder="ស្វែងរកតាមឈ្មោះ Client ឬ Key..." onkeyup="handleSearchFilter()">
-                </div>
-
-                <div class="filter-tabs">
-                    <button type="button" class="filter-tab active" data-filter="ALL" onclick="setTableFilter('ALL', this)">ទាំងអស់ (All)</button>
-                    <button type="button" class="filter-tab" data-filter="ACTIVE" onclick="setTableFilter('ACTIVE', this)">🟢 សកម្ម</button>
-                    <button type="button" class="filter-tab" data-filter="REVOKED" onclick="setTableFilter('REVOKED', this)">🔴 Blocked</button>
-                </div>
-            </div>
-
-            <!-- Customer Keys Cards / List Container -->
-            <div class="keys-table-container" id="keys-table-container">
-                <div class="empty-state-box">
-                    <i class="fa-solid fa-spinner fa-spin"></i>
-                    <span>កំពុងទាញទិន្នន័យ Keys...</span>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- Toast Notification Popup -->
-    <div class="toast-popup" id="toast-popup">
-        <i class="fa-solid fa-circle-check" style="color:var(--gold-primary); font-size:1.1rem;"></i>
+    <!-- Toast Notification -->
+    <div class="toast-notif" id="toast-notif">
+        <i class="fa-solid fa-circle-check" style="color:#22c55e; font-size:1.1rem;"></i>
         <span id="toast-text">បាន Copy ជោគជ័យ!</span>
     </div>
 
@@ -1339,31 +1453,31 @@
             fetchGateStatus();
             fetchKeysHistory();
             fetchAdminHwid();
-            updateDeliveryPassUI(currentRecord);
+            updateDeliveryCardUI(currentRecord);
         });
 
-        // 1. Fetch Admin Machine HWID
+        // 1. Admin Machine HWID
         async function fetchAdminHwid() {
             try {
                 const res = await fetch('/api/license/status');
                 const data = await res.json();
                 if (data.hwid) {
-                    document.getElementById('stat-admin-hwid').textContent = data.hwid;
+                    document.getElementById('nav-hwid-text').textContent = data.hwid;
                 }
             } catch (e) {
-                document.getElementById('stat-admin-hwid').textContent = "OFFLINE";
+                document.getElementById('nav-hwid-text').textContent = "OFFLINE";
             }
         }
 
         function copyAdminHwid() {
-            const hwid = document.getElementById('stat-admin-hwid').textContent;
-            if (hwid && hwid !== "CONNECTING..." && hwid !== "OFFLINE") {
+            const hwid = document.getElementById('nav-hwid-text').textContent;
+            if (hwid && hwid !== "..." && hwid !== "OFFLINE") {
                 navigator.clipboard.writeText(hwid);
                 showToast("📋 បាន Copy Admin HWID: " + hwid);
             }
         }
 
-        // 2. Gate Status & Toggle
+        // 2. Gate Status
         async function fetchGateStatus() {
             try {
                 const res = await fetch('/api/admin/license-config');
@@ -1378,16 +1492,20 @@
         }
 
         function updateGateUI() {
-            const badge = document.getElementById('gate-badge-status');
-            const btnText = document.getElementById('btn-gate-toggle-text');
+            const pill = document.getElementById('gate-status-pill');
+            const title = document.getElementById('gate-status-title');
+            const btn = document.getElementById('btn-gate-toggle');
+
             if (gateRequired) {
-                badge.className = "gate-badge-pill gate-badge-locked";
-                badge.textContent = "LOCKED (ទាមទារ KEY)";
-                btnText.textContent = "ប្ដូរទៅ Free Mode";
+                pill.className = "stat-badge-pill stat-pill-green";
+                pill.textContent = "LOCKED";
+                title.textContent = "ទាមទារ KEY";
+                btn.innerHTML = `<i class="fa-solid fa-power-off"></i> ប្ដូរទៅ Free Mode`;
             } else {
-                badge.className = "gate-badge-pill gate-badge-free";
-                badge.textContent = "FREE MODE (មិនបាច់ KEY)";
-                btnText.textContent = "បើកការទាមទារ Key វិញ";
+                pill.className = "stat-badge-pill stat-pill-amber";
+                pill.textContent = "FREE MODE";
+                title.textContent = "មិនបាច់ KEY";
+                btn.innerHTML = `<i class="fa-solid fa-power-off"></i> បើកការទាមទារ Key`;
             }
         }
 
@@ -1410,10 +1528,10 @@
             }
         }
 
-        // 3. Quick Preset Handler
-        function applyQuickPreset(presetVal, btnElement) {
-            document.querySelectorAll('.btn-preset-pill').forEach(b => b.classList.remove('active'));
-            if (btnElement) btnElement.classList.add('active');
+        // 3. Quick Presets
+        function applyPreset(presetVal, btnElem) {
+            document.querySelectorAll('.btn-preset').forEach(b => b.classList.remove('active'));
+            if (btnElem) btnElem.classList.add('active');
 
             const select = document.getElementById('select-duration');
             select.value = presetVal;
@@ -1436,7 +1554,7 @@
             const r = Math.floor(1000 + Math.random() * 9000);
             const key = `${p}-${r}-2026`;
             document.getElementById('input-custom-key').value = key;
-            showToast("🎲 បានបង្កើត Key ងាយចាំ: " + key);
+            showToast("🎲 បានបង្កើត Key: " + key);
         }
 
         async function pasteHwidFromClipboard() {
@@ -1451,7 +1569,7 @@
             }
         }
 
-        // 4. Generate Key Main Handler
+        // 4. Generate Key
         async function handleGenerateKey() {
             const customKey = document.getElementById('input-custom-key').value.trim();
             const clientName = document.getElementById('input-client-name').value.trim() || "VIP_Customer";
@@ -1501,7 +1619,7 @@
                 data = await res.json();
                 if (data.success && data.key_record) {
                     currentRecord = data.key_record;
-                    updateDeliveryPassUI(currentRecord);
+                    updateDeliveryCardUI(currentRecord);
 
                     // Auto Copy Key
                     navigator.clipboard.writeText(currentRecord.license_key).catch(() => {});
@@ -1517,13 +1635,13 @@
             }
         }
 
-        // 5. Update Delivery Pass UI
-        function updateDeliveryPassUI(rec) {
-            document.getElementById('pass-plan-badge').textContent = rec.plan || "VIP LICENSE";
-            document.getElementById('pass-client-name').textContent = rec.client_name || "VIP Customer";
-            document.getElementById('pass-key-code').textContent = rec.license_key || "KEY_EMPTY";
-            document.getElementById('pass-expiry-text').textContent = rec.expires_at || "LIFETIME";
-            document.getElementById('pass-hwid-text').textContent = (rec.bound_hwid === "ANY" || !rec.bound_hwid) ? "គ្រប់ម៉ាស៊ីន (ANY)" : rec.bound_hwid;
+        // 5. Update Delivery Card
+        function updateDeliveryCardUI(rec) {
+            document.getElementById('delivery-plan-badge').textContent = rec.plan || "VIP LICENSE";
+            document.getElementById('delivery-client-name').textContent = rec.client_name || "VIP Customer";
+            document.getElementById('delivery-key-text').textContent = rec.license_key || "KEY_EMPTY";
+            document.getElementById('delivery-expiry-text').textContent = rec.expires_at || "LIFETIME";
+            document.getElementById('delivery-hwid-text').textContent = (!rec.bound_hwid || rec.bound_hwid === "ANY") ? "គ្រប់ម៉ាស៊ីន (ANY)" : rec.bound_hwid;
         }
 
         function copyCurrentGeneratedKey() {
@@ -1540,7 +1658,7 @@
             const key = currentRecord.license_key;
             const plan = currentRecord.plan || "VIP PRO";
             const expiry = currentRecord.expires_at || "មួយជីវិត (Lifetime)";
-            const hwid = (currentRecord.bound_hwid === "ANY" || !currentRecord.bound_hwid) ? "ប្រើបានគ្រប់ម៉ាស៊ីន" : currentRecord.bound_hwid;
+            const hwid = (!currentRecord.bound_hwid || currentRecord.bound_hwid === "ANY") ? "ប្រើបានគ្រប់ម៉ាស៊ីន" : currentRecord.bound_hwid;
 
             const text = 
 `🎬 SN TOOL - VIP LICENSE KEY
@@ -1563,68 +1681,70 @@
             });
         }
 
-        // Copy single key from table
         function copySingleKey(keyStr) {
             navigator.clipboard.writeText(keyStr).then(() => {
                 showToast("📋 បាន Copy Key: " + keyStr);
             });
         }
 
-        // Copy single formatted message from table item
         function copySingleItemTelegram(idx) {
             const item = allKeysData[idx];
             if (!item) return;
             currentRecord = item;
-            updateDeliveryPassUI(item);
+            updateDeliveryCardUI(item);
             copyTelegramDeliveryMessage();
         }
 
-        // 7. Fetch Customer Keys Table
+        // 7. Customer Keys History Table
         async function fetchKeysHistory() {
             try {
                 const res = await fetch('/api/admin/keys');
                 const data = await res.json();
                 if (data.success && data.keys) {
                     allKeysData = data.keys;
-                    updateStatsCounters();
-                    renderKeysTable();
+                    updateStats();
+                    renderTable();
                 }
             } catch (err) {
                 console.error("Fetch keys error:", err);
             }
         }
 
-        function updateStatsCounters() {
+        function updateStats() {
             const total = allKeysData.length;
             const revoked = allKeysData.filter(k => k.status === "REVOKED").length;
             const active = total - revoked;
 
-            document.getElementById('stat-total-keys').textContent = total;
-            document.getElementById('stat-active-keys').textContent = active;
-            document.getElementById('stat-revoked-keys').textContent = revoked;
+            document.getElementById('card-total-keys').textContent = total;
+            document.getElementById('card-active-keys').textContent = active;
+            document.getElementById('card-revoked-keys').textContent = revoked;
+            document.getElementById('badge-total-records').textContent = `${total} RECORDS`;
         }
 
-        function setTableFilter(filterType, btnElem) {
+        function setFilter(filterType, btnElem) {
             currentFilter = filterType;
-            document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-pill-btn').forEach(b => b.classList.remove('active'));
             if (btnElem) btnElem.classList.add('active');
-            renderKeysTable();
+            renderTable();
         }
 
         function handleSearchFilter() {
-            renderKeysTable();
+            renderTable();
         }
 
-        function renderKeysTable() {
-            const container = document.getElementById('keys-table-container');
-            const searchVal = document.getElementById('input-search').value.trim().toLowerCase();
+        function syncSearchFromNav(val) {
+            document.getElementById('table-search-input').value = val;
+            renderTable();
+        }
+
+        function renderTable() {
+            const container = document.getElementById('table-records-list');
+            const searchVal = document.getElementById('table-search-input').value.trim().toLowerCase();
 
             let filtered = allKeysData.filter(item => {
-                // Status Filter
                 if (currentFilter === "ACTIVE" && item.status === "REVOKED") return false;
                 if (currentFilter === "REVOKED" && item.status !== "REVOKED") return false;
 
-                // Search Filter
                 if (searchVal) {
                     const matchKey = (item.license_key || "").toLowerCase().includes(searchVal);
                     const matchName = (item.client_name || "").toLowerCase().includes(searchVal);
@@ -1636,7 +1756,7 @@
 
             if (filtered.length === 0) {
                 container.innerHTML = `
-                    <div class="empty-state-box">
+                    <div class="empty-placeholder">
                         <i class="fa-solid fa-folder-open"></i>
                         <span>មិនមានទិន្នន័យ Key ត្រូវនឹងការស្វែងរកឡើយ</span>
                     </div>
@@ -1654,46 +1774,46 @@
                 const expiryText = item.expires_at || "LIFETIME";
 
                 const card = document.createElement('div');
-                card.className = `customer-row-card ${isRevoked ? 'revoked' : ''}`;
+                card.className = `record-card-row ${isRevoked ? 'revoked' : ''}`;
                 card.innerHTML = `
-                    <div class="row-left" onclick="selectRowForDelivery(${index})" style="cursor: pointer;" title="ចុចដើម្បីមើលព័ត៌មានលម្អិត">
-                        <div class="client-avatar-badge">
-                            <i class="fa-solid ${isRevoked ? 'fa-user-slash' : 'fa-user-check'}"></i>
+                    <div class="record-left" onclick="selectRowForDelivery(${index})" title="ចុចដើម្បីមើលព័ត៌មានលម្អិត">
+                        <div class="record-avatar">
+                            <i class="fa-solid ${isRevoked ? 'fa-user-slash' : 'fa-user'}"></i>
                         </div>
-                        <div class="row-details">
-                            <div class="row-title-line">
-                                <span class="row-client-name">${clientName}</span>
-                                <span class="row-key-code">${item.license_key}</span>
-                                <span class="status-pill ${isRevoked ? 'status-revoked' : 'status-active'}">
+                        <div class="record-info-col">
+                            <div class="record-title-line">
+                                <span class="record-client-name">${clientName}</span>
+                                <span class="record-key-tag">${item.license_key}</span>
+                                <span class="stat-badge-pill ${isRevoked ? 'stat-pill-red' : 'stat-pill-green'}">
                                     ${isRevoked ? 'REVOKED' : 'ACTIVE'}
                                 </span>
                             </div>
-                            <div class="row-meta-line">
-                                <span class="row-meta-item"><i class="fa-solid fa-box-open" style="color:var(--gold-primary);"></i> ${planText}</span>
-                                <span class="row-meta-item"><i class="fa-solid fa-hourglass-half"></i> ${expiryText}</span>
-                                <span class="row-meta-item"><i class="fa-solid fa-desktop"></i> ${hwidText}</span>
-                                <span class="row-meta-item"><i class="fa-solid fa-calendar"></i> ${dateText}</span>
+                            <div class="record-meta-line">
+                                <span class="record-meta-item"><i class="fa-solid fa-box-open" style="color:var(--primary);"></i> ${planText}</span>
+                                <span class="record-meta-item"><i class="fa-solid fa-hourglass-half"></i> ${expiryText}</span>
+                                <span class="record-meta-item"><i class="fa-solid fa-desktop"></i> ${hwidText}</span>
+                                <span class="record-meta-item"><i class="fa-solid fa-calendar"></i> ${dateText}</span>
                             </div>
                         </div>
                     </div>
 
-                    <div class="row-actions-group">
-                        <button type="button" class="btn-table-action" onclick="copySingleKey('${item.license_key}')" title="Copy Key">
+                    <div class="record-actions">
+                        <button type="button" class="btn-record-action" onclick="copySingleKey('${item.license_key}')" title="Copy Key">
                             <i class="fa-solid fa-copy"></i>
                         </button>
-                        <button type="button" class="btn-table-action" onclick="copySingleItemTelegram(${index})" title="Copy សារផ្ញើទៅភ្ញៀវ">
-                            <i class="fa-solid fa-paper-plane" style="color:#38bdf8;"></i>
+                        <button type="button" class="btn-record-action" onclick="copySingleItemTelegram(${index})" title="Copy សារផ្ញើទៅភ្ញៀវ">
+                            <i class="fa-solid fa-paper-plane" style="color:var(--primary);"></i>
                         </button>
                         ${isRevoked ? `
-                            <button type="button" class="btn-table-action btn-action-unban" onclick="handleUnbanRow('${item.license_key}')" title="ដោះសោ Unban">
+                            <button type="button" class="btn-record-action btn-rec-unban" onclick="handleUnbanRow('${item.license_key}')" title="ដោះសោ Unban">
                                 <i class="fa-solid fa-unlock"></i> Unban
                             </button>
                         ` : `
-                            <button type="button" class="btn-table-action btn-action-block" onclick="handleBlockRow('${item.license_key}', '${clientName}')" title="ផ្អាក Block Key">
+                            <button type="button" class="btn-record-action btn-rec-block" onclick="handleBlockRow('${item.license_key}', '${clientName}')" title="ផ្អាក Block Key">
                                 <i class="fa-solid fa-ban"></i> Block
                             </button>
                         `}
-                        <button type="button" class="btn-table-action btn-action-delete" onclick="handleDeleteRow('${item.license_key}', '${clientName}')" title="លុបចោល">
+                        <button type="button" class="btn-record-action btn-rec-delete" onclick="handleDeleteRow('${item.license_key}', '${clientName}')" title="លុបចោល">
                             <i class="fa-solid fa-trash-can"></i>
                         </button>
                     </div>
@@ -1706,17 +1826,14 @@
             const item = allKeysData[index];
             if (item) {
                 currentRecord = item;
-                updateDeliveryPassUI(item);
+                updateDeliveryCardUI(item);
                 showToast("✨ បានជ្រើសរើស Key: " + item.client_name);
             }
         }
 
-        // 8. Block / Ban Action
+        // 8. Block / Unban / Delete Actions
         async function handleBlockRow(keyStr, clientName) {
-            if (!confirm(`⚠️ តើបងពិតជាចង់ផ្អាក / Block Key របស់ "${clientName}" មែនទេ?\nKey: ${keyStr}\n\n(នៅពេល Block ហើយ គាត់នឹងមិនអាចប្រើ Tool បានទៀតទេ)`)) {
-                return;
-            }
-
+            if (!confirm(`⚠️ តើបងពិតជាចង់ផ្អាក / Block Key របស់ "${clientName}" មែនទេ?\nKey: ${keyStr}\n\n(នៅពេល Block ហើយ គាត់នឹងមិនអាចប្រើ Tool បានទៀតទេ)`)) return;
             try {
                 const res = await fetch('/api/admin/revoke-key', {
                     method: 'POST',
@@ -1735,7 +1852,6 @@
             }
         }
 
-        // 9. Unban Action
         async function handleUnbanRow(keyStr) {
             try {
                 const res = await fetch('/api/admin/unrevoke-key', {
@@ -1755,12 +1871,8 @@
             }
         }
 
-        // 10. Delete Action
         async function handleDeleteRow(keyStr, clientName) {
-            if (!confirm(`🗑️ តើបងចង់លុប Key របស់ "${clientName}" (${keyStr}) ចេញពីប្រព័ន្ធទាំងស្រុងមែនទេ?`)) {
-                return;
-            }
-
+            if (!confirm(`🗑️ តើបងចង់លុប Key របស់ "${clientName}" (${keyStr}) ចេញពីប្រព័ន្ធទាំងស្រុងមែនទេ?`)) return;
             try {
                 const res = await fetch('/api/admin/delete-key', {
                     method: 'POST',
@@ -1779,14 +1891,12 @@
             }
         }
 
-        // 11. Export to TXT
         function exportKeysToTxt() {
             window.location.href = '/api/admin/export-txt';
         }
 
-        // 12. Toast Notification
         function showToast(msg) {
-            const toast = document.getElementById('toast-popup');
+            const toast = document.getElementById('toast-notif');
             const text = document.getElementById('toast-text');
             text.textContent = msg;
             toast.classList.add('show');
