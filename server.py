@@ -1174,6 +1174,52 @@ def downloader_download_episodes_endpoint():
     return jsonify(res)
 
 
+@app.route("/api/downloader/download_poster", methods=["POST"])
+def downloader_download_poster_endpoint():
+    """Download authentic high-resolution drama poster to local computer and return media link."""
+    data = request.get_json(force=True) or {}
+    poster_url = data.get("poster_url", "")
+    drama_id = data.get("drama_id", "")
+    title = data.get("title", "Drama")
+    save_location = data.get("save_location") or ("D:/SN_Dramas" if os.path.exists("D:/") else "C:/SN_Dramas")
+    
+    if not poster_url and drama_id:
+        d_info = hongguo_db.get_drama_by_id(drama_id)
+        if d_info:
+            poster_url = d_info.get("poster") or d_info.get("cover_url")
+            if not title or title == "Drama":
+                title = d_info.get("title_cn") or d_info.get("title") or "Drama"
+                
+    if not poster_url:
+        return jsonify({"success": False, "message": "No poster URL available"}), 400
+
+    safe_title = "".join(c for c in title if c.isalnum() or c in (" ", "_", "-")).strip() or "Drama"
+    dest_dir = Path(save_location) / safe_title
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    poster_file = dest_dir / f"{safe_title}_Poster.jpg"
+    
+    cmd = [
+        'curl.exe', '-4', '-s', '-m', '20',
+        '-A', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        '-o', str(poster_file),
+        poster_url
+    ]
+    try:
+        subprocess.run(cmd, timeout=25)
+        if poster_file.exists() and poster_file.stat().st_size > 500:
+            return jsonify({
+                "success": True,
+                "message": "Poster downloaded successfully",
+                "path": str(poster_file),
+                "filename": f"{safe_title}_Poster.jpg",
+                "file_url": f"/media/{str(poster_file.resolve()).replace(chr(92), '/')}"
+            })
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Download failed: {e}"}), 500
+        
+    return jsonify({"success": False, "message": "Failed to download poster file"}), 500
+
+
 @app.route("/api/downloader/queue", methods=["GET", "POST", "DELETE"])
 def downloader_queue_endpoint():
     """Manage multi-drama batch download queue."""

@@ -2941,6 +2941,59 @@ function downloadCurrentDramaFullSeries() {
     downloadAllQueueEpisodes();
 }
 
+async function downloadCurrentDramaPoster() {
+    if (!dlCurrentDrama) {
+        showToast("⚠️ សូមជ្រើសរើសរឿងជាមុនសិន!");
+        return;
+    }
+    const posterUrl = dlCurrentDrama.poster || dlCurrentDrama.cover_url;
+    if (!posterUrl) {
+        showToast("⚠️ មិនមាន Poster សម្រាប់រឿងនេះទេ!");
+        return;
+    }
+    const rawTitle = (dlCurrentDrama.title_cn || dlCurrentDrama.title || 'Drama').replace(/[《》]/g, '').trim();
+    const savePath = dlUserSaveLocation || document.getElementById('dl-save-path-input')?.value.trim() || 'D:/SN_Dramas';
+    showToast(`🖼️ កំពុងទាញយក Poster HD: ${rawTitle}...`);
+    appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Downloading Poster HD for '${rawTitle}'...`);
+
+    try {
+        const res = await fetch('/api/downloader/download_poster', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                drama_id: dlCurrentDrama.id,
+                poster_url: posterUrl,
+                title: rawTitle,
+                save_location: savePath
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`✅ បានទាញយក Poster HD ដោយជោគជ័យ!`);
+            appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Poster HD saved to: ${data.path || data.filename}`);
+            const a = document.createElement('a');
+            a.href = data.file_url || posterUrl;
+            a.download = data.filename || `${rawTitle}_Poster.jpg`;
+            a.target = '_blank';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        } else {
+            showToast(`⚠️ ${data.message || 'កំហុសពេលទាញយក Poster'}`);
+        }
+    } catch (err) {
+        console.warn('Poster download fetch fallback:', err);
+        const a = document.createElement('a');
+        a.href = posterUrl;
+        a.download = `${rawTitle}_Poster.jpg`;
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        showToast(`✅ Poster បានចាប់ផ្តើមទាញយក!`);
+    }
+}
+
 async function downloadCurrentQueueEpisode() {
     if (!dlCurrentDrama) return;
     const epNum = dlQueueActiveEpisodeNum;
