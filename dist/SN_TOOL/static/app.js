@@ -1642,18 +1642,23 @@ function filterByPlatform(platId, platName, totalCount, platLogo) {
 
     const countLabel = document.getElementById('dl-catalog-count-label');
     if (countLabel) {
-        const countDisplay = totalCount ? totalCount.toLocaleString() : (platId === 'hongguo' ? '49,509' : (platId === 'shortmax' || platId === 'ai_drama' ? '1,160' : '50,751'));
+        const countDisplay = (totalCount !== undefined && totalCount !== null)
+            ? totalCount.toLocaleString()
+            : (platId === 'hongguo' ? '49,509' : (platId === 'ai_drama' ? '1,160' : (platId === 'shortmax' ? '0' : '50,751')));
         let headerTitle = `Top Dramas on ${escapeHtml(platName)}`;
         if (platId === 'hongguo') headerTitle = 'Top 100 on 红果 right now';
-        else if (platId === 'shortmax' || platId === 'ai_drama') headerTitle = 'Top Authentic ShortMax Short Dramas';
+        else if (platId === 'ai_drama') headerTitle = 'Top Authentic Chinese AI Short Dramas (AI漫剧)';
+        else if (platId === 'shortmax') headerTitle = 'ShortMax Short Dramas';
         else if (platId === 'all') headerTitle = 'Top Dramas Across All Platforms';
         countLabel.innerHTML = `<span class="dl-clapper-emoji">🎬</span> ${headerTitle} (${countDisplay})`;
     }
 
     const input = document.getElementById('dl-link-url-input');
     if (input) {
-        if (platId === 'shortmax' || platId === 'ai_drama') {
-            input.placeholder = 'Search ShortMax short dramas (រឿង ShortMax)...';
+        if (platId === 'shortmax') {
+            input.placeholder = 'Paste ShortMax URL or search (បិទភ្ជាប់ Link ShortMax)...';
+        } else if (platId === 'ai_drama') {
+            input.placeholder = 'Search Chinese AI short dramas (ស្វែងរក រឿង AI ចិន)...';
         } else {
             input.placeholder = 'Paste a Hongguo/ShortMax URL or search 50,751 dramas...';
         }
@@ -1762,7 +1767,10 @@ async function loadDramaCatalog(platformId = "hongguo", query = "", category = "
 
     if (!append) {
         dlCurrentPage = 1;
-        const platTitle = (platformId === 'shortmax' || platformId === 'ai_drama') ? 'ShortMax' : 'Hongguo';
+        let platTitle = 'Hongguo';
+        if (platformId === 'shortmax') platTitle = 'ShortMax';
+        else if (platformId === 'ai_drama') platTitle = 'AI Dramas';
+        else if (platformId === 'all') platTitle = 'All Platforms';
         container.innerHTML = `<div style="grid-column: 1 / -1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding: 48px; color: #38bdf8;"><i class="fa-solid fa-spinner fa-spin" style="font-size: 1.8rem; margin-bottom:12px;"></i><div style="font-size:0.85rem; font-weight:600; color:#e2e8f0;">កំពុងទាញបញ្ជីរឿង ${platTitle}...</div></div>`;
     }
 
@@ -1777,8 +1785,8 @@ async function loadDramaCatalog(platformId = "hongguo", query = "", category = "
             const countLabel = document.getElementById('dl-catalog-count-label');
             if (countLabel) {
                 let headerTitle = category === 'all'
-                    ? ((platformId === 'shortmax' || platformId === 'ai_drama') ? 'Top Authentic ShortMax Short Dramas' : 'Top 100 on 红果 right now')
-                    : `${(platformId === 'shortmax' || platformId === 'ai_drama') ? 'ShortMax' : 'Category'}: ${category.toUpperCase()}`;
+                    ? (platformId === 'shortmax' ? 'ShortMax Short Dramas' : (platformId === 'ai_drama' ? 'Top Authentic Chinese AI Short Dramas (AI漫剧)' : (platformId === 'hongguo' ? 'Top 100 on 红果 right now' : 'Top Dramas Across All Platforms')))
+                    : `${platformId === 'shortmax' ? 'ShortMax' : (platformId === 'ai_drama' ? 'AI Drama' : 'Category')}: ${category.toUpperCase()}`;
                 countLabel.innerHTML = `<span class="dl-clapper-emoji">🎬</span> ${headerTitle} (${dlTotalDramasCount.toLocaleString()})`;
             }
 
@@ -1823,13 +1831,29 @@ async function loadDramaCatalog(platformId = "hongguo", query = "", category = "
                 loadMoreWrap.style.display = data.has_more ? 'block' : 'none';
             }
         } else if (!append) {
-            container.innerHTML = `
-                <div style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 20px; color: #716655; text-align: center;">
-                    <i class="fa-solid fa-magnifying-glass" style="font-size: 2rem; color: #38bdf8; margin-bottom: 12px;"></i>
-                    <div style="font-size: 0.85rem; font-weight: 600; color: #cbd5e1;">រកមិនឃើញរឿងភាគតាមការស្វែងរក</div>
-                    <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 6px;">សូមសាកល្បងស្វែងរកជាមួយពាក្យគន្លឹះផ្សេងទៀត ឬចុច All ដើម្បីមើលឡើងវិញ។</div>
-                </div>
-            `;
+            if (platformId === 'shortmax') {
+                const countLabel = document.getElementById('dl-catalog-count-label');
+                if (countLabel) {
+                    countLabel.innerHTML = `<span class="dl-clapper-emoji">🎬</span> ShortMax Short Dramas (0)`;
+                }
+                container.innerHTML = `
+                    <div style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 50px 20px; text-align: center;">
+                        <img src="shortmax_logo.png" style="width: 56px; height: 56px; border-radius: 12px; margin-bottom: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); object-fit: contain;" onerror="this.style.display='none'">
+                        <div style="font-size: 0.95rem; font-weight: 700; color: #f8fafc; margin-bottom: 8px;">មិនទាន់មានរឿងនៅក្នុង ShortMax នៅឡើយទេ</div>
+                        <div style="font-size: 0.78rem; color: #94a3b8; max-width: 380px; line-height: 1.6;">
+                            លោកអ្នកអាចចម្លង (Paste) តំណភ្ជាប់ Link រឿងពី <b>ShortMax</b> ដាក់ចូលក្នុងប្រអប់ស្វែងរកខាងលើ រួចចុច <b>Enter</b> ដើម្បីទាញយកភាគវីដេអូដោយស្វ័យប្រវត្តិ។
+                        </div>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 20px; color: #716655; text-align: center;">
+                        <i class="fa-solid fa-magnifying-glass" style="font-size: 2rem; color: #38bdf8; margin-bottom: 12px;"></i>
+                        <div style="font-size: 0.85rem; font-weight: 600; color: #cbd5e1;">រកមិនឃើញរឿងភាគតាមការស្វែងរក</div>
+                        <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 6px;">សូមសាកល្បងស្វែងរកជាមួយពាក្យគន្លឹះផ្សេងទៀត ឬចុច All ដើម្បីមើលឡើងវិញ។</div>
+                    </div>
+                `;
+            }
             if (loadMoreWrap) loadMoreWrap.style.display = 'none';
         }
     } catch (e) {

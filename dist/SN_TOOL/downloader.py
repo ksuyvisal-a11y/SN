@@ -34,7 +34,8 @@ DRAMA_CATALOG: List[Dict[str, Any]] = []
 SUPPORTED_PLATFORMS: List[Dict[str, Any]] = [
     {"id": "all", "name": "All platforms", "icon": "fa-solid fa-globe", "count": 50751},
     {"id": "hongguo", "name": "Hongguo", "logo": "hongguo_logo.png", "icon": "fa-solid fa-play", "count": 49509},
-    {"id": "shortmax", "name": "ShortMax", "logo": "shortmax_logo.png", "icon": "fa-solid fa-play", "count": 1160},
+    {"id": "ai_drama", "name": "AI Dramas", "icon": "fa-solid fa-robot", "count": 1160},
+    {"id": "shortmax", "name": "ShortMax", "logo": "shortmax_logo.png", "icon": "fa-solid fa-play", "count": 0},
 ]
 
 
@@ -74,8 +75,8 @@ def get_drama_episodes(drama: Dict[str, Any]) -> List[Dict[str, Any]]:
     if total_expected <= 0:
         total_expected = 80
 
-    # 1. Special handler for Chinese AI short dramas & ShortMax streams
-    is_ai_drama = drama.get("platform_id") in ("ai_drama", "shortmax") or str(drama_id).startswith("ai_")
+    # 1. Special handler for Chinese AI short dramas
+    is_ai_drama = drama.get("platform_id") == "ai_drama" or str(drama_id).startswith("ai_")
     if is_ai_drama:
         ai_cache_file = Path("data/ai_dramas_streams.json")
         play_url_raw = ""
