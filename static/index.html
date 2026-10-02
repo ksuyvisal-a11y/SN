@@ -184,16 +184,17 @@
                 <div class="studio-right-column">
                     <!-- Top Box: Studio Workspace (Exact Match to Image 2) -->
                     <div class="studio-sources-box" id="studio-sources-box">
-                        <!-- STATE 0: Minimalist Full-Frame Import Canvas (Matching User Reference Image) -->
+                        <!-- STATE 0: Minimalist Full-Frame Import Canvas (Matching User Reference Image 2) -->
                         <div class="studio-source-clean-view" id="studio-source-clean-view">
                             <div class="minimal-import-canvas" id="clean-import-prompt" onclick="openImportModal()">
-                                <div class="minimal-import-cta-row">
-                                    <span class="minimal-import-plus-circle">
-                                        <i class="fa-solid fa-plus"></i>
-                                    </span>
-                                    <span class="minimal-import-text">Import</span>
+                                <div class="minimal-import-icon-box">
+                                    <i class="fa-solid fa-clapperboard"></i>
                                 </div>
-                                <div class="minimal-import-sub">Drag and drop videos, photos, and audio files here</div>
+                                <div class="minimal-import-heading">Drag &amp; Drop Video Files or Folders Here</div>
+                                <div class="minimal-import-sub">Supports MP4, MKV, MOV, TS, AVI, WEBM &amp; Series Folders</div>
+                                <button type="button" class="minimal-browse-btn" onclick="openImportModal(); event.stopPropagation();">
+                                    <i class="fa-solid fa-plus"></i> Browse Files / Folder
+                                </button>
                             </div>
 
                             <!-- Staged Video Ready to Export State -->

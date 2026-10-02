@@ -1024,8 +1024,8 @@ button, input, select, textarea {
     user-select: none;
     transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
     box-sizing: border-box;
-    gap: 10px;
-    padding: 20px;
+    padding: 24px;
+    text-align: center;
 }
 
 .minimal-import-canvas:hover {
@@ -1034,55 +1034,79 @@ button, input, select, textarea {
     box-shadow: inset 0 0 35px rgba(250, 204, 21, 0.06);
 }
 
-.minimal-import-cta-row {
+.minimal-import-icon-box {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: rgba(250, 204, 21, 0.12);
+    border: 1.5px solid rgba(250, 204, 21, 0.45);
+    color: #facc15;
+    font-size: 1.45rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 9px;
+    margin-bottom: 14px;
+    box-shadow: 0 0 24px rgba(250, 204, 21, 0.3);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
 }
 
-.minimal-import-plus-circle {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: #facc15;
-    color: #090a0f;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.8rem;
-    font-weight: 900;
-    box-shadow: 0 0 12px rgba(250, 204, 21, 0.45);
-    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+.minimal-import-canvas:hover .minimal-import-icon-box {
+    transform: scale(1.1);
+    box-shadow: 0 0 35px rgba(250, 204, 21, 0.6);
 }
 
-.minimal-import-canvas:hover .minimal-import-plus-circle {
-    transform: scale(1.15);
-    box-shadow: 0 0 20px rgba(250, 204, 21, 0.75);
+.minimal-import-heading {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #fef08a;
+    letter-spacing: 0.3px;
+    margin-bottom: 6px;
+    transition: color 0.15s ease, text-shadow 0.15s ease;
+    text-shadow: 0 0 16px rgba(250, 204, 21, 0.25);
 }
 
-.minimal-import-text {
-    font-size: 1.16rem;
-    font-weight: 700;
-    color: #f8fafc;
-    letter-spacing: 0.2px;
-    transition: color 0.15s ease;
-}
-
-.minimal-import-canvas:hover .minimal-import-text {
-    color: #fde047;
+.minimal-import-canvas:hover .minimal-import-heading {
+    color: #ffffff;
+    text-shadow: 0 0 20px rgba(250, 204, 21, 0.5);
 }
 
 .minimal-import-sub {
     font-size: 0.86rem;
     color: #94a3b8;
     font-weight: 400;
-    letter-spacing: 0.1px;
+    letter-spacing: 0.15px;
+    margin-bottom: 18px;
     transition: color 0.15s ease;
 }
 
 .minimal-import-canvas:hover .minimal-import-sub {
     color: #cbd5e1;
+}
+
+.minimal-browse-btn {
+    background: linear-gradient(135deg, #facc15 0%, #e69500 100%);
+    color: #080703;
+    border: none;
+    border-radius: 30px;
+    padding: 10px 30px;
+    font-size: 0.94rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 0 25px rgba(250, 204, 21, 0.45), 0 4px 15px rgba(0, 0, 0, 0.4);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.minimal-browse-btn:hover {
+    transform: translateY(-2px) scale(1.03);
+    box-shadow: 0 0 35px rgba(250, 204, 21, 0.7), 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+.minimal-browse-btn i {
+    font-size: 0.88rem;
+    font-weight: 900;
 }
 
 /* Staged Video Ready to Export Card */
