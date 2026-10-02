@@ -18,6 +18,7 @@ a = Analysis(
     pathex=[str(ROOT_DIR)],
     binaries=[],
     datas=[
+        (str(ROOT_DIR / 'icon.ico'), '.'),
         (str(ROOT_DIR / 'static'), 'static'),
         (str(ROOT_DIR / 'scripts'), 'scripts'),
         (str(ROOT_DIR / 'data' / 'hongguo_catalog.db'), 'data'),

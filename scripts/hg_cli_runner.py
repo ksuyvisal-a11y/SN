@@ -14,7 +14,34 @@ from typing import List, Dict, Any, Optional
 sys.stdout.reconfigure(encoding='utf-8')
 sys.stderr.reconfigure(encoding='utf-8')
 
-HG_DIR = Path(r"C:\Users\TUF\AppData\Local\Programs\Hongguo Downloader")
+def get_hg_dir() -> Path:
+    if os.environ.get("HONGGUO_DIR"):
+        p = Path(os.environ["HONGGUO_DIR"])
+        if p.exists():
+            return p
+    cand_proj = Path(__file__).resolve().parent.parent / "tools" / "Hongguo Downloader"
+    if cand_proj.exists():
+        return cand_proj
+    loc_app = os.environ.get("LOCALAPPDATA")
+    if loc_app:
+        cand = Path(loc_app) / "Programs" / "Hongguo Downloader"
+        if cand.exists():
+            return cand
+    user_prof = os.environ.get("USERPROFILE")
+    if user_prof:
+        cand = Path(user_prof) / "AppData" / "Local" / "Programs" / "Hongguo Downloader"
+        if cand.exists():
+            return cand
+    for c in [
+        Path(r"C:\Users\TUF\AppData\Local\Programs\Hongguo Downloader"),
+        Path(r"C:\Program Files\Hongguo Downloader"),
+        Path(r"D:\Hongguo Downloader"),
+    ]:
+        if c.exists():
+            return c
+    return Path(r"C:\Users\TUF\AppData\Local\Programs\Hongguo Downloader")
+
+HG_DIR = get_hg_dir()
 JAVA_EXE = HG_DIR / "jre" / "bin" / "java.exe"
 SIGN_DIR = HG_DIR / "app" / "sign"
 APP_DIR = HG_DIR / "app"

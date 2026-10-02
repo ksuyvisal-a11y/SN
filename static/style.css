@@ -4589,16 +4589,15 @@ select, option, optgroup {
     box-shadow: 0 0 12px rgba(56, 189, 248, 0.45);
 }
 
-/* Category Filter Tags Scroll */
+/* Category Filter Tags Scroll - Hidden as requested */
 .dl-catalog-filter-tags-scroll,
 #dl-category-chips-bar {
-    display: flex !important;
-    gap: 8px;
-    overflow-x: auto;
-    padding-bottom: 8px;
-    margin-bottom: 12px;
-    scrollbar-width: thin;
-    visibility: visible !important;
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
 }
 
 .dl-catalog-filter-tags-scroll::-webkit-scrollbar {
@@ -7209,12 +7208,14 @@ select, option, optgroup {
 }
 
 
-/* Secondary Action Grid (2 Balanced Buttons) */
-.dl-ai-action-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    flex-shrink: 0;
+/* Secondary Action Grid (Hidden as requested) */
+.dl-ai-action-grid,
+.dl-theater-action-row {
+    display: none !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
 }
 
 .dl-action-pill {
@@ -7699,6 +7700,9 @@ select, option, optgroup {
 .dl-hub-in-center .dl-hub-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(66px, 1fr));
+    grid-auto-rows: 52px;
+    align-content: start;
+    align-items: start;
     gap: 6px;
     overflow-y: auto;
     overflow-x: hidden;
@@ -7875,7 +7879,10 @@ select, option, optgroup {
 /* 4-COLUMN EPISODE CARD GRID MATCHING IMAGE 2 */
 .dl-hub-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fill, minmax(66px, 1fr));
+    grid-auto-rows: 52px;
+    align-content: start;
+    align-items: start;
     gap: 7px;
     overflow-y: auto;
     overflow-x: hidden;
@@ -7903,8 +7910,12 @@ select, option, optgroup {
     background: #131b2e;
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 8px;
-    padding: 8px 3px 6px 3px;
-    min-height: 48px;
+    padding: 6px 4px 5px 4px;
+    height: 52px;
+    min-height: 52px;
+    max-height: 52px;
+    width: 100%;
+    max-width: 80px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -7913,6 +7924,24 @@ select, option, optgroup {
     cursor: pointer;
     transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
     user-select: none;
+    box-sizing: border-box;
+}
+
+.dl-single-ep-notice {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    grid-column: 2 / -1;
+    height: 52px;
+    min-height: 52px;
+    max-height: 52px;
+    padding: 0 16px;
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px dashed rgba(245, 158, 11, 0.35);
+    border-radius: 8px;
+    color: #fbbf24;
+    font-size: 0.85rem;
+    font-weight: 600;
     box-sizing: border-box;
 }
 

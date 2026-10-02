@@ -201,7 +201,7 @@ def resolve_reelshort_episodes(drama: Dict[str, Any]) -> List[Dict[str, Any]]:
             "stream_url": s_url,
             "download_url": s_url,
             "source": "ReelShort Ultra HD CDN",
-            "is_online_stream": bool(s_url),
+            "is_online_stream": True,
             "is_selected": True,
             "thumbnail": ep1_thumb
         })

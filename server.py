@@ -1318,24 +1318,59 @@ def downloader_clear_log_endpoint():
 @app.route("/api/system/default-paths", methods=["GET"])
 def system_default_paths_endpoint():
     """Return clean standard Drive C: and Drive D: paths for saving downloaded media."""
+    try:
+        from downloader import resolve_safe_save_location
+        safe_default = str(resolve_safe_save_location()).replace("\\", "/")
+    except Exception:
+        safe_default = str(Path.home() / "Downloads" / "SN_Dramas").replace("\\", "/")
+
+    # Check if C:/SN_Dramas is writable without UAC error on standard user account
     drive_c = "C:/SN_Dramas"
-    drive_d = "D:/SN_Dramas" if os.path.exists("D:/") else "C:/SN_Dramas"
+    try:
+        c_cand = Path("C:/SN_Dramas")
+        c_cand.mkdir(parents=True, exist_ok=True)
+        test_f = c_cand / f".write_test_{os.getpid()}"
+        test_f.write_text("ok", encoding="utf-8")
+        test_f.unlink(missing_ok=True)
+    except Exception:
+        drive_c = str(Path.home() / "Downloads" / "SN_Dramas").replace("\\", "/")
+
+    drive_d = "D:/SN_Dramas" if os.path.exists("D:/") else drive_c
     
     return jsonify({
         "success": True,
-        "default": drive_d,
+        "default": safe_default,
         "drive_c": drive_c,
         "drive_d": drive_d
     })
 
 
-APP_ICON_PATH = str(Path(__file__).resolve().parent / "icon.ico").replace("\\", "/")
-if not os.path.exists(APP_ICON_PATH):
-    APP_ICON_PATH = str(Path(__file__).resolve().parent / "static" / "favicon.ico").replace("\\", "/")
+def get_app_icon_path() -> str:
+    """Find absolute path to application icon across development and compiled exe runtime."""
+    candidates = [
+        APP_DIR / "icon.ico",
+        BASE_DIR / "icon.ico",
+        STATIC_DIR / "favicon.ico",
+        STATIC_DIR / "icon.ico",
+        Path(__file__).resolve().parent / "icon.ico",
+        Path(__file__).resolve().parent / "static" / "favicon.ico",
+        Path.cwd() / "icon.ico",
+    ]
+    for p in candidates:
+        try:
+            if p.exists() and p.is_file():
+                return str(p.resolve()).replace("\\", "/")
+        except Exception:
+            pass
+    return ""
 
-MODERN_FOLDER_PICKER_CS = """
+
+APP_ICON_PATH = get_app_icon_path()
+
+MODERN_DIALOG_HELPER_CS = """
 using System;
 using System.IO;
+using System.Threading;
 using System.Runtime.InteropServices;
 
 [ComImport]
@@ -1420,7 +1455,7 @@ public class DialogEventHandler : IFileDialogEvents {
             if (ole != null) {
                 IntPtr hwnd;
                 if (ole.GetWindow(out hwnd) == 0) {
-                    ModernFolderPicker.ApplyStyleAndIcon(hwnd, _iconPath);
+                    NativeDialogHelper.ApplyStyleAndIcon(hwnd, _iconPath);
                 }
             }
         } catch { }
@@ -1434,7 +1469,7 @@ public class DialogEventHandler : IFileDialogEvents {
             if (ole != null) {
                 IntPtr hwnd;
                 if (ole.GetWindow(out hwnd) == 0) {
-                    ModernFolderPicker.ApplyStyleAndIcon(hwnd, _iconPath);
+                    NativeDialogHelper.ApplyStyleAndIcon(hwnd, _iconPath);
                 }
             }
         } catch { }
@@ -1446,14 +1481,14 @@ public class DialogEventHandler : IFileDialogEvents {
     public int OnOverwrite(IntPtr pfd, IntPtr psi, out int pResponse) { pResponse = 0; return 0; }
 }
 
-public class ModernFolderPicker {
-    [DllImport("user32.dll")]
+public static class NativeDialogHelper {
+    [DllImport("user32.dll", SetLastError = true)]
     public static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
 
-    [DllImport("shcore.dll")]
+    [DllImport("shcore.dll", SetLastError = true)]
     public static extern int SetProcessDpiAwareness(int awareness);
 
-    [DllImport("user32.dll")]
+    [DllImport("user32.dll", SetLastError = true)]
     public static extern bool SetProcessDPIAware();
 
     [DllImport("user32.dll")]
@@ -1464,17 +1499,22 @@ public class ModernFolderPicker {
     private const int SM_CXSMICON = 49;
     private const int SM_CYSMICON = 50;
 
-    public static void EnableHighDpi() {
+    public static bool EnableHighDpi() {
         try {
-            // Per-Monitor V2 High DPI Awareness (eliminates blurriness on 125%, 150%, 175%, 200% scaling!)
-            if (!SetProcessDpiAwarenessContext((IntPtr)(-4))) {
-                SetProcessDpiAwareness(2);
+            // Per-Monitor V2 High DPI Awareness (eliminates blurriness on 125%, 150%, 175%, 200% scaling)
+            if (SetProcessDpiAwarenessContext((IntPtr)(-4))) {
+                return true;
             }
-        } catch {
-            try {
-                SetProcessDPIAware();
-            } catch { }
-        }
+        } catch { }
+        try {
+            if (SetProcessDpiAwareness(2) == 0) {
+                return true;
+            }
+        } catch { }
+        try {
+            return SetProcessDPIAware();
+        } catch { }
+        return false;
     }
 
     [DllImport("shell32.dll")]
@@ -1492,6 +1532,9 @@ public class ModernFolderPicker {
 
     [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
     public static extern IntPtr LoadImage(IntPtr hinst, string lpszName, uint uType, int cxDesired, int cyDesired, uint fuLoad);
+
+    [DllImport("user32.dll")]
+    public static extern bool SetForegroundWindow(IntPtr hWnd);
 
     [DllImport("user32.dll")]
     public static extern IntPtr GetForegroundWindow();
@@ -1529,10 +1572,25 @@ public class ModernFolderPicker {
                     SendMessage(hwnd, WM_SETICON, (IntPtr)1, hBig);
                 }
             }
+            SetForegroundWindow(hwnd);
         } catch { }
     }
 
-    public static string ShowDialog(string initialPath, string title, string iconPath, IntPtr owner) {
+    public static void WatchAndStyleDialog(IntPtr ownerHwnd, string iconPath) {
+        ThreadPool.QueueUserWorkItem(_ => {
+            for (int i = 0; i < 40; i++) {
+                Thread.Sleep(30);
+                IntPtr fg = GetForegroundWindow();
+                if (fg != IntPtr.Zero && fg != ownerHwnd) {
+                    ApplyStyleAndIcon(fg, iconPath);
+                    break;
+                }
+            }
+        });
+    }
+
+    public static string ShowFolderDialog(string initialPath, string title, string iconPath, IntPtr owner) {
+        EnableHighDpi();
         var dialog = (IFileOpenDialog)new FileOpenDialog();
         uint FOS_PICKFOLDERS = 0x00000020;
         uint FOS_FORCEFILESYSTEM = 0x00000040;
@@ -1560,6 +1618,24 @@ public class ModernFolderPicker {
             dialog.Advise(handler, out cookie);
         } catch { }
 
+        // Proactively style and set icon immediately as soon as window is shown
+        ThreadPool.QueueUserWorkItem(_ => {
+            for (int i = 0; i < 30; i++) {
+                Thread.Sleep(30);
+                IntPtr hwnd = IntPtr.Zero;
+                try {
+                    var ole = dialog as IOleWindow;
+                    if (ole != null) {
+                        ole.GetWindow(out hwnd);
+                    }
+                } catch { }
+                if (hwnd != IntPtr.Zero) {
+                    ApplyStyleAndIcon(hwnd, iconPath);
+                    break;
+                }
+            }
+        });
+
         int hr = dialog.Show(owner);
 
         if (cookie != 0) {
@@ -1582,29 +1658,42 @@ public class ModernFolderPicker {
 def open_native_windows_folder_dialog(initial_dir: str = "", title: str = "Select Drama Series Folder") -> Optional[str]:
     """
     Open modern native Windows File Explorer folder picker (IFileOpenDialog with FOS_PICKFOLDERS).
-    Displays the authentic modern Windows 10/11 Explorer dialog with breadcrumbs, drives, and folder icons (matching Image 2).
+    Displays the authentic modern Windows 10/11 Explorer dialog with breadcrumbs, drives, and folder icons with crystal-clear Per-Monitor V2 High DPI clarity.
     Never uses the legacy 1995 BrowseForFolder tree view.
     """
     if not initial_dir or not os.path.exists(initial_dir):
         initial_dir = "D:/" if os.path.exists("D:/") else "C:/"
     init_dir_esc = str(Path(initial_dir).resolve()).replace("'", "''")
     title_esc = str(title).replace("'", "''")
-    icon_esc = str(APP_ICON_PATH).replace("'", "''")
+    icon_esc = str(get_app_icon_path() or APP_ICON_PATH).replace("'", "''")
 
     ps_code = f"""
+Add-Type -TypeDefinition @'
+{MODERN_DIALOG_HELPER_CS}
+'@
+
+# 1. Enable Per-Monitor V2 High DPI Awareness FIRST before creating any WinForms form/dialog
+[NativeDialogHelper]::EnableHighDpi()
+
 Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
 
 $topForm = New-Object System.Windows.Forms.Form
 $topForm.TopMost = $true
 $topForm.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
 $topForm.ShowInTaskbar = $false
 $topForm.WindowState = [System.Windows.Forms.FormWindowState]::Minimized
+$topForm.Opacity = 0
+
+$iconPath = '{icon_esc}'
+if (Test-Path $iconPath) {{
+    try {{
+        $topForm.Icon = New-Object System.Drawing.Icon($iconPath)
+    }} catch {{ }}
+}}
 
 try {{
-    Add-Type -TypeDefinition @'
-{MODERN_FOLDER_PICKER_CS}
-'@
-    $res = [ModernFolderPicker]::ShowDialog('{init_dir_esc}', '{title_esc}', '{icon_esc}', $topForm.Handle)
+    $res = [NativeDialogHelper]::ShowFolderDialog('{init_dir_esc}', '{title_esc}', $iconPath, $topForm.Handle)
     if ($res) {{
         [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
         Write-Output ("RESULT:" + $res)
@@ -1612,12 +1701,14 @@ try {{
         Write-Output "CANCELLED"
     }}
 }} catch {{
-    # Fallback to modern OpenFileDialog (Explorer window) instead of legacy BrowseForFolder
+    # Fallback to modern OpenFileDialog with FOS_PICKFOLDERS
+    [NativeDialogHelper]::WatchAndStyleDialog($topForm.Handle, $iconPath)
     $dlg = New-Object System.Windows.Forms.OpenFileDialog
     $dlg.Title = '{title_esc}'
     $dlg.ValidateNames = $false
     $dlg.CheckFileExists = $false
     $dlg.CheckPathExists = $true
+    $dlg.AutoUpgradeEnabled = $true
     $dlg.FileName = 'Select Folder Here'
     $initDir = '{init_dir_esc}'
     if (Test-Path $initDir) {{ $dlg.InitialDirectory = $initDir }}
@@ -1661,30 +1752,52 @@ exit 0
 
 def open_native_windows_files_dialog(initial_dir: str = "", title: str = "Select Video Files for Drama Series") -> List[str]:
     """
-    Open native Windows multi-file picker safely using pre-compiled Windows Forms OpenFileDialog.
-    Pops up instantly in the foreground with TopMost owner, eliminating window hiding.
+    Open native Windows multi-file picker safely using Per-Monitor V2 High DPI awareness and app icon.
+    Pops up instantly in the foreground with TopMost owner, eliminating window hiding and blurriness.
     """
     if not initial_dir or not os.path.exists(initial_dir):
         initial_dir = "D:/" if os.path.exists("D:/") else "C:/"
     init_dir_esc = str(Path(initial_dir).resolve()).replace("'", "''")
     title_esc = str(title).replace("'", "''")
+    icon_esc = str(get_app_icon_path() or APP_ICON_PATH).replace("'", "''")
 
     ps_code = f"""
+Add-Type -TypeDefinition @'
+{MODERN_DIALOG_HELPER_CS}
+'@
+
+# 1. Enable Per-Monitor V2 High DPI Awareness FIRST
+[NativeDialogHelper]::EnableHighDpi()
+
 Add-Type -AssemblyName System.Windows.Forms
-$dialog = New-Object System.Windows.Forms.OpenFileDialog
-$dialog.Title = '{title_esc}'
-$dialog.Filter = 'Video Files (*.mp4;*.mkv;*.mov;*.avi;*.webm;*.flv;*.ts;*.m4v)|*.mp4;*.mkv;*.mov;*.avi;*.webm;*.flv;*.ts;*.m4v|All Files (*.*)|*.*'
-$dialog.Multiselect = $true
-$initDir = '{init_dir_esc}'
-if (Test-Path $initDir) {{
-    $dialog.InitialDirectory = $initDir
-}}
+Add-Type -AssemblyName System.Drawing
 
 $topForm = New-Object System.Windows.Forms.Form
 $topForm.TopMost = $true
 $topForm.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
 $topForm.ShowInTaskbar = $false
 $topForm.WindowState = [System.Windows.Forms.FormWindowState]::Minimized
+$topForm.Opacity = 0
+
+$iconPath = '{icon_esc}'
+if (Test-Path $iconPath) {{
+    try {{
+        $topForm.Icon = New-Object System.Drawing.Icon($iconPath)
+    }} catch {{ }}
+}}
+
+# Proactively watch for the dialog window and apply dark mode + app icon
+[NativeDialogHelper]::WatchAndStyleDialog($topForm.Handle, $iconPath)
+
+$dialog = New-Object System.Windows.Forms.OpenFileDialog
+$dialog.Title = '{title_esc}'
+$dialog.Filter = 'Video Files (*.mp4;*.mkv;*.mov;*.avi;*.webm;*.flv;*.ts;*.m4v)|*.mp4;*.mkv;*.mov;*.avi;*.webm;*.flv;*.ts;*.m4v|All Files (*.*)|*.*'
+$dialog.Multiselect = $true
+$dialog.AutoUpgradeEnabled = $true
+$initDir = '{init_dir_esc}'
+if (Test-Path $initDir) {{
+    $dialog.InitialDirectory = $initDir
+}}
 
 $res = $dialog.ShowDialog($topForm)
 if ($res -eq [System.Windows.Forms.DialogResult]::OK) {{

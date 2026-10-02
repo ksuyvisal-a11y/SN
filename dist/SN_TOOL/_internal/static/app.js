@@ -1723,26 +1723,9 @@ async function loadDownloaderPlatforms() {
 
 async function loadDownloaderCategories() {
     const bar = document.getElementById('dl-category-chips-bar');
-    if (!bar) return;
-    try {
-        const res = await fetch('/api/downloader/categories');
-        const data = await res.json();
-        if (data.success && data.categories) {
-            bar.innerHTML = '';
-            data.categories.forEach(cat => {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                const isActive = (cat.id === dlSelectedCategory) || (!dlSelectedCategory && cat.id === 'all');
-                btn.className = `dl-category-chip-btn ${isActive ? 'active' : ''}`;
-                btn.textContent = cat.badge || cat.name;
-                btn.dataset.catId = cat.id;
-                btn.title = cat.name_kh ? `${cat.name} (${cat.name_kh})` : cat.name;
-                btn.onclick = () => selectCategoryChip(cat.id);
-                bar.appendChild(btn);
-            });
-        }
-    } catch (e) {
-        console.error('Error loading downloader categories:', e);
+    if (bar) {
+        bar.style.display = 'none';
+        bar.innerHTML = '';
     }
 }
 
@@ -2422,10 +2405,10 @@ function renderQueueViewForCurrentDrama() {
     }
 
     // Update Episodes Count
-    const totalCount = dlEpisodesList.length || dlCurrentDrama.total_episodes || 80;
+    const totalCount = (dlEpisodesList && dlEpisodesList.length > 0) ? dlEpisodesList.length : (dlCurrentDrama?.total_episodes || 80);
     const centerEpCount = document.getElementById('dl-center-ep-count');
     if (centerEpCount) {
-        centerEpCount.textContent = `${totalCount} Episodes`;
+        centerEpCount.textContent = totalCount === 1 ? `1 Episode (Full Movie)` : `${totalCount} Episodes`;
     }
     const epsCountBold = document.getElementById('dl-q-eps-count-bold');
     if (epsCountBold) {
@@ -2433,13 +2416,15 @@ function renderQueueViewForCurrentDrama() {
     }
     const qDlBtnText = document.getElementById('dl-q-download-all-text');
     if (qDlBtnText) {
-        qDlBtnText.textContent = `⚡ ទាញយកគ្រប់ភាគទាំងអស់ (Download All EP 1 - ${totalCount})`;
+        qDlBtnText.textContent = totalCount === 1 
+            ? `⚡ ទាញយករឿងពេញ (Download Full Drama 1080p)` 
+            : `⚡ ទាញយកគ្រប់ភាគទាំងអស់ (Download All EP 1 - ${totalCount})`;
     }
 
     // Update Image 2 Episode Hub Header
     const hubTitle = document.getElementById('dl-hub-episodes-title');
     if (hubTitle) {
-        hubTitle.textContent = `Episodes (${totalCount} total)`;
+        hubTitle.textContent = totalCount === 1 ? `Episodes (1 total • Full Movie)` : `Episodes (${totalCount} total)`;
     }
     const hubPillTotal = document.getElementById('dl-hub-pill-total');
     if (hubPillTotal) {
@@ -2485,16 +2470,28 @@ function renderQueueViewForCurrentDrama() {
             card.setAttribute('data-ep', epNum);
             card.onclick = () => playQueueEpisode(epNum);
 
+            const tagText = ep.progress === 100 ? 'READY' : (dlEpisodesList.length === 1 ? 'FULL' : 'FREE');
+
             card.innerHTML = `
                 <span class="dl-ep-active-dot"></span>
                 <span class="dl-ep-card-num">${epNum}</span>
-                <span class="dl-ep-card-tag">${ep.progress === 100 ? 'READY' : 'FREE'}</span>
+                <span class="dl-ep-card-tag">${tagText}</span>
                 <div class="dl-ep-card-prog-track">
                     <div class="dl-ep-card-prog-fill" id="dl-card-fill-${epNum}" style="width: ${ep.progress || 0}%;"></div>
                 </div>
             `;
             gridBox.appendChild(card);
         });
+
+        if (dlEpisodesList.length === 1) {
+            const notice = document.createElement('div');
+            notice.className = 'dl-single-ep-notice';
+            notice.innerHTML = `
+                <i class="fa-solid fa-film" style="color: #f59e0b; font-size: 1.05rem;"></i>
+                <span>រឿងពេញ ១ ភាគចប់ (Full Movie • 1080p Full HD)</span>
+            `;
+            gridBox.appendChild(notice);
+        }
     }
 
     // Render Episode Queue Table (EXACT MATCH TO IMAGE 2)
@@ -2970,8 +2967,8 @@ async function downloadAllQueueEpisodes() {
 
     const path = dlUserSaveLocation || document.getElementById('dl-save-path-input')?.value.trim() || 'D:/SN_Dramas';
     const computedDir = getComputedDramaFolder().replace(/\//g, '\\');
-    showToast(`⚡ កំពុងទាញយកល្បឿនលឿនគ្រប់ភាគ (${total} ភាគ) & រឿងពេញ ១០០% ទៅកាន់ ${computedDir}...`);
-    appendDownloaderLog(`[${new Date().toLocaleTimeString()}] ⚡ Starting TURBO FULL SERIES download: EP 1 to EP ${total} for '${title}' into '${computedDir}' (4x Concurrency + Auto Full Movie Merge)...`);
+    showToast(`⚡ កំពុងទាញយកម្ដង ៥ ភាគ (${total} ភាគសរុប) ទៅកាន់ ${computedDir}...`);
+    appendDownloaderLog(`[${new Date().toLocaleTimeString()}] ⚡ កំពុងទាញយកម្ដង ៥ ភាគ (Batch 5 Episodes): EP 1 to EP ${total} for '${title}' into '${computedDir}'...`);
 
     const posterElem = document.getElementById('dl-save-poster-check');
     const savePoster = posterElem ? posterElem.checked : true;
@@ -3318,12 +3315,14 @@ async function initSaveLocationPaths() {
     const input = document.getElementById('dl-save-path-input');
     if (!input) return;
 
+    let backendDefault = null;
     try {
         const res = await fetch('/api/system/default-paths');
         const data = await res.json();
         if (data && data.success) {
             if (data.drive_c) driveCustomPaths["C"] = data.drive_c;
             if (data.drive_d) driveCustomPaths["D"] = data.drive_d;
+            if (data.default) backendDefault = data.default;
         }
     } catch (e) {}
 
@@ -3331,7 +3330,7 @@ async function initSaveLocationPaths() {
     if (saved && saved.trim()) {
         input.value = saved.trim();
     } else {
-        input.value = driveCustomPaths["D"] || "D:/SN_Dramas";
+        input.value = backendDefault || driveCustomPaths["D"] || "D:/SN_Dramas";
     }
     input.setAttribute('title', input.value);
     input.addEventListener('input', () => {

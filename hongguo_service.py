@@ -14,7 +14,41 @@ import subprocess
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 
-HG_DIR = Path(r"C:\Users\TUF\AppData\Local\Programs\Hongguo Downloader")
+def get_hg_dir() -> Path:
+    """Find Hongguo Downloader installation directory dynamically on any user PC."""
+    if os.environ.get("HONGGUO_DIR"):
+        p = Path(os.environ["HONGGUO_DIR"])
+        if p.exists():
+            return p
+    # Bundled tool path in project
+    cand_proj = Path(__file__).resolve().parent / "tools" / "Hongguo Downloader"
+    if cand_proj.exists():
+        return cand_proj
+    # Current user's LocalAppData
+    loc_app = os.environ.get("LOCALAPPDATA")
+    if loc_app:
+        cand = Path(loc_app) / "Programs" / "Hongguo Downloader"
+        if cand.exists():
+            return cand
+    # UserProfile fallback
+    user_prof = os.environ.get("USERPROFILE")
+    if user_prof:
+        cand = Path(user_prof) / "AppData" / "Local" / "Programs" / "Hongguo Downloader"
+        if cand.exists():
+            return cand
+    # Common system locations
+    for c in [
+        Path(r"C:\Users\TUF\AppData\Local\Programs\Hongguo Downloader"),
+        Path(r"C:\Program Files\Hongguo Downloader"),
+        Path(r"C:\Program Files (x86)\Hongguo Downloader"),
+        Path(r"D:\Hongguo Downloader"),
+    ]:
+        if c.exists():
+            return c
+    return Path(r"C:\Users\TUF\AppData\Local\Programs\Hongguo Downloader")
+
+
+HG_DIR = get_hg_dir()
 JAVA_EXE = HG_DIR / "jre" / "bin" / "java.exe"
 SIGN_DIR = HG_DIR / "app" / "sign"
 APP_DIR = HG_DIR / "app"
@@ -25,7 +59,11 @@ RUNNER_SCRIPT = Path(__file__).parent / "scripts" / "hg_cli_runner.py"
 
 def is_installed() -> bool:
     """Check if the Hongguo offline engine package is available on the machine."""
-    return HG_DIR.exists() and PY_EXE.exists() and JAVA_EXE.exists() and (SIGN_DIR / "unidbg-sign.jar").exists()
+    current_hg = get_hg_dir()
+    py = current_hg / "python" / "python.exe"
+    java = current_hg / "jre" / "bin" / "java.exe"
+    jar = current_hg / "app" / "sign" / "unidbg-sign.jar"
+    return current_hg.exists() and py.exists() and java.exists() and jar.exists()
 
 
 def ensure_env_flags():
@@ -111,6 +149,10 @@ def fetch_series_episodes(series_id: str) -> Optional[Dict[str, Any]]:
         "--series_id",
         clean_sid
     ]
+    env = dict(os.environ)
+    env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONUTF8"] = "1"
+
     try:
         res = subprocess.run(
             cmd,
@@ -119,7 +161,8 @@ def fetch_series_episodes(series_id: str) -> Optional[Dict[str, Any]]:
             text=True,
             encoding="utf-8",
             errors="replace",
-            timeout=25
+            timeout=25,
+            env=env
         )
         if res.returncode == 0 and res.stdout.strip():
             # Look for JSON line
@@ -189,15 +232,20 @@ def download_episodes_batch(
         quality
     ]
 
+    env = dict(os.environ)
+    env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONUTF8"] = "1"
+
     try:
         proc = subprocess.Popen(
             cmd,
             cwd=str(Path(__file__).parent),
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             text=True,
             encoding="utf-8",
-            errors="replace"
+            errors="replace",
+            env=env
         )
 
         out_lines = []
@@ -206,11 +254,14 @@ def download_episodes_batch(
             if not line and proc.poll() is not None:
                 break
             if line:
-                out_lines.append(line.strip())
-                if log_callback and any(keyword in line for keyword in ["第", "解密", "1080p", "完成", "进度"]):
-                    log_callback(line.strip())
+                clean_l = line.strip()
+                out_lines.append(clean_l)
+                if log_callback and any(keyword in clean_l for keyword in ["第", "解密", "1080p", "完成", "进度", "Error", "error"]):
+                    try:
+                        log_callback(clean_l)
+                    except Exception:
+                        pass
 
-        stderr_out = proc.stderr.read()
         proc.wait()
 
         # Parse JSON output
@@ -229,10 +280,13 @@ def download_episodes_batch(
 
         if result_data and result_data.get("ok"):
             if log_callback:
-                log_callback(f"✔ Hongguo Engine completed batch: {result_data.get('files_count', 0)} episodes ready.")
+                try:
+                    log_callback(f"✔ Hongguo Engine completed batch: {result_data.get('files_count', 0)} episodes ready.")
+                except Exception:
+                    pass
             return result_data
         else:
-            err_msg = (result_data.get("error") if result_data else None) or stderr_out or "Unknown download error"
+            err_msg = (result_data.get("error") if result_data else None) or (out_lines[-1] if out_lines else "Unknown download error")
             return {"ok": False, "error": err_msg}
 
     except Exception as e:
