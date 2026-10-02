@@ -217,8 +217,9 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
         window = webview.create_window(
             title=title,
             url=url,
-            frameless=False,
+            frameless=True,
             easy_drag=True,
+            shadow=True,
             maximized=False,
             width=win_w,
             height=win_h,

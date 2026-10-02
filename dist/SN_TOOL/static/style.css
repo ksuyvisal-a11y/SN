@@ -95,7 +95,7 @@ button, input, select, textarea {
                 radial-gradient(circle at 90% 18%, rgba(56, 189, 248, 0.05) 0%, transparent 40%),
                 radial-gradient(circle at 50% 88%, rgba(168, 85, 247, 0.045) 0%, transparent 45%),
                 #08090d;
-    padding: 8px 12px 6px 12px;
+    padding: 0 12px 6px 12px;
     gap: 10px;
     overflow: hidden !important;
     box-sizing: border-box;
@@ -109,15 +109,26 @@ button, input, select, textarea {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 58px;
+    height: 56px;
     padding: 0 18px;
     flex-shrink: 0;
     background: var(--glass-bg);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     border: 1px solid var(--glass-border);
-    border-radius: 12px;
+    border-top: none;
+    border-radius: 0 0 12px 12px;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 var(--glass-highlight);
+    -webkit-app-region: drag;
+    user-select: none;
+}
+
+.unich-header-bar button,
+.unich-header-bar .brand-badge-wrapper,
+.unich-header-bar .power-dropdown-wrapper,
+.unich-header-bar .header-win-controls,
+.unich-header-bar .win-btn {
+    -webkit-app-region: no-drag;
 }
 
 /* Left Brand & 3D Logo Badge */
@@ -302,7 +313,17 @@ button, input, select, textarea {
 
 /* Window Controls (Min, Max, Close - Framed Glass Style) */
 .header-win-controls {
-    display: none !important;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(8, 10, 16, 0.6);
+    backdrop-filter: var(--glass-blur-sm);
+    -webkit-backdrop-filter: var(--glass-blur-sm);
+    border: 1px solid rgba(250, 204, 21, 0.32);
+    border-radius: 8px;
+    padding: 2px 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    -webkit-app-region: no-drag;
 }
 
 .win-btn {

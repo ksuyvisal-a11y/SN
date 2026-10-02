@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 chcp 65001 > nul
 cd /d "%~dp0"
 title 🎬 SN TOOL - Create Desktop Shortcut
@@ -10,16 +10,7 @@ echo  🎬 កំពុងបង្កើត Icon កម្មវិធី SN TO
 echo ========================================================================
 echo.
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-    "$ws = New-Object -ComObject WScript.Shell; " ^
-    "$desk = [System.Environment]::GetFolderPath('Desktop'); " ^
-    "$sc = $ws.CreateShortcut(\"$desk\SN TOOL - STUDIO PRO.lnk\"); " ^
-    "$sc.TargetPath = \"%~dp0SN_TOOL.exe\"; " ^
-    "$sc.WorkingDirectory = \"%~dp0\"; " ^
-    "$sc.IconLocation = \"%~dp0SN_TOOL.exe,0\"; " ^
-    "$sc.Description = 'SN TOOL - Studio Pro (Khmer AI Drama Studio)'; " ^
-    "$sc.Save(); " ^
-    "Write-Host '[OK] បានបង្កើត Shortcut លើ Desktop រួចរាល់ដោយជោគជ័យ!' -ForegroundColor Green"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ws = New-Object -ComObject WScript.Shell; $desk = [System.Environment]::GetFolderPath('Desktop'); $sc = $ws.CreateShortcut(\"$desk\SN TOOL - STUDIO PRO.lnk\"); $sc.TargetPath = \"%~dp0SN_TOOL.exe\"; $sc.WorkingDirectory = \"%~dp0\"; $sc.IconLocation = \"%~dp0SN_TOOL.exe,0\"; $sc.Description = 'SN TOOL - Studio Pro (Khmer AI Drama Studio)'; $sc.Save(); Write-Host '[OK] បានបង្កើត Shortcut លើ Desktop រួចរាល់ដោយជោគជ័យ!' -ForegroundColor Green"
 
 echo.
 echo ========================================================================
