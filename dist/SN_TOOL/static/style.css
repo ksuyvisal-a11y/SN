@@ -987,363 +987,161 @@ button, input, select, textarea {
     height: 0 !important;
 }
 
-/* STATE 0: SN STUDIO PRO — Master AI Media Ingest Hub */
+/* STATE 0: Image 2 Clean Layout Styles */
 .studio-source-clean-view {
     width: 100%;
     height: 100%;
     display: flex;
     flex-direction: column;
     position: relative;
-    padding: 12px 14px;
+    padding: 0;
     min-height: 0;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    box-sizing: border-box;
+    overflow: hidden !important;
+    scrollbar-width: none !important;
 }
 
 .studio-source-clean-view::-webkit-scrollbar {
-    width: 4px;
-}
-.studio-source-clean-view::-webkit-scrollbar-thumb {
-    background: rgba(250, 204, 21, 0.2);
-    border-radius: 4px;
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
 }
 
-/* Master Hub Container */
-.sn-studio-hub-container {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    height: 100%;
-    min-height: 100%;
-    gap: 12px;
-    animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* 1. Hub Header Row */
-.sn-hub-header-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 4px 6px 10px 6px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-    flex-shrink: 0;
-}
-
-.sn-hub-header-left {
-    display: flex;
-    flex-direction: column;
-}
-
-.sn-hub-kicker {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.68rem;
+.clean-source-label {
+    position: absolute;
+    top: 14px;
+    left: 20px;
+    font-size: 0.72rem;
     font-family: 'JetBrains Mono', monospace;
+    color: #64748b;
     font-weight: 700;
-    color: #facc15;
     letter-spacing: 0.8px;
     text-transform: uppercase;
+    z-index: 2;
+    pointer-events: none;
 }
 
-.sn-kicker-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #22c55e;
-    box-shadow: 0 0 8px #22c55e;
-    display: inline-block;
-    animation: pulseGlow 2s infinite;
-}
-
-@keyframes pulseGlow {
-    0%, 100% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.25); opacity: 0.75; }
-}
-
-.sn-hub-heading {
-    font-size: 1.05rem;
-    font-weight: 800;
-    color: #f8fafc;
-    margin-top: 2px;
-    letter-spacing: 0.2px;
-}
-
-.sn-hub-sub {
-    font-size: 0.78rem;
-    color: #94a3b8;
-    margin-top: 1px;
-}
-
-.sn-hub-header-btn {
-    background: rgba(250, 204, 21, 0.12);
-    border: 1.2px solid rgba(250, 204, 21, 0.38);
-    color: #facc15;
-    font-size: 0.82rem;
-    font-weight: 700;
-    padding: 7px 14px;
-    border-radius: 8px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    transition: all 0.2s ease;
-}
-
-.sn-hub-header-btn:hover {
-    background: rgba(250, 204, 21, 0.25);
-    border-color: #facc15;
-    color: #ffffff;
-    box-shadow: 0 0 16px rgba(250, 204, 21, 0.3);
-    transform: translateY(-1px);
-}
-
-/* 2. Interactive 3-Card Multi-Ingest Grid */
-.sn-hub-cards-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    flex: 1;
-    min-height: 160px;
-}
-
-.sn-hub-action-card {
-    background: rgba(14, 18, 28, 0.75);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border: 1.2px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    padding: 14px;
+/* Professional Studio Media Ingest Drop Zone (Matching Clean Layout with Cyber-Gold Theme) */
+.clean-import-center-cta {
+    margin: auto;
+    width: 100%;
+    max-width: 520px;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    align-items: center;
+    justify-content: center;
+    padding: 38px 48px;
+    border: 1.5px dashed rgba(250, 204, 21, 0.35);
+    border-radius: 16px;
+    background: rgba(18, 22, 34, 0.52);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
     cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    user-select: none;
+    text-align: center;
+    box-shadow: 0 16px 45px rgba(0, 0, 0, 0.45);
     position: relative;
     overflow: hidden;
-    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.sn-hub-action-card:hover {
-    transform: translateY(-3px);
-    border-color: rgba(250, 204, 21, 0.55);
-    background: rgba(250, 204, 21, 0.05);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55), 0 0 20px rgba(250, 204, 21, 0.16);
+.clean-import-center-cta:hover {
+    border-color: #facc15;
+    background: rgba(250, 204, 21, 0.06);
+    transform: translateY(-2px);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 25px rgba(250, 204, 21, 0.22);
 }
 
-.sn-hub-action-card.highlight {
-    background: linear-gradient(145deg, rgba(250, 204, 21, 0.08) 0%, rgba(14, 18, 28, 0.8) 100%);
-    border-color: rgba(250, 204, 21, 0.35);
-}
-
-.sn-card-badge-top {
-    align-self: flex-start;
-    font-size: 0.65rem;
-    font-weight: 700;
-    padding: 2px 7px;
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.06);
-    color: #94a3b8;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    letter-spacing: 0.3px;
-}
-
-.sn-card-badge-top.gold {
-    background: rgba(250, 204, 21, 0.15);
+.clean-import-icon-box {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(250, 204, 21, 0.12);
+    border: 1.5px solid rgba(250, 204, 21, 0.45);
     color: #facc15;
-    border-color: rgba(250, 204, 21, 0.35);
-}
-
-.sn-card-icon-box {
-    width: 44px;
-    height: 44px;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #cbd5e1;
+    font-size: 1.65rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.25rem;
-    margin: 8px 0;
-    transition: transform 0.22s ease, box-shadow 0.22s ease;
+    margin-bottom: 14px;
+    box-shadow: 0 0 20px rgba(250, 204, 21, 0.25);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
-.sn-card-icon-box.gold {
-    background: rgba(250, 204, 21, 0.14);
-    border-color: rgba(250, 204, 21, 0.4);
-    color: #facc15;
-    box-shadow: 0 0 14px rgba(250, 204, 21, 0.2);
-}
-
-.sn-hub-action-card:hover .sn-card-icon-box {
+.clean-import-center-cta:hover .clean-import-icon-box {
     transform: scale(1.1);
-    box-shadow: 0 0 20px rgba(250, 204, 21, 0.35);
-    color: #facc15;
-    border-color: #facc15;
+    box-shadow: 0 0 30px rgba(250, 204, 21, 0.5);
 }
 
-.sn-card-title {
-    font-size: 0.94rem;
-    font-weight: 700;
+.clean-import-text {
+    font-size: 1.15rem;
+    font-weight: 800;
     color: #f8fafc;
-    margin-bottom: 3px;
+    letter-spacing: 0.3px;
     transition: color 0.15s ease;
 }
 
-.sn-hub-action-card:hover .sn-card-title {
-    color: #facc15;
+.clean-import-center-cta:hover .clean-import-text {
+    color: #fde047;
 }
 
-.sn-card-desc {
-    font-size: 0.73rem;
+.clean-import-sub {
+    font-size: 0.84rem;
     color: #94a3b8;
-    line-height: 1.38;
+    margin-top: 6px;
+    line-height: 1.45;
 }
 
-.sn-card-footer-cta {
+.clean-browse-cta-btn {
+    background: linear-gradient(135deg, #facc15 0%, #d97706 100%);
+    color: #080703;
+    border: none;
+    border-radius: 20px;
+    padding: 10px 26px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 18px rgba(250, 204, 21, 0.45);
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 0.76rem;
-    font-weight: 700;
-    color: #94a3b8;
-    margin-top: 10px;
+    gap: 8px;
     transition: all 0.2s ease;
 }
 
-.sn-card-footer-cta.gold {
-    color: #facc15;
+.clean-browse-cta-btn:hover {
+    transform: translateY(-2px) scale(1.03);
+    box-shadow: 0 6px 24px rgba(250, 204, 21, 0.65);
 }
 
-.sn-hub-action-card:hover .sn-card-footer-cta {
-    color: #facc15;
-    gap: 10px;
-}
-
-/* 3. Ambient Drag & Drop Bar */
-.sn-hub-drop-dock {
-    background: rgba(10, 14, 22, 0.65);
-    border: 1.5px dashed rgba(250, 204, 21, 0.3);
-    border-radius: 12px;
-    padding: 10px 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    cursor: pointer;
-    transition: all 0.25s ease;
-    flex-shrink: 0;
-}
-
-.sn-hub-drop-dock:hover {
-    border-color: #facc15;
-    background: rgba(250, 204, 21, 0.05);
-    box-shadow: 0 0 20px rgba(250, 204, 21, 0.15);
-    transform: translateY(-1px);
-}
-
-.sn-drop-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.sn-drop-pulse-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: rgba(250, 204, 21, 0.12);
-    border: 1.2px solid rgba(250, 204, 21, 0.35);
-    color: #facc15;
-    font-size: 1.1rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    transition: transform 0.2s ease;
-}
-
-.sn-hub-drop-dock:hover .sn-drop-pulse-icon {
-    transform: scale(1.1);
-    box-shadow: 0 0 16px rgba(250, 204, 21, 0.4);
-}
-
-.sn-drop-main-text {
-    font-size: 0.86rem;
-    font-weight: 700;
-    color: #f1f5f9;
-}
-
-.sn-hub-drop-dock:hover .sn-drop-main-text {
-    color: #facc15;
-}
-
-.sn-drop-sub-text {
-    font-size: 0.72rem;
-    color: #94a3b8;
-    margin-top: 1px;
-}
-
-.sn-drop-formats {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    flex-wrap: wrap;
-}
-
-.sn-fmt-tag {
-    font-size: 0.65rem;
-    font-family: 'JetBrains Mono', monospace;
-    font-weight: 700;
-    padding: 3px 8px;
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.05);
-    color: #cbd5e1;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.sn-fmt-tag.highlight {
-    background: rgba(250, 204, 21, 0.16);
-    color: #fde047;
-    border-color: rgba(250, 204, 21, 0.4);
-}
-
-/* 4. Bottom Studio Capabilities Specs */
-.sn-hub-specs-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-around;
-    padding: 7px 12px;
-    background: rgba(8, 11, 18, 0.6);
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    flex-shrink: 0;
-}
-
-.sn-spec-item {
+.clean-import-formats {
     display: flex;
     align-items: center;
     gap: 7px;
-    font-size: 0.72rem;
-    color: #94a3b8;
+    margin-top: 18px;
+    flex-wrap: wrap;
+    justify-content: center;
 }
 
-.sn-spec-item strong {
-    color: #facc15;
+.media-fmt-chip {
+    font-size: 0.68rem;
+    font-family: 'JetBrains Mono', monospace;
     font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #cbd5e1;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
-.sn-spec-item i {
-    color: #facc15;
-    font-size: 0.8rem;
-}
-
-.sn-spec-divider {
-    width: 1px;
-    height: 14px;
-    background: rgba(255, 255, 255, 0.08);
+.media-fmt-chip.highlight {
+    background: linear-gradient(135deg, rgba(250, 204, 21, 0.2) 0%, rgba(234, 179, 8, 0.06) 100%);
+    border-color: rgba(250, 204, 21, 0.45);
+    color: #fde047;
+    box-shadow: 0 0 14px rgba(250, 204, 21, 0.25);
 }
 
 /* Staged Video Ready to Export Card */
