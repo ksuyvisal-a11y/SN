@@ -1333,21 +1333,23 @@ function openExportOptionsModal() {
         const rawName = fName.replace(/\.[^/.]+$/, '');
         baseTitle = rawName.replace(/(?:_part|[-_]ep|[-_]e|\bep|\bepisode)[-_]?\d+/i, '').replace(/[-_]+$/, '').trim() || "Drama_Series";
 
-        const mergedName = `Dubbed_${baseTitle}_Full_Movie.mp4`;
-        if (descFullElem) descFullElem.textContent = `Joined into ${mergedName} — ${count} episodes merged`;
-        if (descBothElem) descBothElem.textContent = `Episodes + ${mergedName} (ទទួលបានទាំងពីរ)`;
+        const cleanSeriesTitle = baseTitle.replace(/^Dubbed_/i, '');
+        const mergedName = `Dubbed_${cleanSeriesTitle}_Full.mp4`;
+        if (descFullElem) descFullElem.textContent = `ច្របាច់បញ្ចូលគ្នាជា ${mergedName}`;
+        if (descBothElem) descBothElem.textContent = `ទទួលបានទាំងភាគៗ + ${mergedName}`;
 
     } else if (stagedVideoFile) {
         const vName = getMediaFileName(stagedVideoFile);
-        if (epCountElem) epCountElem.textContent = "1 video episode";
+        if (epCountElem) epCountElem.textContent = "1 វីដេអូ (Single Episode)";
         if (epChainElem) epChainElem.textContent = vName;
 
         const rawName = vName.replace(/\.[^/.]+$/, '');
         baseTitle = rawName || "Video";
-        const singleOutName = `Dubbed_${baseTitle}.mp4`;
+        const cleanBase = baseTitle.replace(/^Dubbed_/i, '');
+        const singleOutName = `Dubbed_${cleanBase}.mp4`;
 
-        if (descFullElem) descFullElem.textContent = `Full single video — ${singleOutName}`;
-        if (descBothElem) descBothElem.textContent = `Single video master — ${singleOutName}`;
+        if (descFullElem) descFullElem.textContent = `រក្សាទុកជា: ${singleOutName}`;
+        if (descBothElem) descBothElem.textContent = `រក្សាទុកជា: ${singleOutName}`;
     } else {
         showToast("សូមដាក់វីដេអូចូលជាមុនសិន រួចចុច Export!");
         openImportModal();

@@ -1568,13 +1568,13 @@
                 <!-- Modal Top Header -->
                 <div class="modal-top-header">
                     <div class="modal-title">
-                        <i class="fa-solid fa-file-export" style="color: #facc15;"></i>
-                        <span>Output (ទម្រង់ Export វីដេអូ)</span>
+                        <i class="fa-solid fa-film" style="color: #facc15;"></i>
+                        <span>ទម្រង់ Export វីដេអូ (Export Format)</span>
                     </div>
                     <button type="button" class="modal-close-icon-btn" onclick="closeModal('modal-export-options')">✕</button>
                 </div>
 
-                <div class="modal-inner-body" style="padding: 16px 22px 20px 22px; gap: 14px;">
+                <div class="modal-inner-body" style="padding: 14px 18px 16px 18px; gap: 12px;">
                     <!-- Episode Chain Subtitle -->
                     <div class="export-output-meta-sub" id="export-output-meta-sub">
                         <span id="export-output-ep-count">3 episodes</span> • <span id="export-output-ep-chain">Ep1 → Ep2 → Ep3</span>
@@ -1588,8 +1588,8 @@
                                 <i class="fa-solid fa-clapperboard"></i>
                             </div>
                             <div class="export-opt-text-wrap">
-                                <div class="export-opt-title">Separate episodes (បកប្រែជាភាគៗ)</div>
-                                <div class="export-opt-desc">One translated file per episode (សម្រាប់ផុសជាភាគៗ)</div>
+                                <div class="export-opt-title">បកប្រែជាភាគៗ (Separate Episodes)</div>
+                                <div class="export-opt-desc">រក្សាទុកឯកសារវីដេអូដាច់ដោយឡែកតាមភាគនីមួយៗ</div>
                             </div>
                             <div class="export-opt-check-wrap">
                                 <i class="fa-solid fa-check"></i>
@@ -1602,8 +1602,8 @@
                                 <i class="fa-solid fa-film"></i>
                             </div>
                             <div class="export-opt-text-wrap">
-                                <div class="export-opt-title">One full video (បញ្ចូលគ្នាជារឿងពេញមួយចប់)</div>
-                                <div class="export-opt-desc" id="export-desc-full">Joined into drama_Full_Movie.mp4 — episodes merged</div>
+                                <div class="export-opt-title">បញ្ចូលគ្នាជារឿងពេញ (Full Movie Merged)</div>
+                                <div class="export-opt-desc" id="export-desc-full">ច្របាច់គ្រប់ភាគទាំងអស់បញ្ចូលគ្នាជាវីដេអូពេញមួយចប់តែមួយ</div>
                             </div>
                             <div class="export-opt-check-wrap">
                                 <i class="fa-solid fa-check"></i>
@@ -1613,11 +1613,11 @@
                         <!-- Option 3: Both -->
                         <div class="export-opt-card" id="export-opt-both" onclick="selectExportOutputMode('both')">
                             <div class="export-opt-icon-wrap">
-                                <i class="fa-solid fa-folder-tree"></i>
+                                <i class="fa-solid fa-layer-group"></i>
                             </div>
                             <div class="export-opt-text-wrap">
-                                <div class="export-opt-title">Both (យកទាំងពីរ - ភាគៗ &amp; រឿងពេញ)</div>
-                                <div class="export-opt-desc" id="export-desc-both">Episodes + drama_Full_Movie.mp4 (ទទួលបានទាំងពីរ)</div>
+                                <div class="export-opt-title">យកទាំងពីរ (Both Episodes &amp; Full Movie)</div>
+                                <div class="export-opt-desc" id="export-desc-both">ទទួលបានទាំងវីដេអូតាមភាគ និងវីដេអូរឿងពេញមួយចប់</div>
                             </div>
                             <div class="export-opt-check-wrap">
                                 <i class="fa-solid fa-check"></i>
@@ -1627,15 +1627,15 @@
 
                     <!-- Location Hint -->
                     <div class="export-output-location-row">
-                        <i class="fa-solid fa-folder" style="color: #facc15;"></i>
-                        <span>Beside each video (creates an <strong>SN TOOL</strong> folder)</span>
+                        <i class="fa-solid fa-folder-open" style="color: #facc15;"></i>
+                        <span>រក្សាទុកក្នុង Folder <strong>SN TOOL</strong> ក្បែរវីដេអូដើម</span>
                     </div>
 
                     <!-- Footer Action Buttons -->
                     <div class="export-output-footer-btns">
                         <button type="button" class="export-btn-cancel" onclick="closeModal('modal-export-options')">Cancel</button>
                         <button type="button" class="export-btn-start" onclick="confirmAndExecuteExport()">
-                            <i class="fa-solid fa-play"></i> Start
+                            <i class="fa-solid fa-play"></i> Start Export
                         </button>
                     </div>
                 </div>
