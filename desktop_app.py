@@ -160,34 +160,72 @@ class NativeWindowApi:
             except Exception:
                 pass
 
+def get_standard_window_geometry():
+    """
+    Calculate ideal desktop window size & centered coordinates.
+    Provides standard desktop app dimensions (similar to CapCut, Photoshop, Telegram, Filmora):
+    - Width: ~72-74% of screen width (e.g. 1380px on 1080p)
+    - Height: ~78-82% of screen height (e.g. 840px on 1080p)
+    - Centered on primary monitor
+    - Taskbar completely visible and unobstructed
+    """
+    sw, sh = 1920, 1080
+    try:
+        import webview
+        screens = getattr(webview, 'screens', None)
+        if screens and len(screens) > 0:
+            sw = screens[0].width
+            sh = screens[0].height
+    except Exception:
+        pass
+
+    # Bounded ideal dimensions
+    if sw >= 2560:  # 2K / 4K
+        win_w = 1600
+        win_h = 980
+    elif sw >= 1920:  # 1080p (Standard Full HD)
+        win_w = 1380
+        win_h = 840
+    elif sw >= 1600:  # 900p / 1600x900
+        win_w = 1280
+        win_h = 780
+    else:  # 1366x768 or smaller laptop
+        win_w = min(1200, sw - 50)
+        win_h = min(700, sh - 60)
+
+    # Position in center of screen
+    x = max(0, (sw - win_w) // 2)
+    y = max(10, (sh - win_h - 48) // 2)  # accounting for ~48px Windows taskbar
+
+    return win_w, win_h, x, y
+
 def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PRO"):
     """
     Open application in a dedicated standalone native desktop window:
-    1. Try pywebview (Edge WebView2 native embed) in maximized mode
-    2. Try Standalone App Window Mode via Microsoft Edge or Google Chrome (--app=) maximized
+    1. Try pywebview (Edge WebView2 native embed) in standard centered desktop window size
+    2. Try Standalone App Window Mode via Microsoft Edge or Google Chrome (--app=) centered
     3. Fallback to default browser
     """
+    win_w, win_h, x, y = get_standard_window_geometry()
+
     # 1. Try pywebview
     try:
         import webview
         global _main_window
-        screens = getattr(webview, 'screens', None)
-        s = screens[0] if screens else None
-        sw = s.width if s else 1536
-        sh = s.height if s else 864
 
         api = NativeWindowApi()
         window = webview.create_window(
             title=title,
             url=url,
-            frameless=True,
+            frameless=False,
             easy_drag=True,
-            maximized=True,
-            width=sw,
-            height=sh,
-            x=0,
-            y=0,
-            min_size=(1024, 680),
+            maximized=False,
+            width=win_w,
+            height=win_h,
+            x=x,
+            y=y,
+            resizable=True,
+            min_size=(1024, 650),
             background_color="#08090d",
             text_select=True,
             zoomable=True,
@@ -195,19 +233,12 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
         )
         _main_window = window
 
-        def on_gui_ready(w):
-            try:
-                time.sleep(0.2)
-                w.maximize()
-            except Exception:
-                pass
-
-        webview.start(on_gui_ready, window, private_mode=False, gui='edgechromium')
+        webview.start(private_mode=False, gui='edgechromium')
         return
     except Exception as e:
         print(f"pywebview notice: {e}")
 
-    # 2. Try Native Desktop App Mode via Edge or Chrome (Standalone window, zero browser chrome/tabs, maximized)
+    # 2. Try Native Desktop App Mode via Edge or Chrome (Standalone window, zero browser chrome/tabs, centered)
     app_browsers = [
         os.path.expandvars(r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"),
         os.path.expandvars(r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"),
@@ -219,7 +250,7 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
     for exe in app_browsers:
         if os.path.exists(exe):
             try:
-                cmd = [exe, f"--app={url}", "--start-maximized", "--window-position=0,0"]
+                cmd = [exe, f"--app={url}", f"--window-size={win_w},{win_h}", f"--window-position={x},{y}"]
                 t0 = time.time()
                 proc = subprocess.Popen(cmd)
                 proc.wait()
