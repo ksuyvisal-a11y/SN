@@ -104,6 +104,27 @@ button, input, select, textarea {
 }
 
 /* ==========================================================================
+   WINDOW STATE: MAXIMIZED FULL SCREEN VS RESTORED SMALL WINDOW
+   When Maximized: Lock window firmly, disable all dragging, edge-to-edge layout.
+   When Restored: Allow dragging left/right/up/down via header bar.
+   ========================================================================== */
+body.is-maximized {
+    padding: 0 !important;
+}
+
+body.is-maximized .unich-app-container {
+    border-radius: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+body.is-maximized .unich-header-bar,
+body.is-maximized .pywebview-drag-region,
+body.is-maximized [data-drag-region] {
+    -webkit-app-region: no-drag !important;
+}
+
+/* ==========================================================================
    1. TOP NAVIGATION BAR (Integrated Top Row Inside Floating Card)
    ========================================================================== */
 .unich-header-bar {
@@ -121,12 +142,17 @@ button, input, select, textarea {
 }
 
 .unich-header-bar button,
+.unich-header-bar a,
+.unich-header-bar input,
+.unich-header-bar select,
+.unich-header-bar textarea,
 .unich-header-bar .brand-badge-wrapper,
 .unich-header-bar .power-dropdown-wrapper,
 .unich-header-bar .header-win-controls,
 .unich-header-bar .win-btn,
-.unich-header-bar .brand-toggle-pill {
-    -webkit-app-region: no-drag;
+.unich-header-bar .brand-toggle-pill,
+.unich-header-bar .nav-pill-btn {
+    -webkit-app-region: no-drag !important;
 }
 
 /* Left Brand & 3D Logo Badge */

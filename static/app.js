@@ -20,32 +20,100 @@ let dlHasMore = true;
 let dlInfiniteScrollAttached = false;
 let currentHwid = "";
 
+// ============================================================================
+// WINDOW STATE & DYNAMIC DRAG MANAGEMENT
+// - Maximized: STRICTLY block dragging, no following mouse, edge-to-edge layout
+// - Small / Restored: Allow dragging left/right/up/down via header bar
+// - Mouse guard: STRICTLY forbid dragging on right-click or middle-click
+// ============================================================================
+function setWindowMaximizedState(isMax) {
+    const body = document.body;
+    const header = document.querySelector('.unich-header-bar');
+    const maxBtn = document.getElementById('win-btn-maximize') || document.querySelector('.win-btn[title="Maximize"], .win-btn[title="Restore Down"]');
+
+    if (isMax) {
+        body.classList.add('is-maximized');
+        if (header) {
+            header.classList.remove('pywebview-drag-region');
+        }
+        if (maxBtn) {
+            maxBtn.innerHTML = '❐';
+            maxBtn.title = 'Restore Down';
+        }
+    } else {
+        body.classList.remove('is-maximized');
+        if (header) {
+            header.classList.add('pywebview-drag-region');
+        }
+        if (maxBtn) {
+            maxBtn.innerHTML = '▢';
+            maxBtn.title = 'Maximize';
+        }
+    }
+}
+
+function checkWindowState() {
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.is_window_maximized) {
+        window.pywebview.api.is_window_maximized().then(isMax => {
+            setWindowMaximizedState(Boolean(isMax));
+        }).catch(() => {
+            detectMaximizeFromScreen();
+        });
+    } else {
+        detectMaximizeFromScreen();
+    }
+}
+
+function detectMaximizeFromScreen() {
+    const sw = window.screen.availWidth || window.screen.width || 1920;
+    const sh = window.screen.availHeight || window.screen.height || 1080;
+    const isMax = (window.innerWidth >= sw - 25 && window.innerHeight >= sh - 35);
+    setWindowMaximizedState(isMax);
+}
+
 function appMinimizeWindow() {
     if (window.pywebview && window.pywebview.api && window.pywebview.api.minimize_window) {
         window.pywebview.api.minimize_window();
     }
 }
 
-function appMaximizeWindow() {
+async function appMaximizeWindow() {
     if (window.pywebview && window.pywebview.api && window.pywebview.api.maximize_window) {
-        window.pywebview.api.maximize_window();
+        try {
+            const res = await window.pywebview.api.maximize_window();
+            if (res && typeof res.maximized === 'boolean') {
+                setWindowMaximizedState(res.maximized);
+                return;
+            }
+        } catch(e) {}
+        setTimeout(checkWindowState, 80);
+        setTimeout(checkWindowState, 250);
     } else {
         try {
             if (!document.fullscreenElement) {
                 if (document.documentElement.requestFullscreen) {
-                    document.documentElement.requestFullscreen();
+                    await document.documentElement.requestFullscreen();
                 } else if (document.documentElement.webkitRequestFullscreen) {
-                    document.documentElement.webkitRequestFullscreen();
+                    await document.documentElement.webkitRequestFullscreen();
                 }
+                setWindowMaximizedState(true);
             } else {
                 if (document.exitFullscreen) {
-                    document.exitFullscreen();
+                    await document.exitFullscreen();
                 } else if (document.webkitExitFullscreen) {
-                    document.webkitExitFullscreen();
+                    await document.webkitExitFullscreen();
                 }
+                setWindowMaximizedState(false);
             }
         } catch(e) {}
     }
+}
+
+function appHeaderDblClick(e) {
+    if (e && e.target && e.target.closest('button, a, input, select, textarea, .win-btn, .nav-pill-btn, .brand-toggle-pill, .power-dropdown-wrapper')) {
+        return;
+    }
+    appMaximizeWindow();
 }
 
 function appCloseWindow() {
@@ -56,11 +124,51 @@ function appCloseWindow() {
     }
 }
 
+// Global Drag & Mouse Interaction Guard:
+// 1. Right-click or middle-click must NEVER drag the window under any circumstances.
+// 2. When maximized, dragging is completely forbidden.
+// 3. Only when in small / restored window mode AND clicking on non-interactive header regions with Left Mouse Button (e.button === 0), allow dragging.
+window.addEventListener('mousedown', function(e) {
+    // If not left button (e.button !== 0): strictly block any drag attempts
+    if (e.button !== 0) {
+        const header = e.target.closest('.unich-header-bar, .pywebview-drag-region, [data-drag-region]');
+        if (header) {
+            e.stopImmediatePropagation();
+        }
+        return;
+    }
+
+    // If window is MAXIMIZED: strictly block any dragging
+    if (document.body.classList.contains('is-maximized')) {
+        const header = e.target.closest('.unich-header-bar, .pywebview-drag-region, [data-drag-region]');
+        if (header) {
+            e.stopImmediatePropagation();
+        }
+        return;
+    }
+
+    // In restored / small mode:
+    // If clicking on interactive elements inside header, don't trigger drag
+    const interactive = e.target.closest('button, a, input, select, textarea, .win-btn, .nav-pill-btn, .brand-toggle-pill, .power-dropdown-wrapper');
+    if (interactive) {
+        e.stopPropagation();
+    }
+}, true); // Capture phase ensures we intercept before pywebview's drag handler
+
+window.addEventListener('resize', () => {
+    checkWindowState();
+});
+
+window.addEventListener('pywebviewready', () => {
+    setTimeout(checkWindowState, 100);
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     initApp();
 });
 
 async function initApp() {
+    checkWindowState();
     setupOutsideClickHandlers();
     checkDeviceLicenseStatus();
     loadDownloaderPlatforms();

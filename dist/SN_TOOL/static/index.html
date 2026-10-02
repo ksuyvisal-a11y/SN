@@ -20,7 +20,7 @@
         <!-- ====================================================================
              TOP NAVBAR
              ==================================================================== -->
-        <header class="unich-header-bar pywebview-drag-region" ondblclick="appMaximizeWindow()">
+        <header class="unich-header-bar pywebview-drag-region" ondblclick="appHeaderDblClick(event)">
             <!-- Left Brand & 3D Logo Badge -->
             <div class="header-brand-group">
                 <div class="brand-badge-wrapper" title="SN TOOL Studio Edition">
@@ -91,7 +91,7 @@
             <!-- Sleek Integrated Frameless Window Controls -->
             <div class="header-win-controls" style="-webkit-app-region: no-drag;">
                 <button type="button" class="win-btn" title="Minimize" onclick="appMinimizeWindow()">―</button>
-                <button type="button" class="win-btn" title="Maximize" onclick="appMaximizeWindow()">▢</button>
+                <button type="button" class="win-btn" id="win-btn-maximize" title="Maximize" onclick="appMaximizeWindow()">▢</button>
                 <button type="button" class="win-btn close" title="Close" onclick="appCloseWindow()">✕</button>
             </div>
         </header>

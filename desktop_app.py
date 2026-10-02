@@ -107,6 +107,37 @@ def start_server():
     app.run(host="127.0.0.1", port=8000, debug=False, use_reloader=False)
 
 _main_window = None
+
+def is_window_zoomed():
+    """Check if the native window is currently maximized."""
+    global _main_window
+    if not _main_window:
+        return False
+    try:
+        if sys.platform == "win32":
+            import ctypes
+            hwnd = None
+            if hasattr(_main_window, 'native') and _main_window.native:
+                try:
+                    hwnd = int(_main_window.native.Handle)
+                except Exception:
+                    pass
+            if not hwnd:
+                hwnd = ctypes.windll.user32.FindWindowW(None, "SN TOOL - STUDIO PRO")
+            if hwnd:
+                return bool(ctypes.windll.user32.IsZoomed(hwnd))
+    except Exception:
+        pass
+    try:
+        import webview
+        screens = getattr(webview, 'screens', None)
+        s = screens[0] if screens else None
+        sw = s.width if s else 1920
+        sh = s.height if s else 1080
+        return (_main_window.width >= int(sw * 0.9) and _main_window.height >= int(sh * 0.85))
+    except Exception:
+        return False
+
 class NativeWindowApi:
     def minimize_window(self):
         global _main_window
@@ -120,21 +151,23 @@ class NativeWindowApi:
         global _main_window
         if _main_window:
             try:
-                import webview
-                screens = getattr(webview, 'screens', None)
-                s = screens[0] if screens else None
-                sw = s.width if s else 1920
-                sh = s.height if s else 1080
-                # If window is already filling 90% of screen width and 85% of height, toggle restore
-                if _main_window.width >= int(sw * 0.9) and _main_window.height >= int(sh * 0.85):
+                was_zoomed = is_window_zoomed()
+                if was_zoomed:
                     _main_window.restore()
+                    return {"maximized": False}
                 else:
                     _main_window.maximize()
+                    return {"maximized": True}
             except Exception:
                 try:
                     _main_window.maximize()
+                    return {"maximized": True}
                 except Exception:
                     pass
+        return {"maximized": False}
+
+    def is_window_maximized(self):
+        return is_window_zoomed()
 
     def toggle_fullscreen(self):
         global _main_window
@@ -218,7 +251,7 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
             title=title,
             url=url,
             frameless=True,
-            easy_drag=True,
+            easy_drag=False,  # Prevent pywebview's buggy global mousedown listener from moving window on right-click or arbitrary clicks
             shadow=True,
             maximized=False,
             width=win_w,
@@ -233,6 +266,20 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
             js_api=api
         )
         _main_window = window
+
+        # Safeguard move calls: NEVER move or drag window when it is maximized
+        try:
+            orig_move = window.move
+            def safe_window_move(x, y):
+                try:
+                    if is_window_zoomed():
+                        return  # Window is MAXIMIZED: strictly block any dragging/movement!
+                except Exception:
+                    pass
+                return orig_move(x, y)
+            window.move = safe_window_move
+        except Exception:
+            pass
 
         def on_gui_ready(w):
             if sys.platform == "win32":
