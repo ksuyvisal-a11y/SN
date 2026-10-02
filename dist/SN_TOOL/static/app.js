@@ -1837,12 +1837,13 @@ function filterByPlatform(platId, platName, totalCount, platLogo) {
     if (countLabel) {
         const countDisplay = (totalCount !== undefined && totalCount !== null)
             ? totalCount.toLocaleString()
-            : (platId === 'hongguo' ? '49,591' : (platId === 'ai_drama' ? '24,081' : (platId === 'shortmax' ? '5,206' : (platId === 'reelshort' ? '5,723' : '84,601'))));
+            : (platId === 'hongguo' ? '49,591' : (platId === 'ai_drama' ? '24,081' : (platId === 'shortmax' ? '5,206' : (platId === 'reelshort' ? '5,723' : (platId === 'freereels' ? '2,450' : '87,051')))));
         let headerTitle = `Top Dramas on ${escapeHtml(platName)}`;
         if (platId === 'hongguo') headerTitle = 'Top 100 on 红果 right now';
         else if (platId === 'ai_drama') headerTitle = 'Top Authentic Chinese AI Short Dramas (AI漫剧)';
         else if (platId === 'shortmax') headerTitle = 'ShortMax Short Dramas';
         else if (platId === 'reelshort') headerTitle = 'ReelShort English Vertical Short Dramas';
+        else if (platId === 'freereels') headerTitle = 'FreeReels Short Dramas';
         else if (platId === 'all') headerTitle = 'Top Dramas Across All Platforms';
         countLabel.innerHTML = `<span class="dl-clapper-emoji">🎬</span> ${headerTitle} (${countDisplay})`;
     }
@@ -1855,6 +1856,8 @@ function filterByPlatform(platId, platName, totalCount, platLogo) {
             input.placeholder = 'Search Chinese AI short dramas (ស្វែងរក រឿង AI ចិន)...';
         } else if (platId === 'reelshort') {
             input.placeholder = 'Paste ReelShort URL or search (បិទភ្ជាប់ Link ReelShort)...';
+        } else if (platId === 'freereels') {
+            input.placeholder = 'Paste FreeReels URL or search (បិទភ្ជាប់ Link FreeReels)...';
         } else {
             input.placeholder = 'Paste a Drama URL or search 79,004 dramas...';
         }
@@ -1968,6 +1971,7 @@ async function loadDramaCatalog(platformId = "hongguo", query = "", category = "
         if (platformId === 'shortmax') platTitle = 'ShortMax';
         else if (platformId === 'ai_drama') platTitle = 'AI Dramas';
         else if (platformId === 'reelshort') platTitle = 'ReelShort';
+        else if (platformId === 'freereels') platTitle = 'FreeReels';
         else if (platformId === 'all') platTitle = 'All Platforms';
         container.innerHTML = `<div style="grid-column: 1 / -1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding: 48px; color: #38bdf8;"><i class="fa-solid fa-spinner fa-spin" style="font-size: 1.8rem; margin-bottom:12px;"></i><div style="font-size:0.85rem; font-weight:600; color:#e2e8f0;">កំពុងទាញបញ្ជីរឿង ${platTitle}...</div></div>`;
     }
@@ -1984,8 +1988,8 @@ async function loadDramaCatalog(platformId = "hongguo", query = "", category = "
             const countLabel = document.getElementById('dl-catalog-count-label');
             if (countLabel) {
                 let headerTitle = category === 'all'
-                    ? (platformId === 'shortmax' ? 'ShortMax Short Dramas' : (platformId === 'ai_drama' ? 'Top Authentic Chinese AI Short Dramas (AI漫剧)' : (platformId === 'reelshort' ? 'ReelShort English Vertical Short Dramas' : (platformId === 'hongguo' ? 'Top 100 on 红果 right now' : 'Top Dramas Across All Platforms'))))
-                    : `${platformId === 'shortmax' ? 'ShortMax' : (platformId === 'ai_drama' ? 'AI Drama' : (platformId === 'reelshort' ? 'ReelShort' : 'Category'))}: ${category.toUpperCase()}`;
+                    ? (platformId === 'shortmax' ? 'ShortMax Short Dramas' : (platformId === 'ai_drama' ? 'Top Authentic Chinese AI Short Dramas (AI漫剧)' : (platformId === 'reelshort' ? 'ReelShort English Vertical Short Dramas' : (platformId === 'freereels' ? 'FreeReels Short Dramas' : (platformId === 'hongguo' ? 'Top 100 on 红果 right now' : 'Top Dramas Across All Platforms')))))
+                    : `${platformId === 'shortmax' ? 'ShortMax' : (platformId === 'ai_drama' ? 'AI Drama' : (platformId === 'reelshort' ? 'ReelShort' : (platformId === 'freereels' ? 'FreeReels' : 'Category')))}: ${category.toUpperCase()}`;
                 countLabel.innerHTML = `<span class="dl-clapper-emoji">🎬</span> ${headerTitle} (${dlTotalDramasCount.toLocaleString()})`;
             }
 
@@ -2026,17 +2030,20 @@ async function loadDramaCatalog(platformId = "hongguo", query = "", category = "
             }
         } else if (!append) {
             dlHasMore = false;
-            if (platformId === 'shortmax') {
+            if (platformId === 'shortmax' || platformId === 'freereels') {
                 const countLabel = document.getElementById('dl-catalog-count-label');
+                const isFR = platformId === 'freereels';
+                const pTitle = isFR ? 'FreeReels' : 'ShortMax';
+                const pLogo = isFR ? 'freereels_logo.png' : 'shortmax_logo.png';
                 if (countLabel) {
-                    countLabel.innerHTML = `<span class="dl-clapper-emoji">🎬</span> ShortMax Short Dramas (0)`;
+                    countLabel.innerHTML = `<span class="dl-clapper-emoji">🎬</span> ${pTitle} Short Dramas (0)`;
                 }
                 container.innerHTML = `
                     <div style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 50px 20px; text-align: center;">
-                        <img src="shortmax_logo.png" style="width: 56px; height: 56px; border-radius: 12px; margin-bottom: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); object-fit: contain;" onerror="this.style.display='none'">
-                        <div style="font-size: 0.95rem; font-weight: 700; color: #f8fafc; margin-bottom: 8px;">មិនទាន់មានរឿងនៅក្នុង ShortMax នៅឡើយទេ</div>
+                        <img src="${pLogo}" style="width: 56px; height: 56px; border-radius: 12px; margin-bottom: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); object-fit: contain;" onerror="this.style.display='none'">
+                        <div style="font-size: 0.95rem; font-weight: 700; color: #f8fafc; margin-bottom: 8px;">មិនទាន់មានរឿងនៅក្នុង ${pTitle} នៅឡើយទេ</div>
                         <div style="font-size: 0.78rem; color: #94a3b8; max-width: 380px; line-height: 1.6;">
-                            លោកអ្នកអាចចម្លង (Paste) តំណភ្ជាប់ Link រឿងពី <b>ShortMax</b> ដាក់ចូលក្នុងប្រអប់ស្វែងរកខាងលើ រួចចុច <b>Enter</b> ដើម្បីទាញយកភាគវីដេអូដោយស្វ័យប្រវត្តិ។
+                            លោកអ្នកអាចចម្លង (Paste) តំណភ្ជាប់ Link រឿងពី <b>${pTitle}</b> ដាក់ចូលក្នុងប្រអប់ស្វែងរកខាងលើ រួចចុច <b>Enter</b> ដើម្បីទាញយកភាគវីដេអូដោយស្វ័យប្រវត្តិ។
                         </div>
                     </div>
                 `;
