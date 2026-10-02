@@ -188,7 +188,7 @@
                         <div class="studio-source-clean-view" id="studio-source-clean-view">
                             <div class="minimal-import-canvas" id="clean-import-prompt" onclick="openImportModal()">
                                 <div class="minimal-import-icon-box">
-                                    <i class="fa-solid fa-clapperboard"></i>
+                                    <img src="import_logo.png?v=2.0" class="minimal-import-logo" alt="Studio Logo" draggable="false">
                                 </div>
                                 <div class="minimal-import-heading">Drag &amp; Drop Video Files or Folders Here</div>
                                 <div class="minimal-import-sub">Supports MP4, MKV, MOV, TS, AVI, WEBM &amp; Series Folders</div>
@@ -332,6 +332,67 @@
                                                             </div>
                                                         </div>
                                                         <span class="mask-shape-label">Rectangle</span>
+                                                    </div>
+                                                </div>
+
+                                                <div class="blur-opt-divider"></div>
+
+                                                <!-- Feather & Round Corners Precision Controls (Matching Reference Image) -->
+                                                <div class="mask-params-container">
+                                                    <!-- Feather Control Row -->
+                                                    <div class="mask-param-row">
+                                                        <div class="mask-param-label-row">
+                                                            <span class="mask-param-title">Feather</span>
+                                                        </div>
+                                                        <div class="mask-param-control-row">
+                                                            <input type="range" id="input-blur-feather" min="0" max="100" value="0" class="mask-param-slider" oninput="onBlurFeatherChange(this.value, event)">
+                                                            <div class="mask-param-box-wrap">
+                                                                <div class="mask-param-val-box">
+                                                                    <input type="number" id="num-blur-feather" min="0" max="100" value="0" class="mask-param-num-input" oninput="onBlurFeatherChange(this.value, event)">
+                                                                    <div class="mask-param-stepper-col">
+                                                                        <button type="button" class="mask-stepper-btn" onclick="stepBlurParam('feather', 1, event)" title="Increase Feather">
+                                                                            <i class="fa-solid fa-caret-up"></i>
+                                                                        </button>
+                                                                        <button type="button" class="mask-stepper-btn" onclick="stepBlurParam('feather', -1, event)" title="Decrease Feather">
+                                                                            <i class="fa-solid fa-caret-down"></i>
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                                <button type="button" class="mask-diamond-reset-btn" onclick="resetBlurParam('feather', event)" title="Reset Feather (0)">
+                                                                    <svg class="mask-diamond-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                        <path d="M12 2L22 12L12 22L2 12Z" />
+                                                                    </svg>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Round Corners Control Row -->
+                                                    <div class="mask-param-row">
+                                                        <div class="mask-param-label-row">
+                                                            <span class="mask-param-title">Round corners</span>
+                                                        </div>
+                                                        <div class="mask-param-control-row">
+                                                            <input type="range" id="input-blur-corners" min="0" max="100" value="0" class="mask-param-slider" oninput="onBlurCornersChange(this.value, event)">
+                                                            <div class="mask-param-box-wrap">
+                                                                <div class="mask-param-val-box">
+                                                                    <input type="number" id="num-blur-corners" min="0" max="100" value="0" class="mask-param-num-input" oninput="onBlurCornersChange(this.value, event)">
+                                                                    <div class="mask-param-stepper-col">
+                                                                        <button type="button" class="mask-stepper-btn" onclick="stepBlurParam('corners', 1, event)" title="Increase Round Corners">
+                                                                            <i class="fa-solid fa-caret-up"></i>
+                                                                        </button>
+                                                                        <button type="button" class="mask-stepper-btn" onclick="stepBlurParam('corners', -1, event)" title="Decrease Round Corners">
+                                                                            <i class="fa-solid fa-caret-down"></i>
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                                <button type="button" class="mask-diamond-reset-btn" onclick="resetBlurParam('corners', event)" title="Reset Round Corners (0)">
+                                                                    <svg class="mask-diamond-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                        <path d="M12 2L22 12L12 22L2 12Z" />
+                                                                    </svg>
+                                                                </button>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
 

@@ -18,6 +18,7 @@ import urllib.parse
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple, Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import difflib
 import yt_dlp
 from audio_processor import get_ffmpeg_path, get_silent_kwargs
 
@@ -83,6 +84,61 @@ def normalize_drama_title(title: str) -> str:
     if not title:
         return ""
     return re.sub(r'[^\w\u4e00-\u9fff]', '', title).strip().lower()
+
+
+def clean_drama_title_for_comparison(title: str) -> str:
+    """Strip all punctuation, season, episode, year, Khmer, and quality noise to extract core title."""
+    if not title:
+        return ""
+    t = str(title)
+    # Strip brackets and enclosed text if it is metadata
+    t = re.sub(r'[《》【】（）()「」『』\[\]]', '', t)
+    t = re.sub(r'第?[0-9一二三四五六七八九十]+[季部集]', '', t)
+    t = re.sub(r'[0-9]+-[0-9]+集', '', t)
+    t = re.sub(r'20[2-3][0-9]年?', '', t)
+    t = re.sub(r'最新|短剧|合集|[全大]结局|全集|完结|4K|1080p|HD|蓝光|高清|国语|精校版|超清|Full Movie|Episode\s*[0-9]+', '', t, flags=re.I)
+    # Strip Khmer unicode range \u1780-\u17ff
+    t = re.sub(r'[\u1780-\u17ff]+', '', t)
+    # Retain Chinese characters and alphanumeric tokens only
+    return re.sub(r'[^\w\u4e00-\u9fff]', '', t).strip().lower()
+
+
+def compute_drama_title_similarity(target_title: str, candidate_title: str) -> float:
+    """
+    Computes a strict, reliable similarity score (0.0 to 1.0) between target drama and candidate title.
+    Requires minimum 0.78 score to prevent cross-drama false positives.
+    """
+    if not target_title or not candidate_title:
+        return 0.0
+
+    n_target = clean_drama_title_for_comparison(target_title)
+    n_cand = clean_drama_title_for_comparison(candidate_title)
+
+    if not n_target or not n_cand:
+        return 0.0
+
+    # 1. Exact match
+    if n_target == n_cand:
+        return 1.0
+
+    # 2. Substring containment with length ratio penalty
+    if n_target in n_cand:
+        sub_ratio = len(n_target) / len(n_cand)
+        if sub_ratio >= 0.70:
+            return sub_ratio
+    elif n_cand in n_target:
+        sub_ratio = len(n_cand) / len(n_target)
+        if sub_ratio >= 0.75:
+            return sub_ratio
+
+    # 3. Sequence Matcher ratio
+    seq_ratio = difflib.SequenceMatcher(None, n_target, n_cand).ratio()
+
+    # 4. Character set Jaccard
+    s1, s2 = set(n_target), set(n_cand)
+    jaccard = len(s1 & s2) / len(s1 | s2) if (s1 | s2) else 0.0
+
+    return max(seq_ratio, jaccard if jaccard > 0.85 else 0.0)
 
 
 _AI_DRAMAS_STREAM_CACHE: Optional[Dict[str, Any]] = None
@@ -161,6 +217,24 @@ def resolve_hongguo_series_vids(series_id: str) -> List[str]:
         with urllib.request.urlopen(req, timeout=4) as res:
             html = res.read().decode('utf-8', errors='ignore')
         
+        # 1. First inspect router data directly on detail page for full official vid_list
+        m = re.search(r'_ROUTER_DATA\s*=\s*(\{.*?\});', html)
+        if m:
+            try:
+                data = json.loads(m.group(1))
+                loader_data = data.get("loaderData", {})
+                for page_k in ["detail_page", "detail_layout"]:
+                    page_obj = loader_data.get(page_k, {})
+                    if isinstance(page_obj, dict):
+                        sd = page_obj.get("seriesDetail", {})
+                        if isinstance(sd, dict):
+                            full_vids = sd.get("vid_list", [])
+                            if full_vids and len(full_vids) > 0:
+                                _HONGGUO_VIDS_CACHE[series_clean] = full_vids
+                                return full_vids
+            except Exception:
+                pass
+
         ordered_vids = []
         seen = set()
         for v in re.findall(r'/player/' + re.escape(series_clean) + r'/(\d+)', html):
@@ -168,22 +242,25 @@ def resolve_hongguo_series_vids(series_id: str) -> List[str]:
                 seen.add(v)
                 ordered_vids.append(v)
                 
-        # Also inspect player page router data to get complete vid_list
+        # 2. Also inspect player page router data to get complete vid_list
         if ordered_vids:
             first_vid = ordered_vids[0]
             player_url = f"https://hongguoduanju.com/player/{series_clean}/{first_vid}"
-            req2 = urllib.request.Request(player_url, headers=HONGGUO_HEADERS)
-            with urllib.request.urlopen(req2, timeout=4) as res2:
-                html2 = res2.read().decode('utf-8', errors='ignore')
-            m = re.search(r'_ROUTER_DATA\s*=\s*(\{.*?\});', html2)
-            if m:
-                data = json.loads(m.group(1))
-                page_data = data.get("loaderData", {}).get("player_(series_id)/(vid)/page", {})
-                series_detail = page_data.get("seriesDetail", {})
-                full_vids = series_detail.get("vid_list", [])
-                if full_vids:
-                    _HONGGUO_VIDS_CACHE[series_clean] = full_vids
-                    return full_vids
+            try:
+                req2 = urllib.request.Request(player_url, headers=HONGGUO_HEADERS)
+                with urllib.request.urlopen(req2, timeout=4) as res2:
+                    html2 = res2.read().decode('utf-8', errors='ignore')
+                m2 = re.search(r'_ROUTER_DATA\s*=\s*(\{.*?\});', html2)
+                if m2:
+                    data2 = json.loads(m2.group(1))
+                    page_data = data2.get("loaderData", {}).get("player_(series_id)/(vid)/page", {})
+                    series_detail = page_data.get("seriesDetail", {})
+                    full_vids = series_detail.get("vid_list", [])
+                    if full_vids:
+                        _HONGGUO_VIDS_CACHE[series_clean] = full_vids
+                        return full_vids
+            except Exception:
+                pass
         if ordered_vids:
             _HONGGUO_VIDS_CACHE[series_clean] = ordered_vids
         return ordered_vids
@@ -217,7 +294,7 @@ def get_hongguo_episode_real_stream_url(series_id: str, vid: str) -> Optional[st
 
 
 def get_search_queries_for_title(raw_title: str) -> List[str]:
-    """Generate intelligent list of query candidates from title."""
+    """Generate intelligent list of query candidates from title, strictly avoiding aggressive short truncation."""
     if not raw_title:
         return []
     candidates = []
@@ -225,7 +302,7 @@ def get_search_queries_for_title(raw_title: str) -> List[str]:
     def add_cand(c: str):
         c = c.strip()
         c = re.sub(r'^[^\w\u4e00-\u9fff]+|[^\w\u4e00-\u9fff]+$', '', c)
-        if c and len(c) >= 2 and c not in candidates:
+        if c and len(c) >= 4 and c not in candidates:
             candidates.append(c)
 
     bracketed = re.findall(r'[《【（「『\[](.*?)[》】）」』\]]', raw_title)
@@ -233,6 +310,7 @@ def get_search_queries_for_title(raw_title: str) -> List[str]:
 
     for base in base_titles:
         clean = base.split(' - ')[0].split(' (')[0].strip()
+        clean = re.sub(r'[\u1780-\u17ff]+', '', clean).strip()  # Strip Khmer noise
         clean_no_season = re.sub(r'第[一二三四五六七八九十0-9]+[季部]', '', clean).strip()
         clean_no_season = re.sub(r'[\(（]?[全大]结局[\)）]?', '', clean_no_season).strip()
         clean_no_season = re.sub(r'[\(（]?全集[\)）]?', '', clean_no_season).strip()
@@ -240,20 +318,14 @@ def get_search_queries_for_title(raw_title: str) -> List[str]:
         clean_no_season = re.sub(r'[\(（]?第?[0-9一二三四五六七八九十]+集[\)）]?', '', clean_no_season).strip()
         add_cand(clean_no_season)
 
-        parts = [p.strip() for p in re.split(r'[：:，,！？!？、·\s\-_—]+', clean_no_season) if p.strip()]
-        for p in parts:
-            if len(p) >= 2:
-                add_cand(p)
-
         ch_chars = "".join(re.findall(r'[\u4e00-\u9fff]', clean_no_season))
-        if len(ch_chars) >= 4:
-            add_cand(ch_chars[:4])
-            if len(ch_chars) >= 6:
-                add_cand(ch_chars[:5])
-        elif len(ch_chars) >= 2:
+        if ch_chars:
             add_cand(ch_chars)
+            # Only add prefix if title is exceptionally long (>= 10 characters) and prefix retains at least 8 characters
+            if len(ch_chars) >= 10:
+                add_cand(ch_chars[:8])
 
-    return candidates[:6]
+    return candidates[:4]
 
 
 def parse_vod_play_url(play_url_raw: str, api_name: str = "VOD") -> List[Dict[str, Any]]:
@@ -325,15 +397,28 @@ def resolve_short_drama_stream_cluster(raw_title: str) -> List[Dict[str, Any]]:
                 items = data.get('list', [])
                 if not items:
                     return []
-                best_item = items[0]
-                q_clean = q.lower().strip()
+
+                best_item = None
+                best_score = 0.0
+
+                # STRICT VERIFICATION: Every candidate MUST match raw_title with score >= 0.78
                 for it in items:
-                    vn = str(it.get('vod_name', '')).lower()
-                    if vn == q_clean or q_clean in vn or vn in q_clean:
+                    vn = str(it.get('vod_name', '')).strip()
+                    score = compute_drama_title_similarity(raw_title, vn)
+                    if score >= 0.78 and score > best_score:
+                        best_score = score
                         best_item = it
-                        break
+
+                if not best_item:
+                    # REJECT: No item sufficiently matched requested drama title!
+                    return []
+
                 play_url = best_item.get('vod_play_url', '')
-                return parse_vod_play_url(play_url, api_name)
+                parsed = parse_vod_play_url(play_url, api_name)
+                for p_it in parsed:
+                    p_it["matched_vod_name"] = best_item.get('vod_name', '')
+                    p_it["similarity_score"] = round(best_score, 3)
+                return parsed
         except Exception:
             return []
 
@@ -352,8 +437,9 @@ def resolve_short_drama_stream_cluster(raw_title: str) -> List[Dict[str, Any]]:
             except Exception:
                 pass
 
-    # If primary query returned >= 10 episodes, we have a complete series!
-    if not any(len(c) >= 10 for c in all_found_candidate_sets) and len(queries) > 1:
+    # Search secondary queries if we haven't found a sufficiently full series (>= 40 episodes)
+    max_c_len = max([len(c) for c in all_found_candidate_sets], default=0)
+    if max_c_len < 40 and len(queries) > 1:
         secondary_queries = queries[1:4]
         with ThreadPoolExecutor(max_workers=min(12, len(secondary_queries) * len(SHORT_DRAMA_VOD_APIS))) as executor:
             future_to_api = {
@@ -395,28 +481,33 @@ def resolve_short_drama_stream_cluster(raw_title: str) -> List[Dict[str, Any]]:
             _DRAMA_ALT_STREAMS_CACHE[cache_key] = alt_streams
             return sorted_episodes
 
-    # Fallback to Online Full Series search via yt-dlp
+    # Fallback to Online Full Series search via yt-dlp ONLY if verified
     base_q = queries[0] if queries else raw_title
     try:
         ydl_opts = {'quiet': True, 'extract_flat': True, 'socket_timeout': 3}
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(f"ytsearch1:{base_q} 短剧 全集", download=False)
+            info = ydl.extract_info(f"ytsearch3:{base_q} 短剧 全集", download=False)
             entries = info.get('entries', [])
             for e in entries:
-                full_u = e.get('url')
-                if full_u:
-                    _DRAMA_MASTER_STREAM_CACHE[cache_key] = full_u
-                    best_episodes = [{
-                        "episode_num": 1,
-                        "episode_number": 1,
-                        "title": e.get('title') or "Full Drama Movie",
-                        "stream_url": full_u,
-                        "master_stream_url": full_u,
-                        "is_master_full": True,
-                        "source": "Online Full Drama HD"
-                    }]
-                    _DRAMA_STREAM_CACHE[cache_key] = best_episodes
-                    return best_episodes
+                cand_title = e.get('title') or ""
+                # STRICT VERIFICATION: Entry title must match requested drama >= 0.75
+                sim = compute_drama_title_similarity(raw_title, cand_title)
+                if sim >= 0.75:
+                    full_u = e.get('url')
+                    if full_u:
+                        _DRAMA_MASTER_STREAM_CACHE[cache_key] = full_u
+                        best_episodes = [{
+                            "episode_num": 1,
+                            "episode_number": 1,
+                            "title": cand_title or f"{raw_title} (Full Series)",
+                            "stream_url": full_u,
+                            "master_stream_url": full_u,
+                            "is_master_full": True,
+                            "source": "Online Full Drama HD",
+                            "similarity_score": round(sim, 3)
+                        }]
+                        _DRAMA_STREAM_CACHE[cache_key] = best_episodes
+                        return best_episodes
     except Exception:
         pass
 
@@ -521,52 +612,33 @@ def get_drama_episodes(drama: Dict[str, Any]) -> List[Dict[str, Any]]:
 
     # 3. Check ByteDance Hongguo official series ID VIDs
     sid = str(drama.get("series_id") or drama_id).replace("hg_", "").strip()
+    hg_vids = []
     if sid.isdigit() and len(sid) >= 10:
         hg_vids = resolve_hongguo_series_vids(sid)
-        if hg_vids:
-            drama["total_episodes"] = len(hg_vids)
-            episodes = []
-            ep1_stream = get_hongguo_episode_real_stream_url(sid, hg_vids[0]) if hg_vids else ""
-            for idx, vid in enumerate(hg_vids):
-                ep_num = idx + 1
-                ep_id = f"{drama_id}_ep_{ep_num:03d}"
-                real_stream = ep1_stream if idx == 0 else ""
-                episodes.append({
-                    "id": ep_id,
-                    "drama_id": drama_id,
-                    "series_id": sid,
-                    "vid": vid,
-                    "episode_number": ep_num,
-                    "episode_num": ep_num,
-                    "title": f"Episode {ep_num:02d}",
-                    "duration": "02:00",
-                    "duration_sec": 120,
-                    "resolution": "1080p Full HD",
-                    "file_size": "35.0 MB",
-                    "status": "Ready",
-                    "progress": 0,
-                    "stream_url": real_stream,
-                    "download_url": real_stream or f"https://hongguoduanju.com/player/{sid}/{vid}",
-                    "source": "Hongguo VIP ByteDance CDN",
-                    "is_online_stream": True,
-                    "is_selected": True
-                })
-            return episodes
 
     # 4. Check Super VOD Cluster (9 high-speed CDNs)
     cache_k = raw_title.strip().lower()
     stream_eps = _DRAMA_STREAM_CACHE.get(cache_k, [])
     master_full_url = _DRAMA_MASTER_STREAM_CACHE.get(cache_k, "")
 
-    if not stream_eps and not master_full_url and raw_title:
+    expected_hint = drama.get("total_episodes") or drama.get("episode_count") or drama.get("episodes") or total_expected or 0
+    # Search VOD cluster if not in cache and (no stream found or Hongguo only returned preview < 30 episodes or fewer than expected)
+    needs_vod_search = (not stream_eps and not master_full_url and bool(raw_title))
+    if not stream_eps and raw_title and (not hg_vids or len(hg_vids) < 30 or (expected_hint > 0 and len(hg_vids) < expected_hint)):
+        needs_vod_search = True
+
+    if needs_vod_search and not stream_eps and raw_title:
         stream_eps = resolve_short_drama_stream_cluster(raw_title)
         master_full_url = _DRAMA_MASTER_STREAM_CACHE.get(cache_k, "")
 
-    if stream_eps:
-        total_expected = len(stream_eps)
-        drama["total_episodes"] = len(stream_eps)
-    elif total_expected <= 0:
-        total_expected = 80
+    # Calculate optimal total episodes across all sources
+    vod_ep_count = len(stream_eps) if stream_eps else 0
+    hg_ep_count = len(hg_vids) if hg_vids else 0
+    resolved_total = max(int(expected_hint or 0), vod_ep_count, hg_ep_count)
+    if resolved_total <= 0:
+        resolved_total = 80
+    drama["total_episodes"] = resolved_total
+    total_expected = resolved_total
 
     # 5. Check local disk
     clean_t = re.sub(r'[\\/*?:"<>|\r\n\t《》]', "_", raw_title).strip(". ").strip()
@@ -609,11 +681,17 @@ def get_drama_episodes(drama: Dict[str, Any]) -> List[Dict[str, Any]]:
         return episodes
 
     episodes = []
+    ep1_stream = get_hongguo_episode_real_stream_url(sid, hg_vids[0]) if (sid and hg_vids) else ""
     for ep_num in range(1, total_expected + 1):
         ep_id = f"{drama_id}_ep_{ep_num:03d}"
         stream_it = found_stream_map.get(ep_num)
         s_url = stream_it.get("stream_url", "") if stream_it else (master_full_url or "")
-        src = stream_it.get("source", "Hongguo Cloud") if stream_it else ("Online Stream" if s_url else "Hongguo")
+        src = stream_it.get("source", "Chinese HD Stream") if stream_it else ("Online Stream" if s_url else "Hongguo VIP ByteDance CDN")
+
+        # Authentic 1-to-1 Hongguo VID mapping (NO modulo looping!)
+        vid = hg_vids[ep_num - 1] if (hg_vids and ep_num <= len(hg_vids)) else ""
+        if not s_url and ep_num == 1 and ep1_stream:
+            s_url = ep1_stream
 
         # Fast local file check
         is_done = False
@@ -628,9 +706,13 @@ def get_drama_episodes(drama: Dict[str, Any]) -> List[Dict[str, Any]]:
                 v_url = f"/media/{f_path}"
                 sz_mb = f"{(ep_f.stat().st_size / (1024 * 1024)):.1f}"
 
+        download_target_url = s_url or (f"https://hongguoduanju.com/player/{sid}/{vid}" if (sid and vid) else "")
+
         episodes.append({
             "id": ep_id,
             "drama_id": drama_id,
+            "series_id": sid if sid else "",
+            "vid": vid,
             "episode_number": ep_num,
             "episode_num": ep_num,
             "title": f"Episode {ep_num:02d}",
@@ -644,9 +726,9 @@ def get_drama_episodes(drama: Dict[str, Any]) -> List[Dict[str, Any]]:
             "filepath": f_path,
             "video_url": v_url,
             "stream_url": s_url,
-            "download_url": s_url,
+            "download_url": download_target_url,
             "source": "Local Storage" if is_done else src,
-            "is_online_stream": bool(s_url or is_done),
+            "is_online_stream": bool(s_url or is_done or (sid and vid)),
             "is_selected": True
         })
 
@@ -1618,6 +1700,8 @@ class DramaDownloadManager:
         def worker():
             total = len(selected_eps)
             poster_dest = drama_dest_dir / f"{safe_drama_title}_Poster.jpg"
+            full_movie_name = f"{safe_drama_title}_Full_Drama_1080p.mp4"
+            full_movie_dest = drama_dest_dir / full_movie_name
 
             # 0. Sanitize destination folder first to remove any leftover fragments or messy files
             clean_stray_download_artifacts(drama_dest_dir)
@@ -1876,6 +1960,19 @@ class DramaDownloadManager:
                                 cand_urls.append(p_ep["stream_url"])
                                 break
 
+                # Dynamically check ByteDance Hongguo official stream for this episode if not in cand_urls
+                if not cand_urls and sid:
+                    target_vid = ep.get("vid")
+                    if not target_vid and hongguo_vids and ep_num <= len(hongguo_vids):
+                        target_vid = hongguo_vids[ep_num - 1]
+                    if target_vid:
+                        try:
+                            hg_real = get_hongguo_episode_real_stream_url(sid, target_vid)
+                            if hg_real and hg_real not in cand_urls:
+                                cand_urls.append(hg_real)
+                        except Exception:
+                            pass
+
                 def single_ep_hook(pct: int):
                     with self._lock:
                         ep["status"] = "Downloading"
@@ -1905,8 +2002,8 @@ class DramaDownloadManager:
                     if not target_vid and hongguo_vids:
                         if ep_num <= len(hongguo_vids):
                             target_vid = hongguo_vids[ep_num - 1]
-                        elif len(hongguo_vids) > 0:
-                            target_vid = hongguo_vids[(ep_num - 1) % len(hongguo_vids)]
+                        else:
+                            target_vid = ""
 
                     real_url = ""
                     if ep.get("stream_url") and ep["stream_url"].startswith("http"):
@@ -2082,16 +2179,6 @@ class DramaDownloadManager:
                         except Exception:
                             pass
 
-                    if not fallback_copied:
-                        existing_eps = list(drama_dest_dir.glob("EP_*.mp4"))
-                        if existing_eps:
-                            closest = existing_eps[0]
-                            try:
-                                shutil.copy2(closest, dest_file)
-                                fallback_copied = True
-                            except Exception:
-                                pass
-
                     if dest_file.exists() and dest_file.stat().st_size > 50000:
                         file_size_mb = max(0.1, dest_file.stat().st_size / (1024 * 1024))
                         with self._lock:
@@ -2134,19 +2221,25 @@ class DramaDownloadManager:
                         is_master_mode = True
                         effective_master_url = s1.get("stream_url", "")
 
-            # If no individual episode streams exist and no master stream, run fast on-demand full drama search
+            # If no individual episode streams exist and no master stream, run verified on-demand full drama recovery
             if not cluster_streams and not effective_master_url and not sid and not self.stop_requested:
                 try:
                     clean_d_name = re.sub(r'^[^\w\u4e00-\u9fff]+|[^\w\u4e00-\u9fff]+$', '', drama_raw_title)
-                    self.add_log(f"⚡ Running deep multi-cluster full series recovery for '{clean_d_name}'...")
+                    self.add_log(f"⚡ Running verified multi-cluster full series recovery for '{clean_d_name}'...")
                     ydl_fast = {'quiet': True, 'extract_flat': True}
                     with yt_dlp.YoutubeDL(ydl_fast) as ydl:
-                        inf = ydl.extract_info(f"ytsearch1:{clean_d_name} 短剧 全集", download=False)
+                        inf = ydl.extract_info(f"ytsearch3:{clean_d_name} 短剧 全集", download=False)
                         ents = inf.get('entries', [])
-                        if ents and ents[0].get('url'):
-                            effective_master_url = ents[0].get('url')
-                            is_master_mode = True
-                            self.add_log(f"✔ Full drama master stream located: '{ents[0].get('title', clean_d_name)}' ({ents[0].get('duration', 0)//60} mins)")
+                        for e_it in ents:
+                            e_title = e_it.get('title') or ""
+                            sim_score = compute_drama_title_similarity(clean_d_name, e_title)
+                            if sim_score >= 0.75:
+                                e_url = e_it.get('url')
+                                if e_url:
+                                    effective_master_url = e_url
+                                    is_master_mode = True
+                                    self.add_log(f"✔ Verified full drama master stream located: '{e_title}' (match {sim_score:.0%})")
+                                    break
                 except Exception as ex_y:
                     self.add_log(f"Recovery search note: {ex_y}")
 
@@ -2294,18 +2387,18 @@ class DramaDownloadManager:
                     for ep in failed_eps:
                         ep_n = ep.get("episode_number", 1)
                         ep_f = drama_dest_dir / f"EP_{ep_n:02d}.mp4"
-                        target_f = ep_f if (ep_f.exists() and ep_f.stat().st_size > 100000) else full_movie_dest
-                        sz_mb = target_f.stat().st_size / (1024 * 1024)
-                        if ep.get("status") != "Completed":
-                            ep["status"] = "Completed"
-                            ep["progress"] = 100
-                            ep["filepath"] = str(target_f.resolve()).replace("\\", "/")
-                            ep["video_url"] = f"/media/{ep['filepath']}"
-                            ep["size_mb"] = f"{sz_mb:.1f}"
-                            self.stats["completed"] += 1
-                            if self.stats["failed"] > 0:
-                                self.stats["failed"] -= 1
-                            self.add_log(f"✔ [EP {ep_n:02d}/{total:02d}] Auto-Recovered & Verified: {target_f.name}")
+                        if ep_f.exists() and ep_f.stat().st_size > 100000:
+                            sz_mb = ep_f.stat().st_size / (1024 * 1024)
+                            if ep.get("status") != "Completed":
+                                ep["status"] = "Completed"
+                                ep["progress"] = 100
+                                ep["filepath"] = str(ep_f.resolve()).replace("\\", "/")
+                                ep["video_url"] = f"/media/{ep['filepath']}"
+                                ep["size_mb"] = f"{sz_mb:.1f}"
+                                self.stats["completed"] += 1
+                                if self.stats["failed"] > 0:
+                                    self.stats["failed"] -= 1
+                                self.add_log(f"✔ [EP {ep_n:02d}/{total:02d}] Sliced & Verified: {ep_f.name}")
                     if not auto_merge_full and full_movie_dest.exists():
                         try:
                             full_movie_dest.unlink()
@@ -2320,42 +2413,36 @@ class DramaDownloadManager:
                         for ep in failed_eps:
                             ep_n = ep.get("episode_number", 1)
                             ep_f = drama_dest_dir / f"EP_{ep_n:02d}.mp4"
-                            target_f = ep_f if (ep_f.exists() and ep_f.stat().st_size > 100000) else full_movie_dest
-                            sz_mb = target_f.stat().st_size / (1024 * 1024)
-                            ep["status"] = "Completed"
-                            ep["progress"] = 100
-                            ep["filepath"] = str(target_f.resolve()).replace("\\", "/")
-                            ep["video_url"] = f"/media/{ep['filepath']}"
-                            ep["size_mb"] = f"{sz_mb:.1f}"
-                            self.stats["completed"] += 1
-                            self.stats["failed"] = max(0, self.stats["failed"] - 1)
-                            self.add_log(f"✔ [EP {ep_n:02d}/{total:02d}] Auto-Recovered & Verified: {target_f.name}")
-                    # If still any uncompleted episodes remain, seed from valid episode in folder
-                    still_failed = [ep for ep in selected_eps if ep.get("status") != "Completed"]
-                    if still_failed:
-                        valid_eps = list(drama_dest_dir.glob("EP_*.mp4"))
-                        valid_eps = [f for f in valid_eps if f.stat().st_size > 50000]
-                        if valid_eps:
-                            seed_ep = valid_eps[0]
-                            for ep in still_failed:
-                                ep_n = ep.get("episode_number", 1)
-                                ep_f = drama_dest_dir / f"EP_{ep_n:02d}.mp4"
-                                if not ep_f.exists() or ep_f.stat().st_size < 50000:
-                                    try:
-                                        shutil.copy2(seed_ep, ep_f)
-                                    except Exception:
-                                        pass
-                                if ep_f.exists() and ep_f.stat().st_size > 50000:
-                                    sz_mb = ep_f.stat().st_size / (1024 * 1024)
-                                    ep["status"] = "Completed"
-                                    ep["progress"] = 100
-                                    ep["filepath"] = str(ep_f.resolve()).replace("\\", "/")
-                                    ep["video_url"] = f"/media/{ep['filepath']}"
-                                    ep["size_mb"] = f"{sz_mb:.1f}"
-                                    self.stats["completed"] += 1
-                                    if self.stats["failed"] > 0:
-                                        self.stats["failed"] -= 1
-                                    self.add_log(f"✔ [EP {ep_n:02d}/{total:02d}] Auto-Completed: {ep_f.name}")
+                            if ep_f.exists() and ep_f.stat().st_size > 100000:
+                                sz_mb = ep_f.stat().st_size / (1024 * 1024)
+                                ep["status"] = "Completed"
+                                ep["progress"] = 100
+                                ep["filepath"] = str(ep_f.resolve()).replace("\\", "/")
+                                ep["video_url"] = f"/media/{ep['filepath']}"
+                                ep["size_mb"] = f"{sz_mb:.1f}"
+                                self.stats["completed"] += 1
+                                self.stats["failed"] = max(0, self.stats["failed"] - 1)
+                                self.add_log(f"✔ [EP {ep_n:02d}/{total:02d}] Auto-Recovered & Verified: {ep_f.name}")
+
+                # Final validation for any uncompleted episodes: mark failed honestly, never duplicate or copy fake files
+                still_failed = [ep for ep in selected_eps if ep.get("status") != "Completed"]
+                for ep in still_failed:
+                    ep_n = ep.get("episode_number", 1)
+                    ep_f = drama_dest_dir / f"EP_{ep_n:02d}.mp4"
+                    if ep_f.exists() and ep_f.stat().st_size > 100000:
+                        sz_mb = ep_f.stat().st_size / (1024 * 1024)
+                        ep["status"] = "Completed"
+                        ep["progress"] = 100
+                        ep["filepath"] = str(ep_f.resolve()).replace("\\", "/")
+                        ep["video_url"] = f"/media/{ep['filepath']}"
+                        ep["size_mb"] = f"{sz_mb:.1f}"
+                        self.stats["completed"] += 1
+                        if self.stats["failed"] > 0:
+                            self.stats["failed"] -= 1
+                    else:
+                        ep["status"] = "Failed"
+                        ep["progress"] = 0
+                        self.add_log(f"❌ [EP {ep_n:02d}/{total:02d}] Notice: Episode could not be downloaded (VIP Protected / stream offline).")
 
             # Auto-Merge into Full Drama Movie (ទាញចប់មួយរឿងពេញតែម្ដង)
             if auto_merge_full and not self.stop_requested:

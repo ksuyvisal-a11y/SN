@@ -21,11 +21,29 @@ let dlInfiniteScrollAttached = false;
 let currentHwid = "";
 
 // ============================================================================
-// WINDOW STATE & DYNAMIC DRAG MANAGEMENT
-// - Maximized: STRICTLY block dragging, no following mouse, edge-to-edge layout
-// - Small / Restored: Allow dragging left/right/up/down via header bar
-// - Mouse guard: STRICTLY forbid dragging on right-click or middle-click
 // ============================================================================
+// WINDOW STATE & DYNAMIC DRAG MANAGEMENT
+// - Maximized / Fullscreen: STRICTLY block dragging, lock window firmly in place!
+// - Small / Restored: Allow dragging ONLY via empty header title bar area with Left Click
+// - Mouse guard: STRICTLY forbid dragging when manipulating tools, sliders, masks, or right/middle click
+// ============================================================================
+window._isHeaderDraggingActive = false;
+
+function isWindowMaximizedOrFullscreen() {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+        return true;
+    }
+    if (document.body.classList.contains('is-maximized')) {
+        return true;
+    }
+    const sw = window.screen.availWidth || window.screen.width || 1920;
+    const sh = window.screen.availHeight || window.screen.height || 1080;
+    // Bounded check for Windows display scaling (100%, 125%, 150%) & taskbar
+    const wMatch = window.innerWidth >= (sw - 50) || window.outerWidth >= (sw - 10);
+    const hMatch = window.innerHeight >= (sh - 75) || window.outerHeight >= (sh - 20);
+    return Boolean(wMatch && hMatch);
+}
+
 function setWindowMaximizedState(isMax) {
     const body = document.body;
     const header = document.querySelector('.unich-header-bar');
@@ -33,6 +51,7 @@ function setWindowMaximizedState(isMax) {
 
     if (isMax) {
         body.classList.add('is-maximized');
+        window._isHeaderDraggingActive = false;
         if (header) {
             header.classList.remove('pywebview-drag-region');
         }
@@ -55,7 +74,11 @@ function setWindowMaximizedState(isMax) {
 function checkWindowState() {
     if (window.pywebview && window.pywebview.api && window.pywebview.api.is_window_maximized) {
         window.pywebview.api.is_window_maximized().then(isMax => {
-            setWindowMaximizedState(Boolean(isMax));
+            if (isMax !== undefined && isMax !== null) {
+                setWindowMaximizedState(Boolean(isMax));
+            } else {
+                detectMaximizeFromScreen();
+            }
         }).catch(() => {
             detectMaximizeFromScreen();
         });
@@ -65,10 +88,30 @@ function checkWindowState() {
 }
 
 function detectMaximizeFromScreen() {
-    const sw = window.screen.availWidth || window.screen.width || 1920;
-    const sh = window.screen.availHeight || window.screen.height || 1080;
-    const isMax = (window.innerWidth >= sw - 25 && window.innerHeight >= sh - 35);
+    const isMax = isWindowMaximizedOrFullscreen();
     setWindowMaximizedState(isMax);
+}
+
+// Intercept pywebview's internal move handler to prevent any unwanted window movement
+function installPywebviewDragInterceptor() {
+    if (window.pywebview && window.pywebview._jsApiCallback) {
+        if (!window.pywebview._origJsApiCallback) {
+            window.pywebview._origJsApiCallback = window.pywebview._jsApiCallback;
+            window.pywebview._jsApiCallback = function(funcName, params, id) {
+                if (funcName === 'pywebviewMoveWindow') {
+                    // 1. If window is maximized or fullscreen: 100% LOCK FIRMLY IN PLACE!
+                    if (document.body.classList.contains('is-maximized') || isWindowMaximizedOrFullscreen()) {
+                        return; // Dropped! Window stays locked!
+                    }
+                    // 2. Only allow movement when actively dragging the empty header bar in small/restored mode
+                    if (!window._isHeaderDraggingActive) {
+                        return; // Dropped! Tool adjustments, sliders, or mask dragging will NEVER move the window!
+                    }
+                }
+                return window.pywebview._origJsApiCallback.apply(this, arguments);
+            };
+        }
+    }
 }
 
 function appMinimizeWindow() {
@@ -86,8 +129,8 @@ async function appMaximizeWindow() {
                 return;
             }
         } catch(e) {}
-        setTimeout(checkWindowState, 80);
-        setTimeout(checkWindowState, 250);
+        setTimeout(checkWindowState, 50);
+        setTimeout(checkWindowState, 200);
     } else {
         try {
             if (!document.fullscreenElement) {
@@ -126,11 +169,24 @@ function appCloseWindow() {
 
 // Global Drag & Mouse Interaction Guard:
 // 1. Right-click or middle-click must NEVER drag the window under any circumstances.
-// 2. When maximized, dragging is completely forbidden.
+// 2. When maximized, dragging is completely locked.
 // 3. Only when in small / restored window mode AND clicking on non-interactive header regions with Left Mouse Button (e.button === 0), allow dragging.
 window.addEventListener('mousedown', function(e) {
-    // If not left button (e.button !== 0): strictly block any drag attempts
+    installPywebviewDragInterceptor();
+
+    // 1. If window is MAXIMIZED or FULLSCREEN: strictly lock the window
+    if (document.body.classList.contains('is-maximized') || isWindowMaximizedOrFullscreen()) {
+        window._isHeaderDraggingActive = false;
+        const header = e.target.closest('.unich-header-bar, .pywebview-drag-region, [data-drag-region]');
+        if (header) {
+            e.stopImmediatePropagation();
+        }
+        return;
+    }
+
+    // 2. Only allow window dragging in restored mode with Left Mouse Button (e.button === 0)
     if (e.button !== 0) {
+        window._isHeaderDraggingActive = false;
         const header = e.target.closest('.unich-header-bar, .pywebview-drag-region, [data-drag-region]');
         if (header) {
             e.stopImmediatePropagation();
@@ -138,30 +194,36 @@ window.addEventListener('mousedown', function(e) {
         return;
     }
 
-    // If window is MAXIMIZED: strictly block any dragging
-    if (document.body.classList.contains('is-maximized')) {
-        const header = e.target.closest('.unich-header-bar, .pywebview-drag-region, [data-drag-region]');
-        if (header) {
-            e.stopImmediatePropagation();
-        }
-        return;
-    }
+    // 3. In restored / small mode:
+    const header = e.target.closest('.unich-header-bar');
+    const interactive = e.target.closest('button, a, input, select, textarea, .win-btn, .nav-pill-btn, .brand-toggle-pill, .power-dropdown-wrapper, .monitor-blur-overlay, .monitor-logo-overlay, .blur-custom-dropdown, [role="slider"], input[type="range"]');
 
-    // In restored / small mode:
-    // If clicking on interactive elements inside header, don't trigger drag
-    const interactive = e.target.closest('button, a, input, select, textarea, .win-btn, .nav-pill-btn, .brand-toggle-pill, .power-dropdown-wrapper');
-    if (interactive) {
-        e.stopPropagation();
+    if (header && !interactive) {
+        window._isHeaderDraggingActive = true;
+    } else {
+        window._isHeaderDraggingActive = false;
+        if (interactive) {
+            e.stopPropagation();
+        }
     }
 }, true); // Capture phase ensures we intercept before pywebview's drag handler
+
+window.addEventListener('mouseup', function() {
+    window._isHeaderDraggingActive = false;
+}, true);
 
 window.addEventListener('resize', () => {
     checkWindowState();
 });
 
 window.addEventListener('pywebviewready', () => {
-    setTimeout(checkWindowState, 100);
+    installPywebviewDragInterceptor();
+    setTimeout(checkWindowState, 50);
+    setTimeout(checkWindowState, 200);
 });
+
+// Periodic check ensuring pywebview API hook is installed as soon as ready
+setInterval(installPywebviewDragInterceptor, 500);
 
 document.addEventListener('DOMContentLoaded', () => {
     initApp();
@@ -3977,7 +4039,9 @@ let currentOverlayAssets = {
     blurWidth: 120,
     blurHeight: 50,
     blurRadius: 25,
-    blurShape: 'rectangle'
+    blurShape: 'rectangle',
+    blurFeather: 0,
+    blurRoundCorners: 0
 };
 
 function triggerOverlayUpload(type) {
@@ -4164,6 +4228,120 @@ function onBlurSliderChange(val, e) {
     applyBlurIntensity(radius, `${radius}px`);
 }
 
+function onBlurFeatherChange(val, e) {
+    if (e) e.stopPropagation();
+    const feather = Math.max(0, Math.min(100, parseInt(val, 10) || 0));
+    currentOverlayAssets.blurFeather = feather;
+
+    const slider = document.getElementById('input-blur-feather');
+    const numInput = document.getElementById('num-blur-feather');
+    if (slider && parseInt(slider.value, 10) !== feather) slider.value = feather;
+    if (numInput && parseInt(numInput.value, 10) !== feather) numInput.value = feather;
+
+    if (!currentOverlayAssets.blurActive) {
+        toggleBlurMaskTool(null, true);
+    }
+    applyBlurMaskStyling();
+}
+
+function onBlurCornersChange(val, e) {
+    if (e) e.stopPropagation();
+    const corners = Math.max(0, Math.min(100, parseInt(val, 10) || 0));
+    currentOverlayAssets.blurRoundCorners = corners;
+
+    const slider = document.getElementById('input-blur-corners');
+    const numInput = document.getElementById('num-blur-corners');
+    if (slider && parseInt(slider.value, 10) !== corners) slider.value = corners;
+    if (numInput && parseInt(numInput.value, 10) !== corners) numInput.value = corners;
+
+    if (!currentOverlayAssets.blurActive) {
+        toggleBlurMaskTool(null, true);
+    }
+    applyBlurMaskStyling();
+}
+
+function stepBlurParam(param, step, e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    if (param === 'feather') {
+        const cur = currentOverlayAssets.blurFeather || 0;
+        onBlurFeatherChange(cur + step, e);
+    } else if (param === 'corners') {
+        const cur = currentOverlayAssets.blurRoundCorners !== undefined ? currentOverlayAssets.blurRoundCorners : 0;
+        onBlurCornersChange(cur + step, e);
+    }
+}
+
+function resetBlurParam(param, e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    if (param === 'feather') {
+        onBlurFeatherChange(0, e);
+        showToast("Feather បាន Reset ទៅ 0");
+    } else if (param === 'corners') {
+        onBlurCornersChange(0, e);
+        showToast("Round corners បាន Reset ទៅ 0");
+    }
+}
+
+function applyBlurMaskStyling() {
+    const monitorBlur = document.getElementById('monitor-blur-overlay');
+    if (!monitorBlur) return;
+
+    const radius = currentOverlayAssets.blurRadius || 25;
+    const shape = currentOverlayAssets.blurShape || 'rectangle';
+    const feather = currentOverlayAssets.blurFeather || 0;
+    const roundCorners = currentOverlayAssets.blurRoundCorners !== undefined ? currentOverlayAssets.blurRoundCorners : 0;
+
+    // 1. Live Dynamic Blur Filter
+    monitorBlur.style.backdropFilter = `blur(${radius}px)`;
+    monitorBlur.style.webkitBackdropFilter = `blur(${radius}px)`;
+
+    // 2. Round Corners (Border Radius)
+    if (shape === 'circle') {
+        monitorBlur.style.borderRadius = '50%';
+    } else {
+        monitorBlur.style.borderRadius = `${roundCorners}px`;
+    }
+
+    // 3. Feathering (Soft diffused mask boundaries)
+    if (feather > 0) {
+        if (shape === 'circle') {
+            const startPct = Math.max(0, 100 - feather);
+            const maskGrad = `radial-gradient(circle at center, black ${startPct}%, transparent 100%)`;
+            monitorBlur.style.webkitMaskImage = maskGrad;
+            monitorBlur.style.maskImage = maskGrad;
+            monitorBlur.style.webkitMaskComposite = 'source-over';
+            monitorBlur.style.maskComposite = 'add';
+        } else {
+            // Feathered soft rectangular box with smooth edge falloff
+            const maskGrad = `linear-gradient(to right, transparent 0%, black ${feather}px, black calc(100% - ${feather}px), transparent 100%), linear-gradient(to bottom, transparent 0%, black ${feather}px, black calc(100% - ${feather}px), transparent 100%)`;
+            monitorBlur.style.webkitMaskImage = maskGrad;
+            monitorBlur.style.maskImage = maskGrad;
+            monitorBlur.style.webkitMaskComposite = 'source-in';
+            monitorBlur.style.maskComposite = 'intersect';
+        }
+    } else {
+        monitorBlur.style.webkitMaskImage = 'none';
+        monitorBlur.style.maskImage = 'none';
+        monitorBlur.style.webkitMaskComposite = 'normal';
+        monitorBlur.style.maskComposite = 'add';
+    }
+
+    // 4. Color tint & dashed border
+    if (radius >= 65) {
+        monitorBlur.style.backgroundColor = 'rgba(10, 10, 20, 0.78)';
+        monitorBlur.style.borderColor = 'rgba(250, 204, 21, 0.9)';
+    } else {
+        monitorBlur.style.backgroundColor = 'rgba(168, 85, 247, 0.20)';
+        monitorBlur.style.borderColor = 'rgba(192, 132, 252, 0.85)';
+    }
+}
+
 function selectBlurShape(shape, e) {
     if (e) {
         e.stopPropagation();
@@ -4193,7 +4371,6 @@ function selectBlurShape(shape, e) {
         monitorBlur.classList.add(`shape-${shape}`);
 
         if (shape === 'circle') {
-            monitorBlur.style.borderRadius = '50%';
             monitorBlur.style.aspectRatio = '1 / 1';
             monitorBlur.style.width = '95px';
             monitorBlur.style.height = '95px';
@@ -4201,7 +4378,6 @@ function selectBlurShape(shape, e) {
             showToast("បានប្តូរ Blur Mask: Circle (រាងរង្វង់មូល)");
             appendLiveTerminalLine("Blur mask shape changed to Circle.", "[Blur Engine]", "info");
         } else if (shape === 'filmstrip') {
-            monitorBlur.style.borderRadius = '4px';
             monitorBlur.style.aspectRatio = 'auto';
             monitorBlur.style.width = 'calc(100% - 28px)';
             monitorBlur.style.height = '46px';
@@ -4212,7 +4388,6 @@ function selectBlurShape(shape, e) {
             appendLiveTerminalLine("Blur mask shape changed to Filmstrip.", "[Blur Engine]", "info");
         } else {
             // Rectangle
-            monitorBlur.style.borderRadius = '8px';
             monitorBlur.style.aspectRatio = 'auto';
             monitorBlur.style.width = '130px';
             monitorBlur.style.height = '52px';
@@ -4221,6 +4396,8 @@ function selectBlurShape(shape, e) {
             appendLiveTerminalLine("Blur mask shape changed to Rectangle.", "[Blur Engine]", "info");
         }
     }
+
+    applyBlurMaskStyling();
 }
 
 function selectBlurPreset(radius, title, labelShort, e) {
@@ -4236,19 +4413,8 @@ function selectBlurPreset(radius, title, labelShort, e) {
 function applyBlurIntensity(radius, displayLabel) {
     currentOverlayAssets.blurRadius = radius;
     
-    // Apply to Video Preview Monitor overlay
-    const monitorBlur = document.getElementById('monitor-blur-overlay');
-    if (monitorBlur) {
-        monitorBlur.style.backdropFilter = `blur(${radius}px)`;
-        monitorBlur.style.webkitBackdropFilter = `blur(${radius}px)`;
-        if (radius >= 65) {
-            monitorBlur.style.backgroundColor = 'rgba(10, 10, 20, 0.78)';
-            monitorBlur.style.borderColor = 'rgba(250, 204, 21, 0.9)';
-        } else {
-            monitorBlur.style.backgroundColor = 'rgba(168, 85, 247, 0.20)';
-            monitorBlur.style.borderColor = 'rgba(192, 132, 252, 0.85)';
-        }
-    }
+    // Apply styling to Video Preview Monitor overlay
+    applyBlurMaskStyling();
 
     // Update Slider Badge
     const badge = document.getElementById('blur-slider-badge');

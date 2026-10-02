@@ -113,32 +113,56 @@ def is_window_zoomed():
     global _main_window
     if not _main_window:
         return False
+
+    # 1. Native WinForms WindowState check
+    try:
+        if hasattr(_main_window, 'native') and _main_window.native:
+            ws = getattr(_main_window.native, 'WindowState', None)
+            if ws is not None:
+                ws_str = str(ws)
+                if 'Maximized' in ws_str or ws_str == '2':
+                    return True
+    except Exception:
+        pass
+
+    # 2. Windows Win32 API IsZoomed check with proper IntPtr Handle extraction
     try:
         if sys.platform == "win32":
             import ctypes
             hwnd = None
             if hasattr(_main_window, 'native') and _main_window.native:
                 try:
-                    hwnd = int(_main_window.native.Handle)
+                    h = _main_window.native.Handle
+                    hwnd = int(str(h)) if hasattr(h, 'ToString') else int(h.ToInt64())
                 except Exception:
-                    pass
+                    try:
+                        hwnd = int(h.ToInt32())
+                    except Exception:
+                        pass
             if not hwnd:
                 hwnd = ctypes.windll.user32.FindWindowW(None, "SN TOOL - STUDIO PRO")
             if hwnd:
                 return bool(ctypes.windll.user32.IsZoomed(hwnd))
     except Exception:
         pass
+
+    # 3. Geometry check against primary monitor screen bounds
     try:
         import webview
         screens = getattr(webview, 'screens', None)
         s = screens[0] if screens else None
-        sw = s.width if s else 1920
-        sh = s.height if s else 1080
-        return (_main_window.width >= int(sw * 0.9) and _main_window.height >= int(sh * 0.85))
+        if s and hasattr(_main_window, 'width') and hasattr(_main_window, 'height'):
+            if _main_window.width >= (s.width - 35) and _main_window.height >= (s.height - 75):
+                return True
     except Exception:
-        return False
+        pass
+
+    return False
 
 class NativeWindowApi:
+    def __init__(self):
+        self._is_maximized = False
+
     def minimize_window(self):
         global _main_window
         if _main_window:
@@ -151,23 +175,26 @@ class NativeWindowApi:
         global _main_window
         if _main_window:
             try:
-                was_zoomed = is_window_zoomed()
+                was_zoomed = is_window_zoomed() or self._is_maximized
                 if was_zoomed:
                     _main_window.restore()
+                    self._is_maximized = False
                     return {"maximized": False}
                 else:
                     _main_window.maximize()
+                    self._is_maximized = True
                     return {"maximized": True}
             except Exception:
                 try:
                     _main_window.maximize()
+                    self._is_maximized = True
                     return {"maximized": True}
                 except Exception:
                     pass
         return {"maximized": False}
 
     def is_window_maximized(self):
-        return is_window_zoomed()
+        return is_window_zoomed() or self._is_maximized
 
     def toggle_fullscreen(self):
         global _main_window
@@ -182,6 +209,7 @@ class NativeWindowApi:
         if _main_window:
             try:
                 _main_window.maximize()
+                self._is_maximized = True
             except Exception:
                 pass
 
@@ -272,12 +300,33 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
             orig_move = window.move
             def safe_window_move(x, y):
                 try:
-                    if is_window_zoomed():
+                    if is_window_zoomed() or api._is_maximized:
                         return  # Window is MAXIMIZED: strictly block any dragging/movement!
                 except Exception:
                     pass
                 return orig_move(x, y)
             window.move = safe_window_move
+        except Exception:
+            pass
+
+        # Native event listeners to synchronize maximized state to frontend immediately
+        def on_window_maximized():
+            try:
+                api._is_maximized = True
+                window.evaluate_js("setWindowMaximizedState(true)")
+            except Exception:
+                pass
+
+        def on_window_restored():
+            try:
+                api._is_maximized = False
+                window.evaluate_js("setWindowMaximizedState(false)")
+            except Exception:
+                pass
+
+        try:
+            window.events.maximized += on_window_maximized
+            window.events.restored += on_window_restored
         except Exception:
             pass
 

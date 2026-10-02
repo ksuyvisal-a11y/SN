@@ -45,15 +45,63 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
     # 1. Try pywebview
     try:
         import webview
+        from desktop_app import NativeWindowApi, is_window_zoomed, get_standard_window_geometry
+
+        win_w, win_h, x, y = get_standard_window_geometry()
+        api = NativeWindowApi()
         window = webview.create_window(
             title=title,
             url=url,
-            width=1360,
-            height=860,
-            min_size=(1024, 680),
-            background_color="#08090d"
+            frameless=True,
+            easy_drag=False,
+            shadow=True,
+            maximized=False,
+            width=win_w,
+            height=win_h,
+            x=x,
+            y=y,
+            resizable=True,
+            min_size=(1024, 650),
+            background_color="#08090d",
+            text_select=True,
+            zoomable=True,
+            js_api=api
         )
-        webview.start()
+
+        try:
+            orig_move = window.move
+            def safe_window_move(x, y):
+                try:
+                    if is_window_zoomed() or api._is_maximized:
+                        return
+                except Exception:
+                    pass
+                return orig_move(x, y)
+            window.move = safe_window_move
+        except Exception:
+            pass
+
+        def on_window_maximized():
+            try:
+                api._is_maximized = True
+                window.evaluate_js("setWindowMaximizedState(true)")
+            except Exception:
+                pass
+
+        def on_window_restored():
+            try:
+                api._is_maximized = False
+                window.evaluate_js("setWindowMaximizedState(false)")
+            except Exception:
+                pass
+
+        try:
+            window.events.maximized += on_window_maximized
+            window.events.restored += on_window_restored
+        except Exception:
+            pass
+
+        webview.start(None, window, private_mode=False, gui='edgechromium')
         return
     except Exception as e:
         print(f"pywebview notice: {e}")

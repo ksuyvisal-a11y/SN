@@ -118,9 +118,31 @@ body.is-maximized .unich-app-container {
     box-shadow: none !important;
 }
 
+body.is-maximized,
+body.is-maximized *,
 body.is-maximized .unich-header-bar,
 body.is-maximized .pywebview-drag-region,
 body.is-maximized [data-drag-region] {
+    -webkit-app-region: no-drag !important;
+}
+
+/* All workspace tools, sliders, inputs, and interactive overlays must NEVER drag the window */
+.unich-main-workspace,
+.unich-main-workspace *,
+.blur-custom-dropdown,
+.blur-custom-dropdown *,
+.mask-params-container,
+.mask-params-container *,
+.monitor-blur-overlay,
+.monitor-blur-overlay *,
+.monitor-logo-overlay,
+.monitor-logo-overlay *,
+input[type="range"],
+input[type="number"],
+input,
+select,
+button,
+textarea {
     -webkit-app-region: no-drag !important;
 }
 
@@ -692,11 +714,11 @@ body.is-maximized [data-drag-region] {
 }
 
 .monitor-blur-overlay.shape-filmstrip {
-    border-radius: 4px !important;
+    border-radius: 4px;
 }
 
 .monitor-blur-overlay.shape-rectangle {
-    border-radius: 8px !important;
+    border-radius: 8px;
 }
 
 .blur-box-content {
@@ -1060,26 +1082,40 @@ body.is-maximized [data-drag-region] {
 }
 
 .minimal-import-icon-box {
-    width: 52px;
-    height: 52px;
-    border-radius: 12px;
-    background: rgba(26, 32, 46, 0.6);
-    border: 1px solid rgba(250, 204, 21, 0.3);
-    color: #facc15;
-    font-size: 1.35rem;
+    width: 72px;
+    height: 72px;
+    background: transparent !important;
+    border: none !important;
     display: flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 14px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    transition: all 0.2s ease;
+    box-shadow: none !important;
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.minimal-import-logo {
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
+    filter: drop-shadow(0 6px 18px rgba(245, 158, 11, 0.25));
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.25s ease;
+    user-select: none;
+    pointer-events: none;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
 }
 
 .minimal-import-canvas:hover .minimal-import-icon-box {
-    transform: translateY(-2px);
-    border-color: rgba(250, 204, 21, 0.6);
-    background: rgba(36, 44, 62, 0.7);
-    color: #fde047;
+    transform: translateY(-3px) scale(1.06);
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.minimal-import-canvas:hover .minimal-import-logo {
+    filter: drop-shadow(0 10px 26px rgba(245, 158, 11, 0.45));
 }
 
 .minimal-import-heading {
@@ -2152,6 +2188,189 @@ select, option, optgroup {
 .mask-shape-item.active .mask-shape-label {
     color: #38bdf8;
     font-weight: 600;
+}
+
+/* ==========================================================================
+   MASK PRECISION PARAMETERS: FEATHER & ROUND CORNERS (Matching Reference Image)
+   ========================================================================== */
+.mask-params-container {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    padding: 8px 10px;
+    background: rgba(15, 20, 30, 0.72);
+    border-radius: 9px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    margin: 4px 2px;
+}
+
+.mask-param-row {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.mask-param-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.mask-param-title {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 0.76rem;
+    font-weight: 500;
+    color: #d1d5db;
+    letter-spacing: 0.2px;
+}
+
+.mask-param-control-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Precision Slider Track & Rounded Vertical Thumb (Exact Match to Image 2) */
+.mask-param-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 3px;
+    background: #2b303c;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.mask-param-slider:hover {
+    background: #383f4f;
+}
+
+.mask-param-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 9px;
+    height: 18px;
+    border-radius: 3px;
+    background: #f1f5f9;
+    cursor: ew-resize;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
+    transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.mask-param-slider::-webkit-slider-thumb:hover {
+    background: #ffffff;
+    transform: scale(1.1);
+}
+
+.mask-param-slider::-moz-range-thumb {
+    width: 9px;
+    height: 18px;
+    border-radius: 3px;
+    border: none;
+    background: #f1f5f9;
+    cursor: ew-resize;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
+}
+
+/* Value Box, Stepper & Diamond Controls */
+.mask-param-box-wrap {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-shrink: 0;
+}
+
+.mask-param-val-box {
+    display: flex;
+    align-items: center;
+    background: #171b24;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 6px;
+    height: 26px;
+    padding-left: 2px;
+    padding-right: 3px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mask-param-val-box:focus-within {
+    border-color: #38bdf8;
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.35);
+}
+
+.mask-param-num-input {
+    width: 32px;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #ffffff;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-align: center;
+    padding: 0;
+    -moz-appearance: textfield;
+}
+
+.mask-param-num-input::-webkit-outer-spin-button,
+.mask-param-num-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.mask-param-stepper-col {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 0px;
+    margin-left: -2px;
+}
+
+.mask-stepper-btn {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 0.58rem;
+    line-height: 1;
+    padding: 0px 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.12s ease;
+}
+
+.mask-stepper-btn:hover {
+    color: #38bdf8;
+}
+
+/* Diamond Keyframe / Reset Button */
+.mask-diamond-reset-btn {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+    padding: 0;
+}
+
+.mask-diamond-reset-btn:hover {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.12);
+    transform: scale(1.15);
+}
+
+.mask-diamond-icon {
+    width: 13px;
+    height: 13px;
 }
 
 .blur-opt-divider {
