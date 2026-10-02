@@ -30,6 +30,11 @@
                     <span class="brand-name-bold">SN TOOL</span>
                     <span class="brand-pro-tag">STUDIO PRO</span>
                 </div>
+                <!-- Mode Toggle (matching reference Image 2) -->
+                <label class="brand-toggle-pill" title="Hardware Acceleration / Engine Mode">
+                    <input type="checkbox" id="hw-accel-toggle" checked>
+                    <span class="brand-toggle-slider"></span>
+                </label>
             </div>
 
             <!-- Center Action Pill Buttons (Remaining studio actions) -->
@@ -183,18 +188,17 @@
                         <div class="studio-source-clean-view" id="studio-source-clean-view">
                             <div class="clean-source-label" id="clean-source-label">Translation source</div>
                             
-                            <!-- Initial Empty State: Clean Frosted Glass Media Ingest Dropzone -->
+                            <!-- Initial Empty State: Clean Frosted Glass Media Ingest Dropzone (Matching Reference Image 2) -->
                             <div class="clean-import-center-cta" id="clean-import-prompt" onclick="openImportModal()">
                                 <div class="clean-import-icon-box">
-                                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                                    <i class="fa-solid fa-clapperboard"></i>
                                 </div>
-                                <div class="clean-import-text">Import Media / Drama Folder</div>
-                                <div class="clean-import-sub">Drag &amp; drop video files or series folder to begin dubbing</div>
-                                <div class="clean-import-formats">
-                                    <span class="media-fmt-chip">MP4</span>
-                                    <span class="media-fmt-chip">MKV</span>
-                                    <span class="media-fmt-chip">MOV</span>
-                                    <span class="media-fmt-chip highlight">SERIES FOLDER</span>
+                                <div class="clean-import-text">Drag &amp; Drop Video Files or Folders Here</div>
+                                <div class="clean-import-sub">Supports MP4, MKV, MOV, TS, AVI, WEBM &amp; Series Folders</div>
+                                <div class="clean-import-formats" style="margin-top: 14px;">
+                                    <button type="button" class="clean-browse-cta-btn" onclick="openImportModal(); event.stopPropagation();">
+                                        <i class="fa-solid fa-plus"></i> Browse Files / Folder
+                                    </button>
                                 </div>
                             </div>
 

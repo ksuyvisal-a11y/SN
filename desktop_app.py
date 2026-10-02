@@ -227,14 +227,41 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
             y=y,
             resizable=True,
             min_size=(1024, 650),
-            background_color="#08090d",
+            background_color="#03060a",
             text_select=True,
             zoomable=True,
             js_api=api
         )
         _main_window = window
 
-        webview.start(private_mode=False, gui='edgechromium')
+        def on_gui_ready(w):
+            if sys.platform == "win32":
+                try:
+                    import ctypes
+                    hwnd = None
+                    if hasattr(w, 'native') and w.native:
+                        try:
+                            hwnd = int(w.native.Handle)
+                        except Exception:
+                            pass
+                    if not hwnd:
+                        hwnd = ctypes.windll.user32.FindWindowW(None, title)
+                    if hwnd:
+                        DWMWA_WINDOW_CORNER_PREFERENCE = 33
+                        DWMWCP_ROUND = 2
+                        pref = ctypes.c_int(DWMWCP_ROUND)
+                        ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                            hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ctypes.byref(pref), ctypes.sizeof(pref)
+                        )
+                        DWMWA_BORDER_COLOR = 34
+                        color = ctypes.c_int(0x00F8BD38)
+                        ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                            hwnd, DWMWA_BORDER_COLOR, ctypes.byref(color), ctypes.sizeof(color)
+                        )
+                except Exception:
+                    pass
+
+        webview.start(on_gui_ready, window, private_mode=False, gui='edgechromium')
         return
     except Exception as e:
         print(f"pywebview notice: {e}")

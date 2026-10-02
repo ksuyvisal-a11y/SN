@@ -64,7 +64,7 @@
 }
 
 html, body {
-    background-color: #08090d;
+    background-color: #03060a;
     color: var(--text-white);
     font-family: var(--font-ui);
     height: 100vh;
@@ -75,7 +75,8 @@ html, body {
     position: fixed;
     inset: 0;
     margin: 0;
-    padding: 0;
+    padding: 6px;
+    box-sizing: border-box;
 }
 
 button, input, select, textarea {
@@ -83,19 +84,19 @@ button, input, select, textarea {
     color: inherit;
 }
 
-/* Outer Application Wrapper */
+/* Outer Application Wrapper — Seamless Floating Card Matching Reference Image 2 */
 .unich-app-container {
     display: flex;
     flex-direction: column;
-    height: 100vh;
-    max-height: 100vh;
-    width: 100vw;
-    max-width: 100vw;
-    background: radial-gradient(circle at 10% 12%, rgba(250, 204, 21, 0.06) 0%, transparent 35%),
-                radial-gradient(circle at 90% 18%, rgba(56, 189, 248, 0.05) 0%, transparent 40%),
-                radial-gradient(circle at 50% 88%, rgba(168, 85, 247, 0.045) 0%, transparent 45%),
-                #08090d;
-    padding: 0 12px 6px 12px;
+    height: 100%;
+    max-height: 100%;
+    width: 100%;
+    max-width: 100%;
+    background: #080d16;
+    border: 1.5px solid rgba(56, 189, 248, 0.45);
+    border-radius: 16px;
+    box-shadow: 0 0 25px rgba(56, 189, 248, 0.15), 0 20px 50px rgba(0, 0, 0, 0.85);
+    padding: 10px 16px 8px 16px;
     gap: 10px;
     overflow: hidden !important;
     box-sizing: border-box;
@@ -103,22 +104,18 @@ button, input, select, textarea {
 }
 
 /* ==========================================================================
-   1. TOP NAVIGATION BAR (Modern Glassmorphic Floating Header)
+   1. TOP NAVIGATION BAR (Integrated Top Row Inside Floating Card)
    ========================================================================== */
 .unich-header-bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 56px;
-    padding: 0 18px;
+    height: 44px;
+    padding: 0 2px;
     flex-shrink: 0;
-    background: var(--glass-bg);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    border: 1px solid var(--glass-border);
-    border-top: none;
-    border-radius: 0 0 12px 12px;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 var(--glass-highlight);
+    background: transparent;
+    border: none;
+    box-shadow: none;
     -webkit-app-region: drag;
     user-select: none;
 }
@@ -127,7 +124,8 @@ button, input, select, textarea {
 .unich-header-bar .brand-badge-wrapper,
 .unich-header-bar .power-dropdown-wrapper,
 .unich-header-bar .header-win-controls,
-.unich-header-bar .win-btn {
+.unich-header-bar .win-btn,
+.unich-header-bar .brand-toggle-pill {
     -webkit-app-region: no-drag;
 }
 
@@ -188,54 +186,97 @@ button, input, select, textarea {
 }
 
 .brand-badge-logo:hover {
-    transform: scale(1.1) rotate(2deg);
-    filter: drop-shadow(0 0 16px rgba(250, 204, 21, 0.85));
+    transform: scale(1.08) rotate(2deg);
+    filter: drop-shadow(0 0 16px rgba(56, 189, 248, 0.85));
 }
 
-/* Navigation Segmented Toolbar (Pro Studio Desktop Suite - Enlarged & Spacious) */
+/* Mode Toggle Switch (Matching Reference Image 2) */
+.brand-toggle-pill {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 18px;
+    margin-left: 8px;
+    cursor: pointer;
+    vertical-align: middle;
+}
+.brand-toggle-pill input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.brand-toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background-color: rgba(30, 41, 59, 0.8);
+    border: 1.2px solid rgba(56, 189, 248, 0.4);
+    transition: 0.25s;
+    border-radius: 20px;
+}
+.brand-toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 12px;
+    width: 12px;
+    left: 2px;
+    bottom: 2px;
+    background-color: #94a3b8;
+    transition: 0.25s;
+    border-radius: 50%;
+}
+.brand-toggle-pill input:checked + .brand-toggle-slider {
+    background-color: rgba(56, 189, 248, 0.25);
+    border-color: #38bdf8;
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
+}
+.brand-toggle-pill input:checked + .brand-toggle-slider:before {
+    transform: translateX(17px);
+    background-color: #38bdf8;
+    box-shadow: 0 0 6px #38bdf8;
+}
+
+/* Navigation Segmented Toolbar Matching Reference Image 2 */
 .header-nav-pills {
     display: flex;
     align-items: center;
     gap: 6px;
-    background: rgba(8, 10, 16, 0.65);
-    backdrop-filter: var(--glass-blur-sm);
-    -webkit-backdrop-filter: var(--glass-blur-sm);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 4px 6px;
-    box-shadow: inset 0 1px 5px rgba(0, 0, 0, 0.65), 0 3px 12px rgba(0, 0, 0, 0.3);
+    background: transparent;
+    padding: 0;
+    border: none;
+    box-shadow: none;
 }
 
 .nav-pill-btn {
     display: flex;
     align-items: center;
-    gap: 10px;
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 9px;
-    padding: 8px 20px;
-    font-size: 0.98rem;
-    font-weight: 700;
+    gap: 7px;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 5px 14px;
+    font-size: 0.88rem;
+    font-weight: 600;
     color: #94a3b8;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     user-select: none;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.2px;
 }
 
 .nav-pill-btn:hover {
-    border-color: rgba(255, 255, 255, 0.15);
+    border-color: rgba(56, 189, 248, 0.4);
     color: #ffffff;
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(56, 189, 248, 0.1);
     transform: translateY(-1px);
 }
 
 .nav-pill-btn.active {
-    background: linear-gradient(135deg, rgba(250, 204, 21, 0.28) 0%, rgba(202, 138, 4, 0.1) 100%);
-    border: 1.5px solid rgba(250, 204, 21, 0.6);
-    color: #fef08a;
-    font-weight: 750;
-    box-shadow: 0 4px 18px rgba(250, 204, 21, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    background: rgba(56, 189, 248, 0.16);
+    border: 1.5px solid #38bdf8;
+    color: #38bdf8;
+    font-weight: 700;
+    box-shadow: 0 0 16px rgba(56, 189, 248, 0.35);
 }
 
 .nav-pill-btn i {
@@ -311,39 +352,40 @@ button, input, select, textarea {
     margin-left: 2px;
 }
 
-/* Window Controls (Min, Max, Close - Framed Glass Style) */
+/* Window Controls (Min, Max, Close - Framed Glass Style Matching Reference Image 2) */
 .header-win-controls {
     display: flex;
     align-items: center;
-    gap: 4px;
-    background: rgba(8, 10, 16, 0.6);
+    gap: 12px;
+    background: rgba(15, 23, 42, 0.6);
     backdrop-filter: var(--glass-blur-sm);
     -webkit-backdrop-filter: var(--glass-blur-sm);
-    border: 1px solid rgba(250, 204, 21, 0.32);
+    border: 1px solid rgba(56, 189, 248, 0.35);
     border-radius: 8px;
-    padding: 2px 6px;
+    padding: 3px 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
     -webkit-app-region: no-drag;
 }
 
 .win-btn {
-    width: 26px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
     background: transparent;
     border: none;
     color: #94a3b8;
-    font-size: 0.72rem;
+    font-size: 0.76rem;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 4px;
     transition: 0.15s;
+    -webkit-app-region: no-drag;
 }
 
 .win-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
+    background: rgba(56, 189, 248, 0.2);
+    color: #38bdf8;
 }
 
 .win-btn.close:hover {
@@ -374,28 +416,28 @@ button, input, select, textarea {
     overflow: hidden;
 }
 
-/* Left Column: Pro Video Studio Monitor (Glassmorphic Studio Frame) */
+/* Left Column: Pro Video Studio Monitor (Glassmorphic Studio Frame Matching Image 2) */
 .studio-left-monitor-card {
-    background: var(--glass-bg);
+    background: rgba(9, 14, 23, 0.75);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
-    border: 1px solid var(--glass-border);
-    border-radius: 14px;
+    border: 1.2px solid rgba(56, 189, 248, 0.38);
+    border-radius: 12px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     overflow: hidden;
     position: relative;
-    padding: 12px 14px;
+    padding: 10px 12px;
     height: 100%;
     min-height: 0;
-    box-shadow: var(--glass-shadow);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
     transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .studio-left-monitor-card:hover {
-    border-color: rgba(250, 204, 21, 0.38);
-    box-shadow: var(--glass-shadow-lg);
+    border-color: rgba(56, 189, 248, 0.6);
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.15);
 }
 
 /* Studio Monitor Status Bar Kicker */
@@ -507,23 +549,23 @@ button, input, select, textarea {
     display: block;
 }
 
-/* Tactile Studio Gold Play Button */
+/* Glowing Cyan Center Play Button Matching Reference Image 2 */
 .monitor-center-play-button {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 56px;
-    height: 56px;
+    width: 60px;
+    height: 60px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #facc15 0%, #ca8a04 100%);
+    background: linear-gradient(135deg, #06b6d4 0%, #0284c7 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #080703;
+    color: #ffffff;
     font-size: 1.35rem;
     cursor: pointer;
-    box-shadow: 0 0 25px rgba(250, 204, 21, 0.65), 0 4px 15px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 0 28px rgba(6, 182, 212, 0.75), 0 4px 15px rgba(0, 0, 0, 0.6);
     transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, box-shadow 0.18s ease;
     z-index: 25;
     pointer-events: auto;
@@ -531,7 +573,7 @@ button, input, select, textarea {
 
 .monitor-center-play-button:hover {
     transform: translate(-50%, -50%) scale(1.1);
-    box-shadow: 0 0 35px rgba(250, 204, 21, 0.9), 0 0 50px rgba(250, 204, 21, 0.4);
+    box-shadow: 0 0 38px rgba(6, 182, 212, 0.95), 0 0 55px rgba(6, 182, 212, 0.5);
 }
 
 .monitor-center-play-button i {
@@ -921,22 +963,22 @@ button, input, select, textarea {
 .studio-sources-box {
     flex: 1;
     min-height: 0;
-    background: var(--glass-bg);
+    background: rgba(9, 14, 23, 0.75);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
-    border: 1px solid var(--glass-border);
-    border-radius: 14px;
+    border: 1.2px solid rgba(56, 189, 248, 0.38);
+    border-radius: 12px;
     position: relative;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    box-shadow: var(--glass-shadow);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
     transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .studio-sources-box:hover {
-    border-color: rgba(250, 204, 21, 0.38);
-    box-shadow: var(--glass-shadow-lg);
+    border-color: rgba(56, 189, 248, 0.6);
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.15);
 }
 
 .studio-sources-box::-webkit-scrollbar {
@@ -978,7 +1020,7 @@ button, input, select, textarea {
     pointer-events: none;
 }
 
-/* Professional Studio Media Ingest Drop Zone (Ultra-Clean Glassmorphic Center) */
+/* Professional Studio Media Ingest Drop Zone Matching Reference Image 2 */
 .clean-import-center-cta {
     margin: auto;
     width: 100%;
@@ -987,48 +1029,48 @@ button, input, select, textarea {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 48px 56px;
-    border: 1.5px dashed rgba(250, 204, 21, 0.35);
-    border-radius: 20px;
-    background: rgba(18, 22, 34, 0.52);
+    padding: 38px 48px;
+    border: 1.5px dashed rgba(56, 189, 248, 0.35);
+    border-radius: 16px;
+    background: rgba(15, 23, 42, 0.35);
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     cursor: pointer;
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     user-select: none;
     text-align: center;
-    box-shadow: 0 16px 45px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    box-shadow: 0 16px 45px rgba(0, 0, 0, 0.45);
     position: relative;
     overflow: hidden;
     animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .clean-import-center-cta:hover {
-    border-color: #facc15;
-    background: rgba(250, 204, 21, 0.06);
-    transform: translateY(-3px) scale(1.01);
-    box-shadow: 0 22px 55px rgba(0, 0, 0, 0.6), 0 0 30px rgba(250, 204, 21, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    border-color: #38bdf8;
+    background: rgba(56, 189, 248, 0.08);
+    transform: translateY(-2px);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 25px rgba(56, 189, 248, 0.2);
 }
 
 .clean-import-icon-box {
-    width: 68px;
-    height: 68px;
-    border-radius: 18px;
-    background: linear-gradient(135deg, rgba(250, 204, 21, 0.22) 0%, rgba(234, 179, 8, 0.06) 100%);
-    border: 1.5px solid rgba(250, 204, 21, 0.45);
-    color: #facc15;
-    font-size: 1.85rem;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1.5px solid rgba(56, 189, 248, 0.45);
+    color: #38bdf8;
+    font-size: 1.65rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 16px;
-    box-shadow: 0 0 25px rgba(250, 204, 21, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.25);
-    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+    margin-bottom: 14px;
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.25);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .clean-import-center-cta:hover .clean-import-icon-box {
-    transform: scale(1.1) rotate(-3deg);
-    box-shadow: 0 0 35px rgba(250, 204, 21, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    transform: scale(1.1);
+    box-shadow: 0 0 30px rgba(56, 189, 248, 0.5);
 }
 
 .clean-import-text {
@@ -1040,7 +1082,7 @@ button, input, select, textarea {
 }
 
 .clean-import-center-cta:hover .clean-import-text {
-    color: #fde047;
+    color: #38bdf8;
 }
 
 .clean-import-sub {
@@ -1048,6 +1090,27 @@ button, input, select, textarea {
     color: #94a3b8;
     margin-top: 6px;
     line-height: 1.45;
+}
+
+.clean-browse-cta-btn {
+    background: linear-gradient(135deg, #06b6d4 0%, #0284c7 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: 20px;
+    padding: 10px 26px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 18px rgba(6, 182, 212, 0.45);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+}
+
+.clean-browse-cta-btn:hover {
+    transform: translateY(-2px) scale(1.03);
+    box-shadow: 0 6px 24px rgba(6, 182, 212, 0.65);
 }
 
 .clean-import-formats {
@@ -3548,23 +3611,23 @@ select, option, optgroup {
     min-height: 155px;
     max-height: 155px;
     flex-shrink: 0;
-    background: var(--glass-bg);
+    background: rgba(8, 13, 22, 0.85);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
-    border: 1px solid var(--glass-border);
-    border-radius: 14px;
+    border: 1.2px solid rgba(56, 189, 248, 0.38);
+    border-radius: 10px;
     padding: 10px 14px;
     display: flex;
     flex-direction: column;
-    box-shadow: var(--glass-shadow);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
     position: relative;
     overflow: hidden;
     transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .studio-engine-monitor-box:hover {
-    border-color: rgba(250, 204, 21, 0.38);
-    box-shadow: var(--glass-shadow-lg);
+    border-color: rgba(56, 189, 248, 0.6);
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.15);
 }
 
 .engine-monitor-top-bar {
