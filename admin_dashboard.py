@@ -37,6 +37,8 @@ from license_engine import (
     is_license_required,
     set_license_required,
     get_machine_hwid,
+    calculate_key_live_status,
+    sync_and_load_admin_history,
     ADMIN_HISTORY_FILE,
     GENERATED_KEYS_LOG,
     CUSTOM_KEYS_FILE,
@@ -68,14 +70,11 @@ def admin_license_status():
 
 @admin_app.route("/api/admin/keys", methods=["GET"])
 def admin_keys_list():
-    if ADMIN_HISTORY_FILE.exists():
-        try:
-            with open(ADMIN_HISTORY_FILE, "r", encoding="utf-8") as f:
-                history = json.load(f)
-            return jsonify({"success": True, "keys": history})
-        except Exception as e:
-            return jsonify({"success": False, "error": str(e)}), 500
-    return jsonify({"success": True, "keys": []})
+    try:
+        keys = sync_and_load_admin_history()
+        return jsonify({"success": True, "keys": keys})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @admin_app.route("/api/admin/export-txt", methods=["GET"])
 def admin_export_txt():
@@ -86,12 +85,19 @@ def admin_export_txt():
 @admin_app.route("/api/admin/generate-key", methods=["POST"])
 def admin_generate_key():
     data = request.get_json(force=True) or {}
-    client_name = data.get("client_name", "VIP_Client")
+    client_name = data.get("client_name", "").strip() or "VIP Customer"
     duration_days = int(data.get("duration_days", 0))
     hwid = data.get("hwid") or None
     plan = data.get("plan", "VIP_PRO")
-    record = generate_license_key(client_name=client_name, duration_days=duration_days, hwid=hwid, plan=plan)
-    return jsonify({"success": True, "key_record": record})
+    custom_key = data.get("custom_key", "").strip()
+
+    if custom_key:
+        record = register_custom_key(custom_key, client_name=client_name, duration_days=duration_days, hwid=hwid, plan=plan)
+    else:
+        record = generate_license_key(client_name=client_name, duration_days=duration_days, hwid=hwid, plan=plan)
+
+    enriched = calculate_key_live_status(record)
+    return jsonify({"success": True, "key_record": enriched})
 
 @admin_app.route("/api/admin/custom-key", methods=["POST"])
 def admin_custom_key():
@@ -99,12 +105,13 @@ def admin_custom_key():
     custom_key = data.get("custom_key", "").strip()
     if not custom_key:
         return jsonify({"success": False, "error": "សូមបញ្ចូល Custom Key"}), 400
-    client_name = data.get("client_name", "VIP_Client")
+    client_name = data.get("client_name", "").strip() or "VIP Customer"
     duration_days = int(data.get("duration_days", 0))
     hwid = data.get("hwid") or None
     plan = data.get("plan", "CUSTOM_VIP")
     rec = register_custom_key(custom_key, client_name, duration_days, hwid, plan)
-    return jsonify({"success": True, "key_record": rec})
+    enriched = calculate_key_live_status(rec)
+    return jsonify({"success": True, "key_record": enriched})
 
 @admin_app.route("/api/admin/license-config", methods=["GET", "POST"])
 def admin_license_config():

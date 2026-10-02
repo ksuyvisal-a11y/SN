@@ -431,21 +431,32 @@
         /* 4. Stat Metric Cards (Orion Dashboard Top Row) */
         .stat-cards-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 18px;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 16px;
             margin-bottom: 24px;
         }
 
-        @media (max-width: 1080px) {
+        @media (max-width: 1280px) {
+            .stat-cards-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 800px) {
             .stat-cards-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
         }
 
-        @media (max-width: 600px) {
+        @media (max-width: 540px) {
             .stat-cards-grid {
                 grid-template-columns: 1fr;
             }
+        }
+
+        .record-card-row.expiring-soon {
+            border-left: 3px solid #f59e0b;
+            background: linear-gradient(90deg, rgba(254, 243, 199, 0.25) 0%, #ffffff 100%);
         }
 
         .stat-card {
@@ -1531,6 +1542,18 @@
                         </span>
                     </div>
 
+                    <!-- Expiring Soon Clients (<= 7 Days) -->
+                    <div class="stat-card" style="border-left: 3px solid #f59e0b; cursor: pointer;" onclick="switchSection('customers'); setFilter('EXPIRING_SOON', document.querySelector('.filter-pill-btn[data-filter=\'EXPIRING_SOON\']'));" title="ចុចដើម្បីមើលបញ្ជី Key ជិតផុតកំណត់">
+                        <div class="stat-label-row">
+                            <span class="stat-label">Expiring Soon (≤ 7 ថ្ងៃ)</span>
+                            <span class="stat-badge-pill stat-pill-amber">⚠️ ជិតផុត</span>
+                        </div>
+                        <span class="stat-value" id="card-expiring-keys" style="color: #b45309;">0</span>
+                        <span class="stat-subtext">
+                            <i class="fa-solid fa-triangle-exclamation" style="color:#d97706;"></i> អតិថិជនជិតដល់ថ្ងៃផុតកំណត់
+                        </span>
+                    </div>
+
                     <!-- Blocked / Revoked -->
                     <div class="stat-card">
                         <div class="stat-label-row">
@@ -1699,6 +1722,31 @@
                             <span class="stat-badge-pill stat-pill-blue">STUDIO ISSUER</span>
                         </div>
 
+                        <!-- 1. Customer Name Input (Required & Real-time Live Linked) -->
+                        <div class="input-group">
+                            <label class="input-label" for="input-client-name">
+                                <span><i class="fa-solid fa-user-tag" style="color:var(--primary);"></i> ឈ្មោះអតិថិជន (Customer Name):</span>
+                                <span class="input-hint" style="color:var(--primary); font-weight:700;">ចាំបាច់ (Required)</span>
+                            </label>
+                            <div class="input-field-row">
+                                <input type="text" id="input-client-name" class="light-input" placeholder="👉 បញ្ចូលឈ្មោះភ្ញៀវ (ឧ. Sokha, Chann Pisey, Page Movie KH...)" oninput="updateLiveDeliveryCard()" autofocus>
+                            </div>
+                        </div>
+
+                        <!-- 2. Custom Key or Auto-Generate Input -->
+                        <div class="input-group">
+                            <label class="input-label" for="input-custom-key">
+                                <span><i class="fa-solid fa-key" style="color:#d97706;"></i> លេខកូដ Key កំណត់តាមចិត្ត (Custom Key - Option):</span>
+                                <span class="input-hint">ទុកទំនេរដើម្បីប្រព័ន្ធបង្កើត Auto (SN-VIP-...)</span>
+                            </label>
+                            <div class="input-field-row">
+                                <input type="text" id="input-custom-key" class="light-input mono uppercase" placeholder="Leave blank for auto SN-VIP key or enter custom (e.g. SAL-VIP-2026)" oninput="updateLiveDeliveryCard()">
+                                <button type="button" class="btn-input-addon" onclick="generateRandomCustomKey()">
+                                    <i class="fa-solid fa-dice"></i> 🎲 Random
+                                </button>
+                            </div>
+                        </div>
+
                         <!-- Unified Plan Duration Selector -->
                         <div class="input-group">
                             <label class="input-label">
@@ -1844,12 +1892,14 @@
                         <div class="plan-filter-pills">
                             <button type="button" class="filter-pill-btn active" data-filter="ALL" onclick="setFilter('ALL', this)">ទាំងអស់ (All)</button>
                             <button type="button" class="filter-pill-btn" data-filter="ACTIVE" onclick="setFilter('ACTIVE', this)">🟢 សកម្ម</button>
+                            <button type="button" class="filter-pill-btn" data-filter="EXPIRING_SOON" onclick="setFilter('EXPIRING_SOON', this)" style="color:#b45309; font-weight:800;">⚠️ ជិតផុតកំណត់</button>
+                            <button type="button" class="filter-pill-btn" data-filter="EXPIRED" onclick="setFilter('EXPIRED', this)" style="color:#b91c1c; font-weight:800;">🔴 ផុតកំណត់</button>
                             <button type="button" class="filter-pill-btn" data-filter="LIFETIME" onclick="setFilter('LIFETIME', this)">👑 មួយជីវិត</button>
                             <button type="button" class="filter-pill-btn" data-filter="1Y" onclick="setFilter('1Y', this)">📅 1 ឆ្នាំ</button>
                             <button type="button" class="filter-pill-btn" data-filter="3M" onclick="setFilter('3M', this)">📅 3 ខែ</button>
                             <button type="button" class="filter-pill-btn" data-filter="1M" onclick="setFilter('1M', this)">📅 1 ខែ</button>
                             <button type="button" class="filter-pill-btn" data-filter="TRIAL" onclick="setFilter('TRIAL', this)">🧪 តេស្ត</button>
-                            <button type="button" class="filter-pill-btn" data-filter="REVOKED" onclick="setFilter('REVOKED', this)">🔴 Blocked</button>
+                            <button type="button" class="filter-pill-btn" data-filter="REVOKED" onclick="setFilter('REVOKED', this)">🚫 Blocked</button>
                         </div>
                     </div>
 
@@ -2197,12 +2247,60 @@
         }
 
         function generateRandomCustomKey() {
-            const prefixes = ["VIP", "SAL", "SN", "PRO", "STAR"];
+            const prefixes = ["VIP", "SAL", "SN", "PRO", "STAR", "DRAMA"];
             const p = prefixes[Math.floor(Math.random() * prefixes.length)];
             const r = Math.floor(1000 + Math.random() * 9000);
             const key = `${p}-${r}-2026`;
-            document.getElementById('input-custom-key').value = key;
+            const input = document.getElementById('input-custom-key');
+            if (input) {
+                input.value = key;
+                updateLiveDeliveryCard();
+            }
             showToast("🎲 បានបង្កើត Key: " + key);
+        }
+
+        function updateLiveDeliveryCard() {
+            const nameInput = document.getElementById('input-client-name');
+            const customKeyInput = document.getElementById('input-custom-key');
+            const hwidInput = document.getElementById('input-hwid');
+            const durationVal = (document.getElementById('selected-duration') || {}).value || "LIFETIME:0";
+
+            const name = (nameInput && nameInput.value.trim()) ? nameInput.value.trim() : "VIP Customer";
+            const customKey = (customKeyInput && customKeyInput.value.trim()) ? customKeyInput.value.trim().toUpperCase() : "SAL-VIP-2026";
+            const hwid = (hwidInput && hwidInput.value.trim()) ? hwidInput.value.trim().toUpperCase() : "ANY";
+
+            const nameElem = document.getElementById('delivery-client-name');
+            if (nameElem) nameElem.textContent = name;
+
+            const keyElem = document.getElementById('delivery-key-text');
+            if (keyElem) keyElem.textContent = customKey;
+
+            const hwidElem = document.getElementById('delivery-hwid-text');
+            if (hwidElem) hwidElem.textContent = (hwid === "ANY" || hwid === "*") ? "គ្រប់ម៉ាស៊ីន (ANY)" : hwid;
+
+            let [tag, daysStr] = durationVal.split(':');
+            let planDesc = "👑 LIFETIME VIP";
+            let expiryDesc = "មួយជីវិត (LIFETIME)";
+
+            if (tag === 'CUSTOM') {
+                const days = parseInt(document.getElementById('input-custom-days').value, 10) || 30;
+                planDesc = `VIP ${days} ថ្ងៃ`;
+                const expDate = new Date();
+                expDate.setDate(expDate.getDate() + days);
+                expiryDesc = expDate.toISOString().split('T')[0];
+            } else if (daysStr && parseInt(daysStr, 10) > 0) {
+                const days = parseInt(daysStr, 10);
+                planDesc = `VIP ${days} ថ្ងៃ`;
+                const expDate = new Date();
+                expDate.setDate(expDate.getDate() + days);
+                expiryDesc = expDate.toISOString().split('T')[0];
+            }
+
+            const planBadge = document.getElementById('delivery-plan-badge');
+            if (planBadge) planBadge.textContent = planDesc;
+
+            const expiryElem = document.getElementById('delivery-expiry-text');
+            if (expiryElem) expiryElem.textContent = expiryDesc;
         }
 
         async function pasteHwidFromClipboard() {
@@ -2210,6 +2308,7 @@
                 const text = await navigator.clipboard.readText();
                 if (text) {
                     document.getElementById('input-hwid').value = text.trim();
+                    updateLiveDeliveryCard();
                     showToast("📋 បាន Paste HWID ជោគជ័យ!");
                 }
             } catch (err) {
@@ -2219,9 +2318,16 @@
 
         // 5. Generate Key
         async function handleGenerateKey() {
-            const customKey = document.getElementById('input-custom-key').value.trim();
-            const clientName = document.getElementById('input-client-name').value.trim() || "VIP_Customer";
-            const hwid = document.getElementById('input-hwid').value.trim();
+            const nameInput = document.getElementById('input-client-name');
+            const clientName = nameInput ? nameInput.value.trim() : "";
+            if (!clientName) {
+                showToast("⚠️ សូមបញ្ចូលឈ្មោះអតិថិជនជាមុនសិន!");
+                if (nameInput) nameInput.focus();
+                return;
+            }
+
+            const customKey = (document.getElementById('input-custom-key') || {}).value ? document.getElementById('input-custom-key').value.trim() : "";
+            const hwid = (document.getElementById('input-hwid') || {}).value ? document.getElementById('input-hwid').value.trim() : "";
             const durationVal = (document.getElementById('selected-duration') || {}).value || "LIFETIME:0";
 
             let durationDays = 0;
@@ -2271,7 +2377,7 @@
 
                     // Auto Copy Key
                     navigator.clipboard.writeText(currentRecord.license_key).catch(() => {});
-                    showToast("🎉 បានបង្កើត VIP Key និង Copy ជោគជ័យ!");
+                    showToast(`🎉 បានបង្កើត VIP Key ជូន "${clientName}" ជោគជ័យ!`);
 
                     // Refresh table & stats
                     fetchKeysHistory();
@@ -2285,11 +2391,21 @@
 
         // 6. Update Delivery Card
         function updateDeliveryCardUI(rec) {
-            document.getElementById('delivery-plan-badge').textContent = rec.plan || "VIP LICENSE";
-            document.getElementById('delivery-client-name').textContent = rec.client_name || "VIP Customer";
-            document.getElementById('delivery-key-text').textContent = rec.license_key || "KEY_EMPTY";
-            document.getElementById('delivery-expiry-text').textContent = rec.expires_at || "LIFETIME";
-            document.getElementById('delivery-hwid-text').textContent = (!rec.bound_hwid || rec.bound_hwid === "ANY") ? "គ្រប់ម៉ាស៊ីន (ANY)" : rec.bound_hwid;
+            if (!rec) return;
+            const planBadge = document.getElementById('delivery-plan-badge');
+            if (planBadge) planBadge.textContent = rec.plan || "VIP LICENSE";
+
+            const nameElem = document.getElementById('delivery-client-name');
+            if (nameElem) nameElem.textContent = rec.client_name || "VIP Customer";
+
+            const keyElem = document.getElementById('delivery-key-text');
+            if (keyElem) keyElem.textContent = rec.license_key || "KEY_EMPTY";
+
+            const expiryElem = document.getElementById('delivery-expiry-text');
+            if (expiryElem) expiryElem.textContent = rec.expires_at || "LIFETIME";
+
+            const hwidElem = document.getElementById('delivery-hwid-text');
+            if (hwidElem) hwidElem.textContent = (!rec.bound_hwid || rec.bound_hwid === "ANY" || rec.bound_hwid === "*") ? "គ្រប់ម៉ាស៊ីន (ANY)" : rec.bound_hwid;
         }
 
         function copyCurrentGeneratedKey() {
@@ -2306,7 +2422,7 @@
             const key = currentRecord.license_key;
             const plan = currentRecord.plan || "VIP PRO";
             const expiry = currentRecord.expires_at || "មួយជីវិត (Lifetime)";
-            const hwid = (!currentRecord.bound_hwid || currentRecord.bound_hwid === "ANY") ? "ប្រើបានគ្រប់ម៉ាស៊ីន" : currentRecord.bound_hwid;
+            const hwid = (!currentRecord.bound_hwid || currentRecord.bound_hwid === "ANY" || currentRecord.bound_hwid === "*") ? "ប្រើបានគ្រប់ម៉ាស៊ីន" : currentRecord.bound_hwid;
 
             const text = 
 `🎬 SN TOOL - VIP LICENSE KEY
@@ -2319,8 +2435,9 @@
 =========================================
 👉 របៀបប្រើប្រាស់៖
 ១. បើកកម្មវិធី SN TOOL នៅលើកុំព្យូទ័រ
-២. ចម្លង (Copy) Key ខាងលើរួចយកទៅ Paste ចូលផ្ទាំង Activate
-៣. ចុចប៊ូតុង "ACTIVATE NOW" ជាការស្រេច!
+២. បញ្ចូលឈ្មោះរបស់អ្នក "${client}"
+៣. ចម្លង (Copy) Key ខាងលើរួចយកទៅ Paste ចូល
+៤. ចុចប៊ូតុង "ACTIVATE NOW" ជាការស្រេច!
 
 🙏 សូមអរគុណសម្រាប់ការគាំទ្រ SN STUDIO! ✨`;
 
@@ -2362,12 +2479,22 @@
 
         function updateStats() {
             const total = allKeysData.length;
-            const revoked = allKeysData.filter(k => k.status === "REVOKED").length;
-            const active = total - revoked;
+            const revoked = allKeysData.filter(k => k.status === "REVOKED" || k.live_status === "REVOKED").length;
+            const expiringSoon = allKeysData.filter(k => k.is_expiring_soon).length;
+            const expired = allKeysData.filter(k => k.is_expired).length;
+            const active = total - revoked - expired;
 
-            document.getElementById('card-total-keys').textContent = total;
-            document.getElementById('card-active-keys').textContent = active;
-            document.getElementById('card-revoked-keys').textContent = revoked;
+            const totalElem = document.getElementById('card-total-keys');
+            if (totalElem) totalElem.textContent = total;
+
+            const activeElem = document.getElementById('card-active-keys');
+            if (activeElem) activeElem.textContent = Math.max(0, active);
+
+            const expiringElem = document.getElementById('card-expiring-keys');
+            if (expiringElem) expiringElem.textContent = expiringSoon;
+
+            const revokedElem = document.getElementById('card-revoked-keys');
+            if (revokedElem) revokedElem.textContent = revoked;
 
             const badge = document.getElementById('sidebar-customers-badge');
             if (badge) badge.textContent = total;
@@ -2381,7 +2508,7 @@
 
             allKeysData.forEach(k => {
                 const p = (k.plan || "").toUpperCase();
-                if (p.includes("LIFETIME")) lifetimeCount++;
+                if (p.includes("LIFETIME") || k.live_status === "LIFETIME") lifetimeCount++;
                 else if (p.includes("1Y") || p.includes("365")) y1Count++;
                 else if (p.includes("3M") || p.includes("90")) m3Count++;
                 else if (p.includes("1M") || p.includes("30")) m1Count++;
@@ -2389,22 +2516,32 @@
             });
 
             const maxC = Math.max(total, 1);
-            document.getElementById('bar-lifetime-text').textContent = lifetimeCount;
-            document.getElementById('bar-lifetime-fill').style.width = `${(lifetimeCount / maxC) * 100}%`;
+            const barLife = document.getElementById('bar-lifetime-text');
+            if (barLife) barLife.textContent = lifetimeCount;
+            const barLifeFill = document.getElementById('bar-lifetime-fill');
+            if (barLifeFill) barLifeFill.style.width = `${(lifetimeCount / maxC) * 100}%`;
 
-            document.getElementById('bar-1y-text').textContent = y1Count;
-            document.getElementById('bar-1y-fill').style.width = `${(y1Count / maxC) * 100}%`;
+            const bar1y = document.getElementById('bar-1y-text');
+            if (bar1y) bar1y.textContent = y1Count;
+            const bar1yFill = document.getElementById('bar-1y-fill');
+            if (bar1yFill) bar1yFill.style.width = `${(y1Count / maxC) * 100}%`;
 
-            document.getElementById('bar-3m-text').textContent = m3Count;
-            document.getElementById('bar-3m-fill').style.width = `${(m3Count / maxC) * 100}%`;
+            const bar3m = document.getElementById('bar-3m-text');
+            if (bar3m) bar3m.textContent = m3Count;
+            const bar3mFill = document.getElementById('bar-3m-fill');
+            if (bar3mFill) bar3mFill.style.width = `${(m3Count / maxC) * 100}%`;
 
-            document.getElementById('bar-1m-text').textContent = m1Count;
-            document.getElementById('bar-1m-fill').style.width = `${(m1Count / maxC) * 100}%`;
+            const bar1m = document.getElementById('bar-1m-text');
+            if (bar1m) bar1m.textContent = m1Count;
+            const bar1mFill = document.getElementById('bar-1m-fill');
+            if (bar1mFill) bar1mFill.style.width = `${(m1Count / maxC) * 100}%`;
 
-            document.getElementById('bar-trial-text').textContent = trialCount;
-            document.getElementById('bar-trial-fill').style.width = `${(trialCount / maxC) * 100}%`;
+            const barTrial = document.getElementById('bar-trial-text');
+            if (barTrial) barTrial.textContent = trialCount;
+            const barTrialFill = document.getElementById('bar-trial-fill');
+            if (barTrialFill) barTrialFill.style.width = `${(trialCount / maxC) * 100}%`;
 
-            const activeRatio = total > 0 ? Math.round((active / total) * 100) : 100;
+            const activeRatio = total > 0 ? Math.round((Math.max(0, active) / total) * 100) : 100;
             const ratioBadge = document.getElementById('overview-ratio-badge');
             if (ratioBadge) ratioBadge.textContent = `${activeRatio}% Active`;
         }
@@ -2427,7 +2564,6 @@
 
             container.innerHTML = "";
             recent.forEach((item, index) => {
-                const isRevoked = item.status === "REVOKED";
                 const row = createRecordRowElement(item, index);
                 container.appendChild(row);
             });
@@ -2437,7 +2573,12 @@
         function setFilter(filterType, btnElem) {
             currentFilter = filterType;
             document.querySelectorAll('.filter-pill-btn').forEach(b => b.classList.remove('active'));
-            if (btnElem) btnElem.classList.add('active');
+            if (btnElem) {
+                btnElem.classList.add('active');
+            } else {
+                const matchingBtn = document.querySelector(`.filter-pill-btn[data-filter='${filterType}']`);
+                if (matchingBtn) matchingBtn.classList.add('active');
+            }
             renderTable();
         }
 
@@ -2446,26 +2587,29 @@
         }
 
         function syncSearchFromNav(val) {
-            // Switch to customers section if not currently there
             if (activeSection !== 'customers') {
                 switchSection('customers');
             }
-            document.getElementById('table-search-input').value = val;
+            const sInput = document.getElementById('table-search-input');
+            if (sInput) sInput.value = val;
             renderTable();
         }
 
         function renderTable() {
             const container = document.getElementById('table-records-list');
             if (!container) return;
-            const searchVal = document.getElementById('table-search-input').value.trim().toLowerCase();
+            const searchVal = (document.getElementById('table-search-input') || {}).value ? document.getElementById('table-search-input').value.trim().toLowerCase() : "";
 
             let filtered = allKeysData.filter(item => {
                 const planUpper = (item.plan || "").toUpperCase();
+                const liveStatus = (item.live_status || item.status || "").toUpperCase();
 
                 // Categorized Section Filters
-                if (currentFilter === "ACTIVE" && item.status === "REVOKED") return false;
-                if (currentFilter === "REVOKED" && item.status !== "REVOKED") return false;
-                if (currentFilter === "LIFETIME" && !planUpper.includes("LIFETIME")) return false;
+                if (currentFilter === "ACTIVE" && (liveStatus === "REVOKED" || item.is_expired)) return false;
+                if (currentFilter === "EXPIRING_SOON" && !item.is_expiring_soon) return false;
+                if (currentFilter === "EXPIRED" && !item.is_expired) return false;
+                if (currentFilter === "REVOKED" && liveStatus !== "REVOKED") return false;
+                if (currentFilter === "LIFETIME" && !planUpper.includes("LIFETIME") && liveStatus !== "LIFETIME") return false;
                 if (currentFilter === "1Y" && (!planUpper.includes("1Y") && !planUpper.includes("365"))) return false;
                 if (currentFilter === "3M" && (!planUpper.includes("3M") && !planUpper.includes("90"))) return false;
                 if (currentFilter === "1M" && (!planUpper.includes("1M") && !planUpper.includes("30"))) return false;
@@ -2475,7 +2619,8 @@
                     const matchKey = (item.license_key || "").toLowerCase().includes(searchVal);
                     const matchName = (item.client_name || "").toLowerCase().includes(searchVal);
                     const matchPlan = (item.plan || "").toLowerCase().includes(searchVal);
-                    return matchKey || matchName || matchPlan;
+                    const matchHwid = (item.bound_hwid || "").toLowerCase().includes(searchVal);
+                    return matchKey || matchName || matchPlan || matchHwid;
                 }
                 return true;
             });
@@ -2498,36 +2643,87 @@
         }
 
         function createRecordRowElement(item, index) {
-            const isRevoked = item.status === "REVOKED";
-            const hwidText = (!item.bound_hwid || item.bound_hwid === "ANY") ? "ANY HWID" : item.bound_hwid;
-            const clientName = item.client_name || "VIP User";
+            const isRevoked = item.status === "REVOKED" || item.live_status === "REVOKED";
+            const isExpired = item.is_expired;
+            const isExpiringSoon = item.is_expiring_soon;
+            const hwidText = (!item.bound_hwid || item.bound_hwid === "ANY" || item.bound_hwid === "*") ? "គ្រប់ម៉ាស៊ីន (ANY)" : item.bound_hwid;
+            const clientName = item.client_name || "VIP Customer";
             const planText = item.plan || "VIP";
             const dateText = item.created_at || "Recent";
             const expiryText = item.expires_at || "LIFETIME";
+            const daysLeft = item.days_remaining;
+            const lastActive = item.last_active || item.activated_at || "មិនទាន់ចូលប្រើ";
+            const useCount = item.use_count || 0;
+
+            let badgeClass = "stat-pill-green";
+            let badgeText = "🟢 ACTIVE";
+
+            if (isRevoked) {
+                badgeClass = "stat-pill-red";
+                badgeText = "🚫 REVOKED";
+            } else if (isExpired) {
+                badgeClass = "stat-pill-red";
+                badgeText = `🔴 EXPIRED (${Math.abs(daysLeft)} ថ្ងៃមុន)`;
+            } else if (isExpiringSoon) {
+                badgeClass = "stat-pill-amber";
+                badgeText = `⚠️ ជិតផុតកំណត់ (សល់ ${daysLeft} ថ្ងៃ)`;
+            } else if ((item.live_status || "").toUpperCase() === "LIFETIME" || expiryText === "LIFETIME") {
+                badgeClass = "stat-pill-purple";
+                badgeText = "👑 LIFETIME";
+            } else {
+                badgeClass = "stat-pill-green";
+                badgeText = `🟢 ACTIVE (សល់ ${daysLeft} ថ្ងៃ)`;
+            }
 
             const card = document.createElement('div');
-            card.className = `record-card-row ${isRevoked ? 'revoked' : ''}`;
+            card.className = `record-card-row ${isRevoked ? 'revoked' : ''} ${isExpiringSoon ? 'expiring-soon' : ''}`;
             card.innerHTML = `
                 <div class="record-left" onclick="selectRowForDelivery(${index})" title="ចុចដើម្បីមើល ឬចម្លងព័ត៌មាន">
-                    <div class="record-avatar">
-                        <i class="fa-solid ${isRevoked ? 'fa-user-slash' : 'fa-user'}"></i>
+                    <div class="record-avatar" style="${isExpiringSoon ? 'background:#fef3c7; color:#d97706; border:1px solid #fde68a;' : ''}">
+                        <i class="fa-solid ${isRevoked ? 'fa-user-slash' : (isExpiringSoon ? 'fa-user-clock' : 'fa-user-check')}"></i>
                     </div>
                     <div class="record-info-col">
-                        <div class="record-title-line">
-                            <span class="record-client-name">${clientName}</span>
-                            <span class="record-key-tag">${item.license_key}</span>
-                            <span class="stat-badge-pill ${isRevoked ? 'stat-pill-red' : 'stat-pill-green'}">
-                                ${isRevoked ? 'REVOKED' : 'ACTIVE'}
+                        <div class="record-title-line" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <span class="record-client-name" style="font-size:0.95rem; font-weight:800; color:var(--text-title);">${clientName}</span>
+                            <span class="record-key-tag" style="font-family:var(--font-mono); font-weight:700;">${item.license_key}</span>
+                            <span class="stat-badge-pill ${badgeClass}">
+                                ${badgeText}
                             </span>
                         </div>
-                        <div class="record-meta-line">
-                            <span class="record-meta-item"><i class="fa-solid fa-box-open" style="color:var(--primary);"></i> ${planText}</span>
-                            <span class="record-meta-item"><i class="fa-solid fa-hourglass-half"></i> ${expiryText}</span>
-                            <span class="record-meta-item"><i class="fa-solid fa-desktop"></i> ${hwidText}</span>
-                            <span class="record-meta-item"><i class="fa-solid fa-calendar"></i> ${dateText}</span>
+                        <div class="record-meta-line" style="display:flex; align-items:center; gap:14px; flex-wrap:wrap; font-size:0.75rem; color:var(--text-muted); margin-top:4px;">
+                            <span class="record-meta-item"><i class="fa-solid fa-box-open" style="color:var(--primary);"></i> <strong>${planText}</strong></span>
+                            <span class="record-meta-item"><i class="fa-solid fa-hourglass-half" style="color:${isExpiringSoon ? '#d97706' : (isExpired ? '#dc2626' : 'inherit')};"></i> ផុតកំណត់: <strong>${expiryText}</strong></span>
+                            <span class="record-meta-item" title="ពេលវាលាចូលប្រើប្រាស់ចុងក្រោយ"><i class="fa-solid fa-clock" style="color:#0284c7;"></i> ចូលប្រើ: <strong>${lastActive}</strong></span>
+                            <span class="record-meta-item" title="ចំនួនដងចូលប្រើប្រាស់"><i class="fa-solid fa-arrow-right-to-bracket" style="color:#16a34a;"></i> <strong>${useCount} ដង</strong></span>
+                            <span class="record-meta-item"><i class="fa-solid fa-desktop"></i> ម៉ាស៊ីន: <code>${hwidText}</code></span>
+                            <span class="record-meta-item"><i class="fa-solid fa-calendar-plus"></i> បង្កើត: ${dateText}</span>
                         </div>
                     </div>
                 </div>
+
+                <div class="record-actions">
+                    <button type="button" class="btn-record-action" onclick="copySingleKey('${item.license_key}')" title="Copy Key">
+                        <i class="fa-solid fa-copy"></i>
+                    </button>
+                    <button type="button" class="btn-record-action" onclick="copySingleItemTelegram(${index})" title="Copy សារផ្ញើទៅភ្ញៀវ">
+                        <i class="fa-solid fa-paper-plane" style="color:var(--primary);"></i>
+                    </button>
+                    ${isRevoked ? `
+                        <button type="button" class="btn-record-action btn-rec-unban" onclick="handleUnbanRow('${item.license_key}')" title="ដោះសោ Unban">
+                            <i class="fa-solid fa-unlock"></i> Unban
+                        </button>
+                    ` : `
+                        <button type="button" class="btn-record-action btn-rec-block" onclick="handleBlockRow('${item.license_key}', '${clientName}')" title="ផ្អាក Block Key">
+                            <i class="fa-solid fa-ban"></i> Block
+                        </button>
+                    `}
+                    <button type="button" class="btn-record-action btn-rec-delete" onclick="handleDeleteRow('${item.license_key}', '${clientName}')" title="លុបចោល">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+            `;
+            return card;
+        }
 
                 <div class="record-actions">
                     <button type="button" class="btn-record-action" onclick="copySingleKey('${item.license_key}')" title="Copy Key">

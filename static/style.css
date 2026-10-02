@@ -6241,6 +6241,19 @@ select, option, optgroup {
     font-weight: 600;
 }
 
+.license-gate-input-field.name-field {
+    text-transform: none;
+    letter-spacing: 0.3px;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.license-gate-input-field.name-field::placeholder {
+    letter-spacing: normal;
+    font-weight: 500;
+}
+
 .license-gate-btn-paste {
     background: #141721;
     border: 1px solid rgba(250, 204, 21, 0.30);

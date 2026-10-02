@@ -16,13 +16,159 @@ let dlCurrentPage = 1;
 let dlTotalDramasCount = 49509;
 let dlSearchQuery = "";
 let dlIsLoadingMore = false;
+let dlHasMore = true;
+let dlInfiniteScrollAttached = false;
 let currentHwid = "";
+
+// ============================================================================
+// WINDOW STATE & DYNAMIC DRAG MANAGEMENT
+// - Maximized: STRICTLY block dragging, no following mouse, edge-to-edge layout
+// - Small / Restored: Allow dragging left/right/up/down via header bar
+// - Mouse guard: STRICTLY forbid dragging on right-click or middle-click
+// ============================================================================
+function setWindowMaximizedState(isMax) {
+    const body = document.body;
+    const header = document.querySelector('.unich-header-bar');
+    const maxBtn = document.getElementById('win-btn-maximize') || document.querySelector('.win-btn[title="Maximize"], .win-btn[title="Restore Down"]');
+
+    if (isMax) {
+        body.classList.add('is-maximized');
+        if (header) {
+            header.classList.remove('pywebview-drag-region');
+        }
+        if (maxBtn) {
+            maxBtn.innerHTML = '❐';
+            maxBtn.title = 'Restore Down';
+        }
+    } else {
+        body.classList.remove('is-maximized');
+        if (header) {
+            header.classList.add('pywebview-drag-region');
+        }
+        if (maxBtn) {
+            maxBtn.innerHTML = '▢';
+            maxBtn.title = 'Maximize';
+        }
+    }
+}
+
+function checkWindowState() {
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.is_window_maximized) {
+        window.pywebview.api.is_window_maximized().then(isMax => {
+            setWindowMaximizedState(Boolean(isMax));
+        }).catch(() => {
+            detectMaximizeFromScreen();
+        });
+    } else {
+        detectMaximizeFromScreen();
+    }
+}
+
+function detectMaximizeFromScreen() {
+    const sw = window.screen.availWidth || window.screen.width || 1920;
+    const sh = window.screen.availHeight || window.screen.height || 1080;
+    const isMax = (window.innerWidth >= sw - 25 && window.innerHeight >= sh - 35);
+    setWindowMaximizedState(isMax);
+}
+
+function appMinimizeWindow() {
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.minimize_window) {
+        window.pywebview.api.minimize_window();
+    }
+}
+
+async function appMaximizeWindow() {
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.maximize_window) {
+        try {
+            const res = await window.pywebview.api.maximize_window();
+            if (res && typeof res.maximized === 'boolean') {
+                setWindowMaximizedState(res.maximized);
+                return;
+            }
+        } catch(e) {}
+        setTimeout(checkWindowState, 80);
+        setTimeout(checkWindowState, 250);
+    } else {
+        try {
+            if (!document.fullscreenElement) {
+                if (document.documentElement.requestFullscreen) {
+                    await document.documentElement.requestFullscreen();
+                } else if (document.documentElement.webkitRequestFullscreen) {
+                    await document.documentElement.webkitRequestFullscreen();
+                }
+                setWindowMaximizedState(true);
+            } else {
+                if (document.exitFullscreen) {
+                    await document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    await document.webkitExitFullscreen();
+                }
+                setWindowMaximizedState(false);
+            }
+        } catch(e) {}
+    }
+}
+
+function appHeaderDblClick(e) {
+    if (e && e.target && e.target.closest('button, a, input, select, textarea, .win-btn, .nav-pill-btn, .brand-toggle-pill, .power-dropdown-wrapper')) {
+        return;
+    }
+    appMaximizeWindow();
+}
+
+function appCloseWindow() {
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.close_window) {
+        window.pywebview.api.close_window();
+    } else {
+        try { window.close(); } catch(e) {}
+    }
+}
+
+// Global Drag & Mouse Interaction Guard:
+// 1. Right-click or middle-click must NEVER drag the window under any circumstances.
+// 2. When maximized, dragging is completely forbidden.
+// 3. Only when in small / restored window mode AND clicking on non-interactive header regions with Left Mouse Button (e.button === 0), allow dragging.
+window.addEventListener('mousedown', function(e) {
+    // If not left button (e.button !== 0): strictly block any drag attempts
+    if (e.button !== 0) {
+        const header = e.target.closest('.unich-header-bar, .pywebview-drag-region, [data-drag-region]');
+        if (header) {
+            e.stopImmediatePropagation();
+        }
+        return;
+    }
+
+    // If window is MAXIMIZED: strictly block any dragging
+    if (document.body.classList.contains('is-maximized')) {
+        const header = e.target.closest('.unich-header-bar, .pywebview-drag-region, [data-drag-region]');
+        if (header) {
+            e.stopImmediatePropagation();
+        }
+        return;
+    }
+
+    // In restored / small mode:
+    // If clicking on interactive elements inside header, don't trigger drag
+    const interactive = e.target.closest('button, a, input, select, textarea, .win-btn, .nav-pill-btn, .brand-toggle-pill, .power-dropdown-wrapper');
+    if (interactive) {
+        e.stopPropagation();
+    }
+}, true); // Capture phase ensures we intercept before pywebview's drag handler
+
+window.addEventListener('resize', () => {
+    checkWindowState();
+});
+
+window.addEventListener('pywebviewready', () => {
+    setTimeout(checkWindowState, 100);
+});
 
 document.addEventListener('DOMContentLoaded', () => {
     initApp();
 });
 
 async function initApp() {
+    checkWindowState();
     setupOutsideClickHandlers();
     checkDeviceLicenseStatus();
     loadDownloaderPlatforms();
@@ -371,6 +517,8 @@ function togglePlayPreview(e) {
         }
 
         startAudioPlaybackVUMeter();
+        const miniBars = document.getElementById('monitor-visualizer-bars');
+        if (miniBars) miniBars.classList.add('active');
 
         if (playbackTimer) clearInterval(playbackTimer);
         playbackTimer = setInterval(() => {
@@ -401,6 +549,8 @@ function togglePlayPreview(e) {
             playbackTimer = null;
         }
         resetVuMetersToIdle();
+        const miniBars = document.getElementById('monitor-visualizer-bars');
+        if (miniBars) miniBars.classList.remove('active');
     }
 }
 
@@ -451,17 +601,196 @@ function updateScrubberUI() {
     if (waveTime) waveTime.textContent = `00:${timeStr}.000 / 00:${fullDurStr}.000`;
 }
 
-function toggleVolumeMute() {
+function toggleVolumeMute(e) {
+    if (e) e.stopPropagation();
     const mainVideo = document.getElementById('main-video');
     if (mainVideo) {
         mainVideo.muted = !mainVideo.muted;
-        showToast(mainVideo.muted ? "Audio Muted" : "Audio Unmuted");
+        const icon = document.getElementById('video-track-vol-icon');
+        const btn = document.getElementById('btn-video-track-speaker');
+        if (icon) icon.className = mainVideo.muted ? 'fa-solid fa-volume-xmark' : 'fa-solid fa-volume-high';
+        if (btn) btn.classList.toggle('muted', mainVideo.muted);
+        showToast(mainVideo.muted ? "Video Audio Muted" : "Video Audio Unmuted");
     }
+}
+
+let isBgmMuted = false;
+function toggleBgmMute(e) {
+    if (e) e.stopPropagation();
+    isBgmMuted = !isBgmMuted;
+    const icon = document.getElementById('bgm-track-vol-icon');
+    const btn = document.getElementById('btn-bgm-track-speaker');
+    if (icon) icon.className = isBgmMuted ? 'fa-solid fa-volume-xmark' : 'fa-solid fa-volume-high';
+    if (btn) btn.classList.toggle('muted', isBgmMuted);
+
+    if (typeof onQuickBgmSliderChange === 'function') {
+        onQuickBgmSliderChange(isBgmMuted ? 0 : 15);
+    }
+    showToast(isBgmMuted ? "Background Sound (BGM) Muted" : "Background Sound (BGM) Unmuted (15%)");
+}
+
+let currentBgmSelection = {
+    value: '',
+    title: 'Choose background sound...',
+    icon: '🎵'
+};
+
+function toggleTrackBgmDropdown(e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    if (typeof closeBlurMaskDropdown === 'function') closeBlurMaskDropdown();
+    const dropdown = document.getElementById('track-bgm-custom-dropdown');
+    const chevron = document.getElementById('track-bgm-chevron');
+    if (!dropdown) return;
+    
+    const isOpen = dropdown.classList.contains('show');
+    if (isOpen) {
+        dropdown.classList.remove('show');
+        if (chevron) chevron.classList.remove('open');
+    } else {
+        dropdown.classList.add('show');
+        if (chevron) chevron.classList.add('open');
+    }
+}
+
+function closeTrackBgmDropdown() {
+    const dropdown = document.getElementById('track-bgm-custom-dropdown');
+    const chevron = document.getElementById('track-bgm-chevron');
+    if (dropdown) dropdown.classList.remove('show');
+    if (chevron) chevron.classList.remove('open');
+}
+
+function selectBgmOption(val, title, icon, e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    
+    if (val === 'custom') {
+        closeTrackBgmDropdown();
+        const fileInput = document.getElementById('input-custom-bgm-file');
+        if (fileInput) fileInput.click();
+        return;
+    }
+
+    currentBgmSelection = { value: val, title: title, icon: icon || '🎵' };
+    
+    const titleEl = document.getElementById('staged-track-bgmname');
+    if (titleEl) {
+        titleEl.textContent = title;
+    }
+
+    const hiddenInput = document.getElementById('select-track-bgm');
+    if (hiddenInput) {
+        hiddenInput.value = val;
+    }
+
+    // Update active highlight across custom menu options
+    document.querySelectorAll('.track-bgm-opt-item').forEach(item => {
+        if (item.getAttribute('data-value') === val) {
+            item.classList.add('active');
+        } else {
+            item.classList.remove('active');
+        }
+    });
+
+    closeTrackBgmDropdown();
+
+    if (val === 'none') {
+        if (typeof onQuickBgmSliderChange === 'function') onQuickBgmSliderChange(0);
+        showToast("BGM: បិទភ្លេង Background Sound");
+        appendLiveTerminalLine("BGM track disabled: dialogue stem isolated.", "[Audio Track]", "info");
+    } else {
+        if (typeof onQuickBgmSliderChange === 'function') onQuickBgmSliderChange(15);
+        showToast(`បានជ្រើសរើស BGM: ${title}`);
+        appendLiveTerminalLine(`BGM track attached: ${title}`, "[Audio Track]", "info");
+    }
+}
+
+function handleCustomBgmFile(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    
+    const fileName = file.name;
+    currentBgmSelection = { value: 'custom', title: fileName, icon: '📁' };
+    
+    const titleEl = document.getElementById('staged-track-bgmname');
+    if (titleEl) {
+        titleEl.textContent = `📁 ${fileName}`;
+    }
+
+    const hiddenInput = document.getElementById('select-track-bgm');
+    if (hiddenInput) {
+        hiddenInput.value = 'custom';
+    }
+
+    document.querySelectorAll('.track-bgm-opt-item').forEach(item => {
+        item.classList.toggle('active', item.getAttribute('data-value') === 'custom');
+    });
+
+    closeTrackBgmDropdown();
+    showToast(`បានដាក់ឯកសារ BGM ផ្ទាល់ខ្លួន: ${fileName}`);
+    appendLiveTerminalLine(`Custom BGM audio attached: ${fileName} (${(file.size / 1024).toFixed(1)} KB)`, "[Audio Config]", "success");
+}
+
+function onTrackBgmSelected(val) {
+    selectBgmOption(val, val, '🎵');
+}
+
+// Global listener to close BGM and Blur dropdowns on click outside
+document.addEventListener('click', function(e) {
+    const bgmPill = document.getElementById('track-bgm-pill');
+    const bgmDropdown = document.getElementById('track-bgm-custom-dropdown');
+    if (bgmDropdown && bgmDropdown.classList.contains('show')) {
+        if (bgmPill && !bgmPill.contains(e.target)) {
+            closeTrackBgmDropdown();
+        }
+    }
+
+    const blurCard = document.getElementById('card-upload-blur');
+    const blurDropdown = document.getElementById('blur-custom-dropdown');
+    if (blurDropdown && blurDropdown.classList.contains('show')) {
+        if (blurCard && !blurCard.contains(e.target)) {
+            closeBlurMaskDropdown();
+        }
+    }
+});
+
+function syncTrackRowsInfo(name, durationStr) {
+    const nameEl = document.getElementById('staged-track-videoname');
+    const durEl = document.getElementById('staged-track-videodur');
+    if (nameEl && name) nameEl.textContent = name;
+    if (durEl && durationStr) durEl.textContent = durationStr;
 }
 
 function toggleAudioTrack() {
     const vLabel = typeof getStoryVoiceDisplayLabel === 'function' ? getStoryVoiceDisplayLabel() : "Piseth & Sreymom";
     showToast(`Audio Track: ${vLabel}`);
+}
+
+// Dynamic Video Frame Engine: Adapts monitor screen box to original video aspect ratio (Zero black bars)
+function adaptMonitorScreenToVideo() {
+    const mainVideo = document.getElementById('main-video');
+    const screenArea = document.getElementById('monitor-screen-area');
+    if (!mainVideo || !screenArea) return;
+
+    const w = mainVideo.videoWidth;
+    const h = mainVideo.videoHeight;
+    if (w && h && w > 0 && h > 0) {
+        screenArea.style.aspectRatio = `${w} / ${h}`;
+        screenArea.style.height = 'auto';
+        screenArea.style.width = 'auto';
+        screenArea.style.maxHeight = 'calc(100% - 84px)';
+        screenArea.style.maxWidth = '100%';
+        mainVideo.style.objectFit = 'contain';
+        mainVideo.style.background = 'transparent';
+    }
+}
+
+function applyVideoFitMode() {
+    adaptMonitorScreenToVideo();
 }
 
 function toggleGuidesMenu() {
@@ -761,6 +1090,17 @@ function initStudioWorkspace() {
 
     // Initial default view is Clean Image 2 View
     showCleanSourceView();
+
+    // Initialize interactive overlays (logo & blur mask drag & resize)
+    initInteractiveOverlays();
+
+    // Wire up dynamic adaptive video frame engine (Zero black bars, matches original aspect ratio)
+    if (mainVideo) {
+        mainVideo.addEventListener('loadedmetadata', adaptMonitorScreenToVideo);
+        mainVideo.addEventListener('canplay', adaptMonitorScreenToVideo);
+        mainVideo.addEventListener('loadeddata', adaptMonitorScreenToVideo);
+        if (mainVideo.videoWidth > 0) adaptMonitorScreenToVideo();
+    }
 }
 
 function selectStudioPreset(presetKey) {
@@ -1101,21 +1441,23 @@ function openExportOptionsModal() {
         const rawName = fName.replace(/\.[^/.]+$/, '');
         baseTitle = rawName.replace(/(?:_part|[-_]ep|[-_]e|\bep|\bepisode)[-_]?\d+/i, '').replace(/[-_]+$/, '').trim() || "Drama_Series";
 
-        const mergedName = `Dubbed_${baseTitle}_Full_Movie.mp4`;
-        if (descFullElem) descFullElem.textContent = `Joined into ${mergedName} — ${count} episodes merged`;
-        if (descBothElem) descBothElem.textContent = `Episodes + ${mergedName} (ទទួលបានទាំងពីរ)`;
+        const cleanSeriesTitle = baseTitle.replace(/^Dubbed_/i, '');
+        const mergedName = `Dubbed_${cleanSeriesTitle}_Full.mp4`;
+        if (descFullElem) descFullElem.textContent = `ច្របាច់បញ្ចូលគ្នាជា ${mergedName}`;
+        if (descBothElem) descBothElem.textContent = `ទទួលបានទាំងភាគៗ + ${mergedName}`;
 
     } else if (stagedVideoFile) {
         const vName = getMediaFileName(stagedVideoFile);
-        if (epCountElem) epCountElem.textContent = "1 video episode";
+        if (epCountElem) epCountElem.textContent = "1 វីដេអូ (Single Episode)";
         if (epChainElem) epChainElem.textContent = vName;
 
         const rawName = vName.replace(/\.[^/.]+$/, '');
         baseTitle = rawName || "Video";
-        const singleOutName = `Dubbed_${baseTitle}.mp4`;
+        const cleanBase = baseTitle.replace(/^Dubbed_/i, '');
+        const singleOutName = `Dubbed_${cleanBase}.mp4`;
 
-        if (descFullElem) descFullElem.textContent = `Full single video — ${singleOutName}`;
-        if (descBothElem) descBothElem.textContent = `Single video master — ${singleOutName}`;
+        if (descFullElem) descFullElem.textContent = `រក្សាទុកជា: ${singleOutName}`;
+        if (descBothElem) descBothElem.textContent = `រក្សាទុកជា: ${singleOutName}`;
     } else {
         showToast("សូមដាក់វីដេអូចូលជាមុនសិន រួចចុច Export!");
         openImportModal();
@@ -1448,20 +1790,28 @@ function filterByPlatform(platId, platName, totalCount, platLogo) {
 
     const countLabel = document.getElementById('dl-catalog-count-label');
     if (countLabel) {
-        const countDisplay = totalCount ? totalCount.toLocaleString() : (platId === 'hongguo' ? '49,509' : (platId === 'ai_drama' ? '1,160' : '50,751'));
+        const countDisplay = (totalCount !== undefined && totalCount !== null)
+            ? totalCount.toLocaleString()
+            : (platId === 'hongguo' ? '49,591' : (platId === 'ai_drama' ? '24,081' : (platId === 'shortmax' ? '5,206' : (platId === 'reelshort' ? '5,723' : '84,601'))));
         let headerTitle = `Top Dramas on ${escapeHtml(platName)}`;
         if (platId === 'hongguo') headerTitle = 'Top 100 on 红果 right now';
         else if (platId === 'ai_drama') headerTitle = 'Top Authentic Chinese AI Short Dramas (AI漫剧)';
+        else if (platId === 'shortmax') headerTitle = 'ShortMax Short Dramas';
+        else if (platId === 'reelshort') headerTitle = 'ReelShort English Vertical Short Dramas';
         else if (platId === 'all') headerTitle = 'Top Dramas Across All Platforms';
         countLabel.innerHTML = `<span class="dl-clapper-emoji">🎬</span> ${headerTitle} (${countDisplay})`;
     }
 
     const input = document.getElementById('dl-link-url-input');
     if (input) {
-        if (platId === 'ai_drama') {
-            input.placeholder = 'Search Chinese AI short dramas (រឿង AI ចិន)...';
+        if (platId === 'shortmax') {
+            input.placeholder = 'Paste ShortMax URL or search (បិទភ្ជាប់ Link ShortMax)...';
+        } else if (platId === 'ai_drama') {
+            input.placeholder = 'Search Chinese AI short dramas (ស្វែងរក រឿង AI ចិន)...';
+        } else if (platId === 'reelshort') {
+            input.placeholder = 'Paste ReelShort URL or search (បិទភ្ជាប់ Link ReelShort)...';
         } else {
-            input.placeholder = 'Paste a Hongguo URL or search 50,751 dramas...';
+            input.placeholder = 'Paste a Drama URL or search 79,004 dramas...';
         }
     }
 
@@ -1563,12 +1913,17 @@ function showSavedFavoritesModal() {
 
 async function loadDramaCatalog(platformId = "hongguo", query = "", category = "all", append = false) {
     const container = document.getElementById('dl-drama-cards-container');
-    const loadMoreWrap = document.getElementById('dl-load-more-wrap');
     if (!container) return;
+    setupCatalogInfiniteScroll();
 
     if (!append) {
         dlCurrentPage = 1;
-        const platTitle = platformId === 'ai_drama' ? 'AI Dramas' : 'Hongguo';
+        dlHasMore = true;
+        let platTitle = 'Hongguo';
+        if (platformId === 'shortmax') platTitle = 'ShortMax';
+        else if (platformId === 'ai_drama') platTitle = 'AI Dramas';
+        else if (platformId === 'reelshort') platTitle = 'ReelShort';
+        else if (platformId === 'all') platTitle = 'All Platforms';
         container.innerHTML = `<div style="grid-column: 1 / -1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding: 48px; color: #38bdf8;"><i class="fa-solid fa-spinner fa-spin" style="font-size: 1.8rem; margin-bottom:12px;"></i><div style="font-size:0.85rem; font-weight:600; color:#e2e8f0;">កំពុងទាញបញ្ជីរឿង ${platTitle}...</div></div>`;
     }
 
@@ -1579,12 +1934,13 @@ async function loadDramaCatalog(platformId = "hongguo", query = "", category = "
         if (!append) container.innerHTML = '';
 
         if (data.success && data.dramas && data.dramas.length > 0) {
+            dlHasMore = (data.has_more !== undefined) ? !!data.has_more : (data.dramas.length >= 50);
             dlTotalDramasCount = data.total_count || data.dramas.length;
             const countLabel = document.getElementById('dl-catalog-count-label');
             if (countLabel) {
                 let headerTitle = category === 'all'
-                    ? (platformId === 'ai_drama' ? 'Top Chinese AI Dramas' : 'Top 100 on 红果 right now')
-                    : `${platformId === 'ai_drama' ? 'Chinese AI' : 'Category'}: ${category.toUpperCase()}`;
+                    ? (platformId === 'shortmax' ? 'ShortMax Short Dramas' : (platformId === 'ai_drama' ? 'Top Authentic Chinese AI Short Dramas (AI漫剧)' : (platformId === 'reelshort' ? 'ReelShort English Vertical Short Dramas' : (platformId === 'hongguo' ? 'Top 100 on 红果 right now' : 'Top Dramas Across All Platforms'))))
+                    : `${platformId === 'shortmax' ? 'ShortMax' : (platformId === 'ai_drama' ? 'AI Drama' : (platformId === 'reelshort' ? 'ReelShort' : 'Category'))}: ${category.toUpperCase()}`;
                 countLabel.innerHTML = `<span class="dl-clapper-emoji">🎬</span> ${headerTitle} (${dlTotalDramasCount.toLocaleString()})`;
             }
 
@@ -1605,7 +1961,6 @@ async function loadDramaCatalog(platformId = "hongguo", query = "", category = "
                 const isTopRank = rank <= 3;
                 const ratingBadge = drama.rating ? `<span class="lb-score">★ ${escapeHtml(drama.rating)}</span>` : '';
                 const heatBadge = `<span class="lb-eps">${drama.heat ? '🔥 ' + escapeHtml(drama.heat) : (drama.total_episodes ? drama.total_episodes + ' eps' : '')}</span>`;
-                const isFav = isDramaFavorite(drama.id);
 
                 card.innerHTML = `
                     <div class="dl-card-thumb-wrap">
@@ -1624,34 +1979,74 @@ async function loadDramaCatalog(platformId = "hongguo", query = "", category = "
             if (!append && !dlCurrentDrama) {
                 selectDramaCard(data.dramas[0].id, false);
             }
-
-            if (loadMoreWrap) {
-                loadMoreWrap.style.display = data.has_more ? 'block' : 'none';
-            }
         } else if (!append) {
-            container.innerHTML = `
-                <div style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 20px; color: #716655; text-align: center;">
-                    <i class="fa-solid fa-magnifying-glass" style="font-size: 2rem; color: #38bdf8; margin-bottom: 12px;"></i>
-                    <div style="font-size: 0.85rem; font-weight: 600; color: #cbd5e1;">រកមិនឃើញរឿងភាគតាមការស្វែងរក</div>
-                    <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 6px;">សូមសាកល្បងស្វែងរកជាមួយពាក្យគន្លឹះផ្សេងទៀត ឬចុច All ដើម្បីមើលឡើងវិញ។</div>
-                </div>
-            `;
-            if (loadMoreWrap) loadMoreWrap.style.display = 'none';
+            dlHasMore = false;
+            if (platformId === 'shortmax') {
+                const countLabel = document.getElementById('dl-catalog-count-label');
+                if (countLabel) {
+                    countLabel.innerHTML = `<span class="dl-clapper-emoji">🎬</span> ShortMax Short Dramas (0)`;
+                }
+                container.innerHTML = `
+                    <div style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 50px 20px; text-align: center;">
+                        <img src="shortmax_logo.png" style="width: 56px; height: 56px; border-radius: 12px; margin-bottom: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); object-fit: contain;" onerror="this.style.display='none'">
+                        <div style="font-size: 0.95rem; font-weight: 700; color: #f8fafc; margin-bottom: 8px;">មិនទាន់មានរឿងនៅក្នុង ShortMax នៅឡើយទេ</div>
+                        <div style="font-size: 0.78rem; color: #94a3b8; max-width: 380px; line-height: 1.6;">
+                            លោកអ្នកអាចចម្លង (Paste) តំណភ្ជាប់ Link រឿងពី <b>ShortMax</b> ដាក់ចូលក្នុងប្រអប់ស្វែងរកខាងលើ រួចចុច <b>Enter</b> ដើម្បីទាញយកភាគវីដេអូដោយស្វ័យប្រវត្តិ។
+                        </div>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 20px; color: #716655; text-align: center;">
+                        <i class="fa-solid fa-magnifying-glass" style="font-size: 2rem; color: #38bdf8; margin-bottom: 12px;"></i>
+                        <div style="font-size: 0.85rem; font-weight: 600; color: #cbd5e1;">រកមិនឃើញរឿងភាគតាមការស្វែងរក</div>
+                        <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 6px;">សូមសាកល្បងស្វែងរកជាមួយពាក្យគន្លឹះផ្សេងទៀត ឬចុច All ដើម្បីមើលឡើងវិញ។</div>
+                    </div>
+                `;
+            }
+        } else {
+            dlHasMore = false;
         }
     } catch (e) {
         if (!append) container.innerHTML = '<div style="grid-column: 1 / -1; color:#ef4444; padding:30px; text-align:center;">Network error loading catalog.</div>';
     }
 }
 
+function setupCatalogInfiniteScroll() {
+    const container = document.getElementById('dl-drama-cards-container');
+    if (!container || dlInfiniteScrollAttached) return;
+    dlInfiniteScrollAttached = true;
+    container.addEventListener('scroll', () => {
+        if (dlIsLoadingMore || !dlHasMore) return;
+        if (container.scrollTop + container.clientHeight >= container.scrollHeight - 350) {
+            loadMoreDramas();
+        }
+    }, { passive: true });
+}
+
 async function loadMoreDramas() {
-    if (dlIsLoadingMore) return;
+    if (dlIsLoadingMore || !dlHasMore) return;
     dlIsLoadingMore = true;
-    const btn = document.getElementById('btn-dl-load-more');
-    if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading...';
+
+    const container = document.getElementById('dl-drama-cards-container');
+    let loader = document.getElementById('dl-infinite-loader');
+    if (container && !loader) {
+        loader = document.createElement('div');
+        loader.id = 'dl-infinite-loader';
+        loader.style.cssText = 'grid-column: 1 / -1; display:flex; align-items:center; justify-content:center; padding:16px 0 24px 0; color:#38bdf8; gap:8px; font-size:0.85rem; font-weight:600;';
+        loader.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>កំពុងទាញយករឿងភាគបន្ថែម...</span>';
+        container.appendChild(loader);
+    }
+
     dlCurrentPage++;
-    await loadDramaCatalog(dlSelectedPlatform, dlSearchQuery, dlSelectedCategory, true);
-    if (btn) btn.innerHTML = '<i class="fa-solid fa-angles-down"></i> <span>Load More Dramas (+60)</span>';
-    dlIsLoadingMore = false;
+    try {
+        await loadDramaCatalog(dlSelectedPlatform, dlSearchQuery, dlSelectedCategory, true);
+    } finally {
+        if (loader && loader.parentNode) {
+            loader.parentNode.removeChild(loader);
+        }
+        dlIsLoadingMore = false;
+    }
 }
 
 async function selectDramaCard(dramaId, openQueueMode = false) {
@@ -1865,7 +2260,7 @@ function switchDlViewMode(mode) {
 
     if (mode === 'queue') {
         if (catalogWrapper) catalogWrapper.style.display = 'none';
-        if (queueView) queueView.style.display = 'grid';
+        if (queueView) queueView.style.display = 'flex';
 
         if (catBtn) catBtn.classList.remove('active');
         if (qBtn) qBtn.classList.add('active');
@@ -2723,6 +3118,59 @@ function downloadCurrentDramaFullSeries() {
     downloadAllQueueEpisodes();
 }
 
+async function downloadCurrentDramaPoster() {
+    if (!dlCurrentDrama) {
+        showToast("⚠️ សូមជ្រើសរើសរឿងជាមុនសិន!");
+        return;
+    }
+    const posterUrl = dlCurrentDrama.poster || dlCurrentDrama.cover_url;
+    if (!posterUrl) {
+        showToast("⚠️ មិនមាន Poster សម្រាប់រឿងនេះទេ!");
+        return;
+    }
+    const rawTitle = (dlCurrentDrama.title_cn || dlCurrentDrama.title || 'Drama').replace(/[《》]/g, '').trim();
+    const savePath = dlUserSaveLocation || document.getElementById('dl-save-path-input')?.value.trim() || 'D:/SN_Dramas';
+    showToast(`🖼️ កំពុងទាញយក Poster HD: ${rawTitle}...`);
+    appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Downloading Poster HD for '${rawTitle}'...`);
+
+    try {
+        const res = await fetch('/api/downloader/download_poster', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                drama_id: dlCurrentDrama.id,
+                poster_url: posterUrl,
+                title: rawTitle,
+                save_location: savePath
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`✅ បានទាញយក Poster HD ដោយជោគជ័យ!`);
+            appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Poster HD saved to: ${data.path || data.filename}`);
+            const a = document.createElement('a');
+            a.href = data.file_url || posterUrl;
+            a.download = data.filename || `${rawTitle}_Poster.jpg`;
+            a.target = '_blank';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        } else {
+            showToast(`⚠️ ${data.message || 'កំហុសពេលទាញយក Poster'}`);
+        }
+    } catch (err) {
+        console.warn('Poster download fetch fallback:', err);
+        const a = document.createElement('a');
+        a.href = posterUrl;
+        a.download = `${rawTitle}_Poster.jpg`;
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        showToast(`✅ Poster បានចាប់ផ្តើមទាញយក!`);
+    }
+}
+
 async function downloadCurrentQueueEpisode() {
     if (!dlCurrentDrama) return;
     const epNum = dlQueueActiveEpisodeNum;
@@ -3291,13 +3739,10 @@ let currentStoryConfig = {
 };
 
 function getStoryVoiceDisplayLabel() {
-    if (currentStoryConfig.auto_multi_voice || currentStoryConfig.khmer_voice === 'multi') {
-        return "Piseth & Sreymom (ប្រុស & ស្រីតាមតួអង្គ)";
-    }
     if (currentStoryConfig.khmer_voice === 'sreymom') {
         return "Sreymom (Female Solo - អ្នកបញ្ចូលសំឡេងស្រី)";
     }
-    return "Piseth (Male Solo - អ្នកបញ្ចូលសំឡេងទោល)";
+    return "Piseth (Male Solo - អ្នកបញ្ចូលសំឡេងប្រុស)";
 }
 
 function refreshStagedCardVoiceMeta() {
@@ -3319,28 +3764,30 @@ function refreshStagedCardVoiceMeta() {
 }
 
 function syncStagedCardControls() {
-    // 1. Sync voice chip active state
-    let activeKey = 'multi';
-    if (currentStoryConfig.auto_multi_voice || currentStoryConfig.khmer_voice === 'multi') {
-        activeKey = 'multi';
-    } else if (currentStoryConfig.khmer_voice === 'sreymom') {
-        activeKey = 'sreymom';
-    } else {
-        activeKey = 'piseth';
+    // 1. Sync voice chip active state (Piseth & Sreymom Solo)
+    currentStoryConfig.auto_multi_voice = false;
+    if (currentStoryConfig.khmer_voice === 'multi') {
+        currentStoryConfig.khmer_voice = 'piseth';
     }
+    let activeKey = (currentStoryConfig.khmer_voice === 'sreymom') ? 'sreymom' : 'piseth';
 
-    ['multi', 'piseth', 'sreymom'].forEach(k => {
+    ['piseth', 'sreymom'].forEach(k => {
         const chip = document.getElementById(`voice-chip-${k}`);
         if (chip) {
-            if (k === activeKey) chip.classList.add('active');
-            else chip.classList.remove('active');
+            const st = chip.querySelector('.staged-chip-status-text');
+            if (k === activeKey) {
+                chip.classList.add('active');
+                if (st) st.textContent = 'កំពុងប្រើ';
+            } else {
+                chip.classList.remove('active');
+                if (st) st.textContent = 'ជ្រើសរើស';
+            }
         }
     });
 
     const vBadge = document.getElementById('staged-voice-status-badge');
     if (vBadge) {
-        if (activeKey === 'multi') vBadge.textContent = "Piseth & Sreymom (ប្រុស & ស្រី)";
-        else if (activeKey === 'sreymom') vBadge.textContent = "Sreymom (ស្រីទោល)";
+        if (activeKey === 'sreymom') vBadge.textContent = "Sreymom (ស្រីទោល)";
         else vBadge.textContent = "Piseth (ប្រុសទោល)";
     }
 
@@ -3374,19 +3821,22 @@ async function selectQuickVoice(voiceKey) {
     if (voiceKey === 'sreymom') {
         currentStoryConfig.khmer_voice = 'sreymom';
         currentStoryConfig.auto_multi_voice = false;
-    } else if (voiceKey === 'multi') {
-        currentStoryConfig.khmer_voice = 'multi';
-        currentStoryConfig.auto_multi_voice = true;
     } else {
         currentStoryConfig.khmer_voice = 'piseth';
         currentStoryConfig.auto_multi_voice = false;
+    }
+
+    if (currentVoicePreviewAudio) {
+        currentVoicePreviewAudio.pause();
+        currentVoicePreviewAudio = null;
+        currentPreviewVoiceKey = null;
+        resetAllVoicePreviewBtns();
     }
 
     syncStagedCardControls();
     refreshStagedCardVoiceMeta();
 
     const voiceLabels = {
-        'multi': 'ពិសិដ្ឋ & ស្រីមុំ (Dual Voice - បញ្ចូលសំឡេងតាមតួប្រុស/ស្រី)',
         'piseth': 'ពិសិដ្ឋ (Piseth - តួប្រុស/អ្នកនិទានរឿងទោល)',
         'sreymom': 'ស្រីមុំ (Sreymom - តួស្រី/អ្នកនិទានរឿងទោល)'
     };
@@ -3409,6 +3859,711 @@ async function selectQuickVoice(voiceKey) {
     } catch (e) {
         console.warn("Save quick voice error:", e);
     }
+}
+
+let currentVoicePreviewAudio = null;
+let currentPreviewVoiceKey = null;
+
+async function playVoiceSamplePreview(voiceKey, event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+
+    const prevBtn = document.getElementById(`voice-prev-btn-${voiceKey}`);
+    const waveEl = document.getElementById(`voice-wave-${voiceKey}`);
+
+    // If currently playing this voice, toggle stop
+    if (currentVoicePreviewAudio && currentPreviewVoiceKey === voiceKey) {
+        currentVoicePreviewAudio.pause();
+        currentVoicePreviewAudio = null;
+        currentPreviewVoiceKey = null;
+        resetAllVoicePreviewBtns();
+        return;
+    }
+
+    // Stop any other voice audio
+    if (currentVoicePreviewAudio) {
+        currentVoicePreviewAudio.pause();
+        currentVoicePreviewAudio = null;
+    }
+    resetAllVoicePreviewBtns();
+
+    currentPreviewVoiceKey = voiceKey;
+    if (prevBtn) {
+        prevBtn.classList.add('loading');
+        prevBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>កំពុងរៀបចំ...</span>';
+    }
+
+    const sampleTexts = {
+        'piseth': "ជម្រាបសួរ! ខ្ញុំបាទឈ្មោះ ពិសិដ្ឋ ជាអ្នកបញ្ចូលសំឡេងសម្រាប់ភាពយន្តភាគ និងរឿងខ្លី។",
+        'sreymom': "ជម្រាបសួរចាស! នាងខ្ញុំឈ្មោះ ស្រីមុំ រីករាយនឹងបញ្ចូលសំឡេងជូនអ្នកទាំងអស់គ្នា។"
+    };
+
+    const textToSpeak = sampleTexts[voiceKey] || "សួស្តី";
+    const actualVoice = voiceKey === 'sreymom' ? 'sreymom' : 'piseth';
+
+    try {
+        const res = await fetch('/api/voices/preview', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                text: textToSpeak,
+                voice: actualVoice,
+                rate_percent: 0,
+                pitch_hz: 0
+            })
+        });
+        const data = await res.json();
+        if (data && data.success && data.audio_url) {
+            currentVoicePreviewAudio = new Audio(data.audio_url);
+            if (prevBtn) {
+                prevBtn.classList.remove('loading');
+                prevBtn.classList.add('playing');
+                prevBtn.innerHTML = '<i class="fa-solid fa-pause"></i> <span>ផ្អាក</span>';
+            }
+            if (waveEl) waveEl.classList.add('animating');
+
+            currentVoicePreviewAudio.play().catch(e => {
+                console.warn("Audio play blocked/error:", e);
+                resetAllVoicePreviewBtns();
+            });
+
+            currentVoicePreviewAudio.onended = () => {
+                resetAllVoicePreviewBtns();
+                currentVoicePreviewAudio = null;
+                currentPreviewVoiceKey = null;
+            };
+            currentVoicePreviewAudio.onerror = () => {
+                resetAllVoicePreviewBtns();
+                currentVoicePreviewAudio = null;
+                currentPreviewVoiceKey = null;
+            };
+        } else {
+            resetAllVoicePreviewBtns();
+            showToast("មិនអាចចាក់សំឡេងគំរូបានទេ");
+        }
+    } catch (e) {
+        console.warn("Voice preview fetch error:", e);
+        resetAllVoicePreviewBtns();
+        showToast("សូមបើក Server ដើម្បីសាកល្បងសំឡេងគំរូ");
+    }
+}
+
+function resetAllVoicePreviewBtns() {
+    ['piseth', 'sreymom'].forEach(k => {
+        const btn = document.getElementById(`voice-prev-btn-${k}`);
+        if (btn) {
+            btn.classList.remove('loading', 'playing');
+            btn.innerHTML = '<i class="fa-solid fa-play"></i> <span>ស្តាប់គំរូ</span>';
+        }
+        const wave = document.getElementById(`voice-wave-${k}`);
+        if (wave) wave.classList.remove('animating');
+    });
+}
+
+// ==========================================================================
+// STAGED WORKSPACE OVERLAY LOGO & BLUR ASSET MANAGEMENT
+// ==========================================================================
+let currentOverlayAssets = {
+    logo: null,
+    logoUrl: null,
+    logoPosition: 'top-right',
+    logoScale: 1.0,
+    logoWidth: 110,
+    blurActive: false,
+    blurPosition: 'top-right',
+    blurScale: 1.0,
+    blurWidth: 120,
+    blurHeight: 50,
+    blurRadius: 25,
+    blurShape: 'rectangle'
+};
+
+function triggerOverlayUpload(type) {
+    if (type === 'logo') {
+        const input = document.getElementById('input-overlay-logo');
+        if (input) input.click();
+    } else if (type === 'blur') {
+        toggleBlurMaskTool();
+    }
+}
+
+function handleOverlayFileSelect(event, type) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    if (type === 'logo') {
+        if (currentOverlayAssets.logoUrl) {
+            URL.revokeObjectURL(currentOverlayAssets.logoUrl);
+        }
+        currentOverlayAssets.logo = file;
+        currentOverlayAssets.logoUrl = URL.createObjectURL(file);
+
+        // Show directly on Video Preview Monitor
+        const monitorLogo = document.getElementById('monitor-logo-overlay');
+        const monitorLogoImg = document.getElementById('monitor-logo-img');
+        if (monitorLogo && monitorLogoImg) {
+            monitorLogoImg.src = currentOverlayAssets.logoUrl;
+            monitorLogo.style.display = 'flex';
+            setOverlayPosition('logo', currentOverlayAssets.logoPosition || 'top-right');
+            makeOverlayDraggable(monitorLogo);
+            const logoHandle = document.getElementById('logo-resize-handle');
+            if (logoHandle) makeOverlayResizable(monitorLogo, logoHandle, 'logo');
+        }
+
+        const statusEl = document.getElementById('status-overlay-logo');
+        const sizeKb = (file.size / 1024).toFixed(1);
+
+        if (statusEl) {
+            statusEl.innerHTML = `
+                <div class="overlay-active-controls">
+                    <span class="overlay-status-pill selected" title="${escapeHtml(file.name)}">
+                        <img src="${currentOverlayAssets.logoUrl}" class="overlay-thumb-mini" alt="thumb">
+                        <span class="overlay-file-name">${escapeHtml(file.name)}</span>
+                        <button type="button" class="overlay-file-remove-btn" onclick="clearOverlayFile(event, 'logo')" title="លុប Logo">&times;</button>
+                    </span>
+                    <div class="overlay-preset-buttons">
+                        <button type="button" class="pos-preset-btn ${currentOverlayAssets.logoPosition === 'top-right' ? 'active' : ''}" onclick="setOverlayPosition('logo', 'top-right', event)" title="ដាក់ជ្រុងស្តាំលើ">TR</button>
+                        <button type="button" class="pos-preset-btn ${currentOverlayAssets.logoPosition === 'top-left' ? 'active' : ''}" onclick="setOverlayPosition('logo', 'top-left', event)" title="ដាក់ជ្រុងឆ្វេងលើ">TL</button>
+                        <button type="button" class="pos-preset-btn ${currentOverlayAssets.logoPosition === 'bottom-right' ? 'active' : ''}" onclick="setOverlayPosition('logo', 'bottom-right', event)" title="ដាក់ជ្រុងស្តាំក្រោម">BR</button>
+                    </div>
+                    <div class="overlay-size-controls" onclick="event.stopPropagation()">
+                        <button type="button" class="size-ctrl-btn" onclick="adjustOverlaySize('logo', -0.15, event)" title="បង្រួម Logo (Zoom Out)"><i class="fa-solid fa-minus"></i></button>
+                        <span class="overlay-size-label" id="logo-size-label">${Math.round((currentOverlayAssets.logoScale || 1.0) * 100)}%</span>
+                        <button type="button" class="size-ctrl-btn" onclick="adjustOverlaySize('logo', 0.15, event)" title="ពង្រីក Logo (Zoom In)"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                </div>
+            `;
+        }
+
+        showToast(`បានដាក់ Logo លើ Video Preview Monitor រួចរាល់! (${file.name})`);
+        appendLiveTerminalLine(`Logo overlay attached to preview monitor: ${file.name} (${sizeKb} KB)`, "[Overlay Engine]", "success");
+    }
+}
+
+function clearOverlayFile(event, type) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    if (type === 'logo') {
+        if (currentOverlayAssets.logoUrl) {
+            URL.revokeObjectURL(currentOverlayAssets.logoUrl);
+            currentOverlayAssets.logoUrl = null;
+        }
+        currentOverlayAssets.logo = null;
+        const input = document.getElementById('input-overlay-logo');
+        if (input) input.value = '';
+
+        const monitorLogo = document.getElementById('monitor-logo-overlay');
+        if (monitorLogo) monitorLogo.style.display = 'none';
+
+        const statusEl = document.getElementById('status-overlay-logo');
+        if (statusEl) {
+            statusEl.innerHTML = `<span class="overlay-status-pill empty"><i class="fa-solid fa-cloud-arrow-up"></i> ចុចដើម្បី Upload</span>`;
+        }
+        showToast("បានដក Logo ចេញពី Preview Monitor");
+    }
+}
+
+// In-App BLUR Mask Tool (NO Computer File Explorer Dialog)
+function toggleBlurMaskTool(event, forceState) {
+    if (event) {
+        event.stopPropagation();
+    }
+    if (typeof forceState === 'boolean') {
+        currentOverlayAssets.blurActive = forceState;
+    } else {
+        currentOverlayAssets.blurActive = !currentOverlayAssets.blurActive;
+    }
+
+    const monitorBlur = document.getElementById('monitor-blur-overlay');
+    const statusPill = document.getElementById('blur-status-pill');
+    const statusLabel = document.getElementById('blur-status-label');
+    const descLabel = document.getElementById('blur-intensity-desc-label');
+
+    if (currentOverlayAssets.blurActive) {
+        if (monitorBlur) {
+            monitorBlur.style.display = 'flex';
+            setOverlayPosition('blur', currentOverlayAssets.blurPosition || 'top-right');
+            makeOverlayDraggable(monitorBlur);
+            const blurHandle = document.getElementById('blur-resize-handle');
+            if (blurHandle) makeOverlayResizable(monitorBlur, blurHandle, 'blur');
+            applyBlurIntensity(currentOverlayAssets.blurRadius || 25, '25px (មធ្យម)');
+        }
+        if (statusPill) {
+            statusPill.className = 'overlay-status-pill selected blur-active-pill';
+        }
+        if (statusLabel) {
+            statusLabel.textContent = `Blur (${currentOverlayAssets.blurRadius || 25}px)`;
+        }
+        if (descLabel) {
+            descLabel.textContent = `កម្រិត Blur សកម្ម: ${currentOverlayAssets.blurRadius || 25}px (អាចសារ៉េកម្រិតបាន)`;
+        }
+        showToast("បានបើក BLUR Mask លើ Video Preview (អាចសារ៉េកម្រិត Blur និងទាញពង្រីកបង្រួមបាន)!");
+        appendLiveTerminalLine("Blur Mask overlay enabled on video preview monitor (active)", "[Overlay Engine]", "success");
+    } else {
+        if (monitorBlur) {
+            monitorBlur.style.display = 'none';
+        }
+        if (statusPill) {
+            statusPill.className = 'overlay-status-pill empty';
+        }
+        if (statusLabel) {
+            statusLabel.textContent = 'ចុចដើម្បីដាក់ Blur';
+        }
+        if (descLabel) {
+            descLabel.textContent = 'បិទបាំង Logo/Watermark ចាស់ផ្ទាល់លើវីដេអូ Preview';
+        }
+        closeBlurMaskDropdown();
+        showToast("បានបិទ BLUR Mask ពីលើវីដេអូ");
+    }
+}
+
+function toggleBlurMaskDropdown(e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+
+    const dropdown = document.getElementById('blur-custom-dropdown');
+    const chevron = document.getElementById('blur-dropdown-chevron');
+    if (!dropdown) return;
+
+    const isOpen = dropdown.classList.contains('show');
+    
+    if (isOpen) {
+        dropdown.classList.remove('show');
+        if (chevron) chevron.classList.remove('open');
+    } else {
+        // If blur is not yet active, activate it on video monitor
+        if (!currentOverlayAssets.blurActive) {
+            toggleBlurMaskTool(null, true);
+        }
+
+        dropdown.classList.add('show');
+        if (chevron) chevron.classList.add('open');
+    }
+}
+
+function closeBlurMaskDropdown(e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    const dropdown = document.getElementById('blur-custom-dropdown');
+    const chevron = document.getElementById('blur-dropdown-chevron');
+    if (dropdown) dropdown.classList.remove('show');
+    if (chevron) chevron.classList.remove('open');
+}
+
+function onBlurSliderChange(val, e) {
+    if (e) e.stopPropagation();
+    const radius = parseInt(val, 10);
+    applyBlurIntensity(radius, `${radius}px`);
+}
+
+function selectBlurShape(shape, e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    currentOverlayAssets.blurShape = shape;
+
+    // Update active highlight across shape items
+    const shapes = ['filmstrip', 'circle', 'rectangle'];
+    shapes.forEach(s => {
+        const item = document.getElementById(`shape-opt-${s}`);
+        if (item) {
+            item.classList.toggle('active', s === shape);
+        }
+    });
+
+    // Ensure blur mask tool is active on video monitor
+    if (!currentOverlayAssets.blurActive) {
+        toggleBlurMaskTool(null, true);
+    }
+
+    const monitorBlur = document.getElementById('monitor-blur-overlay');
+    const labelTag = monitorBlur ? monitorBlur.querySelector('.blur-label-tag') : null;
+
+    if (monitorBlur) {
+        monitorBlur.classList.remove('shape-filmstrip', 'shape-circle', 'shape-rectangle');
+        monitorBlur.classList.add(`shape-${shape}`);
+
+        if (shape === 'circle') {
+            monitorBlur.style.borderRadius = '50%';
+            monitorBlur.style.aspectRatio = '1 / 1';
+            monitorBlur.style.width = '95px';
+            monitorBlur.style.height = '95px';
+            if (labelTag) labelTag.innerHTML = '<i class="fa-regular fa-circle"></i> CIRCLE';
+            showToast("បានប្តូរ Blur Mask: Circle (រាងរង្វង់មូល)");
+            appendLiveTerminalLine("Blur mask shape changed to Circle.", "[Blur Engine]", "info");
+        } else if (shape === 'filmstrip') {
+            monitorBlur.style.borderRadius = '4px';
+            monitorBlur.style.aspectRatio = 'auto';
+            monitorBlur.style.width = 'calc(100% - 28px)';
+            monitorBlur.style.height = '46px';
+            monitorBlur.style.left = '14px';
+            monitorBlur.style.right = '14px';
+            if (labelTag) labelTag.innerHTML = '<i class="fa-solid fa-film"></i> FILMSTRIP';
+            showToast("បានប្តូរ Blur Mask: Filmstrip (បន្ទះខ្សែភាពយន្ត)");
+            appendLiveTerminalLine("Blur mask shape changed to Filmstrip.", "[Blur Engine]", "info");
+        } else {
+            // Rectangle
+            monitorBlur.style.borderRadius = '8px';
+            monitorBlur.style.aspectRatio = 'auto';
+            monitorBlur.style.width = '130px';
+            monitorBlur.style.height = '52px';
+            if (labelTag) labelTag.innerHTML = '<i class="fa-solid fa-eye-slash"></i> RECTANGLE';
+            showToast("បានប្តូរ Blur Mask: Rectangle (រាងចតុកោណ)");
+            appendLiveTerminalLine("Blur mask shape changed to Rectangle.", "[Blur Engine]", "info");
+        }
+    }
+}
+
+function selectBlurPreset(radius, title, labelShort, e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    applyBlurIntensity(radius, labelShort || `${radius}px`);
+    const slider = document.getElementById('input-blur-intensity');
+    if (slider) slider.value = radius;
+}
+
+function applyBlurIntensity(radius, displayLabel) {
+    currentOverlayAssets.blurRadius = radius;
+    
+    // Apply to Video Preview Monitor overlay
+    const monitorBlur = document.getElementById('monitor-blur-overlay');
+    if (monitorBlur) {
+        monitorBlur.style.backdropFilter = `blur(${radius}px)`;
+        monitorBlur.style.webkitBackdropFilter = `blur(${radius}px)`;
+        if (radius >= 65) {
+            monitorBlur.style.backgroundColor = 'rgba(10, 10, 20, 0.78)';
+            monitorBlur.style.borderColor = 'rgba(250, 204, 21, 0.9)';
+        } else {
+            monitorBlur.style.backgroundColor = 'rgba(168, 85, 247, 0.20)';
+            monitorBlur.style.borderColor = 'rgba(192, 132, 252, 0.85)';
+        }
+    }
+
+    // Update Slider Badge
+    const badge = document.getElementById('blur-slider-badge');
+    if (badge) {
+        badge.textContent = `${radius}px`;
+    }
+
+    // Update Row 2 status text
+    const statusLabel = document.getElementById('blur-status-label');
+    if (statusLabel) {
+        statusLabel.textContent = `Blur (${radius}px)`;
+    }
+
+    const descLabel = document.getElementById('blur-intensity-desc-label');
+    if (descLabel) {
+        descLabel.textContent = `កម្រិត Blur សកម្ម: ${radius}px (${displayLabel || ''})`;
+    }
+}
+
+function setOverlayPosition(type, pos, event) {
+    if (event) event.stopPropagation();
+    const el = document.getElementById(type === 'logo' ? 'monitor-logo-overlay' : 'monitor-blur-overlay');
+    if (!el) return;
+
+    if (type === 'logo') currentOverlayAssets.logoPosition = pos;
+    if (type === 'blur') currentOverlayAssets.blurPosition = pos;
+
+    el.style.left = '';
+    el.style.right = '';
+    el.style.top = '';
+    el.style.bottom = '';
+    el.style.transform = '';
+
+    if (pos === 'top-right') {
+        el.style.top = '14px';
+        el.style.right = '14px';
+    } else if (pos === 'top-left') {
+        el.style.top = '14px';
+        el.style.left = '14px';
+    } else if (pos === 'bottom-right') {
+        el.style.bottom = '14px';
+        el.style.right = '14px';
+    } else if (pos === 'bottom-left') {
+        el.style.bottom = '14px';
+        el.style.left = '14px';
+    } else if (pos === 'bottom-center') {
+        el.style.bottom = '18px';
+        el.style.left = '50%';
+        el.style.transform = 'translateX(-50%)';
+    }
+
+    // Update active preset button styling
+    const card = document.getElementById(type === 'logo' ? 'card-upload-logo' : 'card-upload-blur');
+    if (card) {
+        card.querySelectorAll('.pos-preset-btn').forEach(btn => {
+            const btnKey = btn.textContent.trim().toLowerCase();
+            const targetKey = pos === 'top-right' ? 'tr' : pos === 'top-left' ? 'tl' : pos === 'bottom-right' ? 'br' : 'bc';
+            btn.classList.toggle('active', btnKey === targetKey);
+        });
+    }
+
+    if (type === 'blur') {
+        document.querySelectorAll('.blur-tray-pill-btn').forEach(btn => btn.classList.remove('active'));
+        const btnKey = pos === 'top-right' ? 'btn-blur-pos-tr' : pos === 'top-left' ? 'btn-blur-pos-tl' : 'btn-blur-pos-bc';
+        const activeBtn = document.getElementById(btnKey);
+        if (activeBtn) activeBtn.classList.add('active');
+    }
+}
+
+function adjustOverlaySize(type, delta, event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+
+    if (type === 'logo') {
+        const overlay = document.getElementById('monitor-logo-overlay');
+        const img = document.getElementById('monitor-logo-img');
+        if (!overlay) return;
+
+        currentOverlayAssets.logoScale = Math.max(0.3, Math.min(3.5, Number(((currentOverlayAssets.logoScale || 1.0) + delta).toFixed(2))));
+        const baseW = 110;
+        const newW = Math.round(baseW * currentOverlayAssets.logoScale);
+
+        overlay.style.width = `${newW}px`;
+        overlay.style.maxWidth = 'none';
+        if (img) {
+            img.style.maxHeight = 'none';
+            img.style.width = '100%';
+        }
+        currentOverlayAssets.logoWidth = newW;
+
+        const label = document.getElementById('logo-size-label');
+        if (label) label.textContent = `${Math.round(currentOverlayAssets.logoScale * 100)}%`;
+    } else if (type === 'blur') {
+        const overlay = document.getElementById('monitor-blur-overlay');
+        if (!overlay) return;
+
+        const curScale = currentOverlayAssets.blurScale || 1.0;
+        const targetScale = Math.max(0.3, Math.min(4.0, Number((curScale + delta).toFixed(2))));
+        const ratio = targetScale / curScale;
+
+        const curW = currentOverlayAssets.blurWidth || 120;
+        const curH = currentOverlayAssets.blurHeight || 50;
+        const newW = Math.round(Math.max(40, curW * ratio));
+        const newH = Math.round(Math.max(22, curH * ratio));
+
+        overlay.style.width = `${newW}px`;
+        overlay.style.height = `${newH}px`;
+        currentOverlayAssets.blurWidth = newW;
+        currentOverlayAssets.blurHeight = newH;
+        currentOverlayAssets.blurScale = targetScale;
+
+        const label = document.getElementById('blur-size-label');
+        if (label) label.textContent = `${Math.round(targetScale * 100)}%`;
+        const trayLabel = document.getElementById('blur-tray-size-val');
+        if (trayLabel) trayLabel.textContent = `${Math.round(targetScale * 100)}%`;
+    }
+}
+
+function makeOverlayResizable(overlayEl, handleEl, type) {
+    if (!overlayEl || !handleEl || handleEl._hasResizeHandler) return;
+    handleEl._hasResizeHandler = true;
+
+    let isResizing = false;
+    let startX = 0, startY = 0;
+    let startWidth = 0, startHeight = 0;
+
+    const startResize = (clientX, clientY, e) => {
+        isResizing = true;
+        startX = clientX;
+        startY = clientY;
+        startWidth = overlayEl.offsetWidth;
+        startHeight = overlayEl.offsetHeight;
+
+        // Anchor explicit left and top if positioned with right/bottom
+        const parentRect = overlayEl.parentElement.getBoundingClientRect();
+        const elRect = overlayEl.getBoundingClientRect();
+        overlayEl.style.left = `${elRect.left - parentRect.left}px`;
+        overlayEl.style.top = `${elRect.top - parentRect.top}px`;
+        overlayEl.style.right = 'auto';
+        overlayEl.style.bottom = 'auto';
+        overlayEl.style.transform = 'none';
+
+        overlayEl.classList.add('resizing');
+        handleEl.classList.add('active');
+
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    };
+
+    const doResize = (clientX, clientY) => {
+        if (!isResizing) return;
+        const dx = clientX - startX;
+        const dy = clientY - startY;
+
+        const parentRect = overlayEl.parentElement.getBoundingClientRect();
+        const elRect = overlayEl.getBoundingClientRect();
+        const maxW = Math.max(50, parentRect.right - elRect.left - 4);
+        const maxH = Math.max(30, parentRect.bottom - elRect.top - 4);
+
+        if (type === 'blur') {
+            // Free 2D resizing for Blur Mask with mouse drag (100% interactive)
+            const newW = Math.round(Math.max(40, Math.min(maxW, startWidth + dx)));
+            const newH = Math.round(Math.max(22, Math.min(maxH, startHeight + dy)));
+            overlayEl.style.width = `${newW}px`;
+            overlayEl.style.height = `${newH}px`;
+
+            currentOverlayAssets.blurWidth = newW;
+            currentOverlayAssets.blurHeight = newH;
+            currentOverlayAssets.blurScale = +(newW / 120).toFixed(2);
+
+            const label = document.getElementById('blur-size-label');
+            if (label) label.textContent = `${Math.round(currentOverlayAssets.blurScale * 100)}%`;
+            const trayLabel = document.getElementById('blur-tray-size-val');
+            if (trayLabel) trayLabel.textContent = `${Math.round(currentOverlayAssets.blurScale * 100)}%`;
+        } else if (type === 'logo') {
+            // Proportional smooth resizing for Logo using dominant movement
+            const delta = Math.abs(dx) > Math.abs(dy) ? dx : dy;
+            const newW = Math.round(Math.max(35, Math.min(maxW, startWidth + delta)));
+            overlayEl.style.width = `${newW}px`;
+            overlayEl.style.maxWidth = 'none';
+            const img = document.getElementById('monitor-logo-img');
+            if (img) {
+                img.style.maxHeight = 'none';
+                img.style.width = '100%';
+            }
+
+            currentOverlayAssets.logoWidth = newW;
+            currentOverlayAssets.logoScale = +(newW / 110).toFixed(2);
+
+            const label = document.getElementById('logo-size-label');
+            if (label) label.textContent = `${Math.round(currentOverlayAssets.logoScale * 100)}%`;
+        }
+    };
+
+    const stopResize = () => {
+        if (isResizing) {
+            isResizing = false;
+            overlayEl.classList.remove('resizing');
+            handleEl.classList.remove('active');
+        }
+    };
+
+    handleEl.addEventListener('mousedown', (e) => startResize(e.clientX, e.clientY, e));
+    window.addEventListener('mousemove', (e) => doResize(e.clientX, e.clientY));
+    window.addEventListener('mouseup', stopResize);
+
+    // Touch support for touchscreens
+    handleEl.addEventListener('touchstart', (e) => {
+        if (e.touches && e.touches[0]) {
+            startResize(e.touches[0].clientX, e.touches[0].clientY, e);
+        }
+    }, { passive: false });
+
+    window.addEventListener('touchmove', (e) => {
+        if (isResizing && e.touches && e.touches[0]) {
+            doResize(e.touches[0].clientX, e.touches[0].clientY);
+            e.preventDefault();
+        }
+    }, { passive: false });
+
+    window.addEventListener('touchend', stopResize);
+}
+
+function initInteractiveOverlays() {
+    const monitorLogo = document.getElementById('monitor-logo-overlay');
+    const logoHandle = document.getElementById('logo-resize-handle');
+    if (monitorLogo) makeOverlayDraggable(monitorLogo);
+    if (monitorLogo && logoHandle) makeOverlayResizable(monitorLogo, logoHandle, 'logo');
+
+    const monitorBlur = document.getElementById('monitor-blur-overlay');
+    const blurHandle = document.getElementById('blur-resize-handle');
+    if (monitorBlur) makeOverlayDraggable(monitorBlur);
+    if (monitorBlur && blurHandle) makeOverlayResizable(monitorBlur, blurHandle, 'blur');
+}
+
+function makeOverlayDraggable(el) {
+    if (!el || el._hasDragHandler) return;
+    el._hasDragHandler = true;
+
+    let isDragging = false;
+    let startX = 0, startY = 0, origLeft = 0, origTop = 0;
+
+    const startDrag = (clientX, clientY, target, e) => {
+        if (target.tagName.toLowerCase() === 'button') return;
+        if (target.classList.contains('overlay-resize-handle') || target.closest('.overlay-resize-handle')) return;
+
+        isDragging = true;
+        startX = clientX;
+        startY = clientY;
+
+        const parentRect = el.parentElement.getBoundingClientRect();
+        const elRect = el.getBoundingClientRect();
+
+        origLeft = elRect.left - parentRect.left;
+        origTop = elRect.top - parentRect.top;
+
+        el.style.left = `${origLeft}px`;
+        el.style.top = `${origTop}px`;
+        el.style.right = 'auto';
+        el.style.bottom = 'auto';
+        el.style.transform = 'none';
+
+        el.classList.add('dragging');
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    };
+
+    const doDrag = (clientX, clientY) => {
+        if (!isDragging) return;
+        const dx = clientX - startX;
+        const dy = clientY - startY;
+
+        const parentRect = el.parentElement.getBoundingClientRect();
+        const elWidth = el.offsetWidth;
+        const elHeight = el.offsetHeight;
+
+        let newLeft = Math.max(0, Math.min(parentRect.width - elWidth, origLeft + dx));
+        let newTop = Math.max(0, Math.min(parentRect.height - elHeight, origTop + dy));
+
+        el.style.left = `${newLeft}px`;
+        el.style.top = `${newTop}px`;
+    };
+
+    const stopDrag = () => {
+        if (isDragging) {
+            isDragging = false;
+            el.classList.remove('dragging');
+        }
+    };
+
+    el.addEventListener('mousedown', (e) => startDrag(e.clientX, e.clientY, e.target, e));
+    window.addEventListener('mousemove', (e) => doDrag(e.clientX, e.clientY));
+    window.addEventListener('mouseup', stopDrag);
+
+    // Touch support for dragging
+    el.addEventListener('touchstart', (e) => {
+        if (e.touches && e.touches[0]) {
+            startDrag(e.touches[0].clientX, e.touches[0].clientY, e.target, e);
+        }
+    }, { passive: false });
+
+    window.addEventListener('touchmove', (e) => {
+        if (isDragging && e.touches && e.touches[0]) {
+            doDrag(e.touches[0].clientX, e.touches[0].clientY);
+            e.preventDefault();
+        }
+    }, { passive: false });
+
+    window.addEventListener('touchend', stopDrag);
 }
 
 function selectQuickBgmPreset(val) {
@@ -3540,12 +4695,13 @@ async function openStorySettingsModal() {
 }
 
 function formatDuckingDbText(pct) {
-    if (pct <= 0) return "0% • បិទភ្លេងកំដរ (Mute BGM)";
-    let desc = "ស្តង់ដារពិរោះ";
-    if (pct <= 5) desc = "ស្រាលបំផុត (Subtle)";
-    else if (pct <= 10) desc = "ស្រាលល្មម (Soft)";
-    else if (pct <= 18) desc = "ស្តង់ដាររឿងភាគ (Cinema Standard)";
-    else if (pct <= 28) desc = "រាងឮច្បាស់ (Moderate)";
+    pct = parseInt(pct, 10);
+    if (isNaN(pct)) pct = 15;
+    if (pct <= 0) return "0% • បិទភ្លេង (Mute)";
+    let desc = "ស្តង់ដារ (Standard)";
+    if (pct <= 8) desc = "ភ្លេងស្រាល (Subtle)";
+    else if (pct <= 18) desc = "ស្តង់ដារណែនាំ (Standard)";
+    else if (pct <= 28) desc = "រាងច្បាស់ (Moderate)";
     else desc = "ឮខ្លាំង (High BGM)";
     return `${pct}% • ${desc}`;
 }
@@ -3582,11 +4738,13 @@ function setDuckingPreset(pct) {
 }
 
 function formatSpeechDbText(val) {
+    val = parseFloat(val);
+    if (isNaN(val)) val = 2.5;
     let desc = "ស្តង់ដារពិរោះ";
-    if (val === 0) desc = "កម្រិតធម្មតា";
-    else if (val <= 1.5) desc = "ស្រទន់";
-    else if (val <= 3.0) desc = "ណែនាំច្បាស់";
-    else if (val <= 5.0) desc = "ច្បាស់មាំ";
+    if (val === 0) desc = "ធម្មតា (Flat)";
+    else if (val <= 1.5) desc = "ស្រទន់ (Subtle)";
+    else if (val <= 3.0) desc = "ច្បាស់ណែនាំ (Balanced)";
+    else if (val <= 5.0) desc = "ច្បាស់មាំ (Punchy)";
     else desc = "ខ្លាំងបំផុត";
     const prefix = val > 0 ? `+${val.toFixed(1)}` : `${val.toFixed(1)}`;
     return `${prefix} dB • ${desc}`;
@@ -3754,9 +4912,11 @@ async function saveStorySettings() {
         speech_boost_db: boost
     };
 
-    // Save Drama Dictionary if edited
+    // Save Drama Dictionary only if the tab is explicitly visible and has content
+    const dictTabBtn = document.getElementById('story-tab-btn-dictionary');
+    const isDictVisible = dictTabBtn && dictTabBtn.style.display !== 'none' && dictTabBtn.offsetParent !== null;
     const dictElem = document.getElementById('story-dictionary-textarea');
-    if (dictElem) {
+    if (isDictVisible && dictElem && dictElem.value.trim()) {
         const dictMap = {};
         dictElem.value.split('\n').forEach(line => {
             const trimmed = line.trim();
@@ -3769,14 +4929,16 @@ async function saveStorySettings() {
                 }
             }
         });
-        try {
-            await fetch('/api/drama-dictionary', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ dictionary: dictMap })
-            });
-        } catch (e) {
-            console.warn("Dictionary save note:", e);
+        if (Object.keys(dictMap).length > 0) {
+            try {
+                await fetch('/api/drama-dictionary', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dictionary: dictMap })
+                });
+            } catch (e) {
+                console.warn("Dictionary save note:", e);
+            }
         }
     }
 
@@ -4182,7 +5344,9 @@ function setStagedVideo(file) {
                     const durFormatted = `${String(durM).padStart(2,'0')}:${String(durS).padStart(2,'0')}`;
                     const stagedMeta = document.getElementById('staged-file-meta');
                     if (stagedMeta) stagedMeta.textContent = `${fileSizeMB} MB • Duration: ${durFormatted} • ត្រៀមបកប្រែជាសំឡេងខ្មែរ`;
+                    syncTrackRowsInfo(fileName, durFormatted);
                 }
+                adaptMonitorScreenToVideo();
             };
             mainVideo.onloadedmetadata = handleMeta;
             mainVideo.ondurationchange = handleMeta;
@@ -4220,6 +5384,7 @@ function setStagedVideo(file) {
     if (stagedCard) stagedCard.style.display = 'flex';
     if (sourceLabel) sourceLabel.style.display = 'none';
     if (stagedTitle) stagedTitle.textContent = fileName;
+    syncTrackRowsInfo(fileName, null);
     refreshStagedCardVoiceMeta();
     syncStagedCardControls();
 
@@ -4381,9 +5546,7 @@ async function startAutoDubbingPipeline(file) {
 
     const activeDramaMode = currentStudioPreset === "narration" ? "movie_recap" : "drama_dubbing";
     const activeSourceLang = currentStoryConfig.source_lang || "auto";
-    const activeVoiceOverride = (currentStoryConfig.auto_multi_voice || currentStoryConfig.khmer_voice === "multi") 
-        ? "multi" 
-        : (currentStoryConfig.khmer_voice || "piseth");
+    const activeVoiceOverride = (currentStoryConfig.khmer_voice === "sreymom") ? "sreymom" : "piseth";
     const activeAspectRatio = currentStoryConfig.aspect_ratio || "9:16";
     const activeBurnSubs = (currentStoryConfig.subtitle_mode === "burn") ? "true" : "false";
 
@@ -4602,9 +5765,7 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
 
         const dramaMode = currentStudioPreset === "narration" ? "movie_recap" : "drama_dubbing";
         const activeSourceLang = currentStoryConfig.source_lang || "auto";
-        const activeVoiceOverride = (currentStoryConfig.auto_multi_voice || currentStoryConfig.khmer_voice === "multi") 
-            ? "multi" 
-            : (currentStoryConfig.khmer_voice || "piseth");
+        const activeVoiceOverride = (currentStoryConfig.khmer_voice === "sreymom") ? "sreymom" : "piseth";
         const activeAspectRatio = currentStoryConfig.aspect_ratio || "9:16";
         const activeBurnSubs = (currentStoryConfig.subtitle_mode === "burn") ? "true" : "false";
 
@@ -4909,29 +6070,56 @@ async function checkDeviceLicenseStatus() {
         const badgeElem = document.getElementById('settings-lic-status-badge');
         const planElem = document.getElementById('settings-lic-plan-text');
         const expiryElem = document.getElementById('settings-lic-expiry-text');
+        const clientNameElem = document.getElementById('settings-lic-client-name');
+        const settingsClientNameInput = document.getElementById('settings-client-name-input');
+        const gateClientNameInput = document.getElementById('gate-client-name-input');
+
+        if (clientNameElem && data.client_name) {
+            clientNameElem.textContent = data.client_name;
+        }
+        if (settingsClientNameInput && data.client_name && !settingsClientNameInput.value) {
+            settingsClientNameInput.value = data.client_name;
+        }
+        if (gateClientNameInput && data.client_name && !gateClientNameInput.value) {
+            gateClientNameInput.value = data.client_name;
+        }
 
         if (data.is_activated) {
             // License is valid & active
             if (gateModal) gateModal.classList.remove('active');
             if (badgeElem) {
-                badgeElem.textContent = "ACTIVE";
-                badgeElem.style.borderColor = "#22c55e";
-                badgeElem.style.color = "#4ade80";
-                badgeElem.style.background = "rgba(34,197,94,0.15)";
+                if (data.is_expiring_soon) {
+                    const daysLeft = (data.days_remaining !== null && data.days_remaining !== undefined) ? `${data.days_remaining} ថ្ងៃ` : 'ជិតផុតកំណត់';
+                    badgeElem.textContent = `EXPIRING SOON (${daysLeft})`;
+                    badgeElem.style.borderColor = "#f59e0b";
+                    badgeElem.style.color = "#fbbf24";
+                    badgeElem.style.background = "rgba(245,158,11,0.18)";
+                } else {
+                    badgeElem.textContent = "ACTIVE";
+                    badgeElem.style.borderColor = "#22c55e";
+                    badgeElem.style.color = "#4ade80";
+                    badgeElem.style.background = "rgba(34,197,94,0.15)";
+                }
             }
             if (planElem) planElem.textContent = data.plan || "VIP PRO";
-            if (expiryElem) expiryElem.textContent = data.expires_at || "LIFETIME";
+            if (expiryElem) {
+                if (data.is_expiring_soon && data.days_remaining !== null) {
+                    expiryElem.innerHTML = `${data.expires_at || "LIFETIME"} <span style="color:#fbbf24; font-weight:bold; margin-left:6px;">(នៅសល់ ${data.days_remaining} ថ្ងៃ)</span>`;
+                } else {
+                    expiryElem.textContent = data.expires_at || "LIFETIME";
+                }
+            }
         } else {
             // License is not active -> Show lock gate
             if (gateModal) gateModal.classList.add('active');
             if (badgeElem) {
-                badgeElem.textContent = "UNLICENSED";
+                badgeElem.textContent = data.status === "EXPIRED" ? "EXPIRED (ផុតកំណត់)" : "UNLICENSED";
                 badgeElem.style.borderColor = "#ef4444";
                 badgeElem.style.color = "#f87171";
                 badgeElem.style.background = "rgba(239,68,68,0.15)";
             }
             if (planElem) planElem.textContent = "None";
-            if (expiryElem) expiryElem.textContent = "Expired / None";
+            if (expiryElem) expiryElem.textContent = data.expires_at || "Expired / None";
         }
     } catch (e) {
         console.error("License check error:", e);
@@ -4940,8 +6128,10 @@ async function checkDeviceLicenseStatus() {
 
 async function submitGateLicense() {
     const input = document.getElementById('gate-license-input');
+    const nameInput = document.getElementById('gate-client-name-input');
     const msgBox = document.getElementById('gate-status-msg');
     const key = input ? input.value.trim() : "";
+    const clientName = nameInput ? nameInput.value.trim() : "";
 
     if (!key) {
         if (msgBox) {
@@ -4964,16 +6154,17 @@ async function submitGateLicense() {
         const res = await fetch('/api/license/activate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ license_key: key })
+            body: JSON.stringify({ license_key: key, client_name: clientName })
         });
         const data = await res.json();
         if (data.success) {
+            const displayName = clientName ? `សូមស្វាគមន៍ ${clientName}! ` : "";
             if (msgBox) {
                 msgBox.style.color = '#4ade80';
                 msgBox.style.background = 'rgba(34,197,94,0.15)';
-                msgBox.textContent = "បានបើកដំណើរការជោគជ័យ ១០០% (Activated!)";
+                msgBox.textContent = `${displayName}បានបើកដំណើរការជោគជ័យ ១០០% (Activated!)`;
             }
-            showToast("បាន Activate License Key ជោគជ័យ!");
+            showToast(`${displayName}បាន Activate License Key ជោគជ័យ!`);
             setTimeout(() => {
                 checkDeviceLicenseStatus();
             }, 1000);
@@ -4994,6 +6185,8 @@ async function submitGateLicense() {
 
 async function confirmActivateLicense() {
     const key = document.getElementById('input-license-key').value.trim();
+    const nameInput = document.getElementById('settings-client-name-input');
+    const clientName = nameInput ? nameInput.value.trim() : "";
     if (!key) {
         showToast("សូមបញ្ចូល License Key");
         return;
@@ -5003,11 +6196,11 @@ async function confirmActivateLicense() {
         const res = await fetch('/api/license/activate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ license_key: key })
+            body: JSON.stringify({ license_key: key, client_name: clientName })
         });
         const data = await res.json();
         if (data.success) {
-            showToast("VIP License Key Activated 100%!");
+            showToast(clientName ? `VIP Key Activated for ${clientName}!` : "VIP License Key Activated 100%!");
             checkDeviceLicenseStatus();
             backToSettingsHub();
         } else {

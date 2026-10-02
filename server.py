@@ -892,13 +892,14 @@ def license_status_endpoint():
 
 @app.route("/api/license/activate", methods=["POST"])
 def license_activate_endpoint():
-    """Activate license key on this device."""
+    """Activate license key on this device with optional customer name."""
     data = request.get_json(force=True) or {}
     key = data.get("license_key", "").strip()
+    client_name = data.get("client_name", "").strip() or None
     if not key:
         return jsonify({"success": False, "error": "សូមបញ្ចូល License Key"}), 400
 
-    success, msg, record = activate_license_on_device(key)
+    success, msg, record = activate_license_on_device(key, client_name=client_name)
     return jsonify({
         "success": success,
         "message": msg,

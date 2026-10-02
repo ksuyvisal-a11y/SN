@@ -5,6 +5,7 @@ Secure HMAC-SHA256 Cryptographic Key Generation & Machine ID (HWID) Binding
 
 import os
 import sys
+import re
 import json
 import time
 import uuid
@@ -419,6 +420,231 @@ def _save_to_admin_history(key_record: Dict[str, Any]):
         pass
 
 
+def calculate_key_live_status(key_record: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Calculate dynamic live status, remaining days, expiring-soon alerts, and usage metadata.
+    """
+    rec = dict(key_record)
+    cleaned_key = rec.get("license_key", "").strip().upper()
+    revoked_list = get_revoked_keys()
+
+    # 1. Check Revoked Status
+    if rec.get("status") == "REVOKED" or cleaned_key in revoked_list:
+        rec["live_status"] = "REVOKED"
+        rec["days_remaining"] = 0
+        rec["is_expired"] = False
+        rec["is_expiring_soon"] = False
+        rec["badge_class"] = "stat-pill-red"
+        rec["badge_label"] = "REVOKED"
+        rec["status_kh"] = "🚫 បានផ្អាក (Revoked)"
+        rec["remaining_text"] = "ត្រូវបានផ្អាកដោយ Admin"
+        rec["last_active"] = rec.get("last_active") or rec.get("activated_at") or "មិនទាន់ចូលប្រើ"
+        rec["use_count"] = rec.get("use_count", 0)
+        return rec
+
+    # 2. Check Expiry
+    expires_at = str(rec.get("expires_at", "")).strip().upper()
+    expiry_ts = rec.get("expiry_timestamp", 0)
+
+    if expires_at in ("LIFETIME", "0000", "NEVER", "") or expiry_ts == 0:
+        rec["live_status"] = "LIFETIME"
+        rec["days_remaining"] = 99999
+        rec["is_expired"] = False
+        rec["is_expiring_soon"] = False
+        rec["badge_class"] = "stat-pill-purple"
+        rec["badge_label"] = "LIFETIME"
+        rec["status_kh"] = "👑 មួយជីវិត (Lifetime)"
+        rec["remaining_text"] = "ប្រើប្រាស់បានរហូត (Lifetime)"
+        rec["last_active"] = rec.get("last_active") or rec.get("activated_at") or "មិនទាន់ចូលប្រើ"
+        rec["use_count"] = rec.get("use_count", 0)
+        return rec
+
+    # Try parsing expiration date
+    exp_date = None
+    try:
+        if expiry_ts and expiry_ts > 0:
+            exp_date = datetime.fromtimestamp(expiry_ts)
+        else:
+            exp_date = datetime.strptime(expires_at, "%Y-%m-%d")
+    except Exception:
+        try:
+            exp_date = datetime.strptime(expires_at.split()[0], "%Y-%m-%d")
+        except Exception:
+            pass
+
+    if not exp_date:
+        rec["live_status"] = "ACTIVE"
+        rec["days_remaining"] = 30
+        rec["is_expired"] = False
+        rec["is_expiring_soon"] = False
+        rec["badge_class"] = "stat-pill-green"
+        rec["badge_label"] = "ACTIVE"
+        rec["status_kh"] = "🟢 សកម្ម (Active)"
+        rec["remaining_text"] = expires_at
+        rec["last_active"] = rec.get("last_active") or rec.get("activated_at") or "មិនទាន់ចូលប្រើ"
+        rec["use_count"] = rec.get("use_count", 0)
+        return rec
+
+    now = datetime.now()
+    days_left = (exp_date.date() - now.date()).days
+
+    if days_left < 0:
+        rec["live_status"] = "EXPIRED"
+        rec["days_remaining"] = days_left
+        rec["is_expired"] = True
+        rec["is_expiring_soon"] = False
+        rec["badge_class"] = "stat-pill-red"
+        rec["badge_label"] = "EXPIRED"
+        rec["status_kh"] = f"🔴 ផុតកំណត់ ({abs(days_left)} ថ្ងៃមុន)"
+        rec["remaining_text"] = f"ផុតកំណត់កាលពី {abs(days_left)} ថ្ងៃមុន"
+    elif days_left <= 7:
+        rec["live_status"] = "EXPIRING_SOON"
+        rec["days_remaining"] = days_left
+        rec["is_expired"] = False
+        rec["is_expiring_soon"] = True
+        rec["badge_class"] = "stat-pill-amber"
+        rec["badge_label"] = f"EXPIRING ({days_left}D)"
+        rec["status_kh"] = f"⚠️ ជិតផុតកំណត់ (សល់ {days_left} ថ្ងៃ)"
+        rec["remaining_text"] = f"នៅសល់ {days_left} ថ្ងៃទៀតផុតកំណត់"
+    else:
+        rec["live_status"] = "ACTIVE"
+        rec["days_remaining"] = days_left
+        rec["is_expired"] = False
+        rec["is_expiring_soon"] = False
+        rec["badge_class"] = "stat-pill-green"
+        rec["badge_label"] = "ACTIVE"
+        rec["status_kh"] = f"🟢 សកម្ម (សល់ {days_left} ថ្ងៃ)"
+        rec["remaining_text"] = f"នៅសល់ {days_left} ថ្ងៃ"
+
+    rec["last_active"] = rec.get("last_active") or rec.get("activated_at") or "មិនទាន់ចូលប្រើ"
+    rec["use_count"] = rec.get("use_count", 0)
+    return rec
+
+
+def sync_and_load_admin_history() -> List[Dict[str, Any]]:
+    """
+    Load admin key history, sync missing items from generated_keys_log.txt and custom_keys.json,
+    and compute live dynamic expiry status & remaining days.
+    """
+    history: List[Dict[str, Any]] = []
+    seen_keys = set()
+
+    if ADMIN_HISTORY_FILE.exists():
+        try:
+            with open(ADMIN_HISTORY_FILE, "r", encoding="utf-8") as f:
+                raw_hist = json.load(f)
+                if isinstance(raw_hist, list):
+                    for r in raw_hist:
+                        k = r.get("license_key", "").strip().upper()
+                        if k and k not in seen_keys:
+                            history.append(r)
+                            seen_keys.add(k)
+        except Exception:
+            history = []
+
+    # Also sync from custom_keys.json
+    if CUSTOM_KEYS_FILE.exists():
+        try:
+            with open(CUSTOM_KEYS_FILE, "r", encoding="utf-8") as f:
+                ck_dict = json.load(f)
+                if isinstance(ck_dict, dict):
+                    for k, rec in ck_dict.items():
+                        cleaned_k = k.strip().upper()
+                        if cleaned_k and cleaned_k not in seen_keys:
+                            history.append(rec)
+                            seen_keys.add(cleaned_k)
+        except Exception:
+            pass
+
+    # Also parse generated_keys_log.txt to recover any older keys
+    if GENERATED_KEYS_LOG.exists():
+        try:
+            with open(GENERATED_KEYS_LOG, "r", encoding="utf-8", errors="ignore") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or "KEY:" not in line:
+                        continue
+                    try:
+                        created_match = re.search(r"\[(.*?)\]", line)
+                        created_at = created_match.group(1) if created_match else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        parts = line.split("|")
+                        key_val = ""
+                        client_val = "VIP Customer"
+                        plan_val = "VIP"
+                        expiry_val = "LIFETIME"
+                        hwid_val = "ANY"
+
+                        for part in parts:
+                            part = part.strip()
+                            if "KEY:" in part:
+                                key_val = part.split("KEY:")[-1].strip().upper()
+                            elif "CLIENT:" in part:
+                                client_val = part.split("CLIENT:")[-1].strip()
+                            elif "PLAN:" in part:
+                                plan_val = part.split("PLAN:")[-1].strip()
+                            elif "EXPIRY:" in part:
+                                expiry_val = part.split("EXPIRY:")[-1].strip()
+                            elif "HWID:" in part:
+                                hwid_val = part.split("HWID:")[-1].strip()
+
+                        if key_val and key_val not in seen_keys:
+                            seen_keys.add(key_val)
+                            history.append({
+                                "license_key": key_val,
+                                "client_name": client_val,
+                                "plan": plan_val,
+                                "duration_days": 0 if expiry_val == "LIFETIME" else 30,
+                                "created_at": created_at,
+                                "expires_at": expiry_val,
+                                "expiry_timestamp": 0,
+                                "bound_hwid": hwid_val,
+                                "status": "ACTIVE"
+                            })
+                    except Exception:
+                        continue
+        except Exception:
+            pass
+
+    # Save consolidated back to ADMIN_HISTORY_FILE
+    try:
+        with open(ADMIN_HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(history, f, indent=2, ensure_ascii=False)
+    except Exception:
+        pass
+
+    # Enrich each record with live calculations
+    enriched = [calculate_key_live_status(r) for r in history]
+    return enriched
+
+
+def touch_license_activity(license_key: str, hwid: Optional[str] = None):
+    """Update last active timestamp and usage count when client uses the application."""
+    if not license_key:
+        return
+    cleaned_key = license_key.strip().upper()
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Update in ADMIN_HISTORY_FILE
+    if ADMIN_HISTORY_FILE.exists():
+        try:
+            with open(ADMIN_HISTORY_FILE, "r", encoding="utf-8") as f:
+                history = json.load(f)
+            changed = False
+            for r in history:
+                if r.get("license_key", "").strip().upper() == cleaned_key:
+                    r["last_active"] = now_str
+                    r["use_count"] = int(r.get("use_count", 0)) + 1
+                    if hwid and hwid not in ("ANY", ""):
+                        r["last_active_hwid"] = hwid
+                    changed = True
+                    break
+            if changed:
+                with open(ADMIN_HISTORY_FILE, "w", encoding="utf-8") as f:
+                    json.dump(history, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
+
 def verify_license_key(input_key: str, current_hwid: Optional[str] = None) -> Tuple[bool, str, Dict[str, Any]]:
     """
     Verify if a license key is valid, unexpired, and HWID-matched.
@@ -540,29 +766,77 @@ def verify_license_key(input_key: str, current_hwid: Optional[str] = None) -> Tu
     return False, "❌ License Key មិនត្រឹមត្រូវ សូមទាក់ទង Admin ដើម្បីទទួលយក Key", {}
 
 
-def activate_license_on_device(license_key: str) -> Tuple[bool, str, Dict[str, Any]]:
-    """Activate license key on the current computer and write to license.key."""
+def activate_license_on_device(license_key: str, client_name: Optional[str] = None) -> Tuple[bool, str, Dict[str, Any]]:
+    """Activate license key on the current computer, record customer name, and write to license.key."""
     current_hwid = get_machine_hwid()
     valid, msg, record = verify_license_key(license_key, current_hwid)
     if not valid:
         return False, msg, {}
 
+    # Prefer user inputted client_name, fallback to record's client_name
+    final_client_name = (client_name.strip() if client_name and client_name.strip() else None) or record.get("client_name", "VIP User")
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
     # Write activation data to license.key
     data_to_save = {
-        "license_key": license_key,
-        "client_name": record.get("client_name", "VIP User"),
+        "license_key": license_key.strip().upper(),
+        "client_name": final_client_name,
         "plan": record.get("plan", "VIP_PRO"),
-        "activated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "activated_at": now_str,
+        "last_active": now_str,
+        "use_count": 1,
         "expires_at": record.get("expires_at", "LIFETIME"),
         "expiry_timestamp": record.get("expiry_timestamp", 0),
         "machine_hwid": current_hwid,
-        "checksum": hmac.new(SECRET_ADMIN_SALT.encode(), f"{license_key}|{current_hwid}".encode(), hashlib.sha256).hexdigest()[:16]
+        "checksum": hmac.new(SECRET_ADMIN_SALT.encode(), f"{license_key.strip().upper()}|{current_hwid}".encode(), hashlib.sha256).hexdigest()[:16]
     }
 
-    with open(LICENSE_FILE, "w", encoding="utf-8") as f:
-        json.dump(data_to_save, f, indent=2, ensure_ascii=False)
+    try:
+        with open(LICENSE_FILE, "w", encoding="utf-8") as f:
+            json.dump(data_to_save, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        return False, f"Could not write license file: {e}", {}
 
-    return True, "🎉 បាន Activate License Key ជោគជ័យ!", data_to_save
+    # Also update client_name and last_active in admin_key_history.json
+    cleaned_key = license_key.strip().upper()
+    if ADMIN_HISTORY_FILE.exists():
+        try:
+            with open(ADMIN_HISTORY_FILE, "r", encoding="utf-8") as f:
+                history = json.load(f)
+            found = False
+            for r in history:
+                if r.get("license_key", "").strip().upper() == cleaned_key:
+                    r["client_name"] = final_client_name
+                    r["activated_at"] = now_str
+                    r["last_active"] = now_str
+                    r["use_count"] = int(r.get("use_count", 0)) + 1
+                    r["bound_hwid"] = current_hwid if r.get("bound_hwid") not in ("ANY", None) else "ANY"
+                    r["active_hwid"] = current_hwid
+                    found = True
+                    break
+            if not found:
+                new_rec = {
+                    "license_key": cleaned_key,
+                    "client_name": final_client_name,
+                    "plan": record.get("plan", "VIP_PRO"),
+                    "duration_days": record.get("duration_days", 0),
+                    "created_at": now_str,
+                    "activated_at": now_str,
+                    "last_active": now_str,
+                    "use_count": 1,
+                    "expires_at": record.get("expires_at", "LIFETIME"),
+                    "expiry_timestamp": record.get("expiry_timestamp", 0),
+                    "bound_hwid": current_hwid,
+                    "status": "ACTIVE"
+                }
+                history.insert(0, new_rec)
+
+            with open(ADMIN_HISTORY_FILE, "w", encoding="utf-8") as f:
+                json.dump(history, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
+    return True, f"🎉 បាន Activate License Key ជោគជ័យ! ស្វាគមន៍ {final_client_name}!", data_to_save
 
 
 def check_current_device_license() -> Dict[str, Any]:
@@ -584,15 +858,15 @@ def check_current_device_license() -> Dict[str, Any]:
     # Development / Antigravity testing mode: Auto-activate Lifetime VIP without requiring key entry
     if not getattr(sys, 'frozen', False):
         if not LICENSE_FILE.exists():
-            activate_license_on_device("SN-ADMIN-MASTER-2026-VIP")
+            activate_license_on_device("SN-ADMIN-MASTER-2026-VIP", client_name="Sal Admin")
         else:
             try:
                 with open(LICENSE_FILE, "r", encoding="utf-8") as f:
                     _d = json.load(f)
                 if _d.get("machine_hwid") != current_hwid or not verify_license_key(_d.get("license_key", ""), current_hwid)[0]:
-                    activate_license_on_device("SN-ADMIN-MASTER-2026-VIP")
+                    activate_license_on_device("SN-ADMIN-MASTER-2026-VIP", client_name="Sal Admin")
             except Exception:
-                activate_license_on_device("SN-ADMIN-MASTER-2026-VIP")
+                activate_license_on_device("SN-ADMIN-MASTER-2026-VIP", client_name="Sal Admin")
 
     if not LICENSE_FILE.exists():
         return {
@@ -626,12 +900,28 @@ def check_current_device_license() -> Dict[str, Any]:
                 "hwid": current_hwid
             }
 
+        # Touch activity & calculate live dynamic status
+        touch_license_activity(license_key, current_hwid)
+        live = calculate_key_live_status(data)
+
+        if live.get("is_expired"):
+            return {
+                "is_activated": False,
+                "message": f"⚠️ License Key របស់អ្នកបានផុតកំណត់កាលពី {abs(live.get('days_remaining', 0))} ថ្ងៃមុន សូមទាក់ទង Admin ដើម្បីបន្តសុពលភាព",
+                "hwid": current_hwid,
+                "is_expired": True
+            }
+
         return {
             "is_activated": True,
             "license_key": license_key,
-            "client_name": data.get("client_name", "VIP User"),
+            "client_name": data.get("client_name", record.get("client_name", "VIP User")),
             "plan": data.get("plan", "VIP_PRO"),
             "expires_at": data.get("expires_at", "LIFETIME"),
+            "days_remaining": live.get("days_remaining", 99999),
+            "is_expiring_soon": live.get("is_expiring_soon", False),
+            "status_kh": live.get("status_kh", "សកម្ម"),
+            "last_active": data.get("last_active", "Just now"),
             "hwid": current_hwid,
             "message": "License សកម្ម ១០០%"
         }

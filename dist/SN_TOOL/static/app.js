@@ -6070,29 +6070,56 @@ async function checkDeviceLicenseStatus() {
         const badgeElem = document.getElementById('settings-lic-status-badge');
         const planElem = document.getElementById('settings-lic-plan-text');
         const expiryElem = document.getElementById('settings-lic-expiry-text');
+        const clientNameElem = document.getElementById('settings-lic-client-name');
+        const settingsClientNameInput = document.getElementById('settings-client-name-input');
+        const gateClientNameInput = document.getElementById('gate-client-name-input');
+
+        if (clientNameElem && data.client_name) {
+            clientNameElem.textContent = data.client_name;
+        }
+        if (settingsClientNameInput && data.client_name && !settingsClientNameInput.value) {
+            settingsClientNameInput.value = data.client_name;
+        }
+        if (gateClientNameInput && data.client_name && !gateClientNameInput.value) {
+            gateClientNameInput.value = data.client_name;
+        }
 
         if (data.is_activated) {
             // License is valid & active
             if (gateModal) gateModal.classList.remove('active');
             if (badgeElem) {
-                badgeElem.textContent = "ACTIVE";
-                badgeElem.style.borderColor = "#22c55e";
-                badgeElem.style.color = "#4ade80";
-                badgeElem.style.background = "rgba(34,197,94,0.15)";
+                if (data.is_expiring_soon) {
+                    const daysLeft = (data.days_remaining !== null && data.days_remaining !== undefined) ? `${data.days_remaining} ថ្ងៃ` : 'ជិតផុតកំណត់';
+                    badgeElem.textContent = `EXPIRING SOON (${daysLeft})`;
+                    badgeElem.style.borderColor = "#f59e0b";
+                    badgeElem.style.color = "#fbbf24";
+                    badgeElem.style.background = "rgba(245,158,11,0.18)";
+                } else {
+                    badgeElem.textContent = "ACTIVE";
+                    badgeElem.style.borderColor = "#22c55e";
+                    badgeElem.style.color = "#4ade80";
+                    badgeElem.style.background = "rgba(34,197,94,0.15)";
+                }
             }
             if (planElem) planElem.textContent = data.plan || "VIP PRO";
-            if (expiryElem) expiryElem.textContent = data.expires_at || "LIFETIME";
+            if (expiryElem) {
+                if (data.is_expiring_soon && data.days_remaining !== null) {
+                    expiryElem.innerHTML = `${data.expires_at || "LIFETIME"} <span style="color:#fbbf24; font-weight:bold; margin-left:6px;">(នៅសល់ ${data.days_remaining} ថ្ងៃ)</span>`;
+                } else {
+                    expiryElem.textContent = data.expires_at || "LIFETIME";
+                }
+            }
         } else {
             // License is not active -> Show lock gate
             if (gateModal) gateModal.classList.add('active');
             if (badgeElem) {
-                badgeElem.textContent = "UNLICENSED";
+                badgeElem.textContent = data.status === "EXPIRED" ? "EXPIRED (ផុតកំណត់)" : "UNLICENSED";
                 badgeElem.style.borderColor = "#ef4444";
                 badgeElem.style.color = "#f87171";
                 badgeElem.style.background = "rgba(239,68,68,0.15)";
             }
             if (planElem) planElem.textContent = "None";
-            if (expiryElem) expiryElem.textContent = "Expired / None";
+            if (expiryElem) expiryElem.textContent = data.expires_at || "Expired / None";
         }
     } catch (e) {
         console.error("License check error:", e);
@@ -6101,8 +6128,10 @@ async function checkDeviceLicenseStatus() {
 
 async function submitGateLicense() {
     const input = document.getElementById('gate-license-input');
+    const nameInput = document.getElementById('gate-client-name-input');
     const msgBox = document.getElementById('gate-status-msg');
     const key = input ? input.value.trim() : "";
+    const clientName = nameInput ? nameInput.value.trim() : "";
 
     if (!key) {
         if (msgBox) {
@@ -6125,16 +6154,17 @@ async function submitGateLicense() {
         const res = await fetch('/api/license/activate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ license_key: key })
+            body: JSON.stringify({ license_key: key, client_name: clientName })
         });
         const data = await res.json();
         if (data.success) {
+            const displayName = clientName ? `សូមស្វាគមន៍ ${clientName}! ` : "";
             if (msgBox) {
                 msgBox.style.color = '#4ade80';
                 msgBox.style.background = 'rgba(34,197,94,0.15)';
-                msgBox.textContent = "បានបើកដំណើរការជោគជ័យ ១០០% (Activated!)";
+                msgBox.textContent = `${displayName}បានបើកដំណើរការជោគជ័យ ១០០% (Activated!)`;
             }
-            showToast("បាន Activate License Key ជោគជ័យ!");
+            showToast(`${displayName}បាន Activate License Key ជោគជ័យ!`);
             setTimeout(() => {
                 checkDeviceLicenseStatus();
             }, 1000);
@@ -6155,6 +6185,8 @@ async function submitGateLicense() {
 
 async function confirmActivateLicense() {
     const key = document.getElementById('input-license-key').value.trim();
+    const nameInput = document.getElementById('settings-client-name-input');
+    const clientName = nameInput ? nameInput.value.trim() : "";
     if (!key) {
         showToast("សូមបញ្ចូល License Key");
         return;
@@ -6164,11 +6196,11 @@ async function confirmActivateLicense() {
         const res = await fetch('/api/license/activate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ license_key: key })
+            body: JSON.stringify({ license_key: key, client_name: clientName })
         });
         const data = await res.json();
         if (data.success) {
-            showToast("VIP License Key Activated 100%!");
+            showToast(clientName ? `VIP Key Activated for ${clientName}!` : "VIP License Key Activated 100%!");
             checkDeviceLicenseStatus();
             backToSettingsHub();
         } else {
