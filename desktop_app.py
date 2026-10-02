@@ -227,7 +227,7 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
             y=y,
             resizable=True,
             min_size=(1024, 650),
-            background_color="#03060a",
+            background_color="#08090d",
             text_select=True,
             zoomable=True,
             js_api=api
@@ -254,7 +254,8 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
                             hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ctypes.byref(pref), ctypes.sizeof(pref)
                         )
                         DWMWA_BORDER_COLOR = 34
-                        color = ctypes.c_int(0x00F8BD38)
+                        # Signature Gold (#facc15 -> R:0xFA, G:0xCC, B:0x15 -> BGR: 0x0015CCFA)
+                        color = ctypes.c_int(0x0015CCFA)
                         ctypes.windll.dwmapi.DwmSetWindowAttribute(
                             hwnd, DWMWA_BORDER_COLOR, ctypes.byref(color), ctypes.sizeof(color)
                         )

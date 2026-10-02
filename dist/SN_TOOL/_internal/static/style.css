@@ -64,7 +64,7 @@
 }
 
 html, body {
-    background-color: #03060a;
+    background-color: #040508;
     color: var(--text-white);
     font-family: var(--font-ui);
     height: 100vh;
@@ -84,7 +84,7 @@ button, input, select, textarea {
     color: inherit;
 }
 
-/* Outer Application Wrapper — Seamless Floating Card Matching Reference Image 2 */
+/* Outer Application Wrapper — Seamless Floating Card Matching Reference Structure with Tool's Cyber-Gold Palette */
 .unich-app-container {
     display: flex;
     flex-direction: column;
@@ -92,10 +92,10 @@ button, input, select, textarea {
     max-height: 100%;
     width: 100%;
     max-width: 100%;
-    background: #080d16;
-    border: 1.5px solid rgba(56, 189, 248, 0.45);
+    background: #08090d;
+    border: 1.5px solid rgba(250, 204, 21, 0.42);
     border-radius: 16px;
-    box-shadow: 0 0 25px rgba(56, 189, 248, 0.15), 0 20px 50px rgba(0, 0, 0, 0.85);
+    box-shadow: 0 0 28px rgba(250, 204, 21, 0.16), 0 20px 50px rgba(0, 0, 0, 0.85);
     padding: 10px 16px 8px 16px;
     gap: 10px;
     overflow: hidden !important;
@@ -187,10 +187,10 @@ button, input, select, textarea {
 
 .brand-badge-logo:hover {
     transform: scale(1.08) rotate(2deg);
-    filter: drop-shadow(0 0 16px rgba(56, 189, 248, 0.85));
+    filter: drop-shadow(0 0 16px rgba(250, 204, 21, 0.85));
 }
 
-/* Mode Toggle Switch (Matching Reference Image 2) */
+/* Mode Toggle Switch (Matching Reference Structure with Gold Studio Accent) */
 .brand-toggle-pill {
     position: relative;
     display: inline-block;
@@ -210,7 +210,7 @@ button, input, select, textarea {
     cursor: pointer;
     inset: 0;
     background-color: rgba(30, 41, 59, 0.8);
-    border: 1.2px solid rgba(56, 189, 248, 0.4);
+    border: 1.2px solid rgba(250, 204, 21, 0.35);
     transition: 0.25s;
     border-radius: 20px;
 }
@@ -226,14 +226,14 @@ button, input, select, textarea {
     border-radius: 50%;
 }
 .brand-toggle-pill input:checked + .brand-toggle-slider {
-    background-color: rgba(56, 189, 248, 0.25);
-    border-color: #38bdf8;
-    box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
+    background-color: rgba(250, 204, 21, 0.2);
+    border-color: #facc15;
+    box-shadow: 0 0 8px rgba(250, 204, 21, 0.4);
 }
 .brand-toggle-pill input:checked + .brand-toggle-slider:before {
     transform: translateX(17px);
-    background-color: #38bdf8;
-    box-shadow: 0 0 6px #38bdf8;
+    background-color: #facc15;
+    box-shadow: 0 0 8px #facc15;
 }
 
 /* Navigation Segmented Toolbar Matching Reference Image 2 */
@@ -265,18 +265,18 @@ button, input, select, textarea {
 }
 
 .nav-pill-btn:hover {
-    border-color: rgba(56, 189, 248, 0.4);
+    border-color: rgba(250, 204, 21, 0.4);
     color: #ffffff;
-    background: rgba(56, 189, 248, 0.1);
+    background: rgba(250, 204, 21, 0.1);
     transform: translateY(-1px);
 }
 
 .nav-pill-btn.active {
-    background: rgba(56, 189, 248, 0.16);
-    border: 1.5px solid #38bdf8;
-    color: #38bdf8;
+    background: rgba(250, 204, 21, 0.16);
+    border: 1.5px solid #facc15;
+    color: #facc15;
     font-weight: 700;
-    box-shadow: 0 0 16px rgba(56, 189, 248, 0.35);
+    box-shadow: 0 0 16px rgba(250, 204, 21, 0.35);
 }
 
 .nav-pill-btn i {
@@ -352,15 +352,15 @@ button, input, select, textarea {
     margin-left: 2px;
 }
 
-/* Window Controls (Min, Max, Close - Framed Glass Style Matching Reference Image 2) */
+/* Window Controls (Min, Max, Close - Framed Glass Style Matching Reference Structure) */
 .header-win-controls {
     display: flex;
     align-items: center;
     gap: 12px;
-    background: rgba(15, 23, 42, 0.6);
+    background: rgba(14, 18, 28, 0.75);
     backdrop-filter: var(--glass-blur-sm);
     -webkit-backdrop-filter: var(--glass-blur-sm);
-    border: 1px solid rgba(56, 189, 248, 0.35);
+    border: 1px solid rgba(250, 204, 21, 0.32);
     border-radius: 8px;
     padding: 3px 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
@@ -384,8 +384,8 @@ button, input, select, textarea {
 }
 
 .win-btn:hover {
-    background: rgba(56, 189, 248, 0.2);
-    color: #38bdf8;
+    background: rgba(250, 204, 21, 0.18);
+    color: #facc15;
 }
 
 .win-btn.close:hover {
@@ -416,12 +416,12 @@ button, input, select, textarea {
     overflow: hidden;
 }
 
-/* Left Column: Pro Video Studio Monitor (Glassmorphic Studio Frame Matching Image 2) */
+/* Left Column: Pro Video Studio Monitor (Glassmorphic Studio Frame with Signature Gold Border) */
 .studio-left-monitor-card {
-    background: rgba(9, 14, 23, 0.75);
+    background: rgba(14, 17, 26, 0.72);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
-    border: 1.2px solid rgba(56, 189, 248, 0.38);
+    border: 1.2px solid rgba(250, 204, 21, 0.35);
     border-radius: 12px;
     display: flex;
     flex-direction: column;
@@ -436,8 +436,8 @@ button, input, select, textarea {
 }
 
 .studio-left-monitor-card:hover {
-    border-color: rgba(56, 189, 248, 0.6);
-    box-shadow: 0 0 20px rgba(56, 189, 248, 0.15);
+    border-color: rgba(250, 204, 21, 0.6);
+    box-shadow: 0 0 20px rgba(250, 204, 21, 0.15);
 }
 
 /* Studio Monitor Status Bar Kicker */
@@ -549,7 +549,7 @@ button, input, select, textarea {
     display: block;
 }
 
-/* Glowing Cyan Center Play Button Matching Reference Image 2 */
+/* Tactile Glowing Amber Gold Center Play Button */
 .monitor-center-play-button {
     position: absolute;
     top: 50%;
@@ -558,14 +558,14 @@ button, input, select, textarea {
     width: 60px;
     height: 60px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #06b6d4 0%, #0284c7 100%);
+    background: linear-gradient(135deg, #facc15 0%, #ca8a04 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #ffffff;
+    color: #080703;
     font-size: 1.35rem;
     cursor: pointer;
-    box-shadow: 0 0 28px rgba(6, 182, 212, 0.75), 0 4px 15px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 0 28px rgba(250, 204, 21, 0.75), 0 4px 15px rgba(0, 0, 0, 0.6);
     transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, box-shadow 0.18s ease;
     z-index: 25;
     pointer-events: auto;
@@ -573,7 +573,7 @@ button, input, select, textarea {
 
 .monitor-center-play-button:hover {
     transform: translate(-50%, -50%) scale(1.1);
-    box-shadow: 0 0 38px rgba(6, 182, 212, 0.95), 0 0 55px rgba(6, 182, 212, 0.5);
+    box-shadow: 0 0 38px rgba(250, 204, 21, 0.95), 0 0 55px rgba(250, 204, 21, 0.5);
 }
 
 .monitor-center-play-button i {
@@ -963,10 +963,10 @@ button, input, select, textarea {
 .studio-sources-box {
     flex: 1;
     min-height: 0;
-    background: rgba(9, 14, 23, 0.75);
+    background: rgba(14, 17, 26, 0.72);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
-    border: 1.2px solid rgba(56, 189, 248, 0.38);
+    border: 1.2px solid rgba(250, 204, 21, 0.35);
     border-radius: 12px;
     position: relative;
     display: flex;
@@ -977,8 +977,8 @@ button, input, select, textarea {
 }
 
 .studio-sources-box:hover {
-    border-color: rgba(56, 189, 248, 0.6);
-    box-shadow: 0 0 20px rgba(56, 189, 248, 0.15);
+    border-color: rgba(250, 204, 21, 0.6);
+    box-shadow: 0 0 20px rgba(250, 204, 21, 0.15);
 }
 
 .studio-sources-box::-webkit-scrollbar {
@@ -1020,7 +1020,7 @@ button, input, select, textarea {
     pointer-events: none;
 }
 
-/* Professional Studio Media Ingest Drop Zone Matching Reference Image 2 */
+/* Professional Studio Media Ingest Drop Zone (Matching Clean Layout with Cyber-Gold Theme) */
 .clean-import-center-cta {
     margin: auto;
     width: 100%;
@@ -1030,9 +1030,9 @@ button, input, select, textarea {
     align-items: center;
     justify-content: center;
     padding: 38px 48px;
-    border: 1.5px dashed rgba(56, 189, 248, 0.35);
+    border: 1.5px dashed rgba(250, 204, 21, 0.35);
     border-radius: 16px;
-    background: rgba(15, 23, 42, 0.35);
+    background: rgba(18, 22, 34, 0.52);
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     cursor: pointer;
@@ -1046,31 +1046,31 @@ button, input, select, textarea {
 }
 
 .clean-import-center-cta:hover {
-    border-color: #38bdf8;
-    background: rgba(56, 189, 248, 0.08);
+    border-color: #facc15;
+    background: rgba(250, 204, 21, 0.06);
     transform: translateY(-2px);
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 25px rgba(56, 189, 248, 0.2);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 25px rgba(250, 204, 21, 0.22);
 }
 
 .clean-import-icon-box {
     width: 64px;
     height: 64px;
     border-radius: 50%;
-    background: rgba(56, 189, 248, 0.12);
-    border: 1.5px solid rgba(56, 189, 248, 0.45);
-    color: #38bdf8;
+    background: rgba(250, 204, 21, 0.12);
+    border: 1.5px solid rgba(250, 204, 21, 0.45);
+    color: #facc15;
     font-size: 1.65rem;
     display: flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 14px;
-    box-shadow: 0 0 20px rgba(56, 189, 248, 0.25);
+    box-shadow: 0 0 20px rgba(250, 204, 21, 0.25);
     transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .clean-import-center-cta:hover .clean-import-icon-box {
     transform: scale(1.1);
-    box-shadow: 0 0 30px rgba(56, 189, 248, 0.5);
+    box-shadow: 0 0 30px rgba(250, 204, 21, 0.5);
 }
 
 .clean-import-text {
@@ -1082,7 +1082,7 @@ button, input, select, textarea {
 }
 
 .clean-import-center-cta:hover .clean-import-text {
-    color: #38bdf8;
+    color: #fde047;
 }
 
 .clean-import-sub {
@@ -1093,15 +1093,15 @@ button, input, select, textarea {
 }
 
 .clean-browse-cta-btn {
-    background: linear-gradient(135deg, #06b6d4 0%, #0284c7 100%);
-    color: #ffffff;
+    background: linear-gradient(135deg, #facc15 0%, #d97706 100%);
+    color: #080703;
     border: none;
     border-radius: 20px;
     padding: 10px 26px;
     font-size: 0.92rem;
     font-weight: 700;
     cursor: pointer;
-    box-shadow: 0 4px 18px rgba(6, 182, 212, 0.45);
+    box-shadow: 0 4px 18px rgba(250, 204, 21, 0.45);
     display: flex;
     align-items: center;
     gap: 8px;
@@ -1110,7 +1110,7 @@ button, input, select, textarea {
 
 .clean-browse-cta-btn:hover {
     transform: translateY(-2px) scale(1.03);
-    box-shadow: 0 6px 24px rgba(6, 182, 212, 0.65);
+    box-shadow: 0 6px 24px rgba(250, 204, 21, 0.65);
 }
 
 .clean-import-formats {
@@ -3611,10 +3611,10 @@ select, option, optgroup {
     min-height: 155px;
     max-height: 155px;
     flex-shrink: 0;
-    background: rgba(8, 13, 22, 0.85);
+    background: rgba(14, 17, 26, 0.82);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
-    border: 1.2px solid rgba(56, 189, 248, 0.38);
+    border: 1.2px solid rgba(250, 204, 21, 0.35);
     border-radius: 10px;
     padding: 10px 14px;
     display: flex;
@@ -3626,8 +3626,8 @@ select, option, optgroup {
 }
 
 .studio-engine-monitor-box:hover {
-    border-color: rgba(56, 189, 248, 0.6);
-    box-shadow: 0 0 20px rgba(56, 189, 248, 0.15);
+    border-color: rgba(250, 204, 21, 0.6);
+    box-shadow: 0 0 20px rgba(250, 204, 21, 0.15);
 }
 
 .engine-monitor-top-bar {
