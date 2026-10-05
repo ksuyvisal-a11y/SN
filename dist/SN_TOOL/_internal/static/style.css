@@ -6219,14 +6219,17 @@ select, option, optgroup {
     z-index: 999999;
     backdrop-filter: blur(28px) saturate(180%);
     -webkit-backdrop-filter: blur(28px) saturate(180%);
-    background: radial-gradient(ellipse at 50% 25%, rgba(250, 204, 21, 0.14) 0%, rgba(7, 8, 12, 0.96) 72%);
+    background: radial-gradient(ellipse at 50% 30%, rgba(250, 204, 21, 0.12) 0%, rgba(7, 8, 12, 0.98) 75%);
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: 46px 20px 16px 20px;
+    box-sizing: border-box;
     opacity: 0;
     pointer-events: none;
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow-y: auto;
 }
 
 .license-gate-overlay.active {
@@ -6240,32 +6243,34 @@ select, option, optgroup {
     top: 0;
     left: 0;
     right: 0;
-    height: 44px;
+    height: 38px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 16px 0 20px;
+    padding: 0 14px 0 18px;
     z-index: 1000000;
     user-select: none;
     -webkit-app-region: drag;
+    background: rgba(13, 15, 22, 0.7);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .gate-titlebar-left {
     display: flex;
     align-items: center;
-    gap: 10px;
-    opacity: 0.7;
+    gap: 8px;
+    opacity: 0.85;
     pointer-events: none;
 }
 
 .gate-titlebar-icon {
-    width: 20px;
-    height: 20px;
+    width: 17px;
+    height: 17px;
     object-fit: contain;
 }
 
 .gate-titlebar-text {
-    font-size: 0.82rem;
+    font-size: 0.76rem;
     font-weight: 700;
     color: #e2e8f0;
     letter-spacing: 0.5px;
@@ -6275,20 +6280,20 @@ select, option, optgroup {
 .gate-titlebar-controls {
     display: flex;
     align-items: center;
-    gap: 3px;
+    gap: 2px;
     -webkit-app-region: no-drag;
 }
 
 .gate-win-btn {
-    width: 44px;
-    height: 32px;
+    width: 40px;
+    height: 28px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     background: transparent;
     border: none;
     color: #94a3b8;
-    font-size: 0.95rem;
+    font-size: 0.82rem;
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -6307,20 +6312,22 @@ select, option, optgroup {
 }
 
 .license-gate-card {
-    width: 520px;
-    max-width: 95vw;
+    width: 450px;
+    max-width: 92vw;
     background: #0d0f16;
-    border: 1px solid rgba(250, 204, 21, 0.35);
-    border-radius: 18px;
+    border: 1px solid rgba(250, 204, 21, 0.38);
+    border-radius: 14px;
     box-shadow: 
-        0 0 60px rgba(250, 204, 21, 0.22),
-        0 25px 65px rgba(0, 0, 0, 0.95),
+        0 0 35px rgba(250, 204, 21, 0.18),
+        0 20px 45px rgba(0, 0, 0, 0.92),
         inset 0 1px 0 rgba(255, 255, 255, 0.08);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    transform: scale(0.95) translateY(15px);
+    transform: scale(0.96) translateY(6px);
     transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    margin: auto;
+    flex-shrink: 0;
 }
 
 .license-gate-overlay.active .license-gate-card {
@@ -6332,26 +6339,26 @@ select, option, optgroup {
     flex-direction: column;
     align-items: center;
     text-align: center;
-    padding: 26px 24px 18px 24px;
+    padding: 12px 18px 7px 18px;
     background: linear-gradient(180deg, rgba(250, 204, 21, 0.08) 0%, transparent 100%);
     border-bottom: 1px solid rgba(250, 204, 21, 0.16);
     position: relative;
-    gap: 8px;
+    gap: 3px;
 }
 
 .license-gate-logo-wrap {
-    width: 68px;
-    height: 68px;
+    width: 42px;
+    height: 42px;
     display: flex;
     align-items: center;
     justify-content: center;
-    filter: drop-shadow(0 0 18px rgba(250, 204, 21, 0.5));
+    filter: drop-shadow(0 0 12px rgba(250, 204, 21, 0.45));
     transition: transform 0.3s ease;
-    margin-bottom: 2px;
+    margin-bottom: 1px;
 }
 
 .license-gate-logo-wrap:hover {
-    transform: scale(1.08);
+    transform: scale(1.06);
 }
 
 .license-gate-logo-wrap img {
@@ -6363,68 +6370,69 @@ select, option, optgroup {
 .license-gate-brand {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .license-gate-brand-name {
     font-family: 'Plus Jakarta Sans', sans-serif;
     font-weight: 800;
-    font-size: 1.45rem;
-    letter-spacing: 1px;
+    font-size: 1.15rem;
+    letter-spacing: 0.6px;
     background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    text-shadow: 0 0 16px rgba(250, 204, 21, 0.3);
+    text-shadow: 0 0 12px rgba(250, 204, 21, 0.25);
+    line-height: 1.2;
 }
 
 .license-gate-tag {
     background: rgba(250, 204, 21, 0.14);
     border: 1px solid rgba(250, 204, 21, 0.40);
     color: #facc15;
-    font-size: 0.68rem;
+    font-size: 0.60rem;
     font-weight: 800;
-    padding: 2px 8px;
+    padding: 1px 5px;
     border-radius: 4px;
-    letter-spacing: 0.7px;
-    box-shadow: 0 0 10px rgba(250, 204, 21, 0.2);
+    letter-spacing: 0.5px;
 }
 
 .license-gate-badge {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     background: linear-gradient(135deg, rgba(250, 204, 21, 0.12) 0%, rgba(217, 119, 6, 0.14) 100%);
     border: 1px solid rgba(250, 204, 21, 0.30);
-    border-radius: 20px;
-    padding: 3px 12px;
+    border-radius: 14px;
+    padding: 2px 9px;
     color: #facc15;
-    font-size: 0.76rem;
+    font-size: 0.66rem;
     font-weight: 700;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.4px;
 }
 
 .license-gate-subtitle {
-    font-size: 0.80rem;
+    font-size: 0.70rem;
     color: #94a3b8;
-    margin-top: 2px;
+    margin-top: 1px;
+    line-height: 1.25;
 }
 
 .license-gate-body {
-    padding: 24px;
+    padding: 11px 18px 12px 18px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 7px;
 }
 
 /* HWID Panel */
 .license-gate-hwid-card {
     background: rgba(14, 16, 23, 0.85);
-    border: 1px solid rgba(250, 204, 21, 0.22);
-    border-radius: 12px;
-    padding: 14px 16px;
+    border: 1px solid rgba(250, 204, 21, 0.20);
+    border-radius: 8px;
+    padding: 5px 9px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 3px;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
@@ -6432,7 +6440,7 @@ select, option, optgroup {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 0.78rem;
+    font-size: 0.68rem;
     color: #94a3b8;
     font-weight: 600;
 }
@@ -6441,20 +6449,20 @@ select, option, optgroup {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 8px;
     background: #07080d;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
-    padding: 10px 14px;
+    border-radius: 6px;
+    padding: 4px 8px;
 }
 
 .license-gate-hwid-code {
     font-family: var(--font-mono);
-    font-size: 0.95rem;
+    font-size: 0.82rem;
     font-weight: 800;
     color: #facc15;
-    letter-spacing: 2px;
-    text-shadow: 0 0 12px rgba(250, 204, 21, 0.4);
+    letter-spacing: 1.2px;
+    text-shadow: 0 0 8px rgba(250, 204, 21, 0.35);
     overflow-x: auto;
     white-space: nowrap;
 }
@@ -6463,14 +6471,14 @@ select, option, optgroup {
     background: #141721;
     border: 1px solid rgba(250, 204, 21, 0.30);
     color: #facc15;
-    border-radius: 6px;
-    padding: 6px 14px;
-    font-size: 0.76rem;
+    border-radius: 5px;
+    padding: 3px 8px;
+    font-size: 0.68rem;
     font-weight: 700;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     transition: all 0.2s ease;
     white-space: nowrap;
 }
@@ -6478,84 +6486,81 @@ select, option, optgroup {
 .license-gate-btn-copy:hover {
     background: #facc15;
     color: #07080a;
-    box-shadow: 0 0 14px rgba(250, 204, 21, 0.45);
+    box-shadow: 0 0 10px rgba(250, 204, 21, 0.4);
 }
 
 /* Key Input Group */
 .license-gate-input-group {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 3px;
 }
 
 .license-gate-input-label {
-    font-size: 0.82rem;
+    font-size: 0.70rem;
     font-weight: 700;
     color: #e2e8f0;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
+    line-height: 1.2;
 }
 
 .license-gate-input-wrap {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .license-gate-input-field {
     flex: 1;
     background: #07080d;
-    border: 1.5px solid rgba(250, 204, 21, 0.35);
-    border-radius: 10px;
-    padding: 13px 16px;
-    font-size: 0.92rem;
+    border: 1.5px solid rgba(250, 204, 21, 0.32);
+    border-radius: 7px;
+    padding: 7px 10px;
+    font-size: 0.82rem;
     color: #ffffff;
     font-family: var(--font-mono);
     font-weight: 800;
-    letter-spacing: 2px;
+    letter-spacing: 1.2px;
     text-transform: uppercase;
     outline: none;
     transition: all 0.2s ease;
-    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
 }
 
 .license-gate-input-field:focus {
     border-color: #facc15;
-    box-shadow: 0 0 18px rgba(250, 204, 21, 0.35), inset 0 2px 6px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 0 12px rgba(250, 204, 21, 0.35), inset 0 2px 4px rgba(0, 0, 0, 0.6);
 }
 
 .license-gate-input-field::placeholder {
     color: #475569;
-    letter-spacing: 1.5px;
+    letter-spacing: 0.8px;
     font-weight: 600;
+    font-size: 0.76rem;
 }
 
 .license-gate-input-field.name-field {
     text-transform: none;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.2px;
     font-family: inherit;
     font-weight: 600;
-    font-size: 0.95rem;
-}
-
-.license-gate-input-field.name-field::placeholder {
-    letter-spacing: normal;
-    font-weight: 500;
+    font-size: 0.80rem;
 }
 
 .license-gate-btn-paste {
     background: #141721;
     border: 1px solid rgba(250, 204, 21, 0.30);
     color: #cbd5e1;
-    border-radius: 10px;
-    padding: 13px 16px;
-    font-size: 0.82rem;
+    border-radius: 7px;
+    padding: 7px 11px;
+    font-size: 0.74rem;
     font-weight: 700;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     transition: all 0.2s ease;
     white-space: nowrap;
 }
@@ -6564,17 +6569,17 @@ select, option, optgroup {
     background: #1c2130;
     border-color: #facc15;
     color: #facc15;
-    box-shadow: 0 0 14px rgba(250, 204, 21, 0.30);
+    box-shadow: 0 0 10px rgba(250, 204, 21, 0.30);
 }
 
 /* Status Alert Message */
 .license-gate-status-msg {
     display: none;
-    font-size: 0.82rem;
+    font-size: 0.74rem;
     font-weight: 700;
     text-align: center;
-    padding: 10px 14px;
-    border-radius: 8px;
+    padding: 5px 10px;
+    border-radius: 6px;
     border: 1px solid transparent;
 }
 
@@ -6584,29 +6589,25 @@ select, option, optgroup {
     background: linear-gradient(135deg, #facc15 0%, #eab308 50%, #ca8a04 100%);
     color: #07080a;
     border: none;
-    border-radius: 10px;
-    padding: 14px 20px;
-    font-size: 0.95rem;
+    border-radius: 7px;
+    padding: 9px 14px;
+    font-size: 0.84rem;
     font-weight: 800;
-    letter-spacing: 0.8px;
+    letter-spacing: 0.5px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    box-shadow: 0 4px 25px rgba(250, 204, 21, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    gap: 6px;
+    box-shadow: 0 3px 16px rgba(250, 204, 21, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.6);
     transition: all 0.22s ease;
-    margin-top: 4px;
+    margin-top: 2px;
 }
 
 .license-gate-btn-activate:hover {
     background: linear-gradient(135deg, #fde047 0%, #facc15 100%);
-    box-shadow: 0 6px 35px rgba(250, 204, 21, 0.65);
-    transform: translateY(-2px);
-}
-
-.license-gate-btn-activate:active {
-    transform: translateY(1px);
+    box-shadow: 0 5px 22px rgba(250, 204, 21, 0.55);
+    transform: translateY(-1px);
 }
 
 /* Footer Guarantee */
@@ -6615,17 +6616,17 @@ select, option, optgroup {
     flex-direction: column;
     align-items: center;
     text-align: center;
-    gap: 4px;
-    font-size: 0.74rem;
+    gap: 2px;
+    font-size: 0.67rem;
     color: #64748b;
-    line-height: 1.45;
+    line-height: 1.3;
     margin-top: 2px;
 }
 
 .license-gate-footer-badge {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     color: #94a3b8;
     font-weight: 600;
 }

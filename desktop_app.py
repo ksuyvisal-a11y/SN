@@ -258,9 +258,9 @@ def get_standard_window_geometry():
         except Exception:
             pass
 
-    # Dimensions calculated to leave at least 75-110px margin on top & bottom so bottom edge is never cut off
+    # Dimensions calculated to leave generous margin on top & bottom so bottom edge is never cut off
     target_w = min(1200, max(1024, int(sw * 0.74)))
-    target_h = min(650, max(600, int(sh * 0.74)))
+    target_h = min(670, max(630, int(sh * 0.74)))
 
     x = wa_left + max(0, (sw - target_w) // 2)
     y = wa_top + max(0, (sh - target_h) // 2)
@@ -286,7 +286,7 @@ def enforce_center_window(target_hwnd):
 
         # Keep dimensions clean and proportional, with generous padding so bottom edge never touches taskbar
         w = min(1200, max(1024, int(wa_w * 0.74)))
-        h = min(650, max(600, int(wa_h * 0.74)))
+        h = min(670, max(630, int(wa_h * 0.74)))
 
         cx = wa.left + (wa_w - w) // 2
         cy = wa.top + (wa_h - h) // 2

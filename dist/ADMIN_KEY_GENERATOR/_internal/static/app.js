@@ -47,7 +47,7 @@ function isWindowMaximizedOrFullscreen() {
 function setWindowMaximizedState(isMax) {
     const body = document.body;
     const header = document.querySelector('.unich-header-bar');
-    const maxBtn = document.getElementById('win-btn-maximize') || document.querySelector('.win-btn[title="Maximize"], .win-btn[title="Restore Down"]');
+    const maxBtns = document.querySelectorAll('#win-btn-maximize, #gate-btn-maximize, .win-btn[title="Maximize"], .win-btn[title="Restore Down"], .gate-win-btn[title*="Maximize"]');
 
     if (isMax) {
         body.classList.add('is-maximized');
@@ -55,19 +55,19 @@ function setWindowMaximizedState(isMax) {
         if (header) {
             header.classList.remove('pywebview-drag-region');
         }
-        if (maxBtn) {
-            maxBtn.innerHTML = '❐';
-            maxBtn.title = 'Restore Down';
-        }
+        maxBtns.forEach(btn => {
+            btn.innerHTML = '<i class="fa-regular fa-clone"></i>';
+            btn.title = 'Restore Down (ស្តារ)';
+        });
     } else {
         body.classList.remove('is-maximized');
         if (header) {
             header.classList.add('pywebview-drag-region');
         }
-        if (maxBtn) {
-            maxBtn.innerHTML = '▢';
-            maxBtn.title = 'Maximize';
-        }
+        maxBtns.forEach(btn => {
+            btn.innerHTML = '<i class="fa-regular fa-square"></i>';
+            btn.title = 'Maximize (ពង្រីក)';
+        });
     }
 }
 
@@ -6349,7 +6349,7 @@ async function submitGateLicense() {
             if (msgBox) {
                 msgBox.style.color = '#f87171';
                 msgBox.style.background = 'rgba(239,68,68,0.15)';
-                msgBox.textContent = `${data.error || 'License Key មិនត្រឹមត្រូវ'}`;
+                msgBox.textContent = `${data.message || data.error || 'License Key មិនត្រឹមត្រូវ'}`;
             }
         }
     } catch (e) {
@@ -6381,7 +6381,7 @@ async function confirmActivateLicense() {
             checkDeviceLicenseStatus();
             backToSettingsHub();
         } else {
-            showToast(`${data.error || 'Invalid key'}`);
+            showToast(`${data.message || data.error || 'License Key មិនត្រឹមត្រូវ'}`);
         }
     } catch (e) {
         showToast("Network error");
