@@ -275,6 +275,21 @@ def ensure_db_initialized():
     except Exception as e:
         print(f"[HongguoDB] ReelShort seed check warning: {e}")
 
+    # Ensure FreeReels catalog (70,000 dramas) is verified
+    try:
+        cur.execute("SELECT count(*) FROM hongguo_dramas WHERE LOWER(platform_id) = 'freereels'")
+        fr_count = cur.fetchone()[0]
+        if fr_count < 70000:
+            print(f"[HongguoDB] FreeReels catalog ({fr_count}) below 70,000. Auto-seeding...")
+            import subprocess
+            seeder = base / "scripts" / "seed_freereels_70000.py"
+            if not seeder.exists():
+                seeder = Path("scripts/seed_freereels_70000.py")
+            if seeder.exists():
+                subprocess.run([sys.executable, str(seeder)], check=False)
+    except Exception as e:
+        print(f"[HongguoDB] FreeReels seed check warning: {e}")
+
     conn.close()
     _DB_INITIALIZED = True
 
