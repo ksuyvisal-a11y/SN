@@ -58,10 +58,10 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
             maximized=False,
             width=win_w,
             height=win_h,
-            x=None,  # Leave None so WinForms FormStartPosition.CenterScreen centers the window natively
-            y=None,
+            x=x,  # Explicitly centered X coordinate
+            y=y,  # Explicitly centered Y coordinate
             resizable=True,
-            min_size=(1024, 650),
+            min_size=(960, 580),
             background_color="#08090d",
             text_select=True,
             zoomable=True,
@@ -70,13 +70,13 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
 
         try:
             orig_move = window.move
-            def safe_window_move(x, y):
+            def safe_window_move(mx, my):
                 try:
                     if is_window_zoomed() or api._is_maximized:
                         return
                 except Exception:
                     pass
-                return orig_move(x, y)
+                return orig_move(mx, my)
             window.move = safe_window_move
         except Exception:
             pass
@@ -102,15 +102,30 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
             pass
 
         def on_gui_ready(w):
+            try:
+                w.move(x, y)
+            except Exception:
+                pass
+
             if sys.platform == "win32":
                 try:
                     import ctypes
                     hwnd = None
                     if hasattr(w, 'native') and w.native:
                         try:
-                            hwnd = int(w.native.Handle)
+                            h = w.native.Handle
+                            hwnd = int(str(h)) if hasattr(h, 'ToString') else int(h.ToInt64())
+                        except Exception:
+                            try:
+                                hwnd = int(w.native.Handle.ToInt32())
+                            except Exception:
+                                pass
+
+                        try:
+                            w.native.CenterToScreen()
                         except Exception:
                             pass
+
                     if not hwnd:
                         hwnd = ctypes.windll.user32.FindWindowW(None, title)
                     if hwnd:
@@ -126,7 +141,8 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
                             hwnd, DWMWA_BORDER_COLOR, ctypes.byref(color), ctypes.sizeof(color)
                         )
                         enforce_center_window(hwnd)
-                        threading.Timer(0.2, lambda: enforce_center_window(hwnd)).start()
+                        threading.Timer(0.15, lambda: enforce_center_window(hwnd)).start()
+                        threading.Timer(0.30, lambda: enforce_center_window(hwnd)).start()
                 except Exception:
                     pass
 

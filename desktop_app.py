@@ -258,9 +258,9 @@ def get_standard_window_geometry():
         except Exception:
             pass
 
-    # Dimensions calculated to leave generous margin on top & bottom so bottom edge is never cut off
-    target_w = min(1200, max(1024, int(sw * 0.74)))
-    target_h = min(670, max(630, int(sh * 0.74)))
+    # Dimensions calculated to leave generous margin on all sides (centered horizontally & vertically)
+    target_w = min(1180, max(980, int(sw * 0.74)))
+    target_h = min(660, max(580, int(sh * 0.76)))
 
     x = wa_left + max(0, (sw - target_w) // 2)
     y = wa_top + max(0, (sh - target_h) // 2)
@@ -284,12 +284,11 @@ def enforce_center_window(target_hwnd):
         wa_w = wa.right - wa.left
         wa_h = wa.bottom - wa.top
 
-        # Keep dimensions clean and proportional, with generous padding so bottom edge never touches taskbar
-        w = min(1200, max(1024, int(wa_w * 0.74)))
-        h = min(670, max(630, int(wa_h * 0.74)))
+        w = min(1180, max(980, int(wa_w * 0.74)))
+        h = min(660, max(580, int(wa_h * 0.76)))
 
-        cx = wa.left + (wa_w - w) // 2
-        cy = wa.top + (wa_h - h) // 2
+        cx = wa.left + max(0, (wa_w - w) // 2)
+        cy = wa.top + max(0, (wa_h - h) // 2)
 
         SWP_NOZORDER = 0x0004
         SWP_NOACTIVATE = 0x0010
@@ -322,10 +321,10 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
             maximized=False,
             width=win_w,
             height=win_h,
-            x=None,  # Leave None so WinForms FormStartPosition.CenterScreen centers the window natively
-            y=None,
+            x=x,  # Explicitly centered X coordinate
+            y=y,  # Explicitly centered Y coordinate
             resizable=True,
-            min_size=(1024, 650),
+            min_size=(960, 580),
             background_color="#08090d",
             text_select=True,
             zoomable=True,
@@ -336,13 +335,13 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
         # Safeguard move calls: NEVER move or drag window when it is maximized
         try:
             orig_move = window.move
-            def safe_window_move(x, y):
+            def safe_window_move(mx, my):
                 try:
                     if is_window_zoomed() or api._is_maximized:
                         return  # Window is MAXIMIZED: strictly block any dragging/movement!
                 except Exception:
                     pass
-                return orig_move(x, y)
+                return orig_move(mx, my)
             window.move = safe_window_move
         except Exception:
             pass
@@ -369,15 +368,30 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
             pass
 
         def on_gui_ready(w):
+            try:
+                w.move(x, y)
+            except Exception:
+                pass
+
             if sys.platform == "win32":
                 try:
                     import ctypes
                     hwnd = None
                     if hasattr(w, 'native') and w.native:
                         try:
-                            hwnd = int(w.native.Handle)
+                            h = w.native.Handle
+                            hwnd = int(str(h)) if hasattr(h, 'ToString') else int(h.ToInt64())
+                        except Exception:
+                            try:
+                                hwnd = int(w.native.Handle.ToInt32())
+                            except Exception:
+                                pass
+
+                        try:
+                            w.native.CenterToScreen()
                         except Exception:
                             pass
+
                     if not hwnd:
                         hwnd = ctypes.windll.user32.FindWindowW(None, title)
                     if hwnd:
@@ -395,8 +409,9 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
                         )
                         # Center window on primary monitor work area immediately
                         enforce_center_window(hwnd)
-                        # Repeat after 200ms to guarantee precision after WebView2 layout
-                        threading.Timer(0.2, lambda: enforce_center_window(hwnd)).start()
+                        # Repeat after 150ms and 300ms to guarantee precision after WebView2 layout
+                        threading.Timer(0.15, lambda: enforce_center_window(hwnd)).start()
+                        threading.Timer(0.30, lambda: enforce_center_window(hwnd)).start()
                 except Exception:
                     pass
 
