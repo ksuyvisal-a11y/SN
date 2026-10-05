@@ -53,11 +53,14 @@ def ensure_server_running(timeout: float = 6.0) -> bool:
     if is_server_running():
         return True
     def run_app():
-        import logging
-        from admin_dashboard import admin_app
-        log = logging.getLogger('werkzeug')
-        log.setLevel(logging.ERROR)
-        admin_app.run(host="127.0.0.1", port=ADMIN_PORT, debug=False, use_reloader=False)
+        try:
+            import logging
+            from admin_dashboard import admin_app
+            log = logging.getLogger('werkzeug')
+            log.setLevel(logging.ERROR)
+            admin_app.run(host="127.0.0.1", port=ADMIN_PORT, debug=False, use_reloader=False)
+        except Exception:
+            pass
     t = threading.Thread(target=run_app, daemon=True)
     t.start()
     t_end = time.time() + timeout
