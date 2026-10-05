@@ -2725,30 +2725,6 @@
             return card;
         }
 
-                <div class="record-actions">
-                    <button type="button" class="btn-record-action" onclick="copySingleKey('${item.license_key}')" title="Copy Key">
-                        <i class="fa-solid fa-copy"></i>
-                    </button>
-                    <button type="button" class="btn-record-action" onclick="copySingleItemTelegram(${index})" title="Copy សារផ្ញើទៅភ្ញៀវ">
-                        <i class="fa-solid fa-paper-plane" style="color:var(--primary);"></i>
-                    </button>
-                    ${isRevoked ? `
-                        <button type="button" class="btn-record-action btn-rec-unban" onclick="handleUnbanRow('${item.license_key}')" title="ដោះសោ Unban">
-                            <i class="fa-solid fa-unlock"></i> Unban
-                        </button>
-                    ` : `
-                        <button type="button" class="btn-record-action btn-rec-block" onclick="handleBlockRow('${item.license_key}', '${clientName}')" title="ផ្អាក Block Key">
-                            <i class="fa-solid fa-ban"></i> Block
-                        </button>
-                    `}
-                    <button type="button" class="btn-record-action btn-rec-delete" onclick="handleDeleteRow('${item.license_key}', '${clientName}')" title="លុបចោល">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
-                </div>
-            `;
-            return card;
-        }
-
         function selectRowForDelivery(index) {
             const item = allKeysData[index];
             if (item) {
