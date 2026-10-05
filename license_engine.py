@@ -189,40 +189,24 @@ def get_revoked_keys() -> List[str]:
 
 def sync_online_keys() -> Dict[str, Any]:
     """
-    Consolidate all keys (history, custom keys, master keys, online registry)
+    Consolidate all valid keys (DEFAULT_MASTER_KEYS, custom keys, admin history)
     and export into data/license_keys_online.json, syncing to dist/SN_TOOL if present.
     """
     all_keys = {}
 
-    # 1. Start with existing data/license_keys_online.json if present
-    online_p = resolve_file_path("data/license_keys_online.json")
-    if online_p.exists():
-        try:
-            with open(online_p, "r", encoding="utf-8") as f:
-                d = json.load(f)
-                if isinstance(d, dict):
-                    all_keys.update(d)
-        except Exception:
-            pass
-
-    # 2. Add Default Master Keys (Always active, universal ANY HWID)
+    # 1. Add Default Master Keys (Always active, universal ANY HWID)
     for mk, meta in DEFAULT_MASTER_KEYS.items():
-        if mk not in all_keys:
-            all_keys[mk] = {
-                "license_key": mk,
-                "client_name": meta.get("client_name", "VIP Administrator"),
-                "plan": meta.get("plan", "LIFETIME_VIP"),
-                "duration_days": 0,
-                "created_at": "2026-10-01 00:00:00",
-                "expires_at": "LIFETIME",
-                "expiry_timestamp": 0,
-                "bound_hwid": "ANY",
-                "status": "ACTIVE"
-            }
-        else:
-            all_keys[mk]["bound_hwid"] = "ANY"
-            all_keys[mk]["status"] = "ACTIVE"
-            all_keys[mk]["expires_at"] = "LIFETIME"
+        all_keys[mk] = {
+            "license_key": mk,
+            "client_name": meta.get("client_name", "VIP Administrator"),
+            "plan": meta.get("plan", "LIFETIME_VIP"),
+            "duration_days": 0,
+            "created_at": "2026-10-01 00:00:00",
+            "expires_at": "LIFETIME",
+            "expiry_timestamp": 0,
+            "bound_hwid": "ANY",
+            "status": "ACTIVE"
+        }
 
     # 3. Add Custom Keys
     custom_p = resolve_file_path("custom_keys.json")
@@ -532,12 +516,64 @@ def delete_license_key_record(target_key: str) -> Tuple[bool, str]:
         except Exception:
             pass
 
+    # Remove from generated_keys_log.txt if present
+    if GENERATED_KEYS_LOG.exists():
+        try:
+            with open(GENERATED_KEYS_LOG, "r", encoding="utf-8", errors="ignore") as f:
+                lines = f.readlines()
+            new_lines = [l for l in lines if f"KEY: {cleaned}" not in l and f"KEY:{cleaned}" not in l]
+            with open(GENERATED_KEYS_LOG, "w", encoding="utf-8") as f:
+                f.writelines(new_lines)
+        except Exception:
+            pass
+
     try:
         sync_online_keys()
     except Exception:
         pass
 
     return True, f"🗑️ បានលុប Key {cleaned} ចេញពីបញ្ជីជោគជ័យ!"
+
+
+def clear_all_admin_keys() -> Tuple[bool, str]:
+    """
+    Purge all customer keys, reset admin history, custom keys, and log.
+    Built-in Master keys (DEFAULT_MASTER_KEYS) are retained.
+    """
+    try:
+        with open(ADMIN_HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump([], f, indent=2, ensure_ascii=False)
+    except Exception:
+        pass
+
+    try:
+        with open(CUSTOM_KEYS_FILE, "w", encoding="utf-8") as f:
+            json.dump({}, f, indent=2, ensure_ascii=False)
+    except Exception:
+        pass
+
+    try:
+        with open(GENERATED_KEYS_LOG, "w", encoding="utf-8") as f:
+            f.write("# SN STUDIO - VIP License Key Log\n")
+    except Exception:
+        pass
+
+    # Also clean dist versions if they exist
+    for dist_dir in [Path("dist/SN_TOOL"), Path("dist/SN_TOOL/_internal")]:
+        try:
+            ck = dist_dir / "custom_keys.json"
+            if ck.exists():
+                with open(ck, "w", encoding="utf-8") as f:
+                    json.dump({}, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
+    try:
+        sync_online_keys()
+    except Exception:
+        pass
+
+    return True, "✅ បានជម្រះបញ្ជីឈ្មោះ Customer និង Keys ទាំងអស់ជោគជ័យ! បញ្ជី Key ឥឡូវនៅសល់ 0 ត្រៀមសម្រាប់ដាក់លក់ជូន User ថ្មី។"
 
 
 def check_remote_revocation_online(cleaned_key: str, current_hwid: str) -> Optional[str]:
@@ -814,55 +850,6 @@ def sync_and_load_admin_history() -> List[Dict[str, Any]]:
                         if cleaned_k and cleaned_k not in seen_keys:
                             history.append(rec)
                             seen_keys.add(cleaned_k)
-        except Exception:
-            pass
-
-    # Also parse generated_keys_log.txt to recover any older keys
-    if GENERATED_KEYS_LOG.exists():
-        try:
-            with open(GENERATED_KEYS_LOG, "r", encoding="utf-8", errors="ignore") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line or "KEY:" not in line:
-                        continue
-                    try:
-                        created_match = re.search(r"\[(.*?)\]", line)
-                        created_at = created_match.group(1) if created_match else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        parts = line.split("|")
-                        key_val = ""
-                        client_val = "VIP Customer"
-                        plan_val = "VIP"
-                        expiry_val = "LIFETIME"
-                        hwid_val = "ANY"
-
-                        for part in parts:
-                            part = part.strip()
-                            if "KEY:" in part:
-                                key_val = part.split("KEY:")[-1].strip().upper()
-                            elif "CLIENT:" in part:
-                                client_val = part.split("CLIENT:")[-1].strip()
-                            elif "PLAN:" in part:
-                                plan_val = part.split("PLAN:")[-1].strip()
-                            elif "EXPIRY:" in part:
-                                expiry_val = part.split("EXPIRY:")[-1].strip()
-                            elif "HWID:" in part:
-                                hwid_val = part.split("HWID:")[-1].strip()
-
-                        if key_val and key_val not in seen_keys:
-                            seen_keys.add(key_val)
-                            history.append({
-                                "license_key": key_val,
-                                "client_name": client_val,
-                                "plan": plan_val,
-                                "duration_days": 0 if expiry_val == "LIFETIME" else 30,
-                                "created_at": created_at,
-                                "expires_at": expiry_val,
-                                "expiry_timestamp": 0,
-                                "bound_hwid": hwid_val,
-                                "status": "ACTIVE"
-                            })
-                    except Exception:
-                        continue
         except Exception:
             pass
 

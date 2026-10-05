@@ -1877,6 +1877,9 @@
                         <button type="button" class="btn-action-light" onclick="exportKeysToTxt()">
                             <i class="fa-solid fa-download"></i> Export .txt
                         </button>
+                        <button type="button" class="btn-action-light" onclick="handleClearAllKeys()" style="color:#dc2626; border-color:#fecaca;" title="ជម្រះបញ្ជី User ទាំងអស់ឱ្យនៅ 0">
+                            <i class="fa-solid fa-trash-can"></i> ជម្រះបញ្ជីទាំងអស់ (Clear All)
+                        </button>
                     </div>
                 </div>
 
@@ -2791,6 +2794,22 @@
                 }
             } catch (e) {
                 showToast("❌ Network error");
+            }
+        }
+
+        async function handleClearAllKeys() {
+            if (!confirm("⚠️ តើលោកថៅកែពិតជាចង់លុបជម្រះបញ្ជីឈ្មោះ User / Customer ទាំងអស់ឱ្យនៅទទេ (0 នាក់) មែនទេ?\n\n(រាល់ Key តេស្តចាស់ៗទាំងអស់នឹងត្រូវជម្រះចេញស្អាត ហើយចាប់ផ្តើមពី 0 នាក់ឡើងវិញ រង់ចាំដល់ពេលថៅកែដាក់លក់ជូនភ្ញៀវពិតប្រាកដ)")) return;
+            try {
+                const res = await fetch('/api/admin/clear-all-keys', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message || "✅ បានជម្រះបញ្ជី Customer ទាំងអស់រួចរាល់!");
+                    fetchKeysHistory();
+                } else {
+                    showToast("❌ " + (data.error || "បរាជ័យក្នុងការជម្រះ"));
+                }
+            } catch (err) {
+                showToast("❌ Network error: " + err.message);
             }
         }
 

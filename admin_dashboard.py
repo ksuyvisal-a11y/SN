@@ -33,6 +33,7 @@ from license_engine import (
     revoke_license_key,
     unrevoke_license_key,
     delete_license_key_record,
+    clear_all_admin_keys,
     get_revoked_keys,
     is_license_required,
     set_license_required,
@@ -150,6 +151,14 @@ def admin_delete_key():
         return jsonify({"success": False, "error": "សូមបញ្ចូល Key"}), 400
     ok, msg = delete_license_key_record(key)
     return jsonify({"success": ok, "message": msg})
+
+@admin_app.route("/api/admin/clear-all-keys", methods=["POST"])
+def admin_clear_all_keys():
+    try:
+        ok, msg = clear_all_admin_keys()
+        return jsonify({"success": ok, "message": msg})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @admin_app.route("/api/admin/sync-online", methods=["POST", "GET"])
 def admin_sync_online():
