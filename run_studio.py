@@ -45,7 +45,7 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
     # 1. Try pywebview
     try:
         import webview
-        from desktop_app import NativeWindowApi, is_window_zoomed, get_standard_window_geometry
+        from desktop_app import NativeWindowApi, is_window_zoomed, get_standard_window_geometry, enforce_center_window
 
         win_w, win_h, x, y = get_standard_window_geometry()
         api = NativeWindowApi()
@@ -58,8 +58,8 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
             maximized=False,
             width=win_w,
             height=win_h,
-            x=x,
-            y=y,
+            x=None,  # Leave None so WinForms FormStartPosition.CenterScreen centers the window natively
+            y=None,
             resizable=True,
             min_size=(1024, 650),
             background_color="#08090d",
@@ -101,7 +101,36 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
         except Exception:
             pass
 
-        webview.start(None, window, private_mode=False, gui='edgechromium')
+        def on_gui_ready(w):
+            if sys.platform == "win32":
+                try:
+                    import ctypes
+                    hwnd = None
+                    if hasattr(w, 'native') and w.native:
+                        try:
+                            hwnd = int(w.native.Handle)
+                        except Exception:
+                            pass
+                    if not hwnd:
+                        hwnd = ctypes.windll.user32.FindWindowW(None, title)
+                    if hwnd:
+                        DWMWA_WINDOW_CORNER_PREFERENCE = 33
+                        DWMWCP_ROUND = 2
+                        pref = ctypes.c_int(DWMWCP_ROUND)
+                        ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                            hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ctypes.byref(pref), ctypes.sizeof(pref)
+                        )
+                        DWMWA_BORDER_COLOR = 34
+                        color = ctypes.c_int(0x0015CCFA)
+                        ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                            hwnd, DWMWA_BORDER_COLOR, ctypes.byref(color), ctypes.sizeof(color)
+                        )
+                        enforce_center_window(hwnd)
+                        threading.Timer(0.2, lambda: enforce_center_window(hwnd)).start()
+                except Exception:
+                    pass
+
+        webview.start(on_gui_ready, window, private_mode=False, gui='edgechromium')
         return
     except Exception as e:
         print(f"pywebview notice: {e}")

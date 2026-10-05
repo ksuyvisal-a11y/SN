@@ -225,40 +225,87 @@ def get_standard_window_geometry():
     """
     Calculate ideal desktop window size & centered coordinates.
     Provides standard desktop app dimensions (similar to CapCut, Photoshop, Telegram, Filmora):
-    - Width: ~72-74% of screen width (e.g. 1380px on 1080p)
-    - Height: ~78-82% of screen height (e.g. 840px on 1080p)
+    - Width: ~76-78% of work area width
+    - Height: ~86-88% of work area height
     - Centered on primary monitor
     - Taskbar completely visible and unobstructed
     """
     sw, sh = 1920, 1080
+    wa_left = 0
+    wa_top = 0
+
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            from ctypes import wintypes
+            class RECT(ctypes.Structure):
+                _fields_ = [('left', wintypes.LONG), ('top', wintypes.LONG), ('right', wintypes.LONG), ('bottom', wintypes.LONG)]
+            wa = RECT()
+            ctypes.windll.user32.SystemParametersInfoW(0x0030, 0, ctypes.byref(wa), 0)
+            wa_left = wa.left
+            wa_top = wa.top
+            sw = max(1024, wa.right - wa.left)
+            sh = max(650, wa.bottom - wa.top)
+        except Exception:
+            pass
+    else:
+        try:
+            import webview
+            screens = getattr(webview, 'screens', None)
+            if screens and len(screens) > 0:
+                sw = screens[0].width
+                sh = screens[0].height
+        except Exception:
+            pass
+
+    target_w = min(int(sw * 0.78), 1400)
+    target_w = max(target_w, min(1060, sw - 40))
+
+    target_h = min(int(sh * 0.88), 860)
+    target_h = max(target_h, min(650, sh - 40))
+
+    x = wa_left + max(0, (sw - target_w) // 2)
+    y = wa_top + max(0, (sh - target_h) // 2)
+
+    return target_w, target_h, x, y
+
+def enforce_center_window(target_hwnd):
+    """Ensure the native window is positioned dead center on the primary monitor work area."""
+    if sys.platform != "win32" or not target_hwnd:
+        return
     try:
-        import webview
-        screens = getattr(webview, 'screens', None)
-        if screens and len(screens) > 0:
-            sw = screens[0].width
-            sh = screens[0].height
+        import ctypes
+        from ctypes import wintypes
+        user32 = ctypes.windll.user32
+
+        class RECT(ctypes.Structure):
+            _fields_ = [('left', wintypes.LONG), ('top', wintypes.LONG), ('right', wintypes.LONG), ('bottom', wintypes.LONG)]
+
+        wa = RECT()
+        user32.SystemParametersInfoW(0x0030, 0, ctypes.byref(wa), 0)
+        wa_w = wa.right - wa.left
+        wa_h = wa.bottom - wa.top
+
+        w_rect = RECT()
+        user32.GetWindowRect(target_hwnd, ctypes.byref(w_rect))
+        cur_w = w_rect.right - w_rect.left
+        cur_h = w_rect.bottom - w_rect.top
+
+        w = min(cur_w, wa_w - 40)
+        h = min(cur_h, wa_h - 20)
+        if w <= 100 or h <= 100:
+            w = min(int(wa_w * 0.78), 1400)
+            h = min(int(wa_h * 0.88), 860)
+
+        cx = wa.left + (wa_w - w) // 2
+        cy = wa.top + (wa_h - h) // 2
+
+        SWP_NOZORDER = 0x0004
+        SWP_NOACTIVATE = 0x0010
+        SWP_SHOWWINDOW = 0x0040
+        user32.SetWindowPos(target_hwnd, 0, cx, cy, w, h, SWP_NOZORDER | SWP_SHOWWINDOW)
     except Exception:
         pass
-
-    # Bounded ideal dimensions
-    if sw >= 2560:  # 2K / 4K
-        win_w = 1600
-        win_h = 980
-    elif sw >= 1920:  # 1080p (Standard Full HD)
-        win_w = 1380
-        win_h = 840
-    elif sw >= 1600:  # 900p / 1600x900
-        win_w = 1280
-        win_h = 780
-    else:  # 1366x768 or smaller laptop
-        win_w = min(1200, sw - 50)
-        win_h = min(700, sh - 60)
-
-    # Position in center of screen
-    x = max(0, (sw - win_w) // 2)
-    y = max(10, (sh - win_h - 48) // 2)  # accounting for ~48px Windows taskbar
-
-    return win_w, win_h, x, y
 
 def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PRO"):
     """
@@ -284,8 +331,8 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
             maximized=False,
             width=win_w,
             height=win_h,
-            x=x,
-            y=y,
+            x=None,  # Leave None so WinForms FormStartPosition.CenterScreen centers the window natively
+            y=None,
             resizable=True,
             min_size=(1024, 650),
             background_color="#08090d",
@@ -355,6 +402,10 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
                         ctypes.windll.dwmapi.DwmSetWindowAttribute(
                             hwnd, DWMWA_BORDER_COLOR, ctypes.byref(color), ctypes.sizeof(color)
                         )
+                        # Center window on primary monitor work area immediately
+                        enforce_center_window(hwnd)
+                        # Repeat after 200ms to guarantee precision after WebView2 layout
+                        threading.Timer(0.2, lambda: enforce_center_window(hwnd)).start()
                 except Exception:
                     pass
 
