@@ -9,7 +9,7 @@ import httpx
 from pathlib import Path
 from typing import Dict, Any
 
-CURRENT_VERSION = "4.5.0"
+CURRENT_VERSION = "5.0.0"
 VERSION_CHANNEL = "stable"
 UPDATE_CHECK_URL = "https://raw.githubusercontent.com/unich-ai/releases/main/version.json"
 
@@ -22,7 +22,7 @@ def check_for_updates() -> Dict[str, Any]:
             "current_version": CURRENT_VERSION,
             "latest_version": CURRENT_VERSION,
             "has_update": False,
-            "release_notes": "កំណែ V4.5.0៖ U'NICH Multi-Track Cyberpunk Studio + Admin Key Generator & License System.",
+            "release_notes": "កំណែ V5.0.0 PRO៖ ពង្រីកកាតាឡុក Drama Downloader ដល់ទៅ 633,672+ រឿង (FreeReels 120k, ReelShort 120k, ShortMax 120k, AnyReel 200k, Hongguo 49.5k, AI Dramas 24k) កម្រិត 1080p Full HD Streams + Batch Downloader & Desktop Shortcut System.",
             "download_url": "https://t.me/sn_tool_kh",
             "channel": VERSION_CHANNEL
         }
@@ -39,9 +39,9 @@ def check_for_updates() -> Dict[str, Any]:
 def get_version_info() -> Dict[str, Any]:
     return {
         "version": CURRENT_VERSION,
-        "app_name": "U'NICH / SN AI Drama Studio",
+        "app_name": "SN TOOL - STUDIO PRO",
         "author": "SN Team Cambodia",
-        "engine": "Faster-Whisper + Edge-TTS + Demucs AI"
+        "engine": "Faster-Whisper + Edge-TTS + Demucs AI + 630K+ Multi-Platform Drama Downloader"
     }
 
 
