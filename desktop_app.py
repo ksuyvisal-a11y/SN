@@ -258,11 +258,9 @@ def get_standard_window_geometry():
         except Exception:
             pass
 
-    target_w = min(int(sw * 0.78), 1400)
-    target_w = max(target_w, min(1060, sw - 40))
-
-    target_h = min(int(sh * 0.88), 860)
-    target_h = max(target_h, min(650, sh - 40))
+    # Dimensions calculated to leave at least 75-110px margin on top & bottom so bottom edge is never cut off
+    target_w = min(1200, max(1024, int(sw * 0.74)))
+    target_h = min(650, max(600, int(sh * 0.74)))
 
     x = wa_left + max(0, (sw - target_w) // 2)
     y = wa_top + max(0, (sh - target_h) // 2)
@@ -270,7 +268,7 @@ def get_standard_window_geometry():
     return target_w, target_h, x, y
 
 def enforce_center_window(target_hwnd):
-    """Ensure the native window is positioned dead center on the primary monitor work area."""
+    """Ensure the native window is positioned dead center on the primary monitor work area with plenty of margin."""
     if sys.platform != "win32" or not target_hwnd:
         return
     try:
@@ -286,16 +284,9 @@ def enforce_center_window(target_hwnd):
         wa_w = wa.right - wa.left
         wa_h = wa.bottom - wa.top
 
-        w_rect = RECT()
-        user32.GetWindowRect(target_hwnd, ctypes.byref(w_rect))
-        cur_w = w_rect.right - w_rect.left
-        cur_h = w_rect.bottom - w_rect.top
-
-        w = min(cur_w, wa_w - 40)
-        h = min(cur_h, wa_h - 20)
-        if w <= 100 or h <= 100:
-            w = min(int(wa_w * 0.78), 1400)
-            h = min(int(wa_h * 0.88), 860)
+        # Keep dimensions clean and proportional, with generous padding so bottom edge never touches taskbar
+        w = min(1200, max(1024, int(wa_w * 0.74)))
+        h = min(650, max(600, int(wa_h * 0.74)))
 
         cx = wa.left + (wa_w - w) // 2
         cy = wa.top + (wa_h - h) // 2

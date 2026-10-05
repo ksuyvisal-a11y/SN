@@ -47,7 +47,7 @@ function isWindowMaximizedOrFullscreen() {
 function setWindowMaximizedState(isMax) {
     const body = document.body;
     const header = document.querySelector('.unich-header-bar');
-    const maxBtn = document.getElementById('win-btn-maximize') || document.querySelector('.win-btn[title="Maximize"], .win-btn[title="Restore Down"]');
+    const maxBtns = document.querySelectorAll('#win-btn-maximize, #gate-btn-maximize, .win-btn[title="Maximize"], .win-btn[title="Restore Down"], .gate-win-btn[title*="Maximize"]');
 
     if (isMax) {
         body.classList.add('is-maximized');
@@ -55,19 +55,19 @@ function setWindowMaximizedState(isMax) {
         if (header) {
             header.classList.remove('pywebview-drag-region');
         }
-        if (maxBtn) {
-            maxBtn.innerHTML = '❐';
-            maxBtn.title = 'Restore Down';
-        }
+        maxBtns.forEach(btn => {
+            btn.innerHTML = '<i class="fa-regular fa-clone"></i>';
+            btn.title = 'Restore Down (ស្តារ)';
+        });
     } else {
         body.classList.remove('is-maximized');
         if (header) {
             header.classList.add('pywebview-drag-region');
         }
-        if (maxBtn) {
-            maxBtn.innerHTML = '▢';
-            maxBtn.title = 'Maximize';
-        }
+        maxBtns.forEach(btn => {
+            btn.innerHTML = '<i class="fa-regular fa-square"></i>';
+            btn.title = 'Maximize (ពង្រីក)';
+        });
     }
 }
 

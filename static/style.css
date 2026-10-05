@@ -6234,6 +6234,78 @@ select, option, optgroup {
     pointer-events: auto;
 }
 
+/* Gate Lock Screen Window Titlebar & Controls (Top-Right, matching native Windows buttons) */
+.gate-titlebar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px 0 20px;
+    z-index: 1000000;
+    user-select: none;
+    -webkit-app-region: drag;
+}
+
+.gate-titlebar-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.gate-titlebar-icon {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+}
+
+.gate-titlebar-text {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #e2e8f0;
+    letter-spacing: 0.5px;
+    font-family: var(--font-brand, 'Outfit', sans-serif);
+}
+
+.gate-titlebar-controls {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    -webkit-app-region: no-drag;
+}
+
+.gate-win-btn {
+    width: 44px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 0.95rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    outline: none;
+}
+
+.gate-win-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #f8fafc;
+}
+
+.gate-win-btn.close:hover,
+.gate-win-btn.win-close:hover {
+    background: #e11d48 !important;
+    color: #ffffff !important;
+}
+
 .license-gate-card {
     width: 520px;
     max-width: 95vw;
