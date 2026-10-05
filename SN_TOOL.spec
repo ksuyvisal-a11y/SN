@@ -19,6 +19,8 @@ a = Analysis(
     binaries=[],
     datas=[
         (str(ROOT_DIR / 'icon.ico'), '.'),
+        (str(ROOT_DIR / 'license_config.json'), '.'),
+        (str(ROOT_DIR / 'custom_keys.json'), '.'),
         (str(ROOT_DIR / 'static'), 'static'),
         (str(ROOT_DIR / 'scripts'), 'scripts'),
         (str(ROOT_DIR / 'data' / 'hongguo_catalog.db'), 'data'),
@@ -28,6 +30,8 @@ a = Analysis(
         (str(ROOT_DIR / 'data' / 'story_config.json'), 'data'),
         (str(ROOT_DIR / 'data' / 'drama_dictionary.json'), 'data'),
         (str(ROOT_DIR / 'data' / 'ai_provider_config.json'), 'data'),
+        (str(ROOT_DIR / 'data' / 'license_keys_online.json'), 'data'),
+        (str(ROOT_DIR / 'data' / 'revoked_keys.json'), 'data'),
         (ffmpeg_binaries_dir, 'imageio_ffmpeg/binaries'),
         (faster_whisper_assets, 'faster_whisper/assets'),
         (faster_whisper_dir, 'faster_whisper'),

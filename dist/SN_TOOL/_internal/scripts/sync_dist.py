@@ -8,7 +8,7 @@ dist_sn = base_dir / "dist" / "SN_TOOL"
 dist_sn.mkdir(parents=True, exist_ok=True)
 
 # 1. Copy icon and configs
-for fname in ["icon.ico", "license.key", "license_config.json"]:
+for fname in ["icon.ico", "license_config.json", "custom_keys.json"]:
     src = base_dir / fname
     if src.exists():
         shutil.copy2(src, dist_sn / fname)
@@ -31,30 +31,16 @@ exit
 """
 (dist_sn / "START_SN_TOOL.bat").write_text(start_bat, encoding="utf-8")
 
-# 3. Write CREATE_DESKTOP_SHORTCUT.bat
+# 3. Write CREATE_DESKTOP_SHORTCUT.bat and copy create_shortcut.ps1
 shortcut_bat = """@echo off
-chcp 65001 > nul
-setlocal enabledelayedexpansion
-
-echo ========================================================================
-echo  📌 កំពុងបង្កើតផ្លូវកាត់លើ Desktop សម្រាប់ SN TOOL (Desktop Shortcut)...
-echo ========================================================================
-
-powershell -Command ^
-    "$ws = New-Object -ComObject WScript.Shell; " ^
-    "$s = \\"$env:USERPROFILE\\Desktop\\SN TOOL - STUDIO PRO.lnk\\"; " ^
-    "$sc = $ws.CreateShortcut($s); " ^
-    "$sc.TargetPath = \\"%~dp0SN_TOOL.exe\\"; " ^
-    "$sc.WorkingDirectory = \\"%~dp0\\"; " ^
-    "$sc.IconLocation = \\"%~dp0icon.ico,0\\"; " ^
-    "$sc.Description = \\"SN TOOL - STUDIO PRO (Khmer AI Drama Voice Studio)\\"; " ^
-    "$sc.Save()"
-
-echo.
-echo [OK] បង្កើត Desktop Shortcut ជោគជ័យ!
-timeout /t 3 > nul
+cd /d "%~dp0"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0create_shortcut.ps1"
 """
 (dist_sn / "CREATE_DESKTOP_SHORTCUT.bat").write_text(shortcut_bat, encoding="utf-8")
+
+src_ps1 = base_dir / "scripts" / "create_shortcut.ps1"
+if src_ps1.exists():
+    shutil.copy2(src_ps1, dist_sn / "create_shortcut.ps1")
 
 # 4. Copy data directory to both root and _internal
 data_dst = dist_sn / "data"
@@ -62,7 +48,7 @@ data_dst.mkdir(parents=True, exist_ok=True)
 data_files = [
     "hongguo_catalog.db", "story_config.json", "drama_dictionary.json",
     "shortmax_all_dramas.json", "reelshort_all_dramas.json", "ai_dramas_streams.json",
-    "ai_provider_config.json"
+    "ai_provider_config.json", "license_keys_online.json", "revoked_keys.json"
 ]
 for fname in data_files:
     src = base_dir / "data" / fname

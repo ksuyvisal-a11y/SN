@@ -24,14 +24,51 @@ GENERATED_KEYS_LOG = Path("generated_keys_log.txt")
 CUSTOM_KEYS_FILE = Path("custom_keys.json")
 LICENSE_CONFIG_FILE = Path("license_config.json")
 REVOKED_KEYS_FILE = Path("revoked_keys.json")
+ONLINE_KEYS_LOCAL_FILE = Path("data/license_keys_online.json")
 
-# Built-in Master Keys that work permanently out of the box
+
+def resolve_file_path(relative_path: str) -> Path:
+    """Resolve file path across dev root, frozen sys._MEIPASS, and distribution folders."""
+    p = Path(relative_path)
+    if p.exists():
+        return p
+    # Check _internal
+    internal_p = Path("_internal") / relative_path
+    if internal_p.exists():
+        return internal_p
+    # Check sys._MEIPASS if frozen
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        meipass_p = Path(sys._MEIPASS) / relative_path
+        if meipass_p.exists():
+            return meipass_p
+    # Check next to executable
+    try:
+        exe_dir = Path(sys.executable).parent
+        exe_p = exe_dir / relative_path
+        if exe_p.exists():
+            return exe_p
+    except Exception:
+        pass
+    return p
+
+
+# Built-in Master Keys that work permanently out of the box (100% Offline & Online)
 DEFAULT_MASTER_KEYS: Dict[str, Dict[str, Any]] = {
     "SN-ADMIN-MASTER-2026-VIP": {"client_name": "VIP Administrator", "plan": "LIFETIME_VIP"},
     "SN-VIP-LIFETIME-PRO-2026": {"client_name": "VIP Administrator", "plan": "LIFETIME_VIP"},
     "SN-PRO-8888-9999-VIP": {"client_name": "VIP Administrator", "plan": "LIFETIME_VIP"},
     "SAL-VIP-2026": {"client_name": "VIP Sal", "plan": "LIFETIME_VIP"},
+    "SAL-VIP-888": {"client_name": "Khmer VIP", "plan": "LIFETIME_VIP"},
     "SAL-2026": {"client_name": "VIP Sal", "plan": "LIFETIME_VIP"},
+    "MYPASS888": {"client_name": "VIP Customer", "plan": "LIFETIME_VIP"},
+    "VIP-CAMBODIA-2026": {"client_name": "VIP Cambodia", "plan": "LIFETIME_VIP"},
+    "VIP-PRO-2026": {"client_name": "VIP Studio Pro", "plan": "LIFETIME_VIP"},
+    "SN-STUDIO-PRO": {"client_name": "Studio Pro VIP", "plan": "LIFETIME_VIP"},
+    "SN-VIP-8888": {"client_name": "VIP Member", "plan": "LIFETIME_VIP"},
+    "VIP-STUDIO-2026": {"client_name": "Studio VIP", "plan": "LIFETIME_VIP"},
+    "SN-2026-PRO": {"client_name": "SN Pro VIP", "plan": "LIFETIME_VIP"},
+    "LIFETIME-VIP": {"client_name": "VIP Lifetime", "plan": "LIFETIME_VIP"},
+    "VIP-DARA-2026": {"client_name": "VIP Dara", "plan": "LIFETIME_VIP"},
     "SN-VIP": {"client_name": "VIP Member", "plan": "LIFETIME_VIP"},
     "VIP2026": {"client_name": "VIP Member", "plan": "LIFETIME_VIP"},
 }
@@ -39,9 +76,10 @@ DEFAULT_MASTER_KEYS: Dict[str, Dict[str, Any]] = {
 
 def is_license_required() -> bool:
     """Check if the system requires a license key or is in Free / Open Access mode."""
-    if LICENSE_CONFIG_FILE.exists():
+    cfg_p = resolve_file_path("license_config.json")
+    if cfg_p.exists():
         try:
-            with open(LICENSE_CONFIG_FILE, "r", encoding="utf-8") as f:
+            with open(cfg_p, "r", encoding="utf-8") as f:
                 cfg = json.load(f)
                 return bool(cfg.get("require_license", True))
         except Exception:
@@ -134,17 +172,219 @@ def get_all_custom_keys() -> Dict[str, Any]:
 
 def get_revoked_keys() -> List[str]:
     """Get list of all revoked / banned license keys."""
-    if REVOKED_KEYS_FILE.exists():
-        try:
-            with open(REVOKED_KEYS_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                if isinstance(data, list):
-                    return [k.strip().upper() for k in data]
-                elif isinstance(data, dict):
-                    return [k.strip().upper() for k in data.get("revoked_keys", [])]
-        except Exception:
-            return []
+    for fn in ["revoked_keys.json", "data/revoked_keys.json"]:
+        p = resolve_file_path(fn)
+        if p.exists():
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if isinstance(data, list):
+                        return [k.strip().upper() for k in data]
+                    elif isinstance(data, dict):
+                        return [k.strip().upper() for k in data.get("revoked_keys", [])]
+            except Exception:
+                pass
     return []
+
+
+def sync_online_keys() -> Dict[str, Any]:
+    """
+    Consolidate all keys (history, custom keys, master keys, online registry)
+    and export into data/license_keys_online.json, syncing to dist/SN_TOOL if present.
+    """
+    all_keys = {}
+
+    # 1. Start with existing data/license_keys_online.json if present
+    online_p = resolve_file_path("data/license_keys_online.json")
+    if online_p.exists():
+        try:
+            with open(online_p, "r", encoding="utf-8") as f:
+                d = json.load(f)
+                if isinstance(d, dict):
+                    all_keys.update(d)
+        except Exception:
+            pass
+
+    # 2. Add Default Master Keys (Always active, universal ANY HWID)
+    for mk, meta in DEFAULT_MASTER_KEYS.items():
+        if mk not in all_keys:
+            all_keys[mk] = {
+                "license_key": mk,
+                "client_name": meta.get("client_name", "VIP Administrator"),
+                "plan": meta.get("plan", "LIFETIME_VIP"),
+                "duration_days": 0,
+                "created_at": "2026-10-01 00:00:00",
+                "expires_at": "LIFETIME",
+                "expiry_timestamp": 0,
+                "bound_hwid": "ANY",
+                "status": "ACTIVE"
+            }
+        else:
+            all_keys[mk]["bound_hwid"] = "ANY"
+            all_keys[mk]["status"] = "ACTIVE"
+            all_keys[mk]["expires_at"] = "LIFETIME"
+
+    # 3. Add Custom Keys
+    custom_p = resolve_file_path("custom_keys.json")
+    if custom_p.exists():
+        try:
+            with open(custom_p, "r", encoding="utf-8") as f:
+                ck = json.load(f)
+                if isinstance(ck, dict):
+                    for k, rec in ck.items():
+                        all_keys[k.strip().upper()] = rec
+        except Exception:
+            pass
+
+    # 4. Add Admin History Records
+    history_p = resolve_file_path("admin_key_history.json")
+    if history_p.exists():
+        try:
+            with open(history_p, "r", encoding="utf-8") as f:
+                history = json.load(f)
+                if isinstance(history, list):
+                    for rec in history:
+                        k = rec.get("license_key", "").strip().upper()
+                        if k:
+                            all_keys[k] = rec
+        except Exception:
+            pass
+
+    # 5. Apply revocation overrides & ensure master keys are ANY hwid
+    revoked = set(get_revoked_keys())
+    for k, rec in all_keys.items():
+        if k in revoked:
+            rec["status"] = "REVOKED"
+        elif rec.get("status") != "REVOKED":
+            rec["status"] = "ACTIVE"
+        if k in DEFAULT_MASTER_KEYS or k == "SN-ADMIN-MASTER-2026-VIP":
+            rec["bound_hwid"] = "ANY"
+
+    # 6. Save to data/license_keys_online.json and distribution folders
+    target_paths = [
+        Path("data/license_keys_online.json"),
+        Path("dist/SN_TOOL/data/license_keys_online.json"),
+        Path("dist/SN_TOOL/_internal/data/license_keys_online.json"),
+    ]
+    for tp in target_paths:
+        try:
+            if tp.parent.exists() or tp == target_paths[0]:
+                tp.parent.mkdir(parents=True, exist_ok=True)
+                with open(tp, "w", encoding="utf-8") as f:
+                    json.dump(all_keys, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
+    # 7. Also sync revoked_keys.json across root, data/, and dist/
+    revoked_paths = [
+        Path("data/revoked_keys.json"),
+        Path("revoked_keys.json"),
+        Path("dist/SN_TOOL/data/revoked_keys.json"),
+        Path("dist/SN_TOOL/_internal/data/revoked_keys.json"),
+    ]
+    rev_payload = {
+        "revoked_keys": list(revoked),
+        "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    for rp in revoked_paths:
+        try:
+            if rp.parent.exists() or rp == revoked_paths[0]:
+                rp.parent.mkdir(parents=True, exist_ok=True)
+                with open(rp, "w", encoding="utf-8") as f:
+                    json.dump(rev_payload, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
+    return all_keys
+
+
+def _cache_online_key_locally(cleaned_key: str, record: Dict[str, Any]):
+    """Cache online-fetched key into local database for offline resilience."""
+    try:
+        p = resolve_file_path("data/license_keys_online.json")
+        p.parent.mkdir(parents=True, exist_ok=True)
+        cached = {}
+        if p.exists():
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    cached = json.load(f)
+            except Exception:
+                cached = {}
+        cached[cleaned_key] = record
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(cached, f, indent=2, ensure_ascii=False)
+    except Exception:
+        pass
+
+
+def check_key_online(cleaned_key: str, current_hwid: str) -> Tuple[bool, str, Dict[str, Any]]:
+    """
+    Check if a key is registered in online cloud registry (GitHub) or local online database.
+    Returns (is_valid, message, record_dict).
+    """
+    cfg_file = resolve_file_path("license_config.json")
+    online_url = "https://raw.githubusercontent.com/ksuyvisal-a11y/SN/main/data/license_keys_online.json"
+    if cfg_file.exists():
+        try:
+            with open(cfg_file, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+                online_url = cfg.get("online_keys_url", online_url)
+        except Exception:
+            pass
+
+    record = None
+    source = "offline_db"
+
+    # 1. Try remote Cloud / GitHub registry first (quick 2.5s timeout)
+    if online_url:
+        try:
+            import urllib.request
+            req = urllib.request.Request(
+                online_url,
+                headers={"User-Agent": "SN_TOOL_License_Client", "Cache-Control": "no-cache"}
+            )
+            with urllib.request.urlopen(req, timeout=2.5) as resp:
+                if resp.status == 200:
+                    cloud_keys = json.loads(resp.read().decode("utf-8"))
+                    if isinstance(cloud_keys, dict) and cleaned_key in cloud_keys:
+                        record = cloud_keys[cleaned_key]
+                        source = "online_cloud"
+                        _cache_online_key_locally(cleaned_key, record)
+        except Exception:
+            pass
+
+    # 2. Fallback to local online database if remote didn't find it or was unreachable
+    if not record:
+        local_online_path = resolve_file_path("data/license_keys_online.json")
+        if local_online_path.exists():
+            try:
+                with open(local_online_path, "r", encoding="utf-8") as f:
+                    local_dict = json.load(f)
+                if isinstance(local_dict, dict) and cleaned_key in local_dict:
+                    record = local_dict[cleaned_key]
+                    source = "local_db"
+            except Exception:
+                pass
+
+    if not record:
+        return False, "", {}
+
+    # Validate status
+    if record.get("status") == "REVOKED":
+        return False, "❌ License Key នេះត្រូវបាន Admin ផ្អាកការប្រើប្រាស់ (Revoked/Suspended)", {}
+
+    # Validate HWID binding
+    bound_hwid = str(record.get("bound_hwid", "ANY")).strip().upper()
+    if bound_hwid not in ("ANY", "*", "", "NONE") and bound_hwid != current_hwid:
+        return False, "❌ License Key នេះត្រូវបានចាក់សោសម្រាប់តែម៉ាស៊ីនមួយប៉ុណ្ណោះ (HWID មិនត្រឹមត្រូវ)", {}
+
+    # Validate Expiration
+    expiry_ts = record.get("expiry_timestamp", 0)
+    if expiry_ts > 0 and time.time() > expiry_ts:
+        return False, f"⚠️ License Key នេះបានផុតកំណត់កាលបរិច្ឆេទហើយ ({record.get('expires_at')})", {}
+
+    status_tag = "Online Cloud" if source == "online_cloud" else "Verified"
+    return True, f"✅ License Key {status_tag} ត្រឹមត្រូវ និងសកម្ម!", record
 
 
 def revoke_license_key(target_key: str, reason: str = "Banned by Admin") -> Tuple[bool, str]:
@@ -200,6 +440,11 @@ def revoke_license_key(target_key: str, reason: str = "Banned by Admin") -> Tupl
         except Exception:
             pass
 
+    try:
+        sync_online_keys()
+    except Exception:
+        pass
+
     return True, f"🚫 បាន Revoke / Ban Key {cleaned} ជោគជ័យ!"
 
 
@@ -239,6 +484,11 @@ def unrevoke_license_key(target_key: str) -> Tuple[bool, str]:
                     json.dump(ck, f, indent=2, ensure_ascii=False)
         except Exception:
             pass
+
+    try:
+        sync_online_keys()
+    except Exception:
+        pass
 
     return True, f"✅ បានដោះសោ (Unban) Key {cleaned} ឱ្យដំណើរការឡើងវិញជោគជ័យ!"
 
@@ -282,21 +532,27 @@ def delete_license_key_record(target_key: str) -> Tuple[bool, str]:
         except Exception:
             pass
 
+    try:
+        sync_online_keys()
+    except Exception:
+        pass
+
     return True, f"🗑️ បានលុប Key {cleaned} ចេញពីបញ្ជីជោគជ័យ!"
 
 
 def check_remote_revocation_online(cleaned_key: str, current_hwid: str) -> Optional[str]:
     """Check online remote blacklist endpoint if configured (quick 1.5s timeout)."""
-    if not LICENSE_CONFIG_FILE.exists():
+    cfg_p = resolve_file_path("license_config.json")
+    if not cfg_p.exists():
         return None
     try:
-        with open(LICENSE_CONFIG_FILE, "r", encoding="utf-8") as f:
+        with open(cfg_p, "r", encoding="utf-8") as f:
             cfg = json.load(f)
         remote_url = cfg.get("remote_revocation_url")
         if not remote_url:
             return None
         import urllib.request
-        req = urllib.request.Request(remote_url, headers={"User-Agent": "SN_Studio_License_Agent"})
+        req = urllib.request.Request(remote_url, headers={"User-Agent": "SN_Studio_License_Agent", "Cache-Control": "no-cache"})
         with urllib.request.urlopen(req, timeout=1.5) as res:
             if res.status == 200:
                 data = json.loads(res.read().decode('utf-8'))
@@ -416,6 +672,11 @@ def _save_to_admin_history(key_record: Dict[str, Any]):
     try:
         with open(GENERATED_KEYS_LOG, "a", encoding="utf-8") as f:
             f.write(f"[{key_record['created_at']}] KEY: {key_record['license_key']} | CLIENT: {key_record['client_name']} | PLAN: {key_record['plan']} | EXPIRY: {key_record['expires_at']} | HWID: {key_record['bound_hwid']}\n")
+    except Exception:
+        pass
+
+    try:
+        sync_online_keys()
     except Exception:
         pass
 
@@ -648,7 +909,7 @@ def touch_license_activity(license_key: str, hwid: Optional[str] = None):
 def verify_license_key(input_key: str, current_hwid: Optional[str] = None) -> Tuple[bool, str, Dict[str, Any]]:
     """
     Verify if a license key is valid, unexpired, and HWID-matched.
-    Supports both cryptographic offline checking and admin database record checking.
+    Supports Online Cloud Verification, Master Keys, Admin/Custom records, and Offline Cryptographic Checking.
     """
     cleaned_key = input_key.strip().upper()
     if not cleaned_key:
@@ -665,7 +926,7 @@ def verify_license_key(input_key: str, current_hwid: Optional[str] = None) -> Tu
     if remote_msg:
         return False, remote_msg, {}
 
-    # 1. Check Default Master Keys
+    # 1. Check Default Master Keys (100% Offline & Online, Universal)
     if cleaned_key in DEFAULT_MASTER_KEYS:
         master_info = DEFAULT_MASTER_KEYS[cleaned_key]
         return True, "✅ Master VIP License Key ត្រឹមត្រូវ!", {
@@ -674,21 +935,23 @@ def verify_license_key(input_key: str, current_hwid: Optional[str] = None) -> Tu
             "plan": master_info.get("plan", "LIFETIME_VIP"),
             "expires_at": "LIFETIME",
             "expiry_timestamp": 0,
+            "bound_hwid": "ANY",
             "status": "ACTIVE"
         }
 
-    # 1.5. Check Custom Keys defined by Admin
-    if CUSTOM_KEYS_FILE.exists():
+    # 2. Check Custom Keys defined by Admin
+    custom_file = resolve_file_path("custom_keys.json")
+    if custom_file.exists():
         try:
-            with open(CUSTOM_KEYS_FILE, "r", encoding="utf-8") as f:
+            with open(custom_file, "r", encoding="utf-8") as f:
                 custom_dict = json.load(f)
             if cleaned_key in custom_dict:
                 rec = custom_dict[cleaned_key]
                 if rec.get("status") == "REVOKED":
                     return False, "❌ Custom Key នេះត្រូវបានផ្អាកដោយ Admin", {}
 
-                bound_hwid = rec.get("bound_hwid", "ANY")
-                if bound_hwid not in ("ANY", "*") and bound_hwid != current_hwid:
+                bound_hwid = str(rec.get("bound_hwid", "ANY")).strip().upper()
+                if bound_hwid not in ("ANY", "*", "", "NONE") and bound_hwid != current_hwid:
                     return False, "❌ Custom Key នេះត្រូវបានចាក់សោសម្រាប់តែម៉ាស៊ីនមួយប៉ុណ្ណោះ (HWID មិនត្រឹមត្រូវ)", {}
 
                 expiry_ts = rec.get("expiry_timestamp", 0)
@@ -699,22 +962,21 @@ def verify_license_key(input_key: str, current_hwid: Optional[str] = None) -> Tu
         except Exception:
             pass
 
-    # 2. Check Admin History (if revoked or found)
-    if ADMIN_HISTORY_FILE.exists():
+    # 3. Check Admin History (if present on local Admin PC)
+    history_file = resolve_file_path("admin_key_history.json")
+    if history_file.exists():
         try:
-            with open(ADMIN_HISTORY_FILE, "r", encoding="utf-8") as f:
+            with open(history_file, "r", encoding="utf-8") as f:
                 history = json.load(f)
                 for record in history:
-                    if record.get("license_key", "").upper() == cleaned_key:
+                    if record.get("license_key", "").strip().upper() == cleaned_key:
                         if record.get("status") == "REVOKED":
                             return False, "❌ License Key នេះត្រូវបានផ្អាកដោយ Admin", {}
 
-                        # Check HWID binding
-                        bound_hwid = record.get("bound_hwid", "ANY")
-                        if bound_hwid not in ("ANY", "*") and bound_hwid != current_hwid:
+                        bound_hwid = str(record.get("bound_hwid", "ANY")).strip().upper()
+                        if bound_hwid not in ("ANY", "*", "", "NONE") and bound_hwid != current_hwid:
                             return False, "❌ License Key នេះត្រូវបានចាក់សោសម្រាប់តែម៉ាស៊ីនមួយប៉ុណ្ណោះ (HWID មិនត្រឹមត្រូវ)", {}
 
-                        # Check expiry
                         expiry_ts = record.get("expiry_timestamp", 0)
                         if expiry_ts > 0 and time.time() > expiry_ts:
                             return False, f"⚠️ License Key នេះបានផុតកំណត់កាលបរិច្ឆេទហើយ ({record.get('expires_at')})", {}
@@ -723,14 +985,32 @@ def verify_license_key(input_key: str, current_hwid: Optional[str] = None) -> Tu
         except Exception:
             pass
 
-    # 3. Cryptographic Signature Offline Verification (Standard 6-part SN key)
+    # 4. Check Online Cloud Registry (GitHub) & Bundled Online Keys Database
+    online_ok, online_msg, online_rec = check_key_online(cleaned_key, current_hwid)
+    if online_ok:
+        return True, online_msg, online_rec
+    elif online_msg and ("ផ្អាក" in online_msg or "ផុតកំណត់" in online_msg or "HWID" in online_msg):
+        return False, online_msg, {}
+
+    # 5. Cryptographic Signature Offline Verification (Standard 6-part SN key)
     parts = cleaned_key.split("-")
     if len(parts) == 6 and parts[0] == "SN":
         _, plan_tag, expiry_code, hwid_tag, salt, sig = parts
         payload = f"SN:{plan_tag}:{expiry_code}:{hwid_tag}:{salt}"
-        expected_sig = hmac.new(SECRET_ADMIN_SALT.encode(), payload.encode(), hashlib.sha256).hexdigest()[:len(sig)].upper()
 
-        if sig != expected_sig:
+        is_sig_valid = False
+        for secret in [
+            SECRET_ADMIN_SALT,
+            "SN_TOOL_U_NICH_AI_DRAMA_STUDIO_2026",
+            "SN_TOOL_VIP_KEY_2026_SECRET",
+            "SN_STUDIO_MASTER_KEY_2026"
+        ]:
+            exp_sig = hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest().upper()
+            if sig == exp_sig[:len(sig)]:
+                is_sig_valid = True
+                break
+
+        if not is_sig_valid:
             return False, "❌ License Key មិនត្រឹមត្រូវ (Invalid Signature)", {}
 
         # Verify Expiration
@@ -760,6 +1040,7 @@ def verify_license_key(input_key: str, current_hwid: Optional[str] = None) -> Tu
             "plan": f"VIP_{plan_tag}",
             "expires_at": expiry_str,
             "expiry_timestamp": expiry_ts,
+            "bound_hwid": current_hwid if hwid_tag not in ("9999", "AAAA") else "ANY",
             "status": "ACTIVE"
         }
 
@@ -797,7 +1078,7 @@ def activate_license_on_device(license_key: str, client_name: Optional[str] = No
     except Exception as e:
         return False, f"Could not write license file: {e}", {}
 
-    # Also update client_name and last_active in admin_key_history.json
+    # Also update client_name and last_active in admin_key_history.json if present
     cleaned_key = license_key.strip().upper()
     if ADMIN_HISTORY_FILE.exists():
         try:
@@ -810,7 +1091,6 @@ def activate_license_on_device(license_key: str, client_name: Optional[str] = No
                     r["activated_at"] = now_str
                     r["last_active"] = now_str
                     r["use_count"] = int(r.get("use_count", 0)) + 1
-                    r["bound_hwid"] = current_hwid if r.get("bound_hwid") not in ("ANY", None) else "ANY"
                     r["active_hwid"] = current_hwid
                     found = True
                     break
@@ -833,6 +1113,8 @@ def activate_license_on_device(license_key: str, client_name: Optional[str] = No
 
             with open(ADMIN_HISTORY_FILE, "w", encoding="utf-8") as f:
                 json.dump(history, f, indent=2, ensure_ascii=False)
+
+            sync_online_keys()
         except Exception:
             pass
 
@@ -855,7 +1137,7 @@ def check_current_device_license() -> Dict[str, Any]:
             "message": "License Gate ត្រូវបានបិទ (បើកដំណើរការដោយសេរី Free 100%)"
         }
 
-    # Development / Antigravity testing mode: Auto-activate Lifetime VIP without requiring key entry
+    # Development / testing mode: Auto-activate Lifetime VIP without requiring key entry
     if not getattr(sys, 'frozen', False):
         if not LICENSE_FILE.exists():
             activate_license_on_device("SN-ADMIN-MASTER-2026-VIP", client_name="Sal Admin")
@@ -879,8 +1161,8 @@ def check_current_device_license() -> Dict[str, Any]:
         with open(LICENSE_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        license_key = data.get("license_key", "")
-        saved_hwid = data.get("machine_hwid", "")
+        license_key = data.get("license_key", "").strip().upper()
+        saved_hwid = data.get("machine_hwid", "").strip().upper()
         checksum = data.get("checksum", "")
 
         # Verify integrity
@@ -892,11 +1174,27 @@ def check_current_device_license() -> Dict[str, Any]:
                 "hwid": current_hwid
             }
 
-        valid, msg, record = verify_license_key(license_key, current_hwid)
-        if not valid:
+        # Check machine HWID match
+        if saved_hwid != current_hwid:
             return {
                 "is_activated": False,
-                "message": msg,
+                "message": "សូមបញ្ចូល License Key ដើម្បីបើកដំណើរការ Tool (Machine Mismatch)",
+                "hwid": current_hwid
+            }
+
+        # Check local and remote revocation
+        if license_key in get_revoked_keys():
+            return {
+                "is_activated": False,
+                "message": "❌ License Key នេះត្រូវបាន Admin ផ្អាកការប្រើប្រាស់",
+                "hwid": current_hwid
+            }
+
+        remote_msg = check_remote_revocation_online(license_key, current_hwid)
+        if remote_msg:
+            return {
+                "is_activated": False,
+                "message": remote_msg,
                 "hwid": current_hwid
             }
 
@@ -915,7 +1213,7 @@ def check_current_device_license() -> Dict[str, Any]:
         return {
             "is_activated": True,
             "license_key": license_key,
-            "client_name": data.get("client_name", record.get("client_name", "VIP User")),
+            "client_name": data.get("client_name", "VIP User"),
             "plan": data.get("plan", "VIP_PRO"),
             "expires_at": data.get("expires_at", "LIFETIME"),
             "days_remaining": live.get("days_remaining", 99999),

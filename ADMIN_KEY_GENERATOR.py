@@ -28,6 +28,7 @@ from license_engine import (
     is_license_required,
     set_license_required,
     get_machine_hwid,
+    sync_online_keys,
     ADMIN_HISTORY_FILE,
     GENERATED_KEYS_LOG,
     CUSTOM_KEYS_FILE,
@@ -124,10 +125,11 @@ def interactive_menu():
         print("-" * 65)
         print(" ⚙️ ផ្នែកទី ៤: ការកំណត់ GATE & SYSTEM (GATE SETTINGS)")
         print(" [6] បិទ / បើក ការទាមទារ Key (Toggle Free Mode vs Require Key)")
+        print(" [S] 🔄 ធ្វើបច្ចុប្បន្នភាព Key Online ទាំងអស់ (Sync & Export Online Keys)")
         print(" [0] ចាកចេញពីកម្មវិធី (Exit)")
         print("=" * 65)
         
-        choice = input("👉 សូមជ្រើសរើសជម្រើស (0-9): ").strip()
+        choice = input("👉 សូមជ្រើសរើសជម្រើស (0-9 ឬ S): ").strip()
 
         if choice == "1":
             import webbrowser
@@ -275,6 +277,12 @@ def interactive_menu():
             name = input("\n👤 ឈ្មោះ Client: ").strip() or "User_Lifetime"
             rec = generate_license_key(client_name=name, duration_days=0, plan="VIP_LIFETIME")
             print_key_card(rec)
+            input("\nចុច Enter ដើម្បីបន្ត...")
+
+        elif choice.upper() in ("S", "SYNC"):
+            print("\n🔄 កំពុង Sync Key ទាំងអស់ទៅកាន់ Online Registry...")
+            keys = sync_online_keys()
+            print(f"✅ បាន Sync Key សរុប {len(keys)} Keys ទៅកាន់ data/license_keys_online.json និង dist/ រួចរាល់!")
             input("\nចុច Enter ដើម្បីបន្ត...")
 
         elif choice in ("0", "exit", "quit"):

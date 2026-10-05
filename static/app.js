@@ -6349,7 +6349,7 @@ async function submitGateLicense() {
             if (msgBox) {
                 msgBox.style.color = '#f87171';
                 msgBox.style.background = 'rgba(239,68,68,0.15)';
-                msgBox.textContent = `${data.error || 'License Key មិនត្រឹមត្រូវ'}`;
+                msgBox.textContent = `${data.message || data.error || 'License Key មិនត្រឹមត្រូវ'}`;
             }
         }
     } catch (e) {
@@ -6381,7 +6381,7 @@ async function confirmActivateLicense() {
             checkDeviceLicenseStatus();
             backToSettingsHub();
         } else {
-            showToast(`${data.error || 'Invalid key'}`);
+            showToast(`${data.message || data.error || 'License Key មិនត្រឹមត្រូវ'}`);
         }
     } catch (e) {
         showToast("Network error");

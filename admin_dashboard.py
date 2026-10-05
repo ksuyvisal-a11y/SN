@@ -39,6 +39,7 @@ from license_engine import (
     get_machine_hwid,
     calculate_key_live_status,
     sync_and_load_admin_history,
+    sync_online_keys,
     ADMIN_HISTORY_FILE,
     GENERATED_KEYS_LOG,
     CUSTOM_KEYS_FILE,
@@ -149,6 +150,18 @@ def admin_delete_key():
         return jsonify({"success": False, "error": "សូមបញ្ចូល Key"}), 400
     ok, msg = delete_license_key_record(key)
     return jsonify({"success": ok, "message": msg})
+
+@admin_app.route("/api/admin/sync-online", methods=["POST", "GET"])
+def admin_sync_online():
+    try:
+        keys = sync_online_keys()
+        return jsonify({
+            "success": True,
+            "message": f"បាន Sync Key ទៅកាន់ Online Registry ({len(keys)} Keys) ជោគជ័យ!",
+            "count": len(keys)
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 ADMIN_PORT = 8888
 ADMIN_URL = f"http://127.0.0.1:{ADMIN_PORT}/admin"

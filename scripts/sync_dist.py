@@ -8,7 +8,7 @@ dist_sn = base_dir / "dist" / "SN_TOOL"
 dist_sn.mkdir(parents=True, exist_ok=True)
 
 # 1. Copy icon and configs
-for fname in ["icon.ico", "license.key", "license_config.json"]:
+for fname in ["icon.ico", "license_config.json", "custom_keys.json"]:
     src = base_dir / fname
     if src.exists():
         shutil.copy2(src, dist_sn / fname)
@@ -48,7 +48,7 @@ data_dst.mkdir(parents=True, exist_ok=True)
 data_files = [
     "hongguo_catalog.db", "story_config.json", "drama_dictionary.json",
     "shortmax_all_dramas.json", "reelshort_all_dramas.json", "ai_dramas_streams.json",
-    "ai_provider_config.json"
+    "ai_provider_config.json", "license_keys_online.json", "revoked_keys.json"
 ]
 for fname in data_files:
     src = base_dir / "data" / fname

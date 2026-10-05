@@ -897,12 +897,13 @@ def license_activate_endpoint():
     key = data.get("license_key", "").strip()
     client_name = data.get("client_name", "").strip() or None
     if not key:
-        return jsonify({"success": False, "error": "សូមបញ្ចូល License Key"}), 400
+        return jsonify({"success": False, "error": "សូមបញ្ចូល License Key", "message": "សូមបញ្ចូល License Key"}), 400
 
     success, msg, record = activate_license_on_device(key, client_name=client_name)
     return jsonify({
         "success": success,
         "message": msg,
+        "error": None if success else msg,
         "license": record
     })
 

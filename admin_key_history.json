@@ -1,19 +1,19 @@
 [
   {
     "license_key": "SN-ADMIN-MASTER-2026-VIP",
-    "client_name": "VIP Administrator",
+    "client_name": "Sal Admin",
     "plan": "LIFETIME_VIP",
     "duration_days": 0,
     "created_at": "2026-10-02 11:59:08",
-    "activated_at": "2026-10-02 11:59:16",
-    "last_active": "2026-10-05 17:18:35",
-    "use_count": 22,
+    "activated_at": "2026-10-05 20:54:05",
+    "last_active": "2026-10-05 21:03:35",
+    "use_count": 25,
     "expires_at": "LIFETIME",
     "expiry_timestamp": 0,
-    "bound_hwid": "E53CEFB948DFC356",
+    "bound_hwid": "AA17A78CD76E342C",
     "status": "ACTIVE",
-    "active_hwid": "E53CEFB948DFC356",
-    "last_active_hwid": "E53CEFB948DFC356"
+    "active_hwid": "AA17A78CD76E342C",
+    "last_active_hwid": "AA17A78CD76E342C"
   },
   {
     "license_key": "SN-5_DA-50FD-9999-EB46-1E4E9B",
@@ -163,6 +163,17 @@
     "duration_days": 0,
     "created_at": "2026-10-01 17:17:17",
     "expires_at": "LIFETIME",
+    "expiry_timestamp": 0,
+    "bound_hwid": "ANY",
+    "status": "ACTIVE"
+  },
+  {
+    "license_key": "VIP-CUSTOMER-TEST-100",
+    "client_name": "Sokha",
+    "plan": "CUSTOM_VIP",
+    "duration_days": 30,
+    "created_at": "2026-10-05 20:58:46",
+    "expires_at": "2026-11-04",
     "expiry_timestamp": 0,
     "bound_hwid": "ANY",
     "status": "ACTIVE"

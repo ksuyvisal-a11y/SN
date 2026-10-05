@@ -1,3 +1,5 @@
 {
-  "require_license": true
+  "require_license": true,
+  "online_keys_url": "https://raw.githubusercontent.com/ksuyvisal-a11y/SN/main/data/license_keys_online.json",
+  "remote_revocation_url": "https://raw.githubusercontent.com/ksuyvisal-a11y/SN/main/data/revoked_keys.json"
 }
