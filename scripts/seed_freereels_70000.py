@@ -16,7 +16,7 @@ from pathlib import Path
 sys.stdout.reconfigure(encoding='utf-8')
 
 DB_PATH = Path("data/hongguo_catalog.db")
-TARGET_COUNT = 70000
+TARGET_COUNT = 85000
 
 # Top FreeReels genres & English tropes
 ENGLISH_TITLE_PREFIXES = [

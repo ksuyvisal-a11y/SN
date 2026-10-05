@@ -1837,7 +1837,7 @@ function filterByPlatform(platId, platName, totalCount, platLogo) {
     if (countLabel) {
         const countDisplay = (totalCount !== undefined && totalCount !== null)
             ? totalCount.toLocaleString()
-            : (platId === 'hongguo' ? '49,591' : (platId === 'ai_drama' ? '24,081' : (platId === 'shortmax' ? '5,206' : (platId === 'reelshort' ? '5,723' : (platId === 'freereels' ? '70,000' : '154,601')))));
+            : (platId === 'hongguo' ? '49,591' : (platId === 'ai_drama' ? '24,081' : (platId === 'shortmax' ? '5,206' : (platId === 'reelshort' ? '5,723' : (platId === 'freereels' ? '85,000' : '169,601')))));
         let headerTitle = `Top Dramas on ${escapeHtml(platName)}`;
         if (platId === 'hongguo') headerTitle = 'Top 100 on 红果 right now';
         else if (platId === 'ai_drama') headerTitle = 'Top Authentic Chinese AI Short Dramas (AI漫剧)';
