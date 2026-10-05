@@ -13,7 +13,6 @@
 # limitations under the License.
 """Contains commands to interact with buckets via the CLI."""
 
-from collections.abc import Iterable, Iterator
 from typing import Annotated
 
 import click
@@ -22,7 +21,6 @@ from huggingface_hub import logging
 from huggingface_hub._buckets import (
     BUCKET_PREFIX,
     BucketFile,
-    BucketFolder,
     FilterMatcher,
     _parse_bucket_uri,
 )
@@ -232,18 +230,6 @@ def _list_buckets(
     out.table(items, alignments={"size": "right"})
 
 
-def _iter_under_prefix(items: Iterable[BucketFile | BucketFolder], prefix: str) -> Iterator[BucketFile | BucketFolder]:
-    """Drop entries that are not `prefix` itself or below it.
-
-    The server matches `prefix` lexically, so listing "logs" also returns "logs.json" or "logs_backup/...".
-    Filesystem semantics require path components => keep only what's actually under the prefix.
-    """
-    prefix = prefix.rstrip("/")
-    for item in items:
-        if not prefix or item.path == prefix or item.path.startswith(f"{prefix}/"):
-            yield item
-
-
 def _list_files(
     argument: str,
     human_readable: bool,
@@ -258,13 +244,10 @@ def _list_files(
     api = get_hf_api(token=token)
     parsed = _parse_bucket_uri(argument)
     items = list(
-        _iter_under_prefix(
-            api.list_bucket_tree(
-                parsed.id,
-                prefix=parsed.path_in_repo or None,
-                recursive=recursive,
-            ),
-            parsed.path_in_repo,
+        api.list_bucket_tree(
+            parsed.id,
+            prefix=parsed.path_in_repo or None,
+            recursive=recursive,
         )
     )
 
@@ -433,13 +416,10 @@ def remove(
         status = out.status("Listing files from remote")
 
         all_files: list[BucketFile] = []
-        for item in _iter_under_prefix(
-            api.list_bucket_tree(
-                bucket_id,
-                prefix=prefix or None,
-                recursive=True,
-            ),
-            prefix,
+        for item in api.list_bucket_tree(
+            bucket_id,
+            prefix=prefix or None,
+            recursive=True,
         ):
             if isinstance(item, BucketFile):
                 all_files.append(item)
