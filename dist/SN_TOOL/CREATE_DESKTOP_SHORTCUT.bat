@@ -1,29 +1,21 @@
-﻿@echo off
+@echo off
 chcp 65001 > nul
-cd /d "%~dp0"
-title 🎬 SN TOOL - Create Desktop Shortcut
-color 0a
-cls
+setlocal enabledelayedexpansion
 
 echo ========================================================================
-echo  🎬 កំពុងបង្កើត Icon កម្មវិធី SN TOOL - STUDIO PRO លើ Desktop...
+echo  📌 កំពុងបង្កើតផ្លូវកាត់លើ Desktop សម្រាប់ SN TOOL (Desktop Shortcut)...
 echo ========================================================================
-echo.
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+powershell -Command ^
     "$ws = New-Object -ComObject WScript.Shell; " ^
-    "$desk = [System.Environment]::GetFolderPath('Desktop'); " ^
-    "$sc = $ws.CreateShortcut(\"$desk\SN TOOL - STUDIO PRO.lnk\"); " ^
+    "$s = \"$env:USERPROFILE\Desktop\SN TOOL - STUDIO PRO.lnk\"; " ^
+    "$sc = $ws.CreateShortcut($s); " ^
     "$sc.TargetPath = \"%~dp0SN_TOOL.exe\"; " ^
     "$sc.WorkingDirectory = \"%~dp0\"; " ^
     "$sc.IconLocation = \"%~dp0icon.ico,0\"; " ^
-    "$sc.Description = 'SN TOOL - Studio Pro (Khmer AI Drama Studio)'; " ^
-    "$sc.Save(); " ^
-    "Write-Host '[OK] បានបង្កើត Shortcut លើ Desktop រួចរាល់ដោយជោគជ័យ!' -ForegroundColor Green"
+    "$sc.Description = \"SN TOOL - STUDIO PRO (Khmer AI Drama Voice Studio)\"; " ^
+    "$sc.Save()"
 
 echo.
-echo ========================================================================
-echo  🎉 រួចរាល់! ឥឡូវបងអាចចុចបើកកម្មវិធីបានពីលើ Desktop ភ្លាមៗ!
-echo ========================================================================
-echo.
-pause
+echo [OK] បង្កើត Desktop Shortcut ជោគជ័យ!
+timeout /t 3 > nul

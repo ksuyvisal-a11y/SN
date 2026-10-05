@@ -290,6 +290,51 @@ def ensure_db_initialized():
     except Exception as e:
         print(f"[HongguoDB] FreeReels seed check warning: {e}")
 
+    # Ensure AnyReel catalog (200,000 dramas) is verified
+    try:
+        cur.execute("SELECT count(*) FROM hongguo_dramas WHERE LOWER(platform_id) = 'anyreel'")
+        ar_count = cur.fetchone()[0]
+        if ar_count < 200000:
+            print(f"[HongguoDB] AnyReel catalog ({ar_count}) below 200,000. Auto-seeding...")
+            import subprocess
+            seeder = base / "scripts" / "seed_anyreel.py"
+            if not seeder.exists():
+                seeder = Path("scripts/seed_anyreel.py")
+            if seeder.exists():
+                subprocess.run([sys.executable, str(seeder)], check=False)
+    except Exception as e:
+        print(f"[HongguoDB] AnyReel seed check warning: {e}")
+
+    # Ensure ReelShort catalog (120,000 dramas) is verified
+    try:
+        cur.execute("SELECT count(*) FROM hongguo_dramas WHERE LOWER(platform_id) = 'reelshort' OR LOWER(platform) = 'reelshort'")
+        rs_count = cur.fetchone()[0]
+        if rs_count < 120000:
+            print(f"[HongguoDB] ReelShort catalog ({rs_count}) below 120,000. Auto-seeding...")
+            import subprocess
+            seeder = base / "scripts" / "seed_reelshort.py"
+            if not seeder.exists():
+                seeder = Path("scripts/seed_reelshort.py")
+            if seeder.exists():
+                subprocess.run([sys.executable, str(seeder)], check=False)
+    except Exception as e:
+        print(f"[HongguoDB] ReelShort seed check warning: {e}")
+
+    # Ensure ShortMax catalog (120,000 dramas) is verified
+    try:
+        cur.execute("SELECT count(*) FROM hongguo_dramas WHERE LOWER(platform_id) = 'shortmax' OR LOWER(platform) = 'shortmax'")
+        sm_count = cur.fetchone()[0]
+        if sm_count < 120000:
+            print(f"[HongguoDB] ShortMax catalog ({sm_count}) below 120,000. Auto-seeding...")
+            import subprocess
+            seeder = base / "scripts" / "seed_shortmax.py"
+            if not seeder.exists():
+                seeder = Path("scripts/seed_shortmax.py")
+            if seeder.exists():
+                subprocess.run([sys.executable, str(seeder)], check=False)
+    except Exception as e:
+        print(f"[HongguoDB] ShortMax seed check warning: {e}")
+
     conn.close()
     _DB_INITIALIZED = True
 
@@ -427,6 +472,22 @@ def get_drama_by_id(drama_id: str) -> Optional[Dict[str, Any]]:
         cur = conn.cursor()
         cur.execute("SELECT * FROM hongguo_dramas WHERE id = ?", (drama_id,))
         row = cur.fetchone()
+        if not row and str(drama_id).startswith("reelshort_"):
+            bid = str(drama_id).replace("reelshort_", "").strip()
+            cur.execute("SELECT * FROM hongguo_dramas WHERE tags LIKE ? LIMIT 1", (f"%{bid}%",))
+            row = cur.fetchone()
+        if not row and str(drama_id).startswith("rs_") and not str(drama_id).replace("rs_", "").isdigit():
+            clean = str(drama_id).replace("rs_", "").strip()
+            cur.execute("SELECT * FROM hongguo_dramas WHERE tags LIKE ? OR id LIKE ? LIMIT 1", (f"%{clean}%", f"%{clean}%"))
+            row = cur.fetchone()
+        if not row and str(drama_id).startswith("shortmax_"):
+            sp = str(drama_id).replace("shortmax_", "").strip()
+            cur.execute("SELECT * FROM hongguo_dramas WHERE tags LIKE ? OR id LIKE ? LIMIT 1", (f"%{sp}%", f"%{sp}%"))
+            row = cur.fetchone()
+        if not row and str(drama_id).startswith("sm_") and not str(drama_id).replace("sm_", "").isdigit():
+            clean = str(drama_id).replace("sm_", "").strip()
+            cur.execute("SELECT * FROM hongguo_dramas WHERE tags LIKE ? OR id LIKE ? LIMIT 1", (f"%{clean}%", f"%{clean}%"))
+            row = cur.fetchone()
         if not row:
             return None
         d = dict(row)

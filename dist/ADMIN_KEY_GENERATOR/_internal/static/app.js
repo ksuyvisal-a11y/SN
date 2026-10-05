@@ -1723,26 +1723,9 @@ async function loadDownloaderPlatforms() {
 
 async function loadDownloaderCategories() {
     const bar = document.getElementById('dl-category-chips-bar');
-    if (!bar) return;
-    try {
-        const res = await fetch('/api/downloader/categories');
-        const data = await res.json();
-        if (data.success && data.categories) {
-            bar.innerHTML = '';
-            data.categories.forEach(cat => {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                const isActive = (cat.id === dlSelectedCategory) || (!dlSelectedCategory && cat.id === 'all');
-                btn.className = `dl-category-chip-btn ${isActive ? 'active' : ''}`;
-                btn.textContent = cat.badge || cat.name;
-                btn.dataset.catId = cat.id;
-                btn.title = cat.name_kh ? `${cat.name} (${cat.name_kh})` : cat.name;
-                btn.onclick = () => selectCategoryChip(cat.id);
-                bar.appendChild(btn);
-            });
-        }
-    } catch (e) {
-        console.error('Error loading downloader categories:', e);
+    if (bar) {
+        bar.style.display = 'none';
+        bar.innerHTML = '';
     }
 }
 
@@ -1854,12 +1837,14 @@ function filterByPlatform(platId, platName, totalCount, platLogo) {
     if (countLabel) {
         const countDisplay = (totalCount !== undefined && totalCount !== null)
             ? totalCount.toLocaleString()
-            : (platId === 'hongguo' ? '49,591' : (platId === 'ai_drama' ? '24,081' : (platId === 'shortmax' ? '5,206' : (platId === 'reelshort' ? '5,723' : '84,601'))));
+            : (platId === 'hongguo' ? '49,591' : (platId === 'ai_drama' ? '24,081' : (platId === 'shortmax' ? '120,000' : (platId === 'reelshort' ? '120,000' : (platId === 'freereels' ? '120,000' : (platId === 'anyreel' ? '200,000' : '633,672'))))));
         let headerTitle = `Top Dramas on ${escapeHtml(platName)}`;
         if (platId === 'hongguo') headerTitle = 'Top 100 on 红果 right now';
         else if (platId === 'ai_drama') headerTitle = 'Top Authentic Chinese AI Short Dramas (AI漫剧)';
         else if (platId === 'shortmax') headerTitle = 'ShortMax Short Dramas';
         else if (platId === 'reelshort') headerTitle = 'ReelShort English Vertical Short Dramas';
+        else if (platId === 'freereels') headerTitle = 'FreeReels Short Dramas';
+        else if (platId === 'anyreel') headerTitle = 'AnyReel Short Dramas';
         else if (platId === 'all') headerTitle = 'Top Dramas Across All Platforms';
         countLabel.innerHTML = `<span class="dl-clapper-emoji">🎬</span> ${headerTitle} (${countDisplay})`;
     }
@@ -1872,6 +1857,10 @@ function filterByPlatform(platId, platName, totalCount, platLogo) {
             input.placeholder = 'Search Chinese AI short dramas (ស្វែងរក រឿង AI ចិន)...';
         } else if (platId === 'reelshort') {
             input.placeholder = 'Paste ReelShort URL or search (បិទភ្ជាប់ Link ReelShort)...';
+        } else if (platId === 'freereels') {
+            input.placeholder = 'Paste FreeReels URL or search (បិទភ្ជាប់ Link FreeReels)...';
+        } else if (platId === 'anyreel') {
+            input.placeholder = 'Paste AnyReel URL or search (បិទភ្ជាប់ Link AnyReel)...';
         } else {
             input.placeholder = 'Paste a Drama URL or search 79,004 dramas...';
         }
@@ -1985,6 +1974,8 @@ async function loadDramaCatalog(platformId = "hongguo", query = "", category = "
         if (platformId === 'shortmax') platTitle = 'ShortMax';
         else if (platformId === 'ai_drama') platTitle = 'AI Dramas';
         else if (platformId === 'reelshort') platTitle = 'ReelShort';
+        else if (platformId === 'freereels') platTitle = 'FreeReels';
+        else if (platformId === 'anyreel') platTitle = 'AnyReel';
         else if (platformId === 'all') platTitle = 'All Platforms';
         container.innerHTML = `<div style="grid-column: 1 / -1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding: 48px; color: #38bdf8;"><i class="fa-solid fa-spinner fa-spin" style="font-size: 1.8rem; margin-bottom:12px;"></i><div style="font-size:0.85rem; font-weight:600; color:#e2e8f0;">កំពុងទាញបញ្ជីរឿង ${platTitle}...</div></div>`;
     }
@@ -2001,8 +1992,8 @@ async function loadDramaCatalog(platformId = "hongguo", query = "", category = "
             const countLabel = document.getElementById('dl-catalog-count-label');
             if (countLabel) {
                 let headerTitle = category === 'all'
-                    ? (platformId === 'shortmax' ? 'ShortMax Short Dramas' : (platformId === 'ai_drama' ? 'Top Authentic Chinese AI Short Dramas (AI漫剧)' : (platformId === 'reelshort' ? 'ReelShort English Vertical Short Dramas' : (platformId === 'hongguo' ? 'Top 100 on 红果 right now' : 'Top Dramas Across All Platforms'))))
-                    : `${platformId === 'shortmax' ? 'ShortMax' : (platformId === 'ai_drama' ? 'AI Drama' : (platformId === 'reelshort' ? 'ReelShort' : 'Category'))}: ${category.toUpperCase()}`;
+                    ? (platformId === 'shortmax' ? 'ShortMax Short Dramas' : (platformId === 'ai_drama' ? 'Top Authentic Chinese AI Short Dramas (AI漫剧)' : (platformId === 'reelshort' ? 'ReelShort English Vertical Short Dramas' : (platformId === 'freereels' ? 'FreeReels Short Dramas' : (platformId === 'anyreel' ? 'AnyReel Short Dramas' : (platformId === 'hongguo' ? 'Top 100 on 红果 right now' : 'Top Dramas Across All Platforms'))))))
+                    : `${platformId === 'shortmax' ? 'ShortMax' : (platformId === 'ai_drama' ? 'AI Drama' : (platformId === 'reelshort' ? 'ReelShort' : (platformId === 'freereels' ? 'FreeReels' : (platformId === 'anyreel' ? 'AnyReel' : 'Category'))))}: ${category.toUpperCase()}`;
                 countLabel.innerHTML = `<span class="dl-clapper-emoji">🎬</span> ${headerTitle} (${dlTotalDramasCount.toLocaleString()})`;
             }
 
@@ -2043,17 +2034,21 @@ async function loadDramaCatalog(platformId = "hongguo", query = "", category = "
             }
         } else if (!append) {
             dlHasMore = false;
-            if (platformId === 'shortmax') {
+            if (platformId === 'shortmax' || platformId === 'freereels' || platformId === 'anyreel') {
                 const countLabel = document.getElementById('dl-catalog-count-label');
+                const isFR = platformId === 'freereels';
+                const isAR = platformId === 'anyreel';
+                const pTitle = isFR ? 'FreeReels' : (isAR ? 'AnyReel' : 'ShortMax');
+                const pLogo = isFR ? 'freereels_logo.png' : (isAR ? 'anyreel_logo.png' : 'shortmax_logo.png');
                 if (countLabel) {
-                    countLabel.innerHTML = `<span class="dl-clapper-emoji">🎬</span> ShortMax Short Dramas (0)`;
+                    countLabel.innerHTML = `<span class="dl-clapper-emoji">🎬</span> ${pTitle} Short Dramas (0)`;
                 }
                 container.innerHTML = `
                     <div style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 50px 20px; text-align: center;">
-                        <img src="shortmax_logo.png" style="width: 56px; height: 56px; border-radius: 12px; margin-bottom: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); object-fit: contain;" onerror="this.style.display='none'">
-                        <div style="font-size: 0.95rem; font-weight: 700; color: #f8fafc; margin-bottom: 8px;">មិនទាន់មានរឿងនៅក្នុង ShortMax នៅឡើយទេ</div>
+                        <img src="${pLogo}" style="width: 56px; height: 56px; border-radius: 12px; margin-bottom: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); object-fit: contain;" onerror="this.style.display='none'">
+                        <div style="font-size: 0.95rem; font-weight: 700; color: #f8fafc; margin-bottom: 8px;">មិនទាន់មានរឿងនៅក្នុង ${pTitle} នៅឡើយទេ</div>
                         <div style="font-size: 0.78rem; color: #94a3b8; max-width: 380px; line-height: 1.6;">
-                            លោកអ្នកអាចចម្លង (Paste) តំណភ្ជាប់ Link រឿងពី <b>ShortMax</b> ដាក់ចូលក្នុងប្រអប់ស្វែងរកខាងលើ រួចចុច <b>Enter</b> ដើម្បីទាញយកភាគវីដេអូដោយស្វ័យប្រវត្តិ។
+                            លោកអ្នកអាចចម្លង (Paste) តំណភ្ជាប់ Link រឿងពី <b>${pTitle}</b> ដាក់ចូលក្នុងប្រអប់ស្វែងរកខាងលើ រួចចុច <b>Enter</b> ដើម្បីទាញយកភាគវីដេអូដោយស្វ័យប្រវត្តិ។
                         </div>
                     </div>
                 `;
@@ -2422,10 +2417,10 @@ function renderQueueViewForCurrentDrama() {
     }
 
     // Update Episodes Count
-    const totalCount = dlEpisodesList.length || dlCurrentDrama.total_episodes || 80;
+    const totalCount = (dlEpisodesList && dlEpisodesList.length > 0) ? dlEpisodesList.length : (dlCurrentDrama?.total_episodes || 80);
     const centerEpCount = document.getElementById('dl-center-ep-count');
     if (centerEpCount) {
-        centerEpCount.textContent = `${totalCount} Episodes`;
+        centerEpCount.textContent = totalCount === 1 ? `1 Episode (Full Movie)` : `${totalCount} Episodes`;
     }
     const epsCountBold = document.getElementById('dl-q-eps-count-bold');
     if (epsCountBold) {
@@ -2433,13 +2428,15 @@ function renderQueueViewForCurrentDrama() {
     }
     const qDlBtnText = document.getElementById('dl-q-download-all-text');
     if (qDlBtnText) {
-        qDlBtnText.textContent = `⚡ ទាញយកគ្រប់ភាគទាំងអស់ (Download All EP 1 - ${totalCount})`;
+        qDlBtnText.textContent = totalCount === 1 
+            ? `⚡ ទាញយករឿងពេញ (Download Full Drama 1080p)` 
+            : `⚡ ទាញយកគ្រប់ភាគទាំងអស់ (Download All EP 1 - ${totalCount})`;
     }
 
     // Update Image 2 Episode Hub Header
     const hubTitle = document.getElementById('dl-hub-episodes-title');
     if (hubTitle) {
-        hubTitle.textContent = `Episodes (${totalCount} total)`;
+        hubTitle.textContent = totalCount === 1 ? `Episodes (1 total • Full Movie)` : `Episodes (${totalCount} total)`;
     }
     const hubPillTotal = document.getElementById('dl-hub-pill-total');
     if (hubPillTotal) {
@@ -2485,16 +2482,28 @@ function renderQueueViewForCurrentDrama() {
             card.setAttribute('data-ep', epNum);
             card.onclick = () => playQueueEpisode(epNum);
 
+            const tagText = ep.progress === 100 ? 'READY' : (dlEpisodesList.length === 1 ? 'FULL' : 'FREE');
+
             card.innerHTML = `
                 <span class="dl-ep-active-dot"></span>
                 <span class="dl-ep-card-num">${epNum}</span>
-                <span class="dl-ep-card-tag">${ep.progress === 100 ? 'READY' : 'FREE'}</span>
+                <span class="dl-ep-card-tag">${tagText}</span>
                 <div class="dl-ep-card-prog-track">
                     <div class="dl-ep-card-prog-fill" id="dl-card-fill-${epNum}" style="width: ${ep.progress || 0}%;"></div>
                 </div>
             `;
             gridBox.appendChild(card);
         });
+
+        if (dlEpisodesList.length === 1) {
+            const notice = document.createElement('div');
+            notice.className = 'dl-single-ep-notice';
+            notice.innerHTML = `
+                <i class="fa-solid fa-film" style="color: #f59e0b; font-size: 1.05rem;"></i>
+                <span>រឿងពេញ ១ ភាគចប់ (Full Movie • 1080p Full HD)</span>
+            `;
+            gridBox.appendChild(notice);
+        }
     }
 
     // Render Episode Queue Table (EXACT MATCH TO IMAGE 2)
@@ -2970,8 +2979,8 @@ async function downloadAllQueueEpisodes() {
 
     const path = dlUserSaveLocation || document.getElementById('dl-save-path-input')?.value.trim() || 'D:/SN_Dramas';
     const computedDir = getComputedDramaFolder().replace(/\//g, '\\');
-    showToast(`⚡ កំពុងទាញយកល្បឿនលឿនគ្រប់ភាគ (${total} ភាគ) & រឿងពេញ ១០០% ទៅកាន់ ${computedDir}...`);
-    appendDownloaderLog(`[${new Date().toLocaleTimeString()}] ⚡ Starting TURBO FULL SERIES download: EP 1 to EP ${total} for '${title}' into '${computedDir}' (4x Concurrency + Auto Full Movie Merge)...`);
+    showToast(`⚡ កំពុងទាញយកម្ដង ៥ ភាគ (${total} ភាគសរុប) ទៅកាន់ ${computedDir}...`);
+    appendDownloaderLog(`[${new Date().toLocaleTimeString()}] ⚡ កំពុងទាញយកម្ដង ៥ ភាគ (Batch 5 Episodes): EP 1 to EP ${total} for '${title}' into '${computedDir}'...`);
 
     const posterElem = document.getElementById('dl-save-poster-check');
     const savePoster = posterElem ? posterElem.checked : true;
@@ -3318,12 +3327,14 @@ async function initSaveLocationPaths() {
     const input = document.getElementById('dl-save-path-input');
     if (!input) return;
 
+    let backendDefault = null;
     try {
         const res = await fetch('/api/system/default-paths');
         const data = await res.json();
         if (data && data.success) {
             if (data.drive_c) driveCustomPaths["C"] = data.drive_c;
             if (data.drive_d) driveCustomPaths["D"] = data.drive_d;
+            if (data.default) backendDefault = data.default;
         }
     } catch (e) {}
 
@@ -3331,7 +3342,7 @@ async function initSaveLocationPaths() {
     if (saved && saved.trim()) {
         input.value = saved.trim();
     } else {
-        input.value = driveCustomPaths["D"] || "D:/SN_Dramas";
+        input.value = backendDefault || driveCustomPaths["D"] || "D:/SN_Dramas";
     }
     input.setAttribute('title', input.value);
     input.addEventListener('input', () => {
