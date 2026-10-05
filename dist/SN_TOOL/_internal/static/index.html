@@ -1753,6 +1753,25 @@
 
         <!-- MODAL 7: LICENSE ACTIVATION GATE (Cyber-Gold Lock Screen) -->
         <div class="license-gate-overlay" id="modal-license-gate">
+            <!-- Sleek Window Titlebar Controls for Gate Screen -->
+            <div class="gate-titlebar pywebview-drag-region" ondblclick="appHeaderDblClick(event)">
+                <div class="gate-titlebar-left">
+                    <img src="logo.png?v=6.2" alt="SN" class="gate-titlebar-icon">
+                    <span class="gate-titlebar-text">SN TOOL - STUDIO PRO</span>
+                </div>
+                <div class="gate-titlebar-controls" style="-webkit-app-region: no-drag;">
+                    <button type="button" class="gate-win-btn win-minimize" title="Minimize (បង្រួម)" onclick="appMinimizeWindow()">
+                        <i class="fa-solid fa-minus"></i>
+                    </button>
+                    <button type="button" class="gate-win-btn win-maximize" id="gate-btn-maximize" title="Maximize / Restore (ពង្រីក/ស្តារ)" onclick="appMaximizeWindow()">
+                        <i class="fa-regular fa-square"></i>
+                    </button>
+                    <button type="button" class="gate-win-btn close" title="Close (បិទកម្មវិធី)" onclick="appCloseWindow()">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
             <div class="license-gate-card">
                 <!-- Header -->
                 <div class="license-gate-header">
