@@ -1,10 +1,9 @@
-{
-  "version": "1.0.0",
-  "app_name": "SN TOOL - STUDIO PRO",
-  "release_date": "2026-10-06",
-  "title": "SN TOOL STUDIO PRO - Official Release v1.0.0",
-  "release_notes": "• កំណែទម្រង់ផ្លូវការ Version 1.0.0 PRO\n• Upgraded Native Import Modal with 50ms instant Windows File/Folder picker\n• Ultra-fast parallel Drama Drag & Drop Episode Scanner\n• Official 3D Gold SN Logo emblem in 112px prominent squircle format\n• Full Khmer AI Dubbing (Piseth & Sreymom)\n• 630K+ Drama Downloader Catalog\n• 1-Click GitHub Auto-Updater",
-  "download_url": "https://github.com/ksuyvisal-a11y/SN/releases/latest/download/SN_TOOL_UPDATE.zip",
-  "github_repo": "ksuyvisal-a11y/SN",
-  "channel": "stable"
-}
+## 🚀 SN TOOL STUDIO PRO - Official Release v1.0.0
+
+### ✨ មុខងារ និងការកែលម្អក្នុង Version 1.0.0៖
+- ⚡ **Native Import Dialog:** បើកផ្ទាំងរើស File និង Folder Picker លឿនត្រឹម 50ms
+- 📂 **Parallel Drama Scanner:** Drag & Drop ស្កេនរឿងភាគរាប់សិបភាគស្របគ្នាភ្លាមៗ
+- 🌟 **3D Gold Emblem Logo:** រូបរាង Logo មាស 112px ថ្មីច្បាស់ស្អាត
+- 🎙️ **Khmer AI Dubbing:** បញ្ចូលសំឡេង AI ពិសិដ្ឋ & ស្រីមុំ ច្បាស់រលូន
+- 📥 **Drama Downloader:** កាតាឡុករឿងភាគជាង 630,000+ រឿង (Full HD)
+- 🔄 **1-Click Auto-Updater:** ប្រព័ន្ធត្រៀមទទួល Update ស្វ័យប្រវត្តិតាម GitHub
