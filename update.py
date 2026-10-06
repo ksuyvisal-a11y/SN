@@ -13,7 +13,7 @@ import urllib.error
 from pathlib import Path
 from typing import Dict, Any, Tuple
 
-CURRENT_VERSION = "1.0.0"
+CURRENT_VERSION = "1.0.1"
 GITHUB_OWNER = "ksuyvisal-a11y"
 GITHUB_REPO = "SN"
 UPDATE_CHECK_RAW_URL = f"https://raw.githubusercontent.com/{GITHUB_OWNER}/{GITHUB_REPO}/main/version.json"
@@ -22,7 +22,7 @@ GITHUB_API_RELEASE_URL = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_R
 def parse_version_tuple(ver_str: str) -> Tuple[int, ...]:
     """Parse '5.1.0' into (5, 1, 0) tuple for accurate comparison."""
     try:
-        clean = ver_str.strip().lstrip("vV")
+        clean = str(ver_str).strip().lstrip("vV")
         parts = [int(p) for p in clean.split(".") if p.isdigit()]
         return tuple(parts) if parts else (0, 0, 0)
     except Exception:
@@ -34,14 +34,22 @@ def is_newer_version(remote_ver: str, local_ver: str = CURRENT_VERSION) -> bool:
 
 def get_local_version() -> str:
     """Read local version from version.json if present, else fallback to CURRENT_VERSION."""
-    try:
-        local_vjson = Path(__file__).resolve().parent / "version.json"
-        if local_vjson.exists():
-            with open(local_vjson, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                return data.get("version", CURRENT_VERSION)
-    except Exception:
-        pass
+    candidates = [
+        Path(__file__).resolve().parent / "version.json",
+        Path.cwd() / "version.json",
+    ]
+    if getattr(sys, "frozen", False):
+        candidates.insert(0, Path(sys.executable).parent / "version.json")
+    for local_vjson in candidates:
+        try:
+            if local_vjson.exists():
+                with open(local_vjson, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    ver = data.get("version")
+                    if ver:
+                        return str(ver)
+        except Exception:
+            pass
     return CURRENT_VERSION
 
 def check_for_updates(github_token: str = None) -> Dict[str, Any]:

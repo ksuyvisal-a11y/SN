@@ -95,8 +95,12 @@ from license_engine import (
     set_license_required,
     get_machine_hwid,
     ADMIN_HISTORY_FILE
+from update import (
+    check_for_updates,
+    get_version_info,
+    apply_git_pull_update,
+    apply_zip_download_update
 )
-from update import check_for_updates, get_version_info
 
 pm = ProjectManager()
 
@@ -934,7 +938,28 @@ def license_activate_endpoint():
 @app.route("/api/update/check", methods=["GET"])
 def update_check_endpoint():
     """Check for latest studio version and patch notes."""
-    return jsonify(check_for_updates())
+    token = request.args.get("token") or os.environ.get("GITHUB_TOKEN")
+    return jsonify(check_for_updates(github_token=token))
+
+
+@app.route("/api/update/apply", methods=["POST"])
+def update_apply_endpoint():
+    """Apply update via git pull or zip download."""
+    data = request.get_json(silent=True) or {}
+    mode = data.get("mode", "auto")
+    download_url = data.get("download_url", "")
+    
+    # Check if running in a git repo
+    is_git = (APP_DIR / ".git").exists()
+    if is_git and mode in ("git", "auto"):
+        res = apply_git_pull_update(APP_DIR)
+        return jsonify(res)
+    else:
+        if not download_url:
+            chk = check_for_updates()
+            download_url = chk.get("download_url")
+        res = apply_zip_download_update(download_url, APP_DIR)
+        return jsonify(res)
 
 
 # ==========================================================================

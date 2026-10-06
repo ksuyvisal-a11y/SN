@@ -6744,8 +6744,10 @@ async function checkForAppUpdates(manual = false) {
         const btnUpdate = document.getElementById('btn-do-update');
         const progContainer = document.getElementById('update-progress-container');
 
-        if (curEl) curEl.textContent = `v${data.current_version || '1.0.0'}`;
-        if (latEl) latEl.textContent = `v${data.latest_version || '1.0.0'}`;
+        if (curEl) curEl.textContent = `v${data.current_version || '1.0.1'}`;
+        if (latEl) latEl.textContent = `v${data.latest_version || '1.0.1'}`;
+        const settingsVer = document.getElementById('settings-version-tag');
+        if (settingsVer && data.current_version) settingsVer.textContent = `v${data.current_version}`;
         if (notesEl) notesEl.textContent = data.release_notes || "ការកែលម្អប្រព័ន្ធទូទៅ";
         if (progContainer) progContainer.style.display = 'none';
 

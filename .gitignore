@@ -26,6 +26,7 @@ dist/**/generated_keys_log.txt
 *.db
 *.sqlite
 *.sqlite3
+*.zip
 
 # Environments
 .env
