@@ -235,6 +235,76 @@ window.addEventListener('pywebviewready', () => {
 // Periodic check ensuring pywebview API hook is installed as soon as ready
 setInterval(installPywebviewDragInterceptor, 500);
 
+// ====================================================================
+// NATIVE DESKTOP APPLICATION ENHANCEMENTS & BROWSER-TRAIT ELIMINATION
+// Guarantees zero web-browser feel (no browser context menu, no F5 reload, no devtools)
+// ====================================================================
+document.addEventListener('contextmenu', function(e) {
+    const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+    // Allow context menu ONLY inside actual text fields for copy/paste
+    if (tag === 'input' || tag === 'textarea' || (e.target && e.target.isContentEditable)) {
+        return true;
+    }
+    // Block Edge/Chrome default browser menu ("Inspect", "Reload", "Print", "Back")
+    e.preventDefault();
+    return false;
+}, true);
+
+document.addEventListener('keydown', function(e) {
+    // Block Browser Reload (F5, Ctrl+R, Ctrl+F5)
+    if (e.key === 'F5' || (e.ctrlKey && (e.key === 'r' || e.key === 'R'))) {
+        e.preventDefault();
+        return false;
+    }
+    // Block Browser Print (Ctrl+P)
+    if (e.ctrlKey && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault();
+        return false;
+    }
+    // Block Browser View-Source (Ctrl+U)
+    if (e.ctrlKey && (e.key === 'u' || e.key === 'U')) {
+        e.preventDefault();
+        return false;
+    }
+    // Block Browser DevTools (F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C)
+    if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && ['I', 'i', 'J', 'j', 'C', 'c'].includes(e.key))) {
+        e.preventDefault();
+        return false;
+    }
+    // Block Browser History Back / Forward (Alt+Left, Alt+Right, Backspace outside input)
+    if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault();
+        return false;
+    }
+    if (e.key === 'Backspace') {
+        const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+        if (tag !== 'input' && tag !== 'textarea' && (!e.target || !e.target.isContentEditable)) {
+            e.preventDefault();
+            return false;
+        }
+    }
+}, true);
+
+// Prevent browser ghost drag of images and links
+document.addEventListener('dragstart', function(e) {
+    const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+    if (tag === 'img' || tag === 'a') {
+        e.preventDefault();
+    }
+}, false);
+
+// Prevent browser navigating away when dragging external files onto non-drop regions
+window.addEventListener('dragover', function(e) {
+    if (!e.target.closest('.file-drop-zone, .upload-area, .video-drop-area, #video-dropzone, .drag-drop-box')) {
+        e.preventDefault();
+    }
+}, false);
+window.addEventListener('drop', function(e) {
+    if (!e.target.closest('.file-drop-zone, .upload-area, .video-drop-area, #video-dropzone, .drag-drop-box')) {
+        e.preventDefault();
+    }
+}, false);
+
 document.addEventListener('DOMContentLoaded', () => {
     initApp();
 });
@@ -6541,7 +6611,12 @@ async function checkDeviceLicenseStatus() {
 
         if (data.is_activated) {
             // License is valid & active
+            window._isDeviceActivated = true;
             if (gateModal) gateModal.classList.remove('active');
+            if (_splashDismissed) {
+                document.body.classList.remove('license-locked');
+                document.body.classList.remove('splash-active');
+            }
             if (badgeElem) {
                 if (data.is_expiring_soon) {
                     const daysLeft = (data.days_remaining !== null && data.days_remaining !== undefined) ? `${data.days_remaining} ថ្ងៃ` : 'ជិតផុតកំណត់';
@@ -6566,7 +6641,9 @@ async function checkDeviceLicenseStatus() {
             }
         } else {
             // License is not active -> Show lock gate
-            if (gateModal) gateModal.classList.add('active');
+            window._isDeviceActivated = false;
+            document.body.classList.add('license-locked');
+            if (_splashDismissed && gateModal) gateModal.classList.add('active');
             if (badgeElem) {
                 badgeElem.textContent = data.status === "EXPIRED" ? "EXPIRED (ផុតកំណត់)" : "UNLICENSED";
                 badgeElem.style.borderColor = "#ef4444";
@@ -6814,8 +6891,102 @@ async function executeAppUpdate() {
     }
 }
 
-// Auto check update 5 seconds after studio startup
-setTimeout(() => {
-    checkForAppUpdates(false);
-}, 5000);
+// ==========================================================================
+// 7. STUDIO SPLASH SCREEN CONTROLLER (1:1 Reference Image 2)
+// Runs for 3.0 seconds on application startup, shows concentric radar rings,
+// authentic 3D emblem, license verification progress, and seamlessly
+// transitions into License Activation Gate (if unlicensed) or Studio Pro.
+// ==========================================================================
+let _splashDismissed = false;
+
+function initStudioSplashScreen() {
+    const splash = document.getElementById('studio-splash-screen');
+    const bar = document.getElementById('splash-progress-bar');
+    const statusLbl = document.getElementById('splash-status-label');
+
+    // Immediately trigger license status verification in the background
+    checkDeviceLicenseStatus().catch(err => console.error("Initial license check error:", err));
+
+    if (!splash || !bar) {
+        return;
+    }
+
+    const duration = 5000; // 5.0 seconds exact duration requested by user
+    const startTime = performance.now();
+
+    const pctEl = document.getElementById('splash-progress-pct');
+    const iconEl = document.getElementById('splash-step-icon');
+
+    function animateProgress(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(100, (elapsed / duration) * 100);
+        bar.style.width = progress.toFixed(1) + '%';
+        if (pctEl) pctEl.textContent = `${Math.floor(progress)}%`;
+
+        // Dynamic Lively AI Boot Stages (Distributed smoothly across 5 seconds)
+        if (elapsed < 1400) {
+            if (iconEl && iconEl.dataset.stage !== '1') {
+                iconEl.dataset.stage = '1';
+                iconEl.innerHTML = '<i class="fa-solid fa-microchip" style="color:#facc15;"></i>';
+                if (statusLbl) statusLbl.textContent = 'Initializing AI Neural Engine...';
+            }
+        } else if (elapsed < 2800) {
+            if (iconEl && iconEl.dataset.stage !== '2') {
+                iconEl.dataset.stage = '2';
+                iconEl.innerHTML = '<i class="fa-solid fa-wave-square" style="color:#38bdf8;"></i>';
+                if (statusLbl) statusLbl.textContent = 'Calibrating Khmer Voice Synthesizer...';
+            }
+        } else if (elapsed < 4300) {
+            if (iconEl && iconEl.dataset.stage !== '3') {
+                iconEl.dataset.stage = '3';
+                iconEl.innerHTML = '<i class="fa-solid fa-shield-halved" style="color:#eab308;"></i>';
+                if (statusLbl) statusLbl.textContent = 'Verifying License Security...';
+            }
+        } else {
+            if (iconEl && iconEl.dataset.stage !== '4') {
+                iconEl.dataset.stage = '4';
+                iconEl.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#4ade80;"></i>';
+                if (statusLbl) {
+                    statusLbl.textContent = 'System Ready & Calibrated!';
+                    statusLbl.style.color = '#4ade80';
+                }
+            }
+        }
+
+        if (elapsed < duration) {
+            requestAnimationFrame(animateProgress);
+        } else {
+            bar.style.width = '100%';
+            if (pctEl) pctEl.textContent = '100%';
+
+            setTimeout(() => {
+                splash.classList.add('fade-out');
+                setTimeout(() => {
+                    splash.style.display = 'none';
+                    _splashDismissed = true;
+                    document.body.classList.remove('splash-active');
+
+                    const gateModal = document.getElementById('modal-license-gate');
+                    if (window._isDeviceActivated) {
+                        document.body.classList.remove('license-locked');
+                        if (gateModal) gateModal.classList.remove('active');
+                    } else {
+                        document.body.classList.add('license-locked');
+                        if (gateModal) gateModal.classList.add('active');
+                    }
+                }, 500);
+            }, 250);
+        }
+    }
+
+    requestAnimationFrame(animateProgress);
+}
+
+// Start splash screen immediately upon page initialization
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initStudioSplashScreen);
+} else {
+    initStudioSplashScreen();
+}
+
 

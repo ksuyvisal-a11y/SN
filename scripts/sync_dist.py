@@ -7,12 +7,19 @@ dist_sn = base_dir / "dist" / "SN_TOOL"
 
 dist_sn.mkdir(parents=True, exist_ok=True)
 
-# 1. Copy icon and configs for SN_TOOL
-sn_sync_files = ["icon.ico", "license_config.json", "custom_keys.json", "license.key", "version.json"]
+# 1. Copy icon and configs for SN_TOOL (Do NOT copy license.key so clients are unactivated!)
+sn_sync_files = ["icon.ico", "license_config.json", "custom_keys.json", "version.json", "server.py", "license_engine.py"]
 for fname in sn_sync_files:
     src = base_dir / fname
     if src.exists():
         shutil.copy2(src, dist_sn / fname)
+        if (dist_sn / "_internal").exists():
+            shutil.copy2(src, dist_sn / "_internal" / fname)
+
+# Remove any accidental license.key from distribution folders
+for lic in [dist_sn / "license.key", dist_sn / "_internal" / "license.key"]:
+    if lic.exists():
+        lic.unlink(missing_ok=True)
 
 # 2. Write START_SN_TOOL.bat
 start_bat = """@echo off

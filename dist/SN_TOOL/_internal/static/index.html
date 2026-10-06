@@ -15,8 +15,99 @@
     <link rel="stylesheet" href="style.css?v=41.0">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
-<body>
+<body class="splash-active">
+    <!-- ====================================================================
+         SN TOOL CINEMATIC HOLO-STUDIO INTRO (Unique, Lively & Cyber-Luxury)
+         Dynamic Gyroscopic Orbital Rings, Sound Visualizer, 3D Gold Emblem & AI Boot Sequence
+         ==================================================================== -->
+    <div id="studio-splash-screen" class="studio-splash-overlay">
+        <!-- Ambient Atmosphere -->
+        <div class="splash-ambient-aurora"></div>
+        <div class="splash-cyber-particles"></div>
+
+        <!-- Top Window Bar -->
+        <div class="splash-top-bar pywebview-drag-region" ondblclick="appHeaderDblClick(event)">
+            <div class="splash-brand-left">
+                <img src="logo.png?v=7.0" alt="SN Logo" class="splash-mini-logo">
+                <span class="splash-mini-title">SN TOOL</span>
+                <span class="splash-live-badge"><span class="splash-dot-pulse"></span> STUDIO PRO</span>
+            </div>
+            <div class="splash-win-controls" style="-webkit-app-region: no-drag;">
+                <button type="button" class="splash-win-btn" title="Minimize" onclick="appMinimizeWindow()">―</button>
+                <button type="button" class="splash-win-btn" title="Maximize" onclick="appMaximizeWindow()">▢</button>
+                <button type="button" class="splash-win-btn close" title="Close" onclick="appCloseWindow()">✕</button>
+            </div>
+        </div>
+
+        <!-- Center Cinematic Arena -->
+        <div class="splash-center-arena">
+            <!-- Holographic Gyroscopic Orbital Portal -->
+            <div class="splash-portal-container">
+                <!-- Golden Energy Core Glow -->
+                <div class="portal-energy-core"></div>
+
+                <!-- Orbital Ring 1: Outer Rotating Precision Dashed Ring with Orbital Satellites -->
+                <div class="portal-orbit-ring ring-outer-dashed">
+                    <span class="orbital-node node-top"></span>
+                    <span class="orbital-node node-right"></span>
+                    <span class="orbital-node node-bottom"></span>
+                    <span class="orbital-node node-left"></span>
+                </div>
+
+                <!-- Orbital Ring 2: Counter-Rotating Cyber Tech Arc -->
+                <div class="portal-orbit-ring ring-mid-arc"></div>
+
+                <!-- Orbital Ring 3: Inner Harmonic Resonator with Glow -->
+                <div class="portal-orbit-ring ring-inner-glow"></div>
+
+                <!-- Sound Wave Spectrum Visualizer (Lively Audio Animation) -->
+                <div class="portal-sound-spectrum">
+                    <span class="spec-bar s1"></span>
+                    <span class="spec-bar s2"></span>
+                    <span class="spec-bar s3"></span>
+                    <span class="spec-bar s4"></span>
+                    <span class="spec-bar s5"></span>
+                    <span class="spec-bar s6"></span>
+                    <span class="spec-bar s7"></span>
+                    <span class="spec-bar s8"></span>
+                </div>
+
+                <!-- Center 3D Gold Emblem with Luminous Shimmer -->
+                <div class="portal-emblem-wrapper">
+                    <div class="emblem-shimmer-sweep"></div>
+                    <img src="logo.png?v=7.0" alt="SN 3D Gold Logo" class="splash-emblem-3d">
+                </div>
+            </div>
+
+            <!-- Brand Typography & Real-time AI Sequence -->
+            <div class="splash-brand-hero">
+                <div class="splash-title-row">
+                    <h1 class="splash-title-text">SN TOOL</h1>
+                    <span class="splash-edition-chip">v1.0.1</span>
+                </div>
+                <div class="splash-subtitle-text">Khmer AI Drama Voice Translator & Movie Recap Studio</div>
+
+                <!-- Lively Dynamic Step Indicator -->
+                <div class="splash-step-pill">
+                    <span class="splash-step-icon" id="splash-step-icon"><i class="fa-solid fa-microchip"></i></span>
+                    <span class="splash-status-text" id="splash-status-label">Initializing AI Neural Engine...</span>
+                </div>
+                
+                <!-- Laser-Guided Capsule Progress Bar with Numeric Readout -->
+                <div class="splash-progress-wrapper">
+                    <div class="splash-progress-track">
+                        <div class="splash-progress-fill" id="splash-progress-bar">
+                            <span class="splash-laser-sparkle"></span>
+                        </div>
+                    </div>
+                    <span class="splash-progress-pct" id="splash-progress-pct">0%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="unich-app-container">
+
         <!-- ====================================================================
              TOP NAVBAR
              ==================================================================== -->

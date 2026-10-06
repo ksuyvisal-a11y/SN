@@ -1125,20 +1125,9 @@ def check_current_device_license() -> Dict[str, Any]:
             "message": "License Gate ត្រូវបានបិទ (បើកដំណើរការដោយសេរី Free 100%)"
         }
 
-    # Development / testing mode: Auto-activate Lifetime VIP without requiring key entry
-    if not getattr(sys, 'frozen', False):
-        if not LICENSE_FILE.exists():
-            activate_license_on_device("SN-ADMIN-MASTER-2026-VIP", client_name="Sal Admin")
-        else:
-            try:
-                with open(LICENSE_FILE, "r", encoding="utf-8") as f:
-                    _d = json.load(f)
-                if _d.get("machine_hwid") != current_hwid or not verify_license_key(_d.get("license_key", ""), current_hwid)[0]:
-                    activate_license_on_device("SN-ADMIN-MASTER-2026-VIP", client_name="Sal Admin")
-            except Exception:
-                activate_license_on_device("SN-ADMIN-MASTER-2026-VIP", client_name="Sal Admin")
-
-    if not LICENSE_FILE.exists():
+    # Strict License Protection: Require valid key entry if license.key does not exist
+    lic_path = resolve_file_path("license.key")
+    if not lic_path.exists():
         return {
             "is_activated": False,
             "message": "សូមបញ្ចូល License Key ដើម្បីបើកដំណើរការ Tool",
@@ -1146,7 +1135,7 @@ def check_current_device_license() -> Dict[str, Any]:
         }
 
     try:
-        with open(LICENSE_FILE, "r", encoding="utf-8") as f:
+        with open(lic_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         license_key = data.get("license_key", "").strip().upper()

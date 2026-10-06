@@ -126,43 +126,45 @@ def focus_existing_window():
 def check_and_handle_running_server():
     """
     Check if port 8000 is already running SN TOOL.
-    Returns True if an existing healthy instance is running (duplicate launcher will exit cleanly).
-    Returns False if port 8000 is free or had a dead orphan process that was cleaned up.
+    - If a healthy visible window exists, bring it to front and return True.
+    - If port 8000 is occupied by a headless / zombie process (no window visible),
+      kill the zombie process immediately so this instance can launch a fresh native desktop window!
+    - Under NO circumstance will it ever open in a web browser.
     """
     import urllib.request
     try:
         req = urllib.request.Request("http://127.0.0.1:8000/api/license/status", headers={"User-Agent": "SN_TOOL_Launcher"})
         with urllib.request.urlopen(req, timeout=1.5) as r:
             if r.status == 200:
-                print("\n" + "=" * 65)
-                print(" ✅ SN TOOL កំពុងដំណើរការស្រេចនៅលើកុំព្យូទ័ររបស់អ្នករួចរាល់ហើយ!")
-                print(" 🌐 កំពុងនាំផ្ទាំងកម្មវិធីមកមុខអេក្រង់ (Bringing Window to Front)...")
-                print("=" * 65 + "\n")
-                if not focus_existing_window():
-                    import webbrowser
-                    webbrowser.open("http://127.0.0.1:8000")
-                return True
+                # Server is responding: check if a visible native desktop window exists
+                if focus_existing_window():
+                    print("\n" + "=" * 65)
+                    print(" ✅ SN TOOL កំពុងដំណើរការស្រេចនៅលើកុំព្យូទ័ររបស់អ្នករួចរាល់ហើយ!")
+                    print(" 🖥️ កំពុងនាំផ្ទាំងកម្មវិធី Desktop មកមុខអេក្រង់...")
+                    print("=" * 65 + "\n")
+                    return True
+                # Port 8000 is responding but NO visible desktop window exists!
+                # Clean up the hidden orphan/zombie process so we can launch cleanly:
+                print("[INFO] រកឃើញ Server ចាស់គ្មានផ្ទាំង (Orphan Process) កំពុងបោសសម្អាតដើម្បីបើក Native Desktop Window ថ្មី...")
     except Exception:
         pass
 
-    # If port 8000 is occupied by something else or a dead socket, check with netstat
+    # If port 8000 is occupied (by zombie/dead listener), kill it
     if sys.platform == "win32":
         try:
             import socket
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 in_use = (s.connect_ex(('127.0.0.1', 8000)) == 0)
-            if not in_use:
-                return False
-
-            # Port is occupied but unresponsive: kill the zombie listener
-            out = subprocess.check_output('netstat -ano | findstr :8000', shell=True, **get_silent_kwargs()).decode()
-            current_pid = os.getpid()
-            for line in out.strip().split('\n'):
-                parts = line.strip().split()
-                if len(parts) >= 5 and 'LISTENING' in line:
-                    pid = int(parts[-1])
-                    if pid != current_pid and pid > 0:
-                        subprocess.run(f'taskkill /F /PID {pid}', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **get_silent_kwargs())
+            if in_use:
+                out = subprocess.check_output('netstat -ano | findstr :8000', shell=True, **get_silent_kwargs()).decode()
+                current_pid = os.getpid()
+                for line in out.strip().split('\n'):
+                    parts = line.strip().split()
+                    if len(parts) >= 5 and 'LISTENING' in line:
+                        pid = int(parts[-1])
+                        if pid != current_pid and pid > 0:
+                            subprocess.run(f'taskkill /F /PID {pid}', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **get_silent_kwargs())
+                time.sleep(0.5)
         except Exception:
             pass
 
@@ -516,12 +518,23 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
                 except Exception:
                     pass
 
-        webview.start(on_gui_ready, window, private_mode=False, gui='edgechromium')
-        return
-    except Exception as e:
-        print(f"pywebview notice: {e}")
+        # Ensure closing window completely terminates all background threads and processes
+        def on_window_closed():
+            os._exit(0)
 
-    # 2. Try Native Desktop App Mode via Edge or Chrome (Standalone window, zero browser chrome/tabs, centered)
+        try:
+            window.events.closed += on_window_closed
+        except Exception:
+            pass
+
+        webview.start(on_gui_ready, window, private_mode=False, gui='edgechromium')
+        # Window closed cleanly: exit application immediately
+        os._exit(0)
+    except Exception as e:
+        print(f"[Native App] pywebview notice: {e}")
+
+    # 2. Fallback: Standalone Desktop App Window Mode via Microsoft Edge or Google Chrome
+    # (Pure dedicated application window: NO tabs, NO address bar, zero browser chrome)
     app_browsers = [
         os.path.expandvars(r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"),
         os.path.expandvars(r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"),
@@ -533,65 +546,61 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
     for exe in app_browsers:
         if os.path.exists(exe):
             try:
-                cmd = [exe, f"--app={url}", f"--window-size={win_w},{win_h}", f"--window-position={x},{y}"]
-                t0 = time.time()
+                cmd = [
+                    exe,
+                    f"--app={url}",
+                    f"--window-size={win_w},{win_h}",
+                    f"--window-position={x},{y}",
+                    "--disable-features=Translate",
+                    "--disable-extensions",
+                    "--class=SN_TOOL",
+                    "--name=SN TOOL - STUDIO PRO"
+                ]
                 proc = subprocess.Popen(cmd)
                 proc.wait()
-                if time.time() - t0 > 3.0:
-                    return
+                os._exit(0)
             except Exception as e:
-                print(f"App window mode notice: {e}")
+                print(f"[Native App] Standalone app mode notice: {e}")
 
-    # 3. Fallback to default browser
-    import webbrowser
-    try:
-        webbrowser.open(url)
-    except Exception:
-        pass
+    # 3. If no native rendering engine exists on system, alert user with native Win32 dialog
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(
+                0,
+                "SN TOOL ត្រូវការ Microsoft Edge WebView2 ដើម្បីដំណើរការជាកម្មវិធី Desktop Native។\nសូមដំឡើង Microsoft Edge WebView2 រួចបើកកម្មវិធីម្តងទៀត។",
+                "SN TOOL - Native Desktop Engine Required",
+                0x10 | 0x00010000  # MB_ICONERROR | MB_SETFOREGROUND
+            )
+        except Exception:
+            pass
+    os._exit(1)
 
 def main():
     print("========================================================")
     print(" 🎬 កំពុងចាប់ផ្តើម SN TOOL - STUDIO PRO (Native Desktop App)...")
     print(" 🎙️ សំឡេងខ្មែរផ្លូវការ: ពិសិដ្ឋ (Piseth) & ស្រីមុំ (Sreymom)")
-    print(" 🌐 Server Address: http://127.0.0.1:8000")
+    print(" 🖥️ Window Mode: Dedicated Standalone Native Application")
     print("========================================================")
 
-    # 1. Check if server is already running - never kill a healthy instance!
+    # 1. Check if server is already running - if healthy window exists, focus it; if orphan, clean it
     if check_and_handle_running_server():
-        time.sleep(1.5)
+        time.sleep(1.0)
         return
 
-    # 2. Start server in daemon thread
+    # 2. Start server in background thread
     server_thread = threading.Thread(target=start_server, daemon=True)
     server_thread.start()
     time.sleep(1.0)
 
-    # 3. Launch native window
+    # 3. Launch native window (blocks until user closes the window)
     try:
         launch_native_window()
     except Exception as e:
-        print(f"[Notice] Native window notice: {e}")
-        try:
-            import webbrowser
-            webbrowser.open("http://127.0.0.1:8000")
-        except Exception:
-            pass
+        print(f"[Error] Failed to launch native window: {e}")
 
-    # 4. If window closed because user explicitly clicked 'X', clean exit
-    global _user_requested_exit
-    if _user_requested_exit:
-        print("\n👋 បានបិទកម្មវិធី SN TOOL ជោគជ័យ។")
-        sys.exit(0)
-
-    # 5. Recovery Guard: If native window returned but user DID NOT click close, KEEP SERVER ALIVE!
-    print("\n🛡️ [RECOVERY GUARD] កំពុងរក្សាដំណើរការ SN TOOL Server លើ Port 8000...")
-    print("👉 បងអាចបន្តប្រើប្រាស់តាម Browser បានគ្រប់ពេល: http://127.0.0.1:8000")
-    print("   (ចុច Ctrl+C ក្នុងផ្ទាំងនេះប្រសិនបើចង់បិទកម្មវិធី)\n")
-    try:
-        while True:
-            time.sleep(1)
-    except (KeyboardInterrupt, SystemExit):
-        print("\n👋 បានបិទកម្មវិធី SN TOOL។")
+    # 4. Clean exit
+    os._exit(0)
 
 if __name__ == "__main__":
     main()

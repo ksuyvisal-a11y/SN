@@ -10,15 +10,19 @@ def build_installer():
     icon_file = base_dir / "icon.ico"
     output_dir = base_dir / "dist"
     
-    if not payload_zip.exists():
-        print(f"[!] Payload zip not found at {payload_zip}. Generating it now...")
-        import zipfile
-        p = base_dir / "dist" / "SN_TOOL"
-        payload_zip.parent.mkdir(parents=True, exist_ok=True)
-        with zipfile.ZipFile(payload_zip, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=4) as zf:
-            for f in p.rglob('*'):
-                if f.is_file():
-                    zf.write(f, f.relative_to(p))
+    print(f"[*] Packaging fresh setup payload from {base_dir / 'dist' / 'SN_TOOL'}...")
+    import zipfile
+    p = base_dir / "dist" / "SN_TOOL"
+    payload_zip.parent.mkdir(parents=True, exist_ok=True)
+    if payload_zip.exists():
+        payload_zip.unlink(missing_ok=True)
+    with zipfile.ZipFile(payload_zip, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=4) as zf:
+        for f in p.rglob('*'):
+            if f.is_file():
+                if f.name.lower() == "license.key":
+                    continue  # Strictly exclude license.key so clients start unactivated
+                zf.write(f, f.relative_to(p))
+    print(f"[OK] Payload zip ready ({payload_zip.stat().st_size / (1024*1024):.2f} MB)")
                     
     print("[*] Compiling SN_TOOL_Setup.exe via PyInstaller...")
     cmd = [

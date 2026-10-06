@@ -159,9 +159,8 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
             except Exception as e:
                 print(f"App window mode notice: {e}")
 
-    # 3. Fallback to default browser
-    import webbrowser
-    webbrowser.open(url)
+    # 3. Clean exit
+    os._exit(0)
 
 if __name__ == "__main__":
     if check_and_handle_running_server():
