@@ -1,6 +1,7 @@
 """
-SN TOOL - Official Windows Setup Installer GUI (v1.0.1)
-Professional 1-Click Installer for Khmer AI Drama Studio
+SN TOOL - Official Modern Frameless Splash Installer & Launcher (v1.0.1)
+Displays the 3D Gold Emblem Logo for 3 seconds, sets up in the background,
+and immediately transitions straight into the Studio / License Key screen.
 """
 
 import os
@@ -12,7 +13,7 @@ import threading
 import subprocess
 from pathlib import Path
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk
 
 # High DPI awareness
 try:
@@ -20,6 +21,7 @@ try:
     ctypes.windll.shcore.SetProcessDpiAwareness(2)
 except Exception:
     try:
+        import ctypes
         ctypes.windll.user32.SetProcessDPIAware()
     except Exception:
         pass
@@ -34,29 +36,13 @@ def get_default_install_dir() -> Path:
 
 def create_windows_shortcut(target_exe: Path, shortcut_path: Path, icon_file: Path = None, description: str = "SN TOOL - STUDIO PRO"):
     try:
-        import win32com.client  # try pywin32 if available
-        shell = win32com.client.Dispatch("WScript.Shell")
-        sc = shell.CreateShortCut(str(shortcut_path))
-        sc.Targetpath = str(target_exe)
-        sc.WorkingDirectory = str(target_exe.parent)
-        sc.Description = description
-        if icon_file and icon_file.exists():
-            sc.IconLocation = f"{icon_file},0"
-        sc.save()
-        return True
-    except Exception:
-        pass
-
-    # Powershell fallback
-    try:
-        icon_line = f"$s.IconLocation = '{icon_file},0';" if icon_file and icon_file.exists() else ""
         ps_cmd = f"""
 $ws = New-Object -ComObject WScript.Shell;
 $s = $ws.CreateShortcut('{shortcut_path}');
 $s.TargetPath = '{target_exe}';
 $s.WorkingDirectory = '{target_exe.parent}';
 $s.Description = '{description}';
-{icon_line}
+$s.IconLocation = '{icon_file},0';
 $s.Save();
 """
         subprocess.run(
@@ -69,339 +55,164 @@ $s.Save();
         return False
 
 
-def get_payload_zip_path() -> Path:
-    # 1. Bundled inside PyInstaller _MEIPASS
+def get_resource_path(relative_name: str) -> Path:
     if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
-        p = Path(sys._MEIPASS) / "setup_payload.zip"
+        p = Path(sys._MEIPASS) / relative_name
         if p.exists():
             return p
-            
-    # 2. Next to executable
     exe_dir = Path(sys.executable).parent if getattr(sys, 'frozen', False) else Path(__file__).resolve().parent.parent
-    candidates = [
-        exe_dir / "setup_payload.zip",
-        exe_dir / "cache" / "setup_payload.zip",
-        Path(__file__).resolve().parent.parent / "cache" / "setup_payload.zip",
-    ]
-    for c in candidates:
+    for c in [exe_dir / relative_name, exe_dir / "cache" / relative_name, exe_dir / "static" / relative_name, Path(__file__).resolve().parent.parent / relative_name]:
         if c.exists():
             return c
-    return candidates[0]
+    return Path(relative_name)
 
 
-class SnToolInstallerApp:
+class SnToolSplashInstaller:
     def __init__(self, root: tk.Tk):
         self.root = root
-        self.root.title("SN TOOL - STUDIO PRO v1.0.1 Setup")
-        self.root.geometry("560x470")
-        self.root.resizable(False, False)
-        self.root.configure(bg="#0c0a09")
-
-        # Center window
-        self.root.update_idletasks()
-        w = self.root.winfo_width()
-        h = self.root.winfo_height()
+        self.root.overrideredirect(True)  # Frameless modern window
+        self.root.configure(bg="#080706")
+        
+        self.width = 440
+        self.height = 490
+        
+        # Center window on screen
         ws = self.root.winfo_screenwidth()
         hs = self.root.winfo_screenheight()
-        x = (ws - w) // 2
-        y = (hs - h) // 2
-        self.root.geometry(f"{w}x{h}+{x}+{y}")
-
-        # Set Icon
-        self.icon_path = None
-        for cand in [
-            Path(__file__).resolve().parent.parent / "icon.ico",
-            Path(getattr(sys, '_MEIPASS', '')) / "icon.ico" if getattr(sys, 'frozen', False) else None,
-            Path(sys.executable).parent / "icon.ico" if getattr(sys, 'frozen', False) else None
-        ]:
-            if cand and cand.exists():
-                self.icon_path = cand
-                try:
-                    self.root.iconbitmap(str(cand))
-                except Exception:
-                    pass
-                break
-
-        self.install_dir_var = tk.StringVar(value=str(get_default_install_dir()))
-        self.create_desktop_sc_var = tk.BooleanVar(value=True)
-        self.create_startmenu_sc_var = tk.BooleanVar(value=True)
-        self.launch_after_var = tk.BooleanVar(value=True)
-
-        self.is_installing = False
-        self.is_completed = False
-
+        x = (ws - self.width) // 2
+        y = (hs - self.height) // 2
+        self.root.geometry(f"{self.width}x{self.height}+{x}+{y}")
+        
+        # Keep on top initially
+        self.root.attributes("-topmost", True)
+        
+        self.start_time = time.time()
+        self.extraction_done = False
+        self.progress_val = 0.0
+        
+        self.logo_img = None
         self._setup_ui()
+        
+        # Start background extraction
+        t = threading.Thread(target=self._run_background_setup, daemon=True)
+        t.start()
+        
+        # Start animation ticker
+        self.root.after(40, self._tick_animation)
 
     def _setup_ui(self):
-        # 1. Header Frame
-        header = tk.Frame(self.root, bg="#171412", height=90, padx=20, pady=14)
-        header.pack(fill="x")
-        header.pack_propagate(False)
+        # Outer border frame with gold border accent
+        outer = tk.Frame(self.root, bg="#080706", highlightbackground="#facc15", highlightcolor="#facc15", highlightthickness=1.5)
+        outer.pack(fill="both", expand=True)
 
+        # Inner container
+        inner = tk.Frame(outer, bg="#0d0b09", padx=20, pady=24)
+        inner.pack(fill="both", expand=True, padx=2, pady=2)
+
+        # 1. 3D Gold Logo
+        logo_path = get_resource_path("logo.png")
+        if not logo_path.exists():
+            logo_path = get_resource_path("static/logo.png")
+            
+        if logo_path.exists():
+            try:
+                from PIL import Image, ImageTk
+                img = Image.open(str(logo_path)).convert("RGBA")
+                img = img.resize((140, 160), Image.Resampling.LANCZOS)
+                self.logo_img = ImageTk.PhotoImage(img)
+                lbl_logo = tk.Label(inner, image=self.logo_img, bg="#0d0b09")
+                lbl_logo.pack(pady=(10, 12))
+            except Exception:
+                pass
+
+        # 2. Brand Titles
         title_lbl = tk.Label(
-            header,
-            text="🎬 SN TOOL - STUDIO PRO",
-            font=("Segoe UI", 14, "bold"),
+            inner,
+            text="SN TOOL",
+            font=("Segoe UI", 24, "bold"),
             fg="#facc15",
-            bg="#171412"
+            bg="#0d0b09"
         )
-        title_lbl.pack(anchor="w")
+        title_lbl.pack(pady=(0, 2))
 
         sub_lbl = tk.Label(
-            header,
-            text="កម្មវិធីដំឡើងស្វ័យប្រវត្តិកំណែទម្រង់ Version 1.0.1 (Official Setup Wizard)",
-            font=("Segoe UI", 9),
+            inner,
+            text="STUDIO PRO • v1.0.1",
+            font=("Segoe UI", 10, "bold"),
             fg="#94a3b8",
-            bg="#171412"
+            bg="#0d0b09"
         )
-        sub_lbl.pack(anchor="w", pady=(3, 0))
+        sub_lbl.pack(pady=(0, 20))
 
-        # Divider line
-        div = tk.Frame(self.root, bg="#facc15", height=2)
-        div.pack(fill="x")
-
-        # 2. Main Content Frame
-        content = tk.Frame(self.root, bg="#0c0a09", padx=24, pady=16)
-        content.pack(fill="both", expand=True)
-
-        # Welcome text
-        desc_lbl = tk.Label(
-            content,
-            text="សូមស្វាគមន៍មកកាន់ការដំឡើង SN TOOL (Khmer AI Drama Studio)។\nកម្មវិធីនឹងត្រូវដំឡើងដោយស្វ័យប្រវត្តិលើកុំព្យូទ័ររបស់អ្នកក្នុងរយៈពេលខ្លី។",
-            font=("Segoe UI", 9),
-            fg="#e2e8f0",
-            bg="#0c0a09",
-            justify="left"
-        )
-        desc_lbl.pack(anchor="w", pady=(0, 14))
-
-        # Destination Selection
-        dest_lbl = tk.Label(
-            content,
-            text="ទីតាំងដំឡើង (Install Destination Folder):",
-            font=("Segoe UI", 9, "bold"),
-            fg="#facc15",
-            bg="#0c0a09"
-        )
-        dest_lbl.pack(anchor="w", pady=(0, 4))
-
-        dest_row = tk.Frame(content, bg="#0c0a09")
-        dest_row.pack(fill="x", pady=(0, 10))
-
-        self.dest_entry = tk.Entry(
-            dest_row,
-            textvariable=self.install_dir_var,
-            font=("Segoe UI", 9),
-            bg="#1c1917",
-            fg="#ffffff",
-            insertbackground="#facc15",
-            relief="solid",
-            bd=1
-        )
-        self.dest_entry.pack(side="left", fill="x", expand=True, ipady=4, padx=(0, 8))
-
-        self.btn_browse = tk.Button(
-            dest_row,
-            text="Browse...",
-            font=("Segoe UI", 9),
-            bg="#292524",
-            fg="#e2e8f0",
-            activebackground="#44403c",
-            activeforeground="#ffffff",
-            relief="flat",
-            padx=12,
-            pady=3,
-            command=self._on_browse
-        )
-        self.btn_browse.pack(side="right")
-
-        # Options checkbuttons
-        opts_frame = tk.Frame(content, bg="#0c0a09")
-        opts_frame.pack(fill="x", pady=(0, 12))
-
-        cb_desktop = tk.Checkbutton(
-            opts_frame,
-            text="បង្កើតផ្លូវកាត់លើ Desktop (Create Desktop Shortcut)",
-            variable=self.create_desktop_sc_var,
-            font=("Segoe UI", 9),
-            fg="#cbd5e1",
-            bg="#0c0a09",
-            activebackground="#0c0a09",
-            activeforeground="#facc15",
-            selectcolor="#1c1917"
-        )
-        cb_desktop.pack(anchor="w")
-
-        cb_launch = tk.Checkbutton(
-            opts_frame,
-            text="បើកដំណើរការ SN TOOL ភ្លាមៗក្រោយដំឡើងរួច (Launch SN TOOL now)",
-            variable=self.launch_after_var,
-            font=("Segoe UI", 9),
-            fg="#cbd5e1",
-            bg="#0c0a09",
-            activebackground="#0c0a09",
-            activeforeground="#facc15",
-            selectcolor="#1c1917"
-        )
-        cb_launch.pack(anchor="w")
-
-        # Progress Section
-        self.prog_frame = tk.Frame(content, bg="#0c0a09")
-        self.prog_frame.pack(fill="x", pady=(6, 0))
-
+        # 3. Status text
         self.status_lbl = tk.Label(
-            self.prog_frame,
-            text="ត្រៀមដំឡើង (Ready to install)",
-            font=("Segoe UI", 8),
-            fg="#94a3b8",
-            bg="#0c0a09"
+            inner,
+            text="កំពុងដំណើរការកម្មវិធី... (Starting Studio...)",
+            font=("Segoe UI", 9),
+            fg="#cbd5e1",
+            bg="#0d0b09"
         )
-        self.status_lbl.pack(anchor="w", pady=(0, 4))
+        self.status_lbl.pack(pady=(0, 10))
 
+        # 4. Sleek Progress Bar
         style = ttk.Style()
         style.theme_use('default')
         style.configure(
-            "Gold.Horizontal.TProgressbar",
+            "SplashGold.Horizontal.TProgressbar",
             troughcolor="#1c1917",
             background="#facc15",
-            thickness=10
+            thickness=6
         )
 
         self.prog_bar = ttk.Progressbar(
-            self.prog_frame,
+            inner,
             orient="horizontal",
-            length=100,
+            length=320,
             mode="determinate",
-            style="Gold.Horizontal.TProgressbar"
+            style="SplashGold.Horizontal.TProgressbar"
         )
-        self.prog_bar.pack(fill="x")
+        self.prog_bar.pack(pady=(0, 14))
 
-        # 3. Footer Bar
-        footer = tk.Frame(self.root, bg="#171412", height=60, padx=20, pady=12)
-        footer.pack(fill="x", side="bottom")
-        footer.pack_propagate(False)
-
-        self.btn_cancel = tk.Button(
-            footer,
-            text="Cancel (បោះបង់)",
-            font=("Segoe UI", 9),
-            bg="#292524",
-            fg="#94a3b8",
-            activebackground="#44403c",
-            activeforeground="#ffffff",
-            relief="flat",
-            padx=14,
-            pady=4,
-            command=self._on_cancel
+        # 5. Bottom micro label
+        foot_lbl = tk.Label(
+            inner,
+            text="Khmer AI Drama Voice Translator & Movie Recap Studio",
+            font=("Segoe UI", 7),
+            fg="#64748b",
+            bg="#0d0b09"
         )
-        self.btn_cancel.pack(side="left")
+        foot_lbl.pack(side="bottom")
 
-        self.btn_action = tk.Button(
-            footer,
-            text="ដំឡើងឥឡូវនេះ (Install Now)",
-            font=("Segoe UI", 9, "bold"),
-            bg="#facc15",
-            fg="#0f0d0b",
-            activebackground="#eab308",
-            activeforeground="#000000",
-            relief="flat",
-            padx=20,
-            pady=4,
-            cursor="hand2",
-            command=self._on_action_click
-        )
-        self.btn_action.pack(side="right")
-
-    def _on_browse(self):
-        chosen = filedialog.askdirectory(initialdir=self.install_dir_var.get(), title="ជ្រើសរើស Folder ដំឡើង SN TOOL")
-        if chosen:
-            self.install_dir_var.set(chosen)
-
-    def _on_cancel(self):
-        if self.is_installing:
-            if not messagebox.askyesno("បញ្ជាក់", "តើអ្នកពិតជាចង់បោះបង់ការដំឡើងមែនទេ?"):
-                return
-        self.root.destroy()
-
-    def _on_action_click(self):
-        if self.is_completed:
-            # Finish action
-            if self.launch_after_var.get():
-                target_exe = Path(self.install_dir_var.get()) / "SN_TOOL.exe"
-                if target_exe.exists():
-                    subprocess.Popen([str(target_exe)], cwd=str(target_exe.parent))
-            self.root.destroy()
-            return
-
-        if self.is_installing:
-            return
-
-        # Start installation in thread
-        self.is_installing = True
-        self.dest_entry.config(state="disabled")
-        self.btn_browse.config(state="disabled")
-        self.btn_action.config(state="disabled", text="កំពុងដំឡើង... (Installing)")
-        self.btn_cancel.config(state="disabled")
-
-        t = threading.Thread(target=self._run_install_thread, daemon=True)
-        t.start()
-
-    def _run_install_thread(self):
-        target_dir = Path(self.install_dir_var.get())
-        payload_zip = get_payload_zip_path()
-
+    def _run_background_setup(self):
+        target_dir = get_default_install_dir()
+        payload_zip = get_resource_path("setup_payload.zip")
         if not payload_zip.exists():
-            self._set_status(f"Error: រកមិនឃើញកញ្ចប់ដំឡើង ({payload_zip.name})", error=True)
-            self._enable_action("បរាជ័យ (Failed)")
-            return
+            payload_zip = get_resource_path("cache/setup_payload.zip")
 
         try:
             target_dir.mkdir(parents=True, exist_ok=True)
             
-            self._set_status("កំពុងពិនិត្យ និងពន្លាឯកសារ... (Reading package)")
-            with zipfile.ZipFile(payload_zip, 'r') as zf:
-                file_list = [f for f in zf.infolist() if not f.is_dir()]
-                total_files = len(file_list)
-                
-                for idx, item in enumerate(file_list):
-                    # Extract single file
-                    dest_f = target_dir / item.filename
-                    dest_f.parent.mkdir(parents=True, exist_ok=True)
-                    
-                    try:
-                        zf.extract(item, target_dir)
-                    except Exception:
-                        pass
-                        
-                    # Update progress every 15 files
-                    if idx % 15 == 0 or idx == total_files - 1:
-                        pct = int(((idx + 1) / total_files) * 90)
-                        self._set_progress(pct)
-                        fname_short = Path(item.filename).name
-                        if len(fname_short) > 28:
-                            fname_short = fname_short[:25] + "..."
-                        self._set_status(f"កំពុងដំឡើង ({pct}%): {fname_short}")
+            if payload_zip.exists():
+                with zipfile.ZipFile(payload_zip, 'r') as zf:
+                    zf.extractall(target_dir)
 
-            # Create Shortcuts
-            self._set_progress(95)
-            self._set_status("កំពុងបង្កើតផ្លូវកាត់លើ Desktop (Creating Shortcuts)...")
-            
+            # Create Desktop Shortcut
             target_exe = target_dir / "SN_TOOL.exe"
-            target_icon = target_dir / "icon.ico"
-            if not target_icon.exists() and self.icon_path and self.icon_path.exists():
-                shutil.copy2(self.icon_path, target_icon)
+            icon_file = target_dir / "icon.ico"
+            if not icon_file.exists():
+                src_icon = get_resource_path("icon.ico")
+                if src_icon.exists():
+                    shutil.copy2(src_icon, icon_file)
 
-            if self.create_desktop_sc_var.get() and target_exe.exists():
+            if target_exe.exists():
                 desktop = Path(os.environ.get("USERPROFILE", "")) / "Desktop"
                 if desktop.exists():
                     create_windows_shortcut(
                         target_exe=target_exe,
                         shortcut_path=desktop / "SN TOOL.lnk",
-                        icon_file=target_icon,
+                        icon_file=icon_file,
                         description="SN TOOL - STUDIO PRO (Khmer AI Drama Studio)"
                     )
-
-            if self.create_startmenu_sc_var.get() and target_exe.exists():
                 appdata = os.environ.get("APPDATA")
                 if appdata:
                     start_programs = Path(appdata) / "Microsoft" / "Windows" / "Start Menu" / "Programs"
@@ -409,41 +220,43 @@ class SnToolInstallerApp:
                         create_windows_shortcut(
                             target_exe=target_exe,
                             shortcut_path=start_programs / "SN TOOL.lnk",
-                            icon_file=target_icon,
+                            icon_file=icon_file,
                             description="SN TOOL - STUDIO PRO"
                         )
-
-            # Success
-            self._set_progress(100)
-            self._set_status("✅ ដំឡើងជោគជ័យ ១០០% (Installation Completed!)")
-            self.is_completed = True
-            self._enable_action("បញ្ចប់ (Finish)", success=True)
-
         except Exception as e:
-            self._set_status(f"Error: {e}", error=True)
-            self._enable_action("បរាជ័យ (Failed)")
+            print("Setup exception:", e)
+        finally:
+            self.extraction_done = True
 
-    def _set_status(self, text: str, error: bool = False):
-        fg = "#ef4444" if error else ("#4ade80" if "ជោគជ័យ" in text else "#94a3b8")
-        self.root.after(0, lambda: self.status_lbl.config(text=text, fg=fg))
+    def _tick_animation(self):
+        elapsed = time.time() - self.start_time
+        target_pct = min(100.0, (elapsed / 3.0) * 100.0)
 
-    def _set_progress(self, val: int):
-        self.root.after(0, lambda: self.prog_bar.config(value=val))
+        # Smooth progression
+        if self.progress_val < target_pct:
+            self.progress_val += (target_pct - self.progress_val) * 0.35
+        self.prog_bar["value"] = self.progress_val
 
-    def _enable_action(self, btn_text: str, success: bool = False):
-        def _cb():
-            self.btn_action.config(state="normal", text=btn_text)
-            if success:
-                self.btn_action.config(bg="#22c55e", fg="#ffffff")
-                self.btn_cancel.config(state="disabled")
-            else:
-                self.btn_cancel.config(state="normal")
-        self.root.after(0, _cb)
+        # After 3 full seconds and extraction done, launch app!
+        if elapsed >= 3.0 and self.extraction_done:
+            self.prog_bar["value"] = 100.0
+            self.status_lbl.config(text="✅ រួចរាល់! កំពុងបើកកម្មវិធី...", fg="#4ade80")
+            self.root.after(250, self._launch_and_exit)
+            return
+
+        self.root.after(35, self._tick_animation)
+
+    def _launch_and_exit(self):
+        target_exe = get_default_install_dir() / "SN_TOOL.exe"
+        if target_exe.exists():
+            subprocess.Popen([str(target_exe)], cwd=str(target_exe.parent))
+        self.root.destroy()
+        sys.exit(0)
 
 
 def main():
     root = tk.Tk()
-    app = SnToolInstallerApp(root)
+    app = SnToolSplashInstaller(root)
     root.mainloop()
 
 

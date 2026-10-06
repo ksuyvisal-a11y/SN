@@ -29,6 +29,7 @@ def build_installer():
         f"--icon={icon_file}",
         f"--add-data={payload_zip};.",
         f"--add-data={icon_file};.",
+        f"--add-data={base_dir / 'static' / 'logo.png'};.",
         "--distpath", str(output_dir),
         "--workpath", str(base_dir / "build" / "installer_build"),
         "--specpath", str(base_dir / "build"),
