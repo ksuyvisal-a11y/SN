@@ -7,11 +7,21 @@ dist_sn = base_dir / "dist" / "SN_TOOL"
 
 dist_sn.mkdir(parents=True, exist_ok=True)
 
-# 1. Copy icon and configs
-for fname in ["icon.ico", "license_config.json", "custom_keys.json"]:
+# 1. Copy icon, configs, and admin tools
+admin_sync_files = [
+    "icon.ico", "license_config.json", "custom_keys.json", "admin_key_history.json",
+    "generated_keys_log.txt", "ADMIN_KEY_GENERATOR.py", "admin_dashboard.py",
+    "license_engine.py", "START_ADMIN_KEY_GENERATOR.bat"
+]
+for fname in admin_sync_files:
     src = base_dir / fname
     if src.exists():
         shutil.copy2(src, dist_sn / fname)
+
+# Also copy ADMIN_KEY_GENERATOR.exe if available in dist/ADMIN_KEY_GENERATOR
+admin_exe_src = base_dir / "dist" / "ADMIN_KEY_GENERATOR" / "ADMIN_KEY_GENERATOR.exe"
+if admin_exe_src.exists():
+    shutil.copy2(admin_exe_src, dist_sn / "ADMIN_KEY_GENERATOR.exe")
 
 # 2. Write START_SN_TOOL.bat
 start_bat = """@echo off
@@ -76,4 +86,20 @@ shutil.copytree(base_dir / "static", internal_static)
 # 6. Ensure cache dir exists
 (dist_sn / "cache").mkdir(parents=True, exist_ok=True)
 
-print("[OK] dist/SN_TOOL is completely synchronized and ready for production distribution!")
+# 7. Sync dist/ADMIN_KEY_GENERATOR static assets & configs
+dist_admin = base_dir / "dist" / "ADMIN_KEY_GENERATOR"
+if dist_admin.exists():
+    for fname in ["custom_keys.json", "admin_key_history.json", "license_config.json", "icon.ico"]:
+        src = base_dir / fname
+        if src.exists():
+            shutil.copy2(src, dist_admin / fname)
+    admin_static = dist_admin / "static"
+    if admin_static.exists():
+        shutil.rmtree(admin_static)
+    shutil.copytree(base_dir / "static", admin_static)
+    admin_int_static = dist_admin / "_internal" / "static"
+    if admin_int_static.exists():
+        shutil.rmtree(admin_int_static)
+    shutil.copytree(base_dir / "static", admin_int_static)
+
+print("[OK] dist/SN_TOOL and dist/ADMIN_KEY_GENERATOR are completely synchronized and ready for production distribution!")

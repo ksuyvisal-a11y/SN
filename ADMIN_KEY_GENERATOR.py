@@ -113,7 +113,7 @@ def interactive_menu():
     while True:
         print_header()
         print(" 🌐 ផ្នែកទី ១: WEB ADMIN DASHBOARD (ផ្ទាំងគ្រប់គ្រងលើ BROWSER)")
-        print(" [1] បើកផ្ទាំង Admin Dashboard (http://127.0.0.1:8000/admin)")
+        print(" [1] បើកផ្ទាំង Admin Dashboard (http://127.0.0.1:8888/admin)")
         print("-" * 65)
         print(" 🔑 ផ្នែកទី ២: បង្កើត KEY ជូនអតិថិជន (KEY GENERATION)")
         print(" [2] បង្កើត License Key ថ្មី (កំណត់ចំនួនថ្ងៃ 30d, 90d, 1y, មួយជីវិត)")
