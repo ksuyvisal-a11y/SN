@@ -21,6 +21,7 @@ dist/**/data/
 dist/**/license.key
 dist/**/admin_key_history.json
 dist/**/generated_keys_log.txt
+dist/*.exe
 *.tmp
 *.log
 *.db
