@@ -1,6 +1,6 @@
 """
 ===========================================================================
-  🔐 SN STUDIO - ADMIN KEY GENERATOR & VIP LICENSE MANAGER
+  🔐 SN STUDIO - ADMIN KEY GENERATOR & LICENSE MANAGER
 ===========================================================================
 This tool allows the Administrator to generate, list, and manage user License Keys.
 """
@@ -93,7 +93,7 @@ def print_header():
 def print_key_card(record):
     msg = (
         f"\n=======================================================\n"
-        f" 🎬 SN STUDIO - VIP LICENSE KEY\n"
+        f" 🎬 SN STUDIO - LICENSE KEY\n"
         f"=======================================================\n"
         f" 👤 Client:  {record.get('client_name')}\n"
         f" 🔑 Key:     {record.get('license_key')}\n"
@@ -111,28 +111,33 @@ def print_key_card(record):
 def interactive_menu():
     ensure_server_running()
     while True:
-        print_header()
-        print(" 🌐 ផ្នែកទី ១: WEB ADMIN DASHBOARD (ផ្ទាំងគ្រប់គ្រងលើ BROWSER)")
-        print(" [1] បើកផ្ទាំង Admin Dashboard (http://127.0.0.1:8888/admin)")
-        print("-" * 65)
-        print(" 🔑 ផ្នែកទី ២: បង្កើត KEY ជូនអតិថិជន (KEY GENERATION)")
-        print(" [2] បង្កើត License Key ថ្មី (កំណត់ចំនួនថ្ងៃ 30d, 90d, 1y, មួយជីវិត)")
-        print(" [3] បង្កើត Custom Key ផ្ទាល់ខ្លួន (វាយអក្សរតាមចិត្ត ឧ. SAL-2026)")
-        print(" [9] បង្កើត Lifetime Key មួយជីវិតភ្លាមៗ (Quick Lifetime VIP)")
-        print("-" * 65)
-        print(" 👥 ផ្នែកទី ៣: គ្រប់គ្រងអតិថិជន & BLOCK USER (MANAGEMENT)")
-        print(" [4] បញ្ឈប់ / Block Key របស់ User (Revoke / Ban Key មិនឱ្យប្រើ)")
-        print(" [5] ដោះសោ / Unban Key (Restore Key ឱ្យដំណើរការឡើងវិញ)")
-        print(" [7] មើលប្រវត្តិ Key និងអតិថិជនទាំងអស់ (View All Keys History)")
-        print(" [8] ត្រួតពិនិត្យ និង Verify License Key")
-        print("-" * 65)
-        print(" ⚙️ ផ្នែកទី ៤: ការកំណត់ GATE & SYSTEM (GATE SETTINGS)")
-        print(" [6] បិទ / បើក ការទាមទារ Key (Toggle Free Mode vs Require Key)")
-        print(" [S] 🔄 ធ្វើបច្ចុប្បន្នភាព Key Online ទាំងអស់ (Sync & Export Online Keys)")
-        print(" [0] ចាកចេញពីកម្មវិធី (Exit)")
-        print("=" * 65)
-        
-        choice = input("👉 សូមជ្រើសរើសជម្រើស (0-9 ឬ S): ").strip()
+        try:
+            print_header()
+            print(" 🌐 ផ្នែកទី ១: WEB ADMIN DASHBOARD (ផ្ទាំងគ្រប់គ្រងលើ BROWSER)")
+            print(" [1] បើកផ្ទាំង Admin Dashboard (http://127.0.0.1:8888/admin)")
+            print("-" * 65)
+            print(" 🔑 ផ្នែកទី ២: បង្កើត KEY ជូនអតិថិជន (KEY GENERATION)")
+            print(" [2] បង្កើត License Key ថ្មី (កំណត់ចំនួនថ្ងៃ 30d, 90d, 1y, មួយជីវិត)")
+            print(" [3] បង្កើត Custom Key ផ្ទាល់ខ្លួន (វាយអក្សរតាមចិត្ត ឧ. SAL-2026)")
+            print(" [9] បង្កើត Lifetime Key មួយជីវិតភ្លាមៗ (Quick Lifetime)")
+            print("-" * 65)
+            print(" 👥 ផ្នែកទី ៣: គ្រប់គ្រងអតិថិជន & BLOCK USER (MANAGEMENT)")
+            print(" [4] បញ្ឈប់ / Block Key របស់ User (Revoke / Ban Key មិនឱ្យប្រើ)")
+            print(" [5] ដោះសោ / Unban Key (Restore Key ឱ្យដំណើរការឡើងវិញ)")
+            print(" [7] មើលប្រវត្តិ Key និងអតិថិជនទាំងអស់ (View All Keys History)")
+            print(" [8] ត្រួតពិនិត្យ និង Verify License Key")
+            print("-" * 65)
+            print(" ⚙️ ផ្នែកទី ៤: ការកំណត់ GATE & SYSTEM (GATE SETTINGS)")
+            print(" [6] បិទ / បើក ការទាមទារ Key (Toggle Free Mode vs Require Key)")
+            print(" [S] 🔄 ធ្វើបច្ចុប្បន្នភាព Key Online ទាំងអស់ (Sync & Export Online Keys)")
+            print(" [0] ចាកចេញពីកម្មវិធី (Exit)")
+            print("=" * 65)
+
+            choice = input("👉 សូមជ្រើសរើសជម្រើស (0-9 ឬ S): ").strip()
+        except (KeyboardInterrupt, EOFError):
+            print("\n\n⚠️ បានទទួលសញ្ញាផ្អាក។ ប្រសិនបើចង់ចាកចេញ សូមជ្រើសរើសលេខ 0។")
+            time.sleep(1)
+            continue
 
         if choice == "1":
             import webbrowser
@@ -151,12 +156,12 @@ def interactive_menu():
             input("\nចុច Enter ដើម្បីបន្ត...")
 
         elif choice == "2":
-            client_name = input("\n👤 បញ្ចូលឈ្មោះ Client/User (ឧ. Sokha_FB): ").strip() or "VIP_Client"
+            client_name = input("\n👤 បញ្ចូលឈ្មោះ Client/User (ឧ. Sokha_FB): ").strip() or "Client"
             print("\nជ្រើសរើសកាលកំណត់ (Duration):")
             print(" [1] 30 ថ្ងៃ (1 Month)")
             print(" [2] 90 ថ្ងៃ (3 Months)")
             print(" [3] 365 ថ្ងៃ (1 Year)")
-            print(" [4] ពេញមួយជីវិត (Lifetime VIP)")
+            print(" [4] ពេញមួយជីវិត (Lifetime)")
             print(" [5] Trial 3 ថ្ងៃ (3-Day Trial)")
             print(" [6] វាយចំនួនថ្ងៃផ្ទាល់ខ្លួន (Custom Days ឧ. 5, 14, 60, 180...)")
             
@@ -165,15 +170,15 @@ def interactive_menu():
                 try:
                     custom_d = int(input("👉 បញ្ចូលចំនួនថ្ងៃ (វាយ 0 សម្រាប់មួយជីវិត): ").strip() or "30")
                     days = custom_d
-                    plan = f"VIP_{days}D" if days > 0 else "VIP_LIFETIME"
+                    plan = f"{days}D" if days > 0 else "LIFETIME"
                 except Exception:
                     days = 30
-                    plan = "VIP_30D"
+                    plan = "30D"
             else:
                 days_map = {"1": 30, "2": 90, "3": 365, "4": 0, "5": 3}
-                plan_map = {"1": "VIP_1M", "2": "VIP_3M", "3": "VIP_1Y", "4": "VIP_LIFETIME", "5": "TRIAL_3D"}
+                plan_map = {"1": "1M", "2": "3M", "3": "1Y", "4": "LIFETIME", "5": "TRIAL_3D"}
                 days = days_map.get(dur_choice, 30)
-                plan = plan_map.get(dur_choice, "VIP_PRO")
+                plan = plan_map.get(dur_choice, "PRO")
             
             bind_hw = input("\n🔒 ចង់ចាក់សោតាម HWID របស់ម៉ាស៊ីន Client ទេ?\n(ចុច Enter ដើម្បីអនុញ្ញាតប្រើបានគ្រប់ម៉ាស៊ីន ឬ Paste HWID របស់ Client): ").strip()
             hwid_val = bind_hw if bind_hw else None
@@ -184,17 +189,17 @@ def interactive_menu():
 
         elif choice == "3":
             print("\n✍️ បង្កើត Custom Key ផ្ទាល់ខ្លួន (User-Defined Key / Password):")
-            print(" (ឧទាហរណ៍៖ SAL-VIP-2026, SAL2026, VIP8888, KHMER-STUDIO)")
+            print(" (ឧទាហរណ៍៖ SAL-2026, SAL888, KHMER-STUDIO)")
             custom_key = input("👉 បញ្ចូល Key ឬពាក្យសម្ងាត់ដែលបងចង់បាន: ").strip()
             if not custom_key:
                 print("⚠️ មិនបានបញ្ចូល Key ទេ!")
                 input("\nចុច Enter ដើម្បីបន្ត...")
                 continue
 
-            client_name = input("👤 ឈ្មោះ Client (ឧ. Sal / VIP_Customer): ").strip() or "VIP Client"
+            client_name = input("👤 ឈ្មោះ Client (ឧ. Sal / Sokha): ").strip() or "Client"
             
             print("\nកាលកំណត់សម្រាប់ Key នេះ:")
-            print(" [1] ពេញមួយជីវិត (Lifetime VIP - គ្មានថ្ងៃផុតកំណត់)")
+            print(" [1] ពេញមួយជីវិត (Lifetime - គ្មានថ្ងៃផុតកំណត់)")
             print(" [2] វាយចំនួនថ្ងៃជាក់លាក់ (Custom Days ឧ. 7, 30, 90, 365...)")
             d_opt = input("👉 ជ្រើសរើស (1 ឬ 2): ").strip()
             if d_opt == "2":
@@ -278,7 +283,7 @@ def interactive_menu():
 
         elif choice == "9":
             name = input("\n👤 ឈ្មោះ Client: ").strip() or "User_Lifetime"
-            rec = generate_license_key(client_name=name, duration_days=0, plan="VIP_LIFETIME")
+            rec = generate_license_key(client_name=name, duration_days=0, plan="LIFETIME")
             print_key_card(rec)
             input("\nចុច Enter ដើម្បីបន្ត...")
 
@@ -289,8 +294,20 @@ def interactive_menu():
             input("\nចុច Enter ដើម្បីបន្ត...")
 
         elif choice in ("0", "exit", "quit"):
-            print("\n👋 អរគុណ! ចាកចេញពី Admin Key Generator។\n")
-            break
+            confirm = input("👉 តើអ្នកពិតជាចង់ចាកចេញមែនទេ? (y/n): ").strip().lower()
+            if confirm in ('y', 'yes', 'បាទ', 'ចាស'):
+                print("\n👋 អរគុណ! ចាកចេញពី Admin Key Generator ដោយសុវត្ថិភាព។\n")
+                break
+            else:
+                continue
+
+        else:
+            print(f"\n⚠️ ជម្រើស '{choice}' មិនត្រឹមត្រូវទេ! សូមជ្រើសរើសជម្រើសដែលមានក្នុងបញ្ជី (0-9 ឬ S)។")
+            input("\nចុច Enter ដើម្បីបន្ត...")
 
 if __name__ == "__main__":
-    interactive_menu()
+    try:
+        interactive_menu()
+    except Exception as e:
+        print(f"\n⚠️ កើតមានបញ្ហា៖ {e}")
+        input("\nចុច Enter ដើម្បីបិទ...")

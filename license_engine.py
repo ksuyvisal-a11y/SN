@@ -54,23 +54,24 @@ def resolve_file_path(relative_path: str) -> Path:
 
 # Built-in Master Keys that work permanently out of the box (100% Offline & Online)
 DEFAULT_MASTER_KEYS: Dict[str, Dict[str, Any]] = {
-    "SN-ADMIN-MASTER-2026-VIP": {"client_name": "VIP Administrator", "plan": "LIFETIME_VIP"},
-    "SN-VIP-LIFETIME-PRO-2026": {"client_name": "VIP Administrator", "plan": "LIFETIME_VIP"},
-    "SN-PRO-8888-9999-VIP": {"client_name": "VIP Administrator", "plan": "LIFETIME_VIP"},
-    "SAL-VIP-2026": {"client_name": "VIP Sal", "plan": "LIFETIME_VIP"},
-    "SAL-VIP-888": {"client_name": "Khmer VIP", "plan": "LIFETIME_VIP"},
-    "SAL-2026": {"client_name": "VIP Sal", "plan": "LIFETIME_VIP"},
-    "MYPASS888": {"client_name": "VIP Customer", "plan": "LIFETIME_VIP"},
-    "VIP-CAMBODIA-2026": {"client_name": "VIP Cambodia", "plan": "LIFETIME_VIP"},
-    "VIP-PRO-2026": {"client_name": "VIP Studio Pro", "plan": "LIFETIME_VIP"},
-    "SN-STUDIO-PRO": {"client_name": "Studio Pro VIP", "plan": "LIFETIME_VIP"},
-    "SN-VIP-8888": {"client_name": "VIP Member", "plan": "LIFETIME_VIP"},
-    "VIP-STUDIO-2026": {"client_name": "Studio VIP", "plan": "LIFETIME_VIP"},
-    "SN-2026-PRO": {"client_name": "SN Pro VIP", "plan": "LIFETIME_VIP"},
-    "LIFETIME-VIP": {"client_name": "VIP Lifetime", "plan": "LIFETIME_VIP"},
-    "VIP-DARA-2026": {"client_name": "VIP Dara", "plan": "LIFETIME_VIP"},
-    "SN-VIP": {"client_name": "VIP Member", "plan": "LIFETIME_VIP"},
-    "VIP2026": {"client_name": "VIP Member", "plan": "LIFETIME_VIP"},
+    "SN-ADMIN-MASTER-2026": {"client_name": "Administrator", "plan": "LIFETIME"},
+    "SN-ADMIN-MASTER-2026-VIP": {"client_name": "Administrator", "plan": "LIFETIME"},
+    "SN-VIP-LIFETIME-PRO-2026": {"client_name": "Administrator", "plan": "LIFETIME"},
+    "SN-PRO-8888-9999-VIP": {"client_name": "Administrator", "plan": "LIFETIME"},
+    "SAL-VIP-2026": {"client_name": "Sal", "plan": "LIFETIME"},
+    "SAL-VIP-888": {"client_name": "Khmer User", "plan": "LIFETIME"},
+    "SAL-2026": {"client_name": "Sal", "plan": "LIFETIME"},
+    "MYPASS888": {"client_name": "Customer", "plan": "LIFETIME"},
+    "VIP-CAMBODIA-2026": {"client_name": "Cambodia User", "plan": "LIFETIME"},
+    "VIP-PRO-2026": {"client_name": "Studio Pro", "plan": "LIFETIME"},
+    "SN-STUDIO-PRO": {"client_name": "Studio Pro", "plan": "LIFETIME"},
+    "SN-VIP-8888": {"client_name": "Member", "plan": "LIFETIME"},
+    "VIP-STUDIO-2026": {"client_name": "Studio Member", "plan": "LIFETIME"},
+    "SN-2026-PRO": {"client_name": "SN Pro", "plan": "LIFETIME"},
+    "LIFETIME-VIP": {"client_name": "Lifetime User", "plan": "LIFETIME"},
+    "VIP-DARA-2026": {"client_name": "Dara", "plan": "LIFETIME"},
+    "SN-VIP": {"client_name": "Member", "plan": "LIFETIME"},
+    "VIP2026": {"client_name": "Member", "plan": "LIFETIME"},
 }
 
 
@@ -105,10 +106,10 @@ def set_license_required(required: bool) -> bool:
         return False
 
 
-def register_custom_key(custom_key: str, client_name: str = "VIP Client", duration_days: int = 0, hwid: Optional[str] = None, plan: str = "CUSTOM_VIP") -> Dict[str, Any]:
+def register_custom_key(custom_key: str, client_name: str = "Client", duration_days: int = 0, hwid: Optional[str] = None, plan: str = "CUSTOM") -> Dict[str, Any]:
     """
     Register an arbitrary custom key/password created directly by the user.
-    duration_days: 0 for Lifetime VIP, or any positive number of days (e.g. 5, 10, 45, 60, etc.)
+    duration_days: 0 for Lifetime, or any positive number of days (e.g. 5, 10, 45, 60, etc.)
     """
     cleaned_key = custom_key.strip().upper()
     created_at = datetime.now()
@@ -126,8 +127,8 @@ def register_custom_key(custom_key: str, client_name: str = "VIP Client", durati
 
     record = {
         "license_key": cleaned_key,
-        "client_name": client_name or "VIP Client",
-        "plan": plan or "CUSTOM_VIP",
+        "client_name": client_name or "Client",
+        "plan": plan or "CUSTOM",
         "duration_days": duration_days,
         "created_at": created_at.strftime("%Y-%m-%d %H:%M:%S"),
         "expires_at": expiry_str,
@@ -198,8 +199,8 @@ def sync_online_keys() -> Dict[str, Any]:
     for mk, meta in DEFAULT_MASTER_KEYS.items():
         all_keys[mk] = {
             "license_key": mk,
-            "client_name": meta.get("client_name", "VIP Administrator"),
-            "plan": meta.get("plan", "LIFETIME_VIP"),
+            "client_name": meta.get("client_name", "Administrator"),
+            "plan": meta.get("plan", "LIFETIME"),
             "duration_days": 0,
             "created_at": "2026-10-01 00:00:00",
             "expires_at": "LIFETIME",
@@ -554,7 +555,7 @@ def clear_all_admin_keys() -> Tuple[bool, str]:
 
     try:
         with open(GENERATED_KEYS_LOG, "w", encoding="utf-8") as f:
-            f.write("# SN STUDIO - VIP License Key Log\n")
+            f.write("# SN STUDIO - License Key Log\n")
     except Exception:
         pass
 
@@ -620,12 +621,12 @@ def get_machine_hwid() -> str:
     return hashlib.sha256(raw.encode()).hexdigest()[:16].upper()
 
 
-def generate_license_key(client_name: str, duration_days: int = 30, hwid: Optional[str] = None, plan: str = "VIP") -> Dict[str, Any]:
+def generate_license_key(client_name: str, duration_days: int = 30, hwid: Optional[str] = None, plan: str = "PRO") -> Dict[str, Any]:
     """
     Generate a cryptographically verified license key that can be verified offline anywhere.
     duration_days: 0 for Lifetime, or positive number for days.
     """
-    clean_plan = plan.strip().upper() if plan else "VIP"
+    clean_plan = plan.strip().upper() if plan else "PRO"
     if clean_plan in ("LIFETIME", "LIFE", "LIF"):
         plan_tag = "LIF"
     elif clean_plan in ("365D", "1YEAR", "1Y"):
@@ -916,10 +917,10 @@ def verify_license_key(input_key: str, current_hwid: Optional[str] = None) -> Tu
     # 1. Check Default Master Keys (100% Offline & Online, Universal)
     if cleaned_key in DEFAULT_MASTER_KEYS:
         master_info = DEFAULT_MASTER_KEYS[cleaned_key]
-        return True, "✅ Master VIP License Key ត្រឹមត្រូវ!", {
+        return True, "✅ License Key ត្រឹមត្រូវ!", {
             "license_key": cleaned_key,
-            "client_name": master_info.get("client_name", "VIP Administrator"),
-            "plan": master_info.get("plan", "LIFETIME_VIP"),
+            "client_name": master_info.get("client_name", "Administrator"),
+            "plan": master_info.get("plan", "LIFETIME"),
             "expires_at": "LIFETIME",
             "expiry_timestamp": 0,
             "bound_hwid": "ANY",
@@ -1023,8 +1024,8 @@ def verify_license_key(input_key: str, current_hwid: Optional[str] = None) -> Tu
 
         return True, "✅ License Key ត្រឹមត្រូវ និងសកម្ម!", {
             "license_key": cleaned_key,
-            "client_name": "VIP User",
-            "plan": f"VIP_{plan_tag}",
+            "client_name": "User",
+            "plan": f"PRO_{plan_tag}",
             "expires_at": expiry_str,
             "expiry_timestamp": expiry_ts,
             "bound_hwid": current_hwid if hwid_tag not in ("9999", "AAAA") else "ANY",
@@ -1042,14 +1043,14 @@ def activate_license_on_device(license_key: str, client_name: Optional[str] = No
         return False, msg, {}
 
     # Prefer user inputted client_name, fallback to record's client_name
-    final_client_name = (client_name.strip() if client_name and client_name.strip() else None) or record.get("client_name", "VIP User")
+    final_client_name = (client_name.strip() if client_name and client_name.strip() else None) or record.get("client_name", "User")
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     # Write activation data to license.key
     data_to_save = {
         "license_key": license_key.strip().upper(),
         "client_name": final_client_name,
-        "plan": record.get("plan", "VIP_PRO"),
+        "plan": record.get("plan", "PRO"),
         "activated_at": now_str,
         "last_active": now_str,
         "use_count": 1,
@@ -1085,7 +1086,7 @@ def activate_license_on_device(license_key: str, client_name: Optional[str] = No
                 new_rec = {
                     "license_key": cleaned_key,
                     "client_name": final_client_name,
-                    "plan": record.get("plan", "VIP_PRO"),
+                    "plan": record.get("plan", "PRO"),
                     "duration_days": record.get("duration_days", 0),
                     "created_at": now_str,
                     "activated_at": now_str,
@@ -1200,8 +1201,8 @@ def check_current_device_license() -> Dict[str, Any]:
         return {
             "is_activated": True,
             "license_key": license_key,
-            "client_name": data.get("client_name", "VIP User"),
-            "plan": data.get("plan", "VIP_PRO"),
+            "client_name": data.get("client_name", "User"),
+            "plan": data.get("plan", "PRO"),
             "expires_at": data.get("expires_at", "LIFETIME"),
             "days_remaining": live.get("days_remaining", 99999),
             "is_expiring_soon": live.get("is_expiring_soon", False),

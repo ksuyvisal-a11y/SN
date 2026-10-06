@@ -7,8 +7,9 @@ dist_sn = base_dir / "dist" / "SN_TOOL"
 
 dist_sn.mkdir(parents=True, exist_ok=True)
 
-# 1. Copy icon and configs
-for fname in ["icon.ico", "license_config.json", "custom_keys.json"]:
+# 1. Copy icon and configs for SN_TOOL
+sn_sync_files = ["icon.ico", "license_config.json", "custom_keys.json", "license.key"]
+for fname in sn_sync_files:
     src = base_dir / fname
     if src.exists():
         shutil.copy2(src, dist_sn / fname)
@@ -16,18 +17,51 @@ for fname in ["icon.ico", "license_config.json", "custom_keys.json"]:
 # 2. Write START_SN_TOOL.bat
 start_bat = """@echo off
 chcp 65001 > nul
+set PYTHONUTF8=1
+set PYTHONIOENCODING=utf-8
 cd /d "%~dp0"
 title 🎬 SN TOOL - STUDIO PRO
-color 0b
+color 0e
 cls
 
 echo ========================================================================
-echo  🎬 កំពុងដំណើរការ SN TOOL - STUDIO PRO (Khmer AI Drama Voice Studio)...
+echo  🎬 កំពុងដំណើរការ SN TOOL - STUDIO PRO (Khmer AI Drama Studio)...
 echo ========================================================================
 echo.
 
-start "" "%~dp0SN_TOOL.exe"
-exit
+if exist "%~dp0SN_TOOL.exe" (
+    start "" "%~dp0SN_TOOL.exe"
+    exit
+)
+
+if exist "%~dp0..\\..\\SN_TOOL.bat" (
+    echo [INFO] កំពុងបើកដំណើរការតាមរយៈ SN_TOOL.bat...
+    call "%~dp0..\\..\\SN_TOOL.bat"
+    goto :END
+)
+
+if exist "%~dp0..\\..\\desktop_app.py" (
+    where python >nul 2>nul
+    if %ERRORLEVEL% EQU 0 (
+        python "%~dp0..\\..\\desktop_app.py"
+        goto :END
+    )
+    py -3.14 "%~dp0..\\..\\desktop_app.py"
+    goto :END
+)
+
+echo.
+echo ========================================================================
+echo  ⚠️ មិនឃើញឯកសារ SN_TOOL.exe ទេ!
+echo  🛡️  មូលហេតុ៖ កម្មវិធី Windows Defender (Antivirus) បានច្រឡំលុប ឬដាក់ Quarantine
+echo  👉 វិធីដោះស្រាយ៖
+echo     1. សូមបើក Windows Security -> Virus & threat protection -> Protection history
+echo     2. ចុចលើ Threat ចុងក្រោយ (Trojan:Win32/Bearfoos.B!ml) -> Actions -> Allow on device
+echo     3. ឬបើកដំណើរការតាមឯកសារ "SN_TOOL.bat" នៅ Folder ដើមខាងក្រៅបានភ្លាមៗ!
+echo ========================================================================
+pause
+
+:END
 """
 (dist_sn / "START_SN_TOOL.bat").write_text(start_bat, encoding="utf-8")
 
@@ -76,4 +110,20 @@ shutil.copytree(base_dir / "static", internal_static)
 # 6. Ensure cache dir exists
 (dist_sn / "cache").mkdir(parents=True, exist_ok=True)
 
-print("[OK] dist/SN_TOOL is completely synchronized and ready for production distribution!")
+# 7. Sync dist/ADMIN_KEY_GENERATOR static assets & configs
+dist_admin = base_dir / "dist" / "ADMIN_KEY_GENERATOR"
+if dist_admin.exists():
+    for fname in ["custom_keys.json", "admin_key_history.json", "license_config.json", "icon.ico"]:
+        src = base_dir / fname
+        if src.exists():
+            shutil.copy2(src, dist_admin / fname)
+    admin_static = dist_admin / "static"
+    if admin_static.exists():
+        shutil.rmtree(admin_static)
+    shutil.copytree(base_dir / "static", admin_static)
+    admin_int_static = dist_admin / "_internal" / "static"
+    if admin_int_static.exists():
+        shutil.rmtree(admin_int_static)
+    shutil.copytree(base_dir / "static", admin_int_static)
+
+print("[OK] dist/SN_TOOL and dist/ADMIN_KEY_GENERATOR are completely synchronized and ready for production distribution!")

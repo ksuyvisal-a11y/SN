@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SN TOOL - VIP License Dashboard (Orion SaaS)</title>
+    <title>SN TOOL - License Dashboard (Orion SaaS)</title>
     <!-- Modern Typography: Inter + Plus Jakarta Sans + Hanuman Khmer -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -50,7 +50,7 @@
             --badge-amber-text: #b45309;
             --badge-amber-border: #fde68a;
 
-            /* Purple VIP */
+            /* Purple Badge */
             --badge-purple-bg: #f3e8ff;
             --badge-purple-text: #7e22ce;
             --badge-purple-border: #e9d5ff;
@@ -1426,7 +1426,7 @@
             </div>
             <div class="brand-titles">
                 <span class="brand-title-main">SN Dashboard</span>
-                <span class="brand-badge-tag">VIP MANAGEMENT</span>
+                <span class="brand-badge-tag">LICENSE MANAGEMENT</span>
             </div>
         </div>
 
@@ -1511,7 +1511,7 @@
                             <i class="fa-solid fa-rotate-right"></i> Refresh
                         </button>
                         <button type="button" class="btn-action-primary" onclick="switchSection('generator')">
-                            <i class="fa-solid fa-plus"></i> បង្កើត VIP Key ថ្មី
+                            <i class="fa-solid fa-plus"></i> បង្កើត Key ថ្មី
                         </button>
                     </div>
                 </div>
@@ -1595,7 +1595,7 @@
                             <!-- Lifetime -->
                             <div class="plan-progress-item">
                                 <div class="plan-progress-header">
-                                    <span>👑 Lifetime VIP (មួយជីវិត)</span>
+                                    <span>👑 Lifetime (មួយជីវិត)</span>
                                     <strong id="bar-lifetime-text">0</strong>
                                 </div>
                                 <div class="progress-bar-bg">
@@ -1657,7 +1657,7 @@
                         <div class="shortcuts-grid">
                             <button type="button" class="btn-shortcut-tile" onclick="switchSection('generator')">
                                 <div class="shortcut-icon"><i class="fa-solid fa-key"></i></div>
-                                <span class="shortcut-title">បង្កើត VIP Key</span>
+                                <span class="shortcut-title">បង្កើត Key</span>
                                 <span class="shortcut-desc">ចេញ Key ថ្មីជូនអតិថិជន</span>
                             </button>
 
@@ -1701,12 +1701,12 @@
             </section>
 
             <!-- ======================================================== -->
-            <!-- SECTION 2: GENERATE KEY (បង្កើត VIP KEY ថ្មី)            -->
+            <!-- SECTION 2: GENERATE KEY (បង្កើត KEY ថ្មី)                -->
             <!-- ======================================================== -->
             <section id="view-generator" class="dashboard-view">
                 <div class="page-header-row">
                     <div>
-                        <h1 class="page-title">Generate VIP Key</h1>
+                        <h1 class="page-title">Generate Key</h1>
                         <p class="page-subtitle">បង្កើត License Key ថ្មីជូនអតិថិជនតាមកញ្ចប់ និង Copy សារផ្ញើជូនភ្លាមៗ</p>
                     </div>
                 </div>
@@ -1737,10 +1737,10 @@
                         <div class="input-group">
                             <label class="input-label" for="input-custom-key">
                                 <span><i class="fa-solid fa-key" style="color:#d97706;"></i> លេខកូដ Key កំណត់តាមចិត្ត (Custom Key - Option):</span>
-                                <span class="input-hint">ទុកទំនេរដើម្បីប្រព័ន្ធបង្កើត Auto (SN-VIP-...)</span>
+                                <span class="input-hint">ទុកទំនេរដើម្បីប្រព័ន្ធបង្កើត Auto (SN-KEY-...)</span>
                             </label>
                             <div class="input-field-row">
-                                <input type="text" id="input-custom-key" class="light-input mono uppercase" placeholder="Leave blank for auto SN-VIP key or enter custom (e.g. SAL-VIP-2026)" oninput="updateLiveDeliveryCard()">
+                                <input type="text" id="input-custom-key" class="light-input mono uppercase" placeholder="Leave blank for auto key or enter custom (e.g. SAL-2026)" oninput="updateLiveDeliveryCard()">
                                 <button type="button" class="btn-input-addon" onclick="generateRandomCustomKey()">
                                     <i class="fa-solid fa-dice"></i> 🎲 Random
                                 </button>
@@ -1751,14 +1751,14 @@
                         <div class="input-group">
                             <label class="input-label">
                                 <span>កាលកំណត់សុពលភាព (Duration Plan):</span>
-                                <span class="input-hint" id="active-plan-hint">👑 Lifetime VIP (គ្មានថ្ងៃផុតកំណត់)</span>
+                                <span class="input-hint" id="active-plan-hint">👑 Lifetime (គ្មានថ្ងៃផុតកំណត់)</span>
                             </label>
                             <input type="hidden" id="selected-duration" value="LIFETIME:0">
                             
                             <div class="presets-grid" style="grid-template-columns: repeat(3, 1fr); gap: 10px;">
                                 <button type="button" class="btn-preset active" onclick="applyPreset('LIFETIME:0', this)">
                                     <span class="title">👑 មួយជីវិត</span>
-                                    <span class="desc">Lifetime VIP</span>
+                                    <span class="desc">Lifetime</span>
                                 </button>
                                 <button type="button" class="btn-preset" onclick="applyPreset('365D:365', this)">
                                     <span class="title">📅 1 ឆ្នាំ</span>
@@ -1809,28 +1809,28 @@
                         <!-- Action Button -->
                         <button type="button" class="btn-generate-primary" onclick="handleGenerateKey()">
                             <i class="fa-solid fa-crown"></i>
-                            <span>បង្កើត KEY ជូនភ្ញៀវ (GENERATE VIP KEY)</span>
+                            <span>បង្កើត KEY ជូនភ្ញៀវ (GENERATE KEY)</span>
                         </button>
                     </div>
 
-                    <!-- Right Column: Live VIP Delivery Pass Card -->
+                    <!-- Right Column: Live Delivery Pass Card -->
                     <div class="content-card">
                         <div class="card-header-bar">
                             <span class="card-title">
                                 <i class="fa-solid fa-id-card"></i>
-                                <span>ប័ណ្ណ VIP Pass សម្រាប់ផ្ញើជូន</span>
+                                <span>ប័ណ្ណ Key សម្រាប់ផ្ញើជូន</span>
                             </span>
                             <span class="stat-badge-pill stat-pill-green">READY TO DELIVER</span>
                         </div>
 
                         <div class="delivery-card-light" id="delivery-card">
                             <div class="delivery-card-top">
-                                <span class="stat-badge-pill stat-pill-blue" id="delivery-plan-badge">LIFETIME VIP</span>
-                                <span class="delivery-client-name" id="delivery-client-name">VIP Customer</span>
+                                <span class="stat-badge-pill stat-pill-blue" id="delivery-plan-badge">LIFETIME</span>
+                                <span class="delivery-client-name" id="delivery-client-name">Customer</span>
                             </div>
 
                             <div class="delivery-key-box">
-                                <span class="delivery-key-text" id="delivery-key-text">SAL-VIP-2026</span>
+                                <span class="delivery-key-text" id="delivery-key-text">SAL-2026</span>
                                 <button type="button" class="btn-input-addon" onclick="copyCurrentGeneratedKey()" style="padding: 4px 10px; font-size: 0.72rem;">
                                     <i class="fa-solid fa-copy"></i>
                                 </button>
@@ -1969,7 +1969,7 @@
 
                         <div class="settings-row">
                             <div class="settings-info">
-                                <span class="settings-label">កញ្ចប់ Lifetime VIP</span>
+                                <span class="settings-label">កញ្ចប់ Lifetime</span>
                                 <span class="settings-desc">Permanent unlimited users</span>
                             </div>
                             <strong id="rep-lifetime-count" style="font-size: 1.2rem; color: #9333ea;">0</strong>
@@ -2086,9 +2086,9 @@
         let gateRequired = true;
         let activeSection = "overview";
         let currentRecord = {
-            license_key: "SAL-VIP-2026",
-            client_name: "VIP Customer",
-            plan: "LIFETIME VIP",
+            license_key: "SAL-2026",
+            client_name: "Customer",
+            plan: "LIFETIME",
             expires_at: "LIFETIME",
             bound_hwid: "ANY"
         };
@@ -2229,7 +2229,7 @@
             const hintElem = document.getElementById('active-plan-hint');
 
             const hintMap = {
-                'LIFETIME:0': '👑 Lifetime VIP (ប្រើបានមួយជីវិត - គ្មានថ្ងៃផុតកំណត់)',
+                'LIFETIME:0': '👑 Lifetime (ប្រើបានមួយជីវិត - គ្មានថ្ងៃផុតកំណត់)',
                 '365D:365': '📅 1 ឆ្នាំ (365 ថ្ងៃពេញ)',
                 '90D:90': '📅 3 ខែ (90 ថ្ងៃ)',
                 '30D:30': '📅 1 ខែ (30 ថ្ងៃ)',
@@ -2250,7 +2250,7 @@
         }
 
         function generateRandomCustomKey() {
-            const prefixes = ["VIP", "SAL", "SN", "PRO", "STAR", "DRAMA"];
+            const prefixes = ["SAL", "SN", "PRO", "STAR", "DRAMA"];
             const p = prefixes[Math.floor(Math.random() * prefixes.length)];
             const r = Math.floor(1000 + Math.random() * 9000);
             const key = `${p}-${r}-2026`;
@@ -2268,8 +2268,8 @@
             const hwidInput = document.getElementById('input-hwid');
             const durationVal = (document.getElementById('selected-duration') || {}).value || "LIFETIME:0";
 
-            const name = (nameInput && nameInput.value.trim()) ? nameInput.value.trim() : "VIP Customer";
-            const customKey = (customKeyInput && customKeyInput.value.trim()) ? customKeyInput.value.trim().toUpperCase() : "SAL-VIP-2026";
+            const name = (nameInput && nameInput.value.trim()) ? nameInput.value.trim() : "Customer";
+            const customKey = (customKeyInput && customKeyInput.value.trim()) ? customKeyInput.value.trim().toUpperCase() : "SAL-2026";
             const hwid = (hwidInput && hwidInput.value.trim()) ? hwidInput.value.trim().toUpperCase() : "ANY";
 
             const nameElem = document.getElementById('delivery-client-name');
@@ -2282,18 +2282,18 @@
             if (hwidElem) hwidElem.textContent = (hwid === "ANY" || hwid === "*") ? "គ្រប់ម៉ាស៊ីន (ANY)" : hwid;
 
             let [tag, daysStr] = durationVal.split(':');
-            let planDesc = "👑 LIFETIME VIP";
+            let planDesc = "👑 LIFETIME";
             let expiryDesc = "មួយជីវិត (LIFETIME)";
 
             if (tag === 'CUSTOM') {
                 const days = parseInt(document.getElementById('input-custom-days').value, 10) || 30;
-                planDesc = `VIP ${days} ថ្ងៃ`;
+                planDesc = `${days} ថ្ងៃ`;
                 const expDate = new Date();
                 expDate.setDate(expDate.getDate() + days);
                 expiryDesc = expDate.toISOString().split('T')[0];
             } else if (daysStr && parseInt(daysStr, 10) > 0) {
                 const days = parseInt(daysStr, 10);
-                planDesc = `VIP ${days} ថ្ងៃ`;
+                planDesc = `${days} ថ្ងៃ`;
                 const expDate = new Date();
                 expDate.setDate(expDate.getDate() + days);
                 expiryDesc = expDate.toISOString().split('T')[0];
@@ -2334,12 +2334,12 @@
             const durationVal = (document.getElementById('selected-duration') || {}).value || "LIFETIME:0";
 
             let durationDays = 0;
-            let planTag = "VIP_PRO";
+            let planTag = "PRO";
 
             if (durationVal === 'CUSTOM:CUSTOM') {
                 const customDays = parseInt(document.getElementById('input-custom-days').value, 10);
                 durationDays = isNaN(customDays) ? 30 : customDays;
-                planTag = durationDays > 0 ? `VIP_${durationDays}D` : "VIP_LIFETIME";
+                planTag = durationDays > 0 ? `${durationDays}D` : "LIFETIME";
             } else {
                 const [tag, daysStr] = durationVal.split(':');
                 planTag = tag;
@@ -2380,7 +2380,7 @@
 
                     // Auto Copy Key
                     navigator.clipboard.writeText(currentRecord.license_key).catch(() => {});
-                    showToast(`🎉 បានបង្កើត VIP Key ជូន "${clientName}" ជោគជ័យ!`);
+                    showToast(`🎉 បានបង្កើត Key ជូន "${clientName}" ជោគជ័យ!`);
 
                     // Refresh table & stats
                     fetchKeysHistory();
@@ -2396,10 +2396,10 @@
         function updateDeliveryCardUI(rec) {
             if (!rec) return;
             const planBadge = document.getElementById('delivery-plan-badge');
-            if (planBadge) planBadge.textContent = rec.plan || "VIP LICENSE";
+            if (planBadge) planBadge.textContent = rec.plan || "LICENSE";
 
             const nameElem = document.getElementById('delivery-client-name');
-            if (nameElem) nameElem.textContent = rec.client_name || "VIP Customer";
+            if (nameElem) nameElem.textContent = rec.client_name || "Customer";
 
             const keyElem = document.getElementById('delivery-key-text');
             if (keyElem) keyElem.textContent = rec.license_key || "KEY_EMPTY";
@@ -2423,24 +2423,23 @@
             if (!currentRecord || !currentRecord.license_key) return;
             const client = currentRecord.client_name || "អតិថិជន";
             const key = currentRecord.license_key;
-            const plan = currentRecord.plan || "VIP PRO";
+            const plan = currentRecord.plan || "PRO";
             const expiry = currentRecord.expires_at || "មួយជីវិត (Lifetime)";
             const hwid = (!currentRecord.bound_hwid || currentRecord.bound_hwid === "ANY" || currentRecord.bound_hwid === "*") ? "ប្រើបានគ្រប់ម៉ាស៊ីន" : currentRecord.bound_hwid;
 
             const text = 
-`🎬 SN TOOL - VIP LICENSE KEY
+`🎬 SN TOOL - LICENSE KEY
 =========================================
 👤 អតិថិជន: ${client}
-🔑 VIP Key: ${key}
+🔑 Key: ${key}
 📦 កញ្ចប់: ${plan}
 ⏳ សុពលភាព: ${expiry}
 🔒 ម៉ាស៊ីន: ${hwid}
 =========================================
 👉 របៀបប្រើប្រាស់៖
 ១. បើកកម្មវិធី SN TOOL នៅលើកុំព្យូទ័រ
-២. បញ្ចូលឈ្មោះរបស់អ្នក "${client}"
-៣. ចម្លង (Copy) Key ខាងលើរួចយកទៅ Paste ចូល
-៤. ចុចប៊ូតុង "ACTIVATE NOW" ជាការស្រេច!
+២. ចម្លង (Copy) Key ខាងលើរួចយកទៅ Paste ចូល
+៣. ចុចប៊ូតុង "ACTIVATE NOW" ជាការស្រេច!
 
 🙏 សូមអរគុណសម្រាប់ការគាំទ្រ SN STUDIO! ✨`;
 
@@ -2650,8 +2649,8 @@
             const isExpired = item.is_expired;
             const isExpiringSoon = item.is_expiring_soon;
             const hwidText = (!item.bound_hwid || item.bound_hwid === "ANY" || item.bound_hwid === "*") ? "គ្រប់ម៉ាស៊ីន (ANY)" : item.bound_hwid;
-            const clientName = item.client_name || "VIP Customer";
-            const planText = item.plan || "VIP";
+            const clientName = item.client_name || "Customer";
+            const planText = item.plan || "PRO";
             const dateText = item.created_at || "Recent";
             const expiryText = item.expires_at || "LIFETIME";
             const daysLeft = item.days_remaining;
@@ -2838,7 +2837,7 @@
                 if (allKeysData.length === 0) {
                     logBox.textContent = "# មិនទាន់មានទិន្នន័យ Key ណាមួយត្រូវបានកត់ត្រានៅឡើយទេ។";
                 } else {
-                    let logLines = ["# SN STUDIO - VIP LICENSE KEY REGISTRY LOG", "# Exported automatically from Admin Control Center", "--------------------------------------------------------"];
+                    let logLines = ["# SN STUDIO - LICENSE KEY REGISTRY LOG", "# Exported automatically from Admin Control Center", "--------------------------------------------------------"];
                     allKeysData.forEach((k, idx) => {
                         const status = k.status === 'REVOKED' ? '[REVOKED]' : '[ACTIVE]';
                         logLines.push(`${idx + 1}. ${status} Key: ${k.license_key} | Client: ${k.client_name} | Plan: ${k.plan} | Expiry: ${k.expires_at} | HWID: ${k.bound_hwid || 'ANY'}`);

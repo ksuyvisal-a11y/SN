@@ -3,12 +3,12 @@ chcp 65001 > nul
 set PYTHONUTF8=1
 set PYTHONIOENCODING=utf-8
 cd /d "%~dp0"
-title 👑 SN TOOL - VIP License Admin Control Center (Port 8888)
+title 👑 SN TOOL - License Admin Control Center (Port 8888)
 color 0b
 cls
 
 echo ========================================================================
-echo  👑 SN TOOL - VIP LICENSE ADMIN CONTROL CENTER (ORION LIGHT THEME)
+echo  👑 SN TOOL - LICENSE ADMIN CONTROL CENTER (ORION LIGHT THEME)
 echo  🛡️  Port: 8888 (ដំណើរការដាច់ដោយឡែកពី Tool ភ្ញៀវ Port 8000)
 echo  🔐 ប្រព័ន្ធគ្រប់គ្រង និងបង្កើត KEY ជូនអតិថិជន
 echo ========================================================================
@@ -46,3 +46,9 @@ echo [ERROR] Python not found! Please make sure Python is installed.
 pause
 
 :END
+echo.
+echo ========================================================================
+echo  [INFO] កម្មវិធី ADMIN DASHBOARD បានបញ្ចប់ដំណើរការ ឬត្រូវបានបិទ។
+echo  👉 ចុច Enter ឬ Key ណាមួយដើម្បីចាកចេញពីផ្ទាំងនេះ...
+echo ========================================================================
+pause >nul

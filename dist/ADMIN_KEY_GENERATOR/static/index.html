@@ -188,7 +188,7 @@
                         <div class="studio-source-clean-view" id="studio-source-clean-view">
                             <div class="minimal-import-canvas" id="clean-import-prompt" onclick="openImportModal()">
                                 <div class="minimal-import-icon-box">
-                                    <img src="import_logo.png?v=2.0" class="minimal-import-logo" alt="Studio Logo" draggable="false">
+                                    <img src="logo.png?v=7.0" class="minimal-import-logo" alt="SN TOOL Studio Logo" draggable="false">
                                 </div>
                                 <div class="minimal-import-heading">Drag &amp; Drop Video Files or Folders Here</div>
                                 <div class="minimal-import-sub">Supports MP4, MKV, MOV, TS, AVI, WEBM &amp; Series Folders</div>
@@ -210,8 +210,11 @@
                                         <span class="staged-card-meta" id="staged-file-meta">44.1 MB • 03:00</span>
                                     </div>
                                     <div class="staged-file-actions-right">
+                                        <button type="button" class="staged-start-primary-btn" id="btn-staged-direct-start" onclick="startStudioExportJob()" title="ចាប់ផ្តើមបកប្រែភ្លាមៗ">
+                                            <i class="fa-solid fa-play"></i> <span>ចាប់ផ្តើមបកប្រែ</span>
+                                        </button>
                                         <button type="button" class="staged-mini-btn" onclick="openImportModal()" title="ប្តូរវីដេអូ ឬ Folder ផ្សេង">
-                                            <i class="fa-solid fa-arrows-rotate"></i> ប្តូរវីដេអូ / Folder
+                                            <i class="fa-solid fa-arrows-rotate"></i> ប្តូរ
                                         </button>
                                         <button type="button" class="staged-mini-btn" onclick="openStorySettingsModal()" title="ការកំណត់បន្ថែម">
                                             <i class="fa-solid fa-sliders"></i> Settings
@@ -1034,12 +1037,70 @@
                             </div>
                             <div class="modal-card-titles">
                                 <div class="modal-card-title-main">Story Settings</div>
-                                <div class="modal-card-desc-sub">Single/Multi Khmer Voice, Whisper model & dubbing options</div>
+                                <div class="modal-card-desc-sub">Single/Multi Khmer Voice, Whisper model &amp; dubbing options</div>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right modal-chevron-arrow"></i>
+                    </div>
+
+                    <!-- Row 4: Check for Updates -->
+                    <div class="modal-nav-row-card" onclick="checkForAppUpdates(true)">
+                        <div class="modal-card-left-col">
+                            <div class="modal-icon-badge" style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3);">
+                                <i class="fa-solid fa-cloud-arrow-down" style="color: #60a5fa;"></i>
+                            </div>
+                            <div class="modal-card-titles">
+                                <div class="modal-card-title-main" style="display:flex; align-items:center; gap:8px;">
+                                    <span>Check for Updates</span>
+                                    <span style="font-size:0.68rem; background:rgba(250,204,21,0.15); color:var(--gold-glow); padding:1px 6px; border-radius:4px; font-weight:700;">v1.0.0</span>
+                                </div>
+                                <div class="modal-card-desc-sub">Check GitHub for new features &amp; improvements</div>
                             </div>
                         </div>
                         <i class="fa-solid fa-chevron-right modal-chevron-arrow"></i>
                     </div>
                 </div>
+
+        <!-- MODAL: SOFTWARE UPDATE (GitHub 1-Click Updater) -->
+        <div class="modal-backdrop-overlay" id="modal-update" style="display:none; align-items:center; justify-content:center; z-index:99999;">
+            <div class="modal-content-card" style="max-width:440px; border:1px solid rgba(250,204,21,0.3); box-shadow: 0 20px 40px rgba(0,0,0,0.8), 0 0 30px rgba(234,179,8,0.15); background:#0c0a09; border-radius:14px; overflow:hidden;">
+                <div class="modal-top-header" style="background: linear-gradient(135deg, rgba(234,179,8,0.15), rgba(0,0,0,0.5)); border-bottom:1px solid rgba(250,204,21,0.2); padding:14px 18px;">
+                    <div class="modal-title" style="display:flex; align-items:center; gap:10px;">
+                        <img src="logo.png?v=6.2" style="width:28px; height:28px; border-radius:6px;" alt="SN Logo">
+                        <span style="color:#facc15; font-weight:700; font-size:0.95rem;">SN TOOL UPDATE</span>
+                    </div>
+                    <button class="modal-close-icon-btn" onclick="closeModal('modal-update')">✕</button>
+                </div>
+                <div class="modal-inner-body" style="padding:18px; display:flex; flex-direction:column; gap:12px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.03); padding:10px 14px; border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
+                        <div style="font-size:0.8rem; color:#94a3b8;">Current Version:</div>
+                        <div id="update-curr-ver" style="font-size:0.82rem; font-weight:700; color:#e2e8f0;">v1.0.0</div>
+                    </div>
+                    <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(250,204,21,0.08); padding:10px 14px; border-radius:8px; border:1px solid rgba(250,204,21,0.25);">
+                        <div style="font-size:0.8rem; color:#facc15; font-weight:600;">Latest Version on GitHub:</div>
+                        <div id="update-latest-ver" style="font-size:0.88rem; font-weight:800; color:#4ade80;">v1.0.0</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">What&#39;s New / កំណែទម្រង់ថ្មី៖</div>
+                        <div id="update-release-notes" style="background:#050403; border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:10px 12px; font-size:0.76rem; color:#cbd5e1; line-height:1.5; max-height:140px; overflow-y:auto; white-space:pre-line;">
+                            - កែលម្អមុខងារ និងដំណើរការ
+                        </div>
+                    </div>
+                    <div id="update-progress-container" style="display:none; flex-direction:column; gap:6px;">
+                        <div id="update-status-msg" style="font-size:0.75rem; color:#facc15; text-align:center;">កំពុងទាញយក Version ថ្មី...</div>
+                        <div style="width:100%; height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden;">
+                            <div id="update-progress-bar" style="width:40%; height:100%; background:linear-gradient(90deg, #facc15, #22c55e); transition:width 0.3s;"></div>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:10px; margin-top:6px;">
+                        <button type="button" class="ai-footer-cancel-btn" style="flex:1;" onclick="closeModal('modal-update')">Close</button>
+                        <button type="button" id="btn-do-update" class="dl-big-btn-yellow" style="flex:2; margin:0;" onclick="executeAppUpdate()">
+                            <i class="fa-solid fa-bolt"></i> Update Now
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
                 <!-- Subpage 1: Studio Translation Engine -->
                 <div class="modal-inner-body" id="settings-subpage-ai" style="display:none;">
@@ -1055,16 +1116,12 @@
                     
                     <div style="background: rgba(250, 204, 21, 0.05); border: 1px solid rgba(250, 204, 21, 0.2); border-radius: 8px; padding: 12px; margin-top: 6px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                            <span style="font-size: 0.75rem; color: #94a3b8;">Customer Name:</span>
-                            <span id="settings-lic-client-name" style="font-size: 0.75rem; color: #38bdf8; font-weight: 700;">VIP Member</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                             <span style="font-size: 0.75rem; color: #94a3b8;">License Status:</span>
                             <span id="settings-lic-status-badge" style="background: rgba(34,197,94,0.15); border: 1px solid #22c55e; color: #4ade80; border-radius: 4px; padding: 2px 8px; font-size: 0.7rem; font-weight: bold;">ACTIVE</span>
                         </div>
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                             <span style="font-size: 0.75rem; color: #94a3b8;">Plan:</span>
-                            <strong id="settings-lic-plan-text" style="font-size: 0.75rem; color: #facc15;">VIP Lifetime</strong>
+                            <strong id="settings-lic-plan-text" style="font-size: 0.75rem; color: #facc15;">Lifetime</strong>
                         </div>
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                             <span style="font-size: 0.75rem; color: #94a3b8;">Expires At:</span>
@@ -1079,11 +1136,8 @@
                         </div>
                     </div>
 
-                    <label style="font-size:0.75rem; color:#cbd5e1; margin-top:12px; display:block;"><i class="fa-solid fa-user-tag" style="color:#facc15; margin-right:4px;"></i> Customer Name (ឈ្មោះម្ចាស់គណនី / ឈ្មោះអតិថិជន)</label>
-                    <input type="text" id="settings-client-name-input" placeholder="បញ្ចូលឈ្មោះអតិថិជន (e.g. VIP Member)" style="background:#080603; border:1px solid var(--border-subtle); border-radius:5px; padding:8px 10px; font-size:0.75rem; color:#fff; width:100%; box-sizing:border-box;">
-
-                    <label style="font-size:0.75rem; color:#cbd5e1; margin-top:10px; display:block;"><i class="fa-solid fa-key" style="color:#facc15; margin-right:4px;"></i> Enter / Renew VIP License Key</label>
-                    <input type="text" id="input-license-key" placeholder="SN-VIP-XXXX-XXXX-XXXX-XXXX" style="background:#080603; border:1px solid var(--border-subtle); border-radius:5px; padding:8px 10px; font-size:0.75rem; color:#fff; font-family:var(--font-mono); text-transform:uppercase; width:100%; box-sizing:border-box;">
+                    <label style="font-size:0.75rem; color:#cbd5e1; margin-top:12px; display:block;"><i class="fa-solid fa-key" style="color:#facc15; margin-right:4px;"></i> Enter / Renew License Key</label>
+                    <input type="text" id="input-license-key" placeholder="SN-XXXX-XXXX-XXXX-XXXX" style="background:#080603; border:1px solid var(--border-subtle); border-radius:5px; padding:8px 10px; font-size:0.75rem; color:#fff; font-family:var(--font-mono); text-transform:uppercase; width:100%; box-sizing:border-box;">
                     <button class="dl-big-btn-yellow" style="margin-top:10px; width:100%;" onclick="confirmActivateLicense()"><i class="fa-solid fa-shield-halved"></i> Update / Activate License</button>
                 </div>
 
@@ -1433,7 +1487,7 @@
                                 <div class="ai-field-group">
                                     <label class="ai-field-label">TRANSLATION ENGINE (ប្រព័ន្ធបកប្រែ)</label>
                                     <select id="ai-engine-select" class="ai-gold-select" onchange="onAiEngineChange()">
-                                        <option value="auto" selected>Auto Smart (Dedicated VIP Engine - Built-in)</option>
+                                        <option value="auto" selected>Auto Smart (Dedicated Smart Engine - Built-in)</option>
                                         <option value="gemini_pool">Cloud API Engine (Gemini Key Pool)</option>
                                         <option value="local_drama">Fast Local Drama Engine</option>
                                     </select>
@@ -1568,7 +1622,7 @@
             <div class="modal-content-card">
                 <div class="modal-top-header">
                     <div class="modal-title">
-                        <i class="fa-solid fa-inbox icon-import"></i>
+                        <img src="logo.png?v=7.0" alt="SN Logo" class="modal-title-logo-icon">
                         <span>Import</span>
                     </div>
                     <button class="modal-close-icon-btn" onclick="closeModal('modal-import')">✕</button>
@@ -1783,8 +1837,8 @@
                         <span class="license-gate-tag">STUDIO PRO</span>
                     </div>
                     <div class="license-gate-badge">
-                        <i class="fa-solid fa-crown" style="color:#facc15;"></i>
-                        <span>VIP LICENSE ACTIVATION</span>
+                        <i class="fa-solid fa-shield-halved" style="color:#facc15;"></i>
+                        <span>LICENSE ACTIVATION</span>
                     </div>
                     <div class="license-gate-subtitle">
                         សូមបញ្ចូល License Key របស់អ្នកដើម្បីបើកដំណើរការកម្មវិធី
@@ -1796,7 +1850,7 @@
                     <!-- HWID Container -->
                     <div class="license-gate-hwid-card">
                         <div class="license-gate-hwid-top">
-                            <span><i class="fa-solid fa-desktop" style="color:#94a3b8; margin-right:4px;"></i> ម៉ាស៊ីន HWID (ផ្ញើជូន Admin ប្រសិនបើទាមទារ):</span>
+                            <span><i class="fa-solid fa-desktop" style="color:#94a3b8; margin-right:4px;"></i> ម៉ាស៊ីន HWID (Copy ផ្ញើជូន Admin):</span>
                         </div>
                         <div class="license-gate-hwid-row">
                             <span class="license-gate-hwid-code" id="gate-hwid-text">FETCHING...</span>
@@ -1806,23 +1860,13 @@
                         </div>
                     </div>
 
-                    <!-- Customer Name Input -->
-                    <div class="license-gate-input-group">
-                        <label class="license-gate-input-label" for="gate-client-name-input">
-                            <i class="fa-solid fa-user-circle" style="color:#facc15;"></i> ឈ្មោះម្ចាស់គណនី / ឈ្មោះអតិថិជន (Customer Name):
-                        </label>
-                        <div class="license-gate-input-wrap">
-                            <input type="text" id="gate-client-name-input" class="license-gate-input-field name-field" placeholder="ឧទាហរណ៍៖ Sok Piseth, VIP Member..." autocomplete="off" spellcheck="false" onkeyup="if(event.key==='Enter') document.getElementById('gate-license-input').focus()">
-                        </div>
-                    </div>
-
                     <!-- Key Input -->
                     <div class="license-gate-input-group">
                         <label class="license-gate-input-label" for="gate-license-input">
-                            <i class="fa-solid fa-key" style="color:#facc15;"></i> បញ្ចូល VIP LICENSE KEY (ទទួលបានពី Admin):
+                            <i class="fa-solid fa-key" style="color:#facc15;"></i> បញ្ចូល LICENSE KEY (ទទួលបានពី Admin):
                         </label>
                         <div class="license-gate-input-wrap">
-                            <input type="text" id="gate-license-input" class="license-gate-input-field" placeholder="SN-VIP-XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false" onkeyup="if(event.key==='Enter') submitGateLicense()">
+                            <input type="text" id="gate-license-input" class="license-gate-input-field" placeholder="SN-XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false" onkeyup="if(event.key==='Enter') submitGateLicense()">
                             <button type="button" class="license-gate-btn-paste" onclick="pasteGateLicense()">
                                 <i class="fa-solid fa-paste"></i> Paste
                             </button>
@@ -1841,7 +1885,7 @@
                     <div class="license-gate-footer">
                         <div class="license-gate-footer-badge">
                             <i class="fa-solid fa-shield-halved" style="color:#facc15;"></i>
-                            <span>SN TOOL VIP Security Engine • v6.3</span>
+                            <span>SN TOOL Security Engine • v6.3</span>
                         </div>
                         <div>ទំនាក់ទំនង Admin (Telegram / Facebook) ដើម្បីទទួលបាន License Key ផ្លូវការ</div>
                     </div>

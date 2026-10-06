@@ -61,11 +61,12 @@ def render_dubbed_video(
     burn_subtitles: bool = False,
     aspect_ratio: str = "16:9",  # "16:9" or "9:16"
     watermark_text: Optional[str] = None,
+    overlay_config: Optional[Dict[str, Any]] = None,
     temp_dir: str = "cache/temp"
 ) -> str:
     """
-    Render final dubbed video with new audio, subtitle burning, vertical 9:16 aspect ratio framing, and watermark.
-    Ultra-fast execution with boxblur (replaces slow gblur) and robust filter chaining.
+    Render final dubbed video with new audio, subtitle burning, vertical 9:16 aspect ratio framing, 
+    interactive Logo watermark overlay, and interactive Blur mask box.
     """
     out_p = Path(output_video_path)
     out_p.parent.mkdir(parents=True, exist_ok=True)
@@ -81,29 +82,24 @@ def render_dubbed_video(
             f.write(ass_content)
         ass_path = str(ass_file).replace("\\", "/").replace(":", "\\:")
 
-    # 2. Detect video orientation
+    # 2. Parse Logo and Blur Configurations
+    logo_cfg = overlay_config.get("logo") if isinstance(overlay_config, dict) else None
+    blur_cfg = overlay_config.get("blur") if isinstance(overlay_config, dict) else None
+
+    logo_active = bool(logo_cfg and logo_cfg.get("active") and logo_cfg.get("path") and Path(str(logo_cfg.get("path"))).exists())
+    logo_path = str(logo_cfg.get("path")) if logo_active else None
+
+    blur_active = bool(blur_cfg and blur_cfg.get("active"))
+
+    # 3. Detect video orientation & dimensions
     w, h = get_video_dimensions(original_video_path)
-    is_already_vertical = (w is not None and h is not None and w < h)
+    w = w or 1920
+    h = h or 1080
+    is_already_vertical = (w < h)
 
-    # 3. Construct FFmpeg command
-    cmd = [
-        get_ffmpeg_path(),
-        "-nostdin",
-        "-y",
-        "-i", str(original_video_path),
-        "-i", str(mixed_audio_path)
-    ]
-
-    simple_filters = []
-    if ass_path:
-        simple_filters.append(f"ass='{ass_path}'")
-    if watermark_text and watermark_text.strip():
-        wm_clean = watermark_text.replace("'", "").replace(":", "")
-        simple_filters.append(f"drawtext=text='{wm_clean}':fontsize=24:fontcolor=white@0.8:x=30:y=30:box=1:boxcolor=black@0.4:boxborderw=6")
-
-    # Phase 1 Turbo Optimization: Lossless Stream Copy Mode (1-2 seconds per episode!)
-    # If no subtitles need to be burned and no watermark, simply remux video stream with new dubbed audio!
-    can_use_stream_copy = (not ass_path) and (not watermark_text) and (is_already_vertical or aspect_ratio != "9:16")
+    # 4. Phase 1 Turbo Optimization: Lossless Stream Copy Mode (1-2 seconds per episode!)
+    # Only if NO subtitles, NO watermark, NO logo, NO blur, and no 9:16 framing needed
+    can_use_stream_copy = (not ass_path) and (not watermark_text) and (not logo_active) and (not blur_active) and (is_already_vertical or aspect_ratio != "9:16")
     if can_use_stream_copy:
         fast_cmd = [
             get_ffmpeg_path(),
@@ -134,56 +130,112 @@ def render_dubbed_video(
                 pass
             return str(out_p)
 
-    # If 9:16 requested but input video is landscape (w >= h), frame it with blurred background
+    # 5. Build FFmpeg command inputs
+    cmd = [
+        get_ffmpeg_path(),
+        "-nostdin",
+        "-y",
+        "-i", str(original_video_path),
+        "-i", str(mixed_audio_path)
+    ]
+
+    logo_input_idx = None
+    if logo_active and logo_path:
+        cmd.extend(["-i", str(logo_path)])
+        logo_input_idx = 2
+
+    # 6. Determine target dimensions & base video layout
+    filter_parts = []
     if aspect_ratio == "9:16" and not is_already_vertical:
-        filter_complex = (
+        target_w = 1080
+        target_h = 1920
+        filter_parts.append(
             "[0:v]split[bg][fg];"
             "[bg]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=12:1[bg_blur];"
             "[fg]scale=1080:-2[fg_scaled];"
-            "[bg_blur][fg_scaled]overlay=(W-w)/2:(H-h)/2"
+            "[bg_blur][fg_scaled]overlay=(W-w)/2:(H-h)/2[v_base]"
         )
-        current_pad = "[v_padded]"
-        filter_complex += current_pad
-
-        if simple_filters:
-            filter_complex += f";{current_pad}{','.join(simple_filters)}[v_out]"
-            v_map = "[v_out]"
-        else:
-            v_map = "[v_padded]"
-
-        cmd.extend([
-            "-filter_complex", filter_complex,
-            "-map", v_map,
-            "-map", "1:a:0",
-            "-c:v", "libx264",
-            "-preset", "veryfast",
-            "-crf", "22",
-            "-pix_fmt", "yuv420p",
-            "-c:a", "aac",
-            "-b:a", "192k",
-            "-ar", "48000",
-            "-ac", "2",
-            "-shortest",
-            str(out_p)
-        ])
+        current_v = "[v_base]"
     else:
-        # 16:9, original aspect ratio, or already vertical video (ensure even dimensions)
-        all_vfs = ["scale=trunc(iw/2)*2:trunc(ih/2)*2"] + simple_filters
-        cmd.extend([
-            "-vf", ",".join(all_vfs),
-            "-map", "0:v:0",
-            "-map", "1:a:0",
-            "-c:v", "libx264",
-            "-preset", "veryfast",
-            "-crf", "22",
-            "-pix_fmt", "yuv420p",
-            "-c:a", "aac",
-            "-b:a", "192k",
-            "-ar", "48000",
-            "-ac", "2",
-            "-shortest",
-            str(out_p)
-        ])
+        target_w = (w // 2) * 2
+        target_h = (h // 2) * 2
+        filter_parts.append(f"[0:v]scale={target_w}:{target_h}[v_base]")
+        current_v = "[v_base]"
+
+    # 7. Apply Blur Mask Box Filter
+    if blur_active:
+        norm_x = float(blur_cfg.get("norm_x", 0.75))
+        norm_y = float(blur_cfg.get("norm_y", 0.03))
+        norm_w = float(blur_cfg.get("norm_w", 0.20))
+        norm_h = float(blur_cfg.get("norm_h", 0.08))
+        radius = max(5, min(50, int(blur_cfg.get("radius", 25))))
+
+        bw = max(16, min(target_w, int(target_w * norm_w)))
+        bh = max(16, min(target_h, int(target_h * norm_h)))
+        bx = max(0, min(target_w - bw, int(target_w * norm_x)))
+        by = max(0, min(target_h - bh, int(target_h * norm_y)))
+
+        bx = (bx // 2) * 2
+        by = (by // 2) * 2
+        bw = (bw // 2) * 2
+        bh = (bh // 2) * 2
+
+        b_power = min(radius, 25)
+        filter_parts.append(
+            f"{current_v}split[v_pre_blur][v_crop_in];"
+            f"[v_crop_in]crop=w={bw}:h={bh}:x={bx}:y={by},boxblur={b_power}:2[v_blurred_box];"
+            f"[v_pre_blur][v_blurred_box]overlay=x={bx}:y={by}[v_after_blur]"
+        )
+        current_v = "[v_after_blur]"
+
+    # 8. Apply Logo Watermark Overlay Filter
+    if logo_active and logo_path and logo_input_idx is not None:
+        logo_norm_x = float(logo_cfg.get("norm_x", 0.82))
+        logo_norm_y = float(logo_cfg.get("norm_y", 0.04))
+        logo_norm_w = float(logo_cfg.get("norm_w", 0.14))
+        opacity = max(0.1, min(1.0, float(logo_cfg.get("opacity", 1.0))))
+
+        lw = max(32, min(target_w, int(target_w * logo_norm_w)))
+        lw = (lw // 2) * 2
+        lx = max(0, min(target_w - lw, int(target_w * logo_norm_x)))
+        ly = max(0, min(target_h - 32, int(target_h * logo_norm_y)))
+
+        filter_parts.append(
+            f"[{logo_input_idx}:v]scale={lw}:-1,format=rgba,colorchannelmixer=aa={opacity:.2f}[logo_scaled];"
+            f"{current_v}[logo_scaled]overlay=x={lx}:y={ly}[v_after_logo]"
+        )
+        current_v = "[v_after_logo]"
+
+    # 9. Apply ASS Subtitles Burning
+    if ass_path:
+        filter_parts.append(f"{current_v}ass='{ass_path}'[v_after_subs]")
+        current_v = "[v_after_subs]"
+
+    # 10. Apply Watermark Text
+    if watermark_text and watermark_text.strip():
+        wm_clean = watermark_text.replace("'", "").replace(":", "")
+        filter_parts.append(
+            f"{current_v}drawtext=text='{wm_clean}':fontsize=24:fontcolor=white@0.8:x=30:y=30:box=1:boxcolor=black@0.4:boxborderw=6[v_after_wm]"
+        )
+        current_v = "[v_after_wm]"
+
+    # 11. Final Filter Complex and Encoding Flags
+    full_filter_complex = ";".join(filter_parts)
+    cmd.extend([
+        "-filter_complex", full_filter_complex,
+        "-map", current_v,
+        "-map", "1:a:0",
+        "-c:v", "libx264",
+        "-preset", "veryfast",
+        "-crf", "22",
+        "-pix_fmt", "yuv420p",
+        "-c:a", "aac",
+        "-b:a", "192k",
+        "-ar", "48000",
+        "-ac", "2",
+        "-shortest",
+        str(out_p)
+    ])
 
     proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", timeout=7200, **get_silent_kwargs())
     if proc.returncode != 0:

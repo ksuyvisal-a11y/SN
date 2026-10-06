@@ -88,7 +88,8 @@ class BatchDubbingManager:
         drama_mode: str = "drama_dubbing",  # 'drama_dubbing' or 'movie_recap'
         aspect_ratio: str = "16:9",
         burn_subtitles: bool = False,
-        separate_bgm: bool = True
+        separate_bgm: bool = True,
+        overlay_config: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, Any]]:
         """Add multiple video/audio files to the automated batch queue."""
         added_items = []
@@ -107,6 +108,7 @@ class BatchDubbingManager:
                 "aspect_ratio": aspect_ratio,
                 "burn_subtitles": burn_subtitles,
                 "separate_bgm": separate_bgm,
+                "overlay_config": overlay_config,
                 "status": "pending",  # pending, processing, completed, failed
                 "step": "រង់ចាំចាប់ផ្តើម",  # transcribing, translating, synthesizing, rendering, done
                 "progress": 0,
@@ -305,6 +307,7 @@ class BatchDubbingManager:
             dialogues=synthesized_items,
             burn_subtitles=item.get("burn_subtitles", False),
             aspect_ratio=item.get("aspect_ratio", "16:9"),
+            overlay_config=item.get("overlay_config"),
             temp_dir=str(item_dir / "temp")
         )
 

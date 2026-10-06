@@ -1,5 +1,5 @@
 """
-👑 SN TOOL - VIP LICENSE ADMIN CONTROL CENTER (PORT 8888)
+👑 SN TOOL - LICENSE ADMIN CONTROL CENTER (PORT 8888)
 Dedicated, standalone, isolated Admin Control Center.
 Completely separated from the customer-facing Studio Tool (Port 8000).
 """
@@ -87,10 +87,10 @@ def admin_export_txt():
 @admin_app.route("/api/admin/generate-key", methods=["POST"])
 def admin_generate_key():
     data = request.get_json(force=True) or {}
-    client_name = data.get("client_name", "").strip() or "VIP Customer"
+    client_name = data.get("client_name", "").strip() or "Customer"
     duration_days = int(data.get("duration_days", 0))
     hwid = data.get("hwid") or None
-    plan = data.get("plan", "VIP_PRO")
+    plan = data.get("plan", "PRO")
     custom_key = data.get("custom_key", "").strip()
 
     if custom_key:
@@ -107,10 +107,10 @@ def admin_custom_key():
     custom_key = data.get("custom_key", "").strip()
     if not custom_key:
         return jsonify({"success": False, "error": "សូមបញ្ចូល Custom Key"}), 400
-    client_name = data.get("client_name", "").strip() or "VIP Customer"
+    client_name = data.get("client_name", "").strip() or "Customer"
     duration_days = int(data.get("duration_days", 0))
     hwid = data.get("hwid") or None
-    plan = data.get("plan", "CUSTOM_VIP")
+    plan = data.get("plan", "CUSTOM")
     rec = register_custom_key(custom_key, client_name, duration_days, hwid, plan)
     enriched = calculate_key_live_status(rec)
     return jsonify({"success": True, "key_record": enriched})
@@ -199,7 +199,7 @@ def open_browser_when_ready():
 
 def main():
     print("=" * 68)
-    print(" 👑 SN TOOL - VIP LICENSE ADMIN CONTROL CENTER (ISOLATED)")
+    print(" 👑 SN TOOL - LICENSE ADMIN CONTROL CENTER (ISOLATED)")
     print(f" 🌐 Dedicated Admin Address: {ADMIN_URL}")
     print(" 🛡️  Port: 8888 (ដាច់ដោយឡែកពី Tool របស់ភ្ញៀវ Port 8000)")
     print("=" * 68)

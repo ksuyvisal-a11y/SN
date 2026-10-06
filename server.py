@@ -1,5 +1,5 @@
 """
-Flask Web Server & REST APIs for Khmer AI Drama Voice Translator & Movie Recap Studio (SN STUDIO V4.5)
+Flask Web Server & REST APIs for Khmer AI Drama Voice Translator & Movie Recap Studio (SN STUDIO V1.0.0)
 """
 import os
 import sys
@@ -38,6 +38,17 @@ def add_no_cache_headers(response):
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '-1'
     return response
+
+@app.errorhandler(Exception)
+def handle_unexpected_server_error(e):
+    import traceback
+    err_text = "".join(traceback.format_exception(type(e), e, e.__traceback__))
+    print(f"\n[SERVER API ERROR PREVENTED] {err_text}", file=sys.stderr)
+    return jsonify({
+        "success": False,
+        "error": str(e),
+        "message": "ប្រតិបត្តិការមានបញ្ហាបច្ចេកទេសបណ្តោះអាសន្ន ប៉ុន្តែកម្មវិធីនៅតែដំណើរការធម្មតា"
+    }), 500
 
 # Core Studio Modules & Engines
 from tts_engine import get_available_voices, synthesize_khmer_speech
@@ -392,16 +403,20 @@ def generate_audio_all(project_id):
 
 @app.route("/api/projects/<project_id>/render-video", methods=["POST"])
 def render_video_endpoint(project_id):
-    burn_sub = request.args.get("burn_subtitles", "false").lower() in ("true", "1", "yes")
-    aspect_ratio = request.args.get("aspect_ratio", "16:9")
-    watermark = request.args.get("watermark", "")
+    data = request.get_json(silent=True) or {}
+    burn_sub = request.args.get("burn_subtitles") or data.get("burn_subtitles") or "false"
+    burn_sub = str(burn_sub).lower() in ("true", "1", "yes")
+    aspect_ratio = request.args.get("aspect_ratio") or data.get("aspect_ratio") or "16:9"
+    watermark = request.args.get("watermark") or data.get("watermark") or ""
+    overlay_config = data.get("overlay_config")
     
     try:
         updated_project = pm.render_project_video_final(
             project_id=project_id,
             burn_subtitles=burn_sub,
             aspect_ratio=aspect_ratio,
-            watermark_text=watermark
+            watermark_text=watermark,
+            overlay_config=overlay_config
         )
         return jsonify({
             "success": True,
@@ -432,6 +447,13 @@ def batch_upload_endpoint():
     burn_sub_default = "true" if cfg.get("subtitle_mode", "none") == "burn" else "false"
     burn_subtitles = request.form.get("burn_subtitles", burn_sub_default).lower() in ("true", "1", "yes")
     separate_bgm = request.form.get("separate_bgm", "true").lower() == "true"
+    overlay_config = None
+    raw_oc = request.form.get("overlay_config")
+    if raw_oc:
+        try:
+            overlay_config = json.loads(raw_oc) if isinstance(raw_oc, str) else raw_oc
+        except Exception:
+            pass
 
     saved_paths = []
     upload_dir = Path("data/uploads/batch_temp")
@@ -450,7 +472,8 @@ def batch_upload_endpoint():
         drama_mode=drama_mode,
         aspect_ratio=aspect_ratio,
         burn_subtitles=burn_subtitles,
-        separate_bgm=separate_bgm
+        separate_bgm=separate_bgm,
+        overlay_config=overlay_config
     )
     batch_manager.start_batch_processing()
 
@@ -1658,87 +1681,76 @@ public static class NativeDialogHelper {
 
 def open_native_windows_folder_dialog(initial_dir: str = "", title: str = "Select Drama Series Folder") -> Optional[str]:
     """
-    Open modern native Windows File Explorer folder picker (IFileOpenDialog with FOS_PICKFOLDERS).
-    Displays the authentic modern Windows 10/11 Explorer dialog with breadcrumbs, drives, and folder icons with crystal-clear Per-Monitor V2 High DPI clarity.
-    Never uses the legacy 1995 BrowseForFolder tree view.
+    Open modern native Windows File Explorer folder picker.
+    Pops up instantly in the foreground with TopMost owner, eliminating window hiding and blurriness.
     """
     if not initial_dir or not os.path.exists(initial_dir):
         initial_dir = "D:/" if os.path.exists("D:/") else "C:/"
+    
+    # Priority 1: pywebview native window file dialog if active
+    try:
+        import desktop_app
+        win = getattr(desktop_app, '_main_window', None)
+        if win:
+            import webview
+            chosen = win.create_file_dialog(getattr(webview, 'FOLDER_DIALOG', 20), directory=str(Path(initial_dir).resolve()))
+            if chosen and len(chosen) > 0:
+                p = chosen[0]
+                if os.path.exists(p):
+                    return str(Path(p).resolve()).replace("\\", "/")
+            elif chosen is not None:
+                return None
+    except Exception as we:
+        pass
+
     init_dir_esc = str(Path(initial_dir).resolve()).replace("'", "''")
     title_esc = str(title).replace("'", "''")
-    icon_esc = str(get_app_icon_path() or APP_ICON_PATH).replace("'", "''")
 
+    # Priority 2: Ultra-fast PowerShell WinForms FolderBrowserDialog (0.05s startup, no C# compilation)
     ps_code = f"""
-Add-Type -TypeDefinition @'
-{MODERN_DIALOG_HELPER_CS}
-'@
+[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms') | Out-Null
+[System.Reflection.Assembly]::LoadWithPartialName('System.Drawing') | Out-Null
 
-# 1. Enable Per-Monitor V2 High DPI Awareness FIRST before creating any WinForms form/dialog
-[NativeDialogHelper]::EnableHighDpi()
-
-Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName System.Drawing
+$dlg = New-Object System.Windows.Forms.FolderBrowserDialog
+$dlg.Description = '{title_esc}'
+$dlg.ShowNewFolderButton = $true
+$dlg.AutoUpgradeEnabled = $true
+$initDir = '{init_dir_esc}'
+if (Test-Path $initDir) {{
+    $dlg.SelectedPath = $initDir
+}}
 
 $topForm = New-Object System.Windows.Forms.Form
 $topForm.TopMost = $true
 $topForm.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
-$topForm.ShowInTaskbar = $false
 $topForm.WindowState = [System.Windows.Forms.FormWindowState]::Minimized
+$topForm.ShowInTaskbar = $false
 $topForm.Opacity = 0
 
-$iconPath = '{icon_esc}'
-if (Test-Path $iconPath) {{
-    try {{
-        $topForm.Icon = New-Object System.Drawing.Icon($iconPath)
-    }} catch {{ }}
-}}
-
-try {{
-    $res = [NativeDialogHelper]::ShowFolderDialog('{init_dir_esc}', '{title_esc}', $iconPath, $topForm.Handle)
-    if ($res) {{
-        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-        Write-Output ("RESULT:" + $res)
-    }} else {{
-        Write-Output "CANCELLED"
-    }}
-}} catch {{
-    # Fallback to modern OpenFileDialog with FOS_PICKFOLDERS
-    [NativeDialogHelper]::WatchAndStyleDialog($topForm.Handle, $iconPath)
-    $dlg = New-Object System.Windows.Forms.OpenFileDialog
-    $dlg.Title = '{title_esc}'
-    $dlg.ValidateNames = $false
-    $dlg.CheckFileExists = $false
-    $dlg.CheckPathExists = $true
-    $dlg.AutoUpgradeEnabled = $true
-    $dlg.FileName = 'Select Folder Here'
-    $initDir = '{init_dir_esc}'
-    if (Test-Path $initDir) {{ $dlg.InitialDirectory = $initDir }}
-    $fres = $dlg.ShowDialog($topForm)
-    if ($fres -eq [System.Windows.Forms.DialogResult]::OK) {{
-        $target = $dlg.FileName
-        if ([System.IO.File]::Exists($target)) {{
-            $target = [System.IO.Path]::GetDirectoryName($target)
-        }}
-        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-        Write-Output ("RESULT:" + $target)
-    }} else {{
-        Write-Output "CANCELLED"
-    }}
+$res = $dlg.ShowDialog($topForm)
+if ($res -eq [System.Windows.Forms.DialogResult]::OK) {{
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    Write-Output ("RESULT:" + $dlg.SelectedPath)
+}} else {{
+    Write-Output "CANCELLED"
 }}
 $topForm.Dispose()
+$dlg.Dispose()
 exit 0
 """
+    cache_dir = Path("data/cache")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    script_file = cache_dir / f"fld_dlg_{uuid.uuid4().hex[:8]}.ps1"
     try:
-        import base64
-        encoded = base64.b64encode(ps_code.encode("utf-16le")).decode("ascii")
+        script_file.write_text(ps_code, encoding="utf-8")
         proc = subprocess.run(
-            ["powershell.exe", "-STA", "-NoProfile", "-WindowStyle", "Hidden", "-EncodedCommand", encoded],
+            ["powershell.exe", "-STA", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", str(script_file.resolve())],
             capture_output=True,
             text=True,
             encoding="utf-8",
             errors="replace",
-            timeout=300,
-            is_gui_dialog=True
+            timeout=180,
+            creationflags=0x08000000
         )
         for line in (proc.stdout or "").splitlines():
             line = line.strip()
@@ -1746,49 +1758,68 @@ exit 0
                 chosen = line[7:].strip().replace("\\", "/")
                 if os.path.exists(chosen):
                     return chosen
+            elif line == "CANCELLED":
+                return None
     except Exception as e:
         print(f"Native folder dialog note: {e}")
+    finally:
+        try:
+            if script_file.exists():
+                script_file.unlink()
+        except Exception:
+            pass
+
+    # Priority 3: Seamless standard Windows fallback using Tkinter
+    try:
+        import tkinter
+        from tkinter import filedialog
+        root = tkinter.Tk()
+        root.withdraw()
+        root.attributes('-topmost', True)
+        folder = filedialog.askdirectory(title=title, initialdir=initial_dir)
+        root.destroy()
+        if folder and os.path.exists(folder):
+            return str(Path(folder).resolve()).replace("\\", "/")
+    except Exception as te:
+        print(f"Tkinter folder fallback note: {te}")
+
     return None
 
 
 def open_native_windows_files_dialog(initial_dir: str = "", title: str = "Select Video Files for Drama Series") -> List[str]:
     """
-    Open native Windows multi-file picker safely using Per-Monitor V2 High DPI awareness and app icon.
+    Open native Windows multi-file picker safely.
     Pops up instantly in the foreground with TopMost owner, eliminating window hiding and blurriness.
     """
     if not initial_dir or not os.path.exists(initial_dir):
         initial_dir = "D:/" if os.path.exists("D:/") else "C:/"
+
+    # Priority 1: pywebview native window file dialog if active
+    try:
+        import desktop_app
+        win = getattr(desktop_app, '_main_window', None)
+        if win:
+            import webview
+            chosen = win.create_file_dialog(
+                getattr(webview, 'OPEN_DIALOG', 10),
+                directory=str(Path(initial_dir).resolve()),
+                allow_multiple=True,
+                file_types=("Video Files (*.mp4;*.mkv;*.mov;*.avi;*.webm;*.flv;*.ts;*.m4v)", "All Files (*.*)")
+            )
+            if chosen:
+                return [str(Path(f).resolve()).replace("\\", "/") for f in chosen if os.path.exists(f)]
+            elif chosen is not None:
+                return []
+    except Exception as we:
+        pass
+
     init_dir_esc = str(Path(initial_dir).resolve()).replace("'", "''")
     title_esc = str(title).replace("'", "''")
-    icon_esc = str(get_app_icon_path() or APP_ICON_PATH).replace("'", "''")
 
+    # Priority 2: Ultra-fast PowerShell WinForms OpenFileDialog (0.05s startup, no C# compilation)
     ps_code = f"""
-Add-Type -TypeDefinition @'
-{MODERN_DIALOG_HELPER_CS}
-'@
-
-# 1. Enable Per-Monitor V2 High DPI Awareness FIRST
-[NativeDialogHelper]::EnableHighDpi()
-
-Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName System.Drawing
-
-$topForm = New-Object System.Windows.Forms.Form
-$topForm.TopMost = $true
-$topForm.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
-$topForm.ShowInTaskbar = $false
-$topForm.WindowState = [System.Windows.Forms.FormWindowState]::Minimized
-$topForm.Opacity = 0
-
-$iconPath = '{icon_esc}'
-if (Test-Path $iconPath) {{
-    try {{
-        $topForm.Icon = New-Object System.Drawing.Icon($iconPath)
-    }} catch {{ }}
-}}
-
-# Proactively watch for the dialog window and apply dark mode + app icon
-[NativeDialogHelper]::WatchAndStyleDialog($topForm.Handle, $iconPath)
+[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms') | Out-Null
+[System.Reflection.Assembly]::LoadWithPartialName('System.Drawing') | Out-Null
 
 $dialog = New-Object System.Windows.Forms.OpenFileDialog
 $dialog.Title = '{title_esc}'
@@ -1799,6 +1830,13 @@ $initDir = '{init_dir_esc}'
 if (Test-Path $initDir) {{
     $dialog.InitialDirectory = $initDir
 }}
+
+$topForm = New-Object System.Windows.Forms.Form
+$topForm.TopMost = $true
+$topForm.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
+$topForm.WindowState = [System.Windows.Forms.FormWindowState]::Minimized
+$topForm.ShowInTaskbar = $false
+$topForm.Opacity = 0
 
 $res = $dialog.ShowDialog($topForm)
 if ($res -eq [System.Windows.Forms.DialogResult]::OK) {{
@@ -1812,17 +1850,19 @@ $topForm.Dispose()
 $dialog.Dispose()
 exit 0
 """
+    cache_dir = Path("data/cache")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    script_file = cache_dir / f"files_dlg_{uuid.uuid4().hex[:8]}.ps1"
     try:
-        import base64
-        encoded = base64.b64encode(ps_code.encode("utf-16le")).decode("ascii")
+        script_file.write_text(ps_code, encoding="utf-8")
         proc = subprocess.run(
-            ["powershell.exe", "-STA", "-NoProfile", "-WindowStyle", "Hidden", "-EncodedCommand", encoded],
+            ["powershell.exe", "-STA", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", str(script_file.resolve())],
             capture_output=True,
             text=True,
             encoding="utf-8",
             errors="replace",
-            timeout=300,
-            is_gui_dialog=True
+            timeout=180,
+            creationflags=0x08000000
         )
         for line in (proc.stdout or "").splitlines():
             line = line.strip()
@@ -1831,8 +1871,35 @@ exit 0
                 parsed = json.loads(raw_json)
                 files = [parsed] if isinstance(parsed, str) else list(parsed)
                 return [f.replace("\\", "/") for f in files if os.path.exists(f)]
+            elif line == "CANCELLED":
+                return []
     except Exception as e:
         print(f"Native file dialog note: {e}")
+    finally:
+        try:
+            if script_file.exists():
+                script_file.unlink()
+        except Exception:
+            pass
+
+    # Priority 3: Seamless standard Windows fallback using Tkinter
+    try:
+        import tkinter
+        from tkinter import filedialog
+        root = tkinter.Tk()
+        root.withdraw()
+        root.attributes('-topmost', True)
+        files = filedialog.askopenfilenames(
+            title=title,
+            initialdir=initial_dir,
+            filetypes=[("Video Files", "*.mp4 *.mkv *.mov *.avi *.webm *.flv *.ts *.m4v"), ("All Files", "*.*")]
+        )
+        root.destroy()
+        if files:
+            return [str(Path(f).resolve()).replace("\\", "/") for f in files if os.path.exists(f)]
+    except Exception as te:
+        print(f"Tkinter files fallback note: {te}")
+
     return []
 
 
@@ -1902,23 +1969,25 @@ def system_select_media_folder_endpoint():
     valid_exts = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".flv", ".ts", ".m4v", ".wmv"}
 
     found_paths = []
-    for item in folder_p.iterdir():
-        if item.is_file() and item.suffix.lower() in valid_exts:
-            found_paths.append(item)
-        elif item.is_dir():
-            for sub in item.iterdir():
-                if sub.is_file() and sub.suffix.lower() in valid_exts:
-                    found_paths.append(sub)
+    try:
+        for item in folder_p.rglob("*"):
+            if item.is_file() and item.suffix.lower() in valid_exts:
+                found_paths.append(item)
+    except Exception as e:
+        print(f"Folder recursive scan note: {e}")
 
     meta_files = []
     for p in found_paths:
-        sz = p.stat().st_size
-        meta_files.append({
-            "filepath": str(p.resolve()).replace("\\", "/"),
-            "filename": p.name,
-            "size": sz,
-            "size_mb": f"{sz / (1024 * 1024):.1f}"
-        })
+        try:
+            sz = p.stat().st_size
+            meta_files.append({
+                "filepath": str(p.resolve()).replace("\\", "/"),
+                "filename": p.name,
+                "size": sz,
+                "size_mb": f"{sz / (1024 * 1024):.1f}"
+            })
+        except Exception:
+            pass
 
     def natural_sort_key(s):
         return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', s["filename"])]
@@ -1929,6 +1998,84 @@ def system_select_media_folder_endpoint():
     return jsonify({
         "success": True,
         "folder": str(folder_p).replace("\\", "/"),
+        "series_title": series_title,
+        "files": meta_files,
+        "count": len(meta_files)
+    })
+
+
+@app.route("/api/system/scan-folder", methods=["POST"])
+def system_scan_folder_endpoint():
+    """
+    Directly scans a folder path or list of file paths dropped onto the app.
+    Automatically detects directories, extracts all video episodes, sorts them
+    naturally in story order (EP1, EP2... EP80), and returns full filepaths.
+    """
+    data = request.get_json(force=True, silent=True) or {}
+    paths_to_check = []
+
+    if "folder_path" in data and data["folder_path"]:
+        paths_to_check.append(data["folder_path"])
+    if "paths" in data and isinstance(data["paths"], list):
+        paths_to_check.extend(data["paths"])
+
+    valid_exts = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".flv", ".ts", ".m4v", ".wmv"}
+    found_paths = []
+    series_title = "Drama_Series"
+    detected_folder = ""
+
+    for raw_p in paths_to_check:
+        if not raw_p or not isinstance(raw_p, str):
+            continue
+        p = Path(raw_p.strip())
+        if not p.exists():
+            continue
+
+        if p.is_dir():
+            detected_folder = str(p.resolve()).replace("\\", "/")
+            series_title = p.name
+            try:
+                for item in p.rglob("*"):
+                    if item.is_file() and item.suffix.lower() in valid_exts:
+                        found_paths.append(item)
+            except Exception as e:
+                print(f"Dropped folder rglob scan note: {e}")
+        elif p.is_file() and p.suffix.lower() in valid_exts:
+            found_paths.append(p)
+            if not detected_folder:
+                detected_folder = str(p.parent.resolve()).replace("\\", "/")
+                series_title = p.parent.name
+
+    # Deduplicate paths
+    unique_paths = []
+    seen = set()
+    for fp in found_paths:
+        canonical = str(fp.resolve()).replace("\\", "/").lower()
+        if canonical not in seen:
+            seen.add(canonical)
+            unique_paths.append(fp)
+
+    meta_files = []
+    for fp in unique_paths:
+        try:
+            sz = fp.stat().st_size
+            meta_files.append({
+                "filepath": str(fp.resolve()).replace("\\", "/"),
+                "filename": fp.name,
+                "size": sz,
+                "size_mb": f"{sz / (1024 * 1024):.1f}"
+            })
+        except Exception:
+            pass
+
+    def natural_sort_key(s):
+        return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', s["filename"])]
+
+    meta_files.sort(key=natural_sort_key)
+
+    return jsonify({
+        "success": True if meta_files else False,
+        "folder": detected_folder,
         "series_title": series_title,
         "files": meta_files,
         "count": len(meta_files)
@@ -2035,11 +2182,32 @@ def power_compress_endpoint():
 # ==========================================================================
 video_auto_tasks: Dict[str, Dict[str, Any]] = {}
 
+@app.route("/api/projects/upload-overlay-logo", methods=["POST"])
+def upload_overlay_logo_endpoint():
+    """Upload logo watermark image file for overlay rendering."""
+    if "logo_file" not in request.files:
+        return jsonify({"success": False, "error": "No logo file provided"}), 400
+    file = request.files["logo_file"]
+    if not file.filename:
+        return jsonify({"success": False, "error": "Empty filename"}), 400
+    upload_dir = Path("data/uploads")
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    ext = Path(file.filename).suffix or ".png"
+    save_name = f"active_overlay_logo_{int(time.time())}{ext}"
+    dest = upload_dir / save_name
+    file.save(str(dest))
+    return jsonify({
+        "success": True,
+        "logo_path": str(dest.resolve()),
+        "filename": file.filename
+    })
+
+
 @app.route("/api/projects/auto-dub-video", methods=["POST"])
 def auto_dub_video_endpoint():
     """
     1-Click Automated Video Dubbing (Chinese/Multilingual Video -> Khmer Speech & Video).
-    Accepts video file upload or local filepath.
+    Accepts video file upload or local filepath, with interactive Logo watermark and Blur mask overlays.
     """
     mode = request.form.get("drama_mode", "drama_dubbing")
     source_lang = request.form.get("source_lang", "auto")
@@ -2051,6 +2219,7 @@ def auto_dub_video_endpoint():
     
     saved_video_path = None
     original_filename = "drama_video.mp4"
+    overlay_config = None
 
     if "file" in request.files and request.files["file"].filename:
         file = request.files["file"]
@@ -2061,6 +2230,12 @@ def auto_dub_video_endpoint():
         dest = upload_dir / unique_name
         file.save(str(dest))
         saved_video_path = str(dest)
+        raw_oc = request.form.get("overlay_config")
+        if raw_oc:
+            try:
+                overlay_config = json.loads(raw_oc) if isinstance(raw_oc, str) else raw_oc
+            except Exception:
+                pass
     elif request.is_json:
         data = request.get_json(force=True) or {}
         saved_video_path = data.get("filepath")
@@ -2073,9 +2248,36 @@ def auto_dub_video_endpoint():
             if "burn_subtitles" in data:
                 val = data["burn_subtitles"]
                 burn_subtitles = val if isinstance(val, bool) else str(val).lower() in ("true", "1", "yes")
+            overlay_config = data.get("overlay_config")
+            if isinstance(overlay_config, str):
+                try:
+                    overlay_config = json.loads(overlay_config)
+                except Exception:
+                    pass
     elif request.form.get("filepath"):
         saved_video_path = request.form.get("filepath")
         original_filename = request.form.get("filename") or Path(saved_video_path).name
+        raw_oc = request.form.get("overlay_config")
+        if raw_oc:
+            try:
+                overlay_config = json.loads(raw_oc) if isinstance(raw_oc, str) else raw_oc
+            except Exception:
+                pass
+
+    # Support direct logo_file upload in form data
+    if "logo_file" in request.files and request.files["logo_file"].filename:
+        logo_f = request.files["logo_file"]
+        upload_dir = Path("data/uploads")
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        ext = Path(logo_f.filename).suffix or ".png"
+        saved_logo = upload_dir / f"overlay_logo_{int(time.time())}{ext}"
+        logo_f.save(str(saved_logo))
+        if not overlay_config:
+            overlay_config = {}
+        if "logo" not in overlay_config:
+            overlay_config["logo"] = {}
+        overlay_config["logo"]["active"] = True
+        overlay_config["logo"]["path"] = str(saved_logo.resolve())
 
     if not voice_override or voice_override in ("auto", "", None):
         cfg = load_stored_story_config()
@@ -2099,7 +2301,7 @@ def auto_dub_video_endpoint():
         "error": None
     }
 
-    def _worker(t_id: str, v_path: str, m: str, sl: str, vo: str, ar: str, bs: bool):
+    def _worker(t_id: str, v_path: str, m: str, sl: str, vo: str, ar: str, bs: bool, oc: dict):
         def _prog_cb(pct: int, km: str, en: str, dialogues: list = None):
             if t_id in video_auto_tasks:
                 video_auto_tasks[t_id]["progress"] = pct
@@ -2120,6 +2322,7 @@ def auto_dub_video_endpoint():
                     voice_override=vo,
                     aspect_ratio=ar,
                     burn_subtitles=bs,
+                    overlay_config=oc,
                     progress_callback=_prog_cb
                 ))
             finally:
@@ -2143,7 +2346,7 @@ def auto_dub_video_endpoint():
 
     threading.Thread(
         target=_worker,
-        args=(task_id, saved_video_path, mode, source_lang, voice_override, aspect_ratio, burn_subtitles),
+        args=(task_id, saved_video_path, mode, source_lang, voice_override, aspect_ratio, burn_subtitles, overlay_config),
         daemon=True
     ).start()
 
@@ -2265,5 +2468,37 @@ def serve_media(filename):
     return send_file(str(file_path.resolve()), conditional=True)
 
 
+@app.route("/api/update/check", methods=["GET"])
+def check_update_api():
+    try:
+        from update import check_for_updates
+        token = request.args.get("token") or os.environ.get("GITHUB_TOKEN")
+        res = check_for_updates(github_token=token)
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({"success": False, "has_update": False, "error": str(e)}), 500
+
+
+@app.route("/api/update/apply", methods=["POST"])
+def apply_update_api():
+    try:
+        from update import apply_git_pull_update, apply_zip_download_update
+        data = request.get_json(force=True) or {}
+        download_url = data.get("download_url", "")
+
+        git_dir = APP_DIR / ".git"
+        if git_dir.exists():
+            res = apply_git_pull_update(APP_DIR)
+            return jsonify(res)
+        elif download_url:
+            res = apply_zip_download_update(download_url, APP_DIR)
+            return jsonify(res)
+        else:
+            return jsonify({"success": False, "error": "No update package URL found."}), 400
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000, debug=False)
+

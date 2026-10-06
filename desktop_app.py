@@ -56,6 +56,23 @@ else:
     except Exception:
         pass
 
+# Global Crash Protection Hook
+def global_crash_protection(exctype, value, tb):
+    import traceback
+    err_text = "".join(traceback.format_exception(exctype, value, tb))
+    print(f"\n[CRASH PREVENTED] {err_text}", file=sys.stderr)
+    try:
+        log_dir = APP_DIR / "data"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        with open(log_dir / "crash_log.txt", "a", encoding="utf-8") as f:
+            f.write(f"\n[{time.strftime('%Y-%m-%d %H:%M:%S')}] {err_text}\n")
+    except Exception:
+        pass
+
+sys.excepthook = global_crash_protection
+if hasattr(threading, 'excepthook'):
+    threading.excepthook = lambda args: global_crash_protection(args.exc_type, args.exc_value, args.exc_traceback)
+
 # Ensure working directory is set to app base directory
 if getattr(sys, 'frozen', False):
     # Running as compiled executable (PyInstaller)
@@ -76,16 +93,68 @@ from audio_processor import patch_silent_subprocess, get_silent_kwargs
 
 patch_silent_subprocess()
 
-def free_port_8000():
-    """Clean stale listener on port 8000 before starting new server."""
+def focus_existing_window():
+    """Bring existing SN TOOL window to foreground if already running."""
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            hwnd = ctypes.windll.user32.FindWindowW(None, "SN TOOL - STUDIO PRO")
+            if not hwnd:
+                EnumWindows = ctypes.windll.user32.EnumWindows
+                EnumWindowsProc = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+                found_hwnd = ctypes.c_void_p(0)
+                def foreach_window(h, l):
+                    length = ctypes.windll.user32.GetWindowTextLengthW(h)
+                    if length > 0:
+                        buff = ctypes.create_unicode_buffer(length + 1)
+                        ctypes.windll.user32.GetWindowTextW(h, buff, length + 1)
+                        if "SN TOOL" in buff.value:
+                            found_hwnd.value = h
+                            return False
+                    return True
+                EnumWindows(EnumWindowsProc(foreach_window), 0)
+                hwnd = found_hwnd.value
+
+            if hwnd:
+                ctypes.windll.user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+                ctypes.windll.user32.SetForegroundWindow(hwnd)
+                return True
+        except Exception:
+            pass
+    return False
+
+def check_and_handle_running_server():
+    """
+    Check if port 8000 is already running SN TOOL.
+    Returns True if an existing healthy instance is running (duplicate launcher will exit cleanly).
+    Returns False if port 8000 is free or had a dead orphan process that was cleaned up.
+    """
+    import urllib.request
+    try:
+        req = urllib.request.Request("http://127.0.0.1:8000/api/license/status", headers={"User-Agent": "SN_TOOL_Launcher"})
+        with urllib.request.urlopen(req, timeout=1.5) as r:
+            if r.status == 200:
+                print("\n" + "=" * 65)
+                print(" ✅ SN TOOL កំពុងដំណើរការស្រេចនៅលើកុំព្យូទ័ររបស់អ្នករួចរាល់ហើយ!")
+                print(" 🌐 កំពុងនាំផ្ទាំងកម្មវិធីមកមុខអេក្រង់ (Bringing Window to Front)...")
+                print("=" * 65 + "\n")
+                if not focus_existing_window():
+                    import webbrowser
+                    webbrowser.open("http://127.0.0.1:8000")
+                return True
+    except Exception:
+        pass
+
+    # If port 8000 is occupied by something else or a dead socket, check with netstat
     if sys.platform == "win32":
         try:
             import socket
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 in_use = (s.connect_ex(('127.0.0.1', 8000)) == 0)
             if not in_use:
-                return
+                return False
 
+            # Port is occupied but unresponsive: kill the zombie listener
             out = subprocess.check_output('netstat -ano | findstr :8000', shell=True, **get_silent_kwargs()).decode()
             current_pid = os.getpid()
             for line in out.strip().split('\n'):
@@ -97,6 +166,8 @@ def free_port_8000():
         except Exception:
             pass
 
+    return False
+
 from server import app
 
 def start_server():
@@ -107,6 +178,7 @@ def start_server():
     app.run(host="127.0.0.1", port=8000, debug=False, use_reloader=False)
 
 _main_window = None
+_user_requested_exit = False
 
 def is_window_zoomed():
     """Check if the native window is currently maximized."""
@@ -214,7 +286,8 @@ class NativeWindowApi:
                 pass
 
     def close_window(self):
-        global _main_window
+        global _main_window, _user_requested_exit
+        _user_requested_exit = True
         if _main_window:
             try:
                 _main_window.destroy()
@@ -407,6 +480,34 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
                         ctypes.windll.dwmapi.DwmSetWindowAttribute(
                             hwnd, DWMWA_BORDER_COLOR, ctypes.byref(color), ctypes.sizeof(color)
                         )
+                        # Set official high-res application icon on window and Windows Taskbar
+                        try:
+                            icon_candidates = [
+                                str(Path("icon.ico").resolve()),
+                                str(Path(__file__).resolve().parent / "icon.ico"),
+                                str(Path("static/favicon.ico").resolve())
+                            ]
+                            icon_p = next((p for p in icon_candidates if os.path.exists(p)), "")
+                            if icon_p:
+                                IMAGE_ICON = 1
+                                LR_LOADFROMFILE = 0x00000010
+                                WM_SETICON = 0x0080
+                                ICON_SMALL = 0
+                                ICON_BIG = 1
+                                h_icon_big = ctypes.windll.user32.LoadImageW(None, icon_p, IMAGE_ICON, 48, 48, LR_LOADFROMFILE)
+                                h_icon_sm = ctypes.windll.user32.LoadImageW(None, icon_p, IMAGE_ICON, 24, 24, LR_LOADFROMFILE)
+                                if h_icon_big:
+                                    ctypes.windll.user32.SendMessageW(hwnd, WM_SETICON, ICON_BIG, h_icon_big)
+                                if h_icon_sm:
+                                    ctypes.windll.user32.SendMessageW(hwnd, WM_SETICON, ICON_SMALL, h_icon_sm)
+                                if hasattr(w, 'native') and w.native:
+                                    try:
+                                        import System.Drawing
+                                        w.native.Icon = System.Drawing.Icon(icon_p)
+                                    except Exception:
+                                        pass
+                        except Exception:
+                            pass
                         # Center window on primary monitor work area immediately
                         enforce_center_window(hwnd)
                         # Repeat after 150ms and 300ms to guarantee precision after WebView2 layout
@@ -443,7 +544,10 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
 
     # 3. Fallback to default browser
     import webbrowser
-    webbrowser.open(url)
+    try:
+        webbrowser.open(url)
+    except Exception:
+        pass
 
 def main():
     print("========================================================")
@@ -452,8 +556,10 @@ def main():
     print(" 🌐 Server Address: http://127.0.0.1:8000")
     print("========================================================")
 
-    # 1. Clean port 8000
-    free_port_8000()
+    # 1. Check if server is already running - never kill a healthy instance!
+    if check_and_handle_running_server():
+        time.sleep(1.5)
+        return
 
     # 2. Start server in daemon thread
     server_thread = threading.Thread(target=start_server, daemon=True)
@@ -461,10 +567,31 @@ def main():
     time.sleep(1.0)
 
     # 3. Launch native window
-    launch_native_window()
+    try:
+        launch_native_window()
+    except Exception as e:
+        print(f"[Notice] Native window notice: {e}")
+        try:
+            import webbrowser
+            webbrowser.open("http://127.0.0.1:8000")
+        except Exception:
+            pass
 
-    # 4. Clean exit once native window is closed
-    sys.exit(0)
+    # 4. If window closed because user explicitly clicked 'X', clean exit
+    global _user_requested_exit
+    if _user_requested_exit:
+        print("\n👋 បានបិទកម្មវិធី SN TOOL ជោគជ័យ។")
+        sys.exit(0)
+
+    # 5. Recovery Guard: If native window returned but user DID NOT click close, KEEP SERVER ALIVE!
+    print("\n🛡️ [RECOVERY GUARD] កំពុងរក្សាដំណើរការ SN TOOL Server លើ Port 8000...")
+    print("👉 បងអាចបន្តប្រើប្រាស់តាម Browser បានគ្រប់ពេល: http://127.0.0.1:8000")
+    print("   (ចុច Ctrl+C ក្នុងផ្ទាំងនេះប្រសិនបើចង់បិទកម្មវិធី)\n")
+    try:
+        while True:
+            time.sleep(1)
+    except (KeyboardInterrupt, SystemExit):
+        print("\n👋 បានបិទកម្មវិធី SN TOOL។")
 
 if __name__ == "__main__":
     main()

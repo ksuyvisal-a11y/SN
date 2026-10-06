@@ -445,7 +445,8 @@ class ProjectManager:
         project_id: str,
         burn_subtitles: bool = False,
         aspect_ratio: str = "16:9",
-        watermark_text: Optional[str] = None
+        watermark_text: Optional[str] = None,
+        overlay_config: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         project = self.load_project(project_id)
         if not project:
@@ -469,6 +470,7 @@ class ProjectManager:
             burn_subtitles=burn_subtitles,
             aspect_ratio=aspect_ratio,
             watermark_text=watermark_text,
+            overlay_config=overlay_config,
             temp_dir=str(proj_dir / "temp")
         )
 
@@ -503,6 +505,7 @@ class ProjectManager:
         voice_override: Optional[str] = None,
         aspect_ratio: str = "16:9",
         burn_subtitles: bool = False,
+        overlay_config: Optional[Dict[str, Any]] = None,
         progress_callback = None
     ) -> Dict[str, Any]:
         """
@@ -690,7 +693,8 @@ class ProjectManager:
         rendered_project = self.render_project_video_final(
             project_id=proj_id,
             burn_subtitles=burn_subtitles,
-            aspect_ratio=aspect_ratio
+            aspect_ratio=aspect_ratio,
+            overlay_config=overlay_config
         )
 
         update_prog(100, "🎉 រួចរាល់ ១០០%! វីដេអូសម្រេចបានរក្សាទុក!", "Completed! Video ready.")

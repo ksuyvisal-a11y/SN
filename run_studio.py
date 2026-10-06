@@ -17,20 +17,7 @@ from audio_processor import patch_silent_subprocess, get_silent_kwargs
 
 patch_silent_subprocess()
 
-def free_port_8000():
-    """Kill any stale process occupying port 8000 before starting new server."""
-    if sys.platform == "win32":
-        try:
-            out = subprocess.check_output('netstat -ano | findstr :8000', shell=True, **get_silent_kwargs()).decode()
-            current_pid = os.getpid()
-            for line in out.strip().split('\n'):
-                parts = line.strip().split()
-                if len(parts) >= 5 and 'LISTENING' in line:
-                    pid = int(parts[-1])
-                    if pid != current_pid and pid > 0:
-                        subprocess.run(f'taskkill /F /PID {pid}', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **get_silent_kwargs())
-        except Exception:
-            pass
+from desktop_app import check_and_handle_running_server
 
 from server import app
 
@@ -177,7 +164,10 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
     webbrowser.open(url)
 
 if __name__ == "__main__":
-    free_port_8000()
+    if check_and_handle_running_server():
+        time.sleep(1.5)
+        sys.exit(0)
+
     os.makedirs("cache/audio_cache", exist_ok=True)
     os.makedirs("data/projects", exist_ok=True)
     os.makedirs("data/uploads", exist_ok=True)
