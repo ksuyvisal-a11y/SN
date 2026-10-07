@@ -12,7 +12,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=60.0">
+    <link rel="stylesheet" href="style.css?v=61.0">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body class="splash-active">
@@ -548,7 +548,47 @@
                                                     </div>
                                                 </div>
 
-                                                <!-- Row 2: Motion Animation + Dark Backdrop Banner (Single tight flex row!) -->
+                                                <!-- Row 2: Multi-Color Word Palette (Select Word to Change Its Specific Color) -->
+                                                <div class="text-multicolor-card" id="text-multicolor-card">
+                                                    <div class="text-multicolor-header">
+                                                        <span class="compact-row-title"><i class="fa-solid fa-paintbrush" style="color:#f43f5e;"></i> ជ្រើសពាក្យដើម្បីដូរពណ៌ (Word Color):</span>
+                                                        <span class="text-active-word-badge" id="text-active-word-badge">ពាក្យ: ទាំងអស់ (All)</span>
+                                                    </div>
+                                                    <!-- Dynamically Generated Word Chips -->
+                                                    <div class="text-word-tokens-wrap" id="text-word-tokens-container">
+                                                        <button type="button" class="text-word-chip active" id="chip-word-all" onclick="selectTargetWord('all', event)">
+                                                            <span class="word-dot" style="background:#ffffff;"></span>
+                                                            <span class="word-text">ទាំងអស់ (All)</span>
+                                                        </button>
+                                                        <button type="button" class="text-word-chip" id="chip-word-0" onclick="selectTargetWord(0, event)">
+                                                            <span class="word-dot" style="background:#ffffff;"></span>
+                                                            <span class="word-text">ភាគទី</span>
+                                                        </button>
+                                                        <button type="button" class="text-word-chip" id="chip-word-1" onclick="selectTargetWord(1, event)">
+                                                            <span class="word-dot" style="background:#ffffff;"></span>
+                                                            <span class="word-text">០១</span>
+                                                        </button>
+                                                    </div>
+                                                    <!-- Color Chips Palette Row + Eyedropper Color Picker -->
+                                                    <div class="text-palette-row">
+                                                        <span class="palette-mini-label"><i class="fa-solid fa-palette"></i> ពណ៌:</span>
+                                                        <div class="text-color-chips compact" id="text-color-chips-list">
+                                                            <button type="button" class="text-color-chip active" style="--c:#ffffff;" onclick="applyColorToSelectedWord('#ffffff', event)" title="ស White"></button>
+                                                            <button type="button" class="text-color-chip" style="--c:#facc15;" onclick="applyColorToSelectedWord('#facc15', event)" title="លឿង Yellow"></button>
+                                                            <button type="button" class="text-color-chip" style="--c:#38bdf8;" onclick="applyColorToSelectedWord('#38bdf8', event)" title="ខៀវ Cyan"></button>
+                                                            <button type="button" class="text-color-chip" style="--c:#f43f5e;" onclick="applyColorToSelectedWord('#f43f5e', event)" title="ក្រហម Red"></button>
+                                                            <button type="button" class="text-color-chip" style="--c:#22c55e;" onclick="applyColorToSelectedWord('#22c55e', event)" title="បៃតង Green"></button>
+                                                            <button type="button" class="text-color-chip" style="--c:#fb923c;" onclick="applyColorToSelectedWord('#fb923c', event)" title="ទឹកក្រូច Orange"></button>
+                                                            <button type="button" class="text-color-chip" style="--c:#c084fc;" onclick="applyColorToSelectedWord('#c084fc', event)" title="ស្វាយ Purple"></button>
+                                                            <label class="text-custom-picker-wrap" title="ជ្រើសរើសពណ៌បន្ថែម (Custom Color)">
+                                                                <input type="color" id="input-custom-word-color" value="#ffffff" onchange="applyColorToSelectedWord(this.value, event)">
+                                                                <i class="fa-solid fa-eye-dropper"></i>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Row 3: Motion Animation + Dark Backdrop Banner (Single tight flex row!) -->
                                                 <div class="text-compact-row-motion">
                                                     <div class="text-motion-flex-left">
                                                         <span class="compact-row-title"><i class="fa-solid fa-person-running"></i> ចលនា:</span>
@@ -572,23 +612,12 @@
                                                     </label>
                                                 </div>
 
-                                                <!-- Row 3: Font Size + Color Palette (Single tight flex row!) -->
+                                                <!-- Row 4: Font Size Slider -->
                                                 <div class="text-compact-row-style">
                                                     <div class="text-size-flex-col">
-                                                        <span class="compact-row-title"><i class="fa-solid fa-text-height"></i> ទំហំ:</span>
+                                                        <span class="compact-row-title"><i class="fa-solid fa-text-height"></i> ទំហំអក្សរ:</span>
                                                         <input type="range" id="input-text-size" min="14" max="64" value="24" class="blur-range-slider mini" oninput="onTextSizeChange(this.value, event)">
                                                         <span class="text-slider-badge" id="text-size-badge">24px</span>
-                                                    </div>
-
-                                                    <div class="text-color-flex-col">
-                                                        <span class="compact-row-title"><i class="fa-solid fa-palette"></i> ពណ៌:</span>
-                                                        <div class="text-color-chips compact">
-                                                            <button type="button" class="text-color-chip active" style="--c:#ffffff;" onclick="setTextTextColor('#ffffff', event)" title="ស White"></button>
-                                                            <button type="button" class="text-color-chip" style="--c:#facc15;" onclick="setTextTextColor('#facc15', event)" title="លឿង Yellow"></button>
-                                                            <button type="button" class="text-color-chip" style="--c:#38bdf8;" onclick="setTextTextColor('#38bdf8', event)" title="ខៀវ Cyan"></button>
-                                                            <button type="button" class="text-color-chip" style="--c:#f43f5e;" onclick="setTextTextColor('#f43f5e', event)" title="ក្រហម Red"></button>
-                                                            <button type="button" class="text-color-chip" style="--c:#22c55e;" onclick="setTextTextColor('#22c55e', event)" title="បៃតង Green"></button>
-                                                        </div>
                                                     </div>
                                                 </div>
 
@@ -2085,6 +2114,6 @@
 
     <!-- HLS.js for Live Stream M3U8 Video Previews -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <script src="app.js?v=33.0"></script>
+    <script src="app.js?v=34.0"></script>
 </body>
 </html>

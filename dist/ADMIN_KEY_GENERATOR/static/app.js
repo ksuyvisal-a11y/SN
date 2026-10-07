@@ -4263,6 +4263,9 @@ let currentOverlayAssets = {
     textValue: 'ភាគទី ០១',
     textSize: 24,
     textColor: '#ffffff',
+    wordColors: {},
+    selectedWordIndex: 'all',
+    textSegments: [],
     textBg: true,
     textPosition: 'top-center'
 };
@@ -4905,6 +4908,7 @@ function toggleTextOverlayDropdown(e) {
         if (!currentOverlayAssets.textActive) {
             toggleTextOverlayTool(null, true);
         }
+        renderWordTokenChips();
         if (divider) divider.style.display = 'block';
         panel.style.display = 'flex';
         if (stack) stack.classList.add('has-inline-open');
@@ -4947,6 +4951,7 @@ function onOverlayTextInput(val, e) {
     if (!currentOverlayAssets.textActive) {
         toggleTextOverlayTool(null, true);
     }
+    renderWordTokenChips();
     applyTextOverlayStyling();
 }
 
@@ -4967,25 +4972,130 @@ function onTextSizeChange(val, e) {
     applyTextOverlayStyling();
 }
 
-function setTextTextColor(color, e) {
+function splitTextIntoTokens(text) {
+    if (!text) return [];
+    return text.trim().split(/\s+/).filter(Boolean);
+}
+
+function renderWordTokenChips() {
+    const container = document.getElementById('text-word-tokens-container');
+    const badge = document.getElementById('text-active-word-badge');
+    if (!container) return;
+
+    const text = currentOverlayAssets.textValue || '';
+    const tokens = splitTextIntoTokens(text);
+    if (!currentOverlayAssets.wordColors) currentOverlayAssets.wordColors = {};
+
+    let sel = currentOverlayAssets.selectedWordIndex;
+    if (sel !== 'all' && typeof sel === 'number' && (sel < 0 || sel >= tokens.length)) {
+        sel = 'all';
+        currentOverlayAssets.selectedWordIndex = 'all';
+    }
+
+    const allColor = currentOverlayAssets.textColor || '#ffffff';
+
+    let html = `
+        <button type="button" class="text-word-chip ${sel === 'all' ? 'active' : ''}" id="chip-word-all" onclick="selectTargetWord('all', event)" title="ប្តូរពណ៌គ្រប់ពាក្យទាំងអស់ (All Words)">
+            <span class="word-dot" style="background:${allColor};"></span>
+            <span class="word-text">ទាំងអស់ (All)</span>
+        </button>
+    `;
+
+    tokens.forEach((token, idx) => {
+        const color = currentOverlayAssets.wordColors[idx] || allColor;
+        const isActive = sel === idx;
+        html += `
+            <button type="button" class="text-word-chip ${isActive ? 'active' : ''}" id="chip-word-${idx}" onclick="selectTargetWord(${idx}, event)" title="ជ្រើសពាក្យ: ${escapeHtml(token)}">
+                <span class="word-dot" style="background:${color};"></span>
+                <span class="word-text">${escapeHtml(token)}</span>
+            </button>
+        `;
+    });
+
+    container.innerHTML = html;
+
+    // Update active word badge
+    if (badge) {
+        if (sel === 'all' || sel === undefined || sel === null) {
+            badge.textContent = 'ពាក្យ: ទាំងអស់ (All)';
+            badge.style.color = '#38bdf8';
+        } else if (tokens[sel]) {
+            badge.textContent = `ពាក្យ: "${tokens[sel]}"`;
+            const activeColor = currentOverlayAssets.wordColors[sel] || allColor;
+            badge.style.color = activeColor;
+        } else {
+            badge.textContent = 'ពាក្យ: ទាំងអស់ (All)';
+            badge.style.color = '#38bdf8';
+        }
+    }
+
+    updateActivePaletteChipHighlight();
+}
+
+function updateActivePaletteChipHighlight() {
+    const panel = document.getElementById('text-custom-dropdown');
+    if (!panel) return;
+
+    const sel = currentOverlayAssets.selectedWordIndex;
+    const allColor = (currentOverlayAssets.textColor || '#ffffff').toLowerCase();
+    const currentColor = (sel === 'all' || sel === undefined || sel === null 
+        ? allColor 
+        : (currentOverlayAssets.wordColors && currentOverlayAssets.wordColors[sel] ? currentOverlayAssets.wordColors[sel] : allColor)).toLowerCase();
+
+    panel.querySelectorAll('#text-color-chips-list .text-color-chip').forEach(btn => {
+        const btnColor = (btn.style.getPropertyValue('--c') || '').trim().toLowerCase();
+        btn.classList.toggle('active', btnColor === currentColor);
+    });
+
+    const picker = document.getElementById('input-custom-word-color');
+    if (picker && currentColor.startsWith('#') && currentColor.length === 7) {
+        picker.value = currentColor;
+    }
+}
+
+function selectTargetWord(target, e) {
     if (e) {
         e.stopPropagation();
         e.preventDefault();
     }
-    currentOverlayAssets.textColor = color || '#ffffff';
+    currentOverlayAssets.selectedWordIndex = target;
+    renderWordTokenChips();
+}
 
-    const panel = document.getElementById('text-custom-dropdown');
-    if (panel) {
-        panel.querySelectorAll('.text-color-chip').forEach(btn => {
-            const btnColor = btn.style.getPropertyValue('--c') || '';
-            btn.classList.toggle('active', btnColor.toLowerCase() === (color || '').toLowerCase());
+function applyColorToSelectedWord(color, e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    const c = color || '#ffffff';
+    const sel = currentOverlayAssets.selectedWordIndex;
+    const tokens = splitTextIntoTokens(currentOverlayAssets.textValue || '');
+
+    if (!currentOverlayAssets.wordColors) currentOverlayAssets.wordColors = {};
+
+    if (sel === 'all' || sel === undefined || sel === null) {
+        currentOverlayAssets.textColor = c;
+        tokens.forEach((_, idx) => {
+            currentOverlayAssets.wordColors[idx] = c;
         });
+        showToast(`បានប្តូរពណ៌អក្សរទាំងអស់ ទៅជា ${c}`);
+    } else {
+        const idx = parseInt(sel, 10);
+        currentOverlayAssets.wordColors[idx] = c;
+        const targetWord = tokens[idx] || `ពាក្យទី ${idx + 1}`;
+        showToast(`បានប្តូរពណ៌ពាក្យ "${targetWord}" ទៅជា ${c}`);
     }
 
     if (!currentOverlayAssets.textActive) {
         toggleTextOverlayTool(null, true);
     }
+
+    renderWordTokenChips();
     applyTextOverlayStyling();
+}
+
+function setTextTextColor(color, e) {
+    applyColorToSelectedWord(color, e);
 }
 
 function onTextBgToggle(checked, e) {
@@ -5005,18 +5115,31 @@ function applyTextPreset(type, e) {
     }
 
     let val = '';
-    if (type === 'ep') val = '⚡ ភាគទី ០១';
-    else if (type === 'full') val = '🎬 ភាគមួយចប់';
-    else if (type === 'credit') val = '✨ @SN_DRAMA';
-    else if (type === 'dub') val = '🎙️ សំឡេងខ្មែរ';
+    currentOverlayAssets.wordColors = {};
+    if (type === 'ep') {
+        val = '⚡ ភាគទី ០១';
+        currentOverlayAssets.wordColors = { 0: '#facc15', 1: '#ffffff', 2: '#38bdf8' };
+    } else if (type === 'full') {
+        val = '🎬 ភាគមួយចប់';
+        currentOverlayAssets.wordColors = { 0: '#f43f5e', 1: '#ffffff' };
+    } else if (type === 'credit') {
+        val = 'SN DRAMA';
+        currentOverlayAssets.wordColors = { 0: '#f43f5e', 1: '#ffffff' };
+    } else if (type === 'dub') {
+        val = '🎙️ សំឡេងខ្មែរ';
+        currentOverlayAssets.wordColors = { 0: '#38bdf8', 1: '#ffffff' };
+    }
 
     const input = document.getElementById('input-overlay-text-val');
     if (input) input.value = val;
 
     currentOverlayAssets.textValue = val;
+    currentOverlayAssets.selectedWordIndex = 'all';
+
     if (!currentOverlayAssets.textActive) {
         toggleTextOverlayTool(null, true);
     }
+    renderWordTokenChips();
     applyTextOverlayStyling();
     showToast(`បានដាក់ Preset: ${val}`);
 }
@@ -5109,16 +5232,29 @@ function applyTextOverlayStyling() {
     const displayEl = document.getElementById('monitor-text-display');
     if (!monitorText || !displayEl) return;
 
-    const text = currentOverlayAssets.textValue !== undefined ? currentOverlayAssets.textValue : 'ភាគទី ០១';
+    const rawText = currentOverlayAssets.textValue !== undefined ? currentOverlayAssets.textValue : 'ភាគទី ០១';
     const size = currentOverlayAssets.textSize || 24;
-    const color = currentOverlayAssets.textColor || '#ffffff';
+    const defaultColor = currentOverlayAssets.textColor || '#ffffff';
     const hasBg = currentOverlayAssets.textBg !== false;
     const motion = currentOverlayAssets.textMotion || 'static';
     const speed = currentOverlayAssets.textSpeed || 65;
 
-    displayEl.textContent = text || '';
+    const tokens = splitTextIntoTokens(rawText);
+    let segments = [];
+    if (tokens.length === 0) {
+        segments = [{ text: rawText, color: defaultColor }];
+    } else {
+        tokens.forEach((word, idx) => {
+            const wColor = (currentOverlayAssets.wordColors && currentOverlayAssets.wordColors[idx]) 
+                           ? currentOverlayAssets.wordColors[idx] 
+                           : defaultColor;
+            segments.push({ text: word, color: wColor });
+        });
+    }
+    currentOverlayAssets.textSegments = segments;
+
+    displayEl.innerHTML = segments.map(seg => `<span style="color:${seg.color};">${escapeHtml(seg.text)}</span>`).join(' ');
     displayEl.style.fontSize = `${size}px`;
-    displayEl.style.color = color;
 
     if (hasBg) {
         monitorText.classList.remove('no-bg');
@@ -5463,6 +5599,7 @@ async function getOverlayExportConfig() {
             text: currentOverlayAssets.textValue || 'ភាគទី ០១',
             size: currentOverlayAssets.textSize || 24,
             color: currentOverlayAssets.textColor || '#ffffff',
+            segments: currentOverlayAssets.textSegments || [],
             bg: !!currentOverlayAssets.textBg,
             motion: currentOverlayAssets.textMotion || 'static',
             speed: currentOverlayAssets.textSpeed || 65,
