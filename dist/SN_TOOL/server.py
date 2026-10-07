@@ -1708,17 +1708,16 @@ public static class NativeDialogHelper {
 def open_native_windows_folder_dialog(initial_dir: str = "", title: str = "Select Drama Series Folder") -> Optional[str]:
     """
     Open modern native Windows File Explorer folder picker (IFileOpenDialog with FOS_PICKFOLDERS).
-    Displays the full modern Windows Explorer window with folder icons, breadcrumbs, search bar,
-    and sidebar navigation (matching Image 2) instead of the legacy white BrowseForFolder tree-view (Image 1).
+    Displays only the single native Windows Explorer window with folder icons, breadcrumbs, search bar,
+    and sidebar navigation. When the user cancels, it closes cleanly with no second popup window.
     """
     if not initial_dir or not os.path.exists(initial_dir):
         initial_dir = "D:/" if os.path.exists("D:/") else "C:/"
-    
-    # Priority 1: High-Performance Direct Win32 COM IFileOpenDialog (0.001s, 100% Modern Windows Explorer UI - Image 2)
+
     if sys.platform == "win32":
         try:
             import ctypes
-            from ctypes import wintypes, POINTER, c_void_p, c_ulong, c_wchar_p, Structure, byref, HRESULT, WINFUNCTYPE, c_uint
+            from ctypes import wintypes, POINTER, c_void_p, c_ulong, c_wchar_p, Structure, byref, WINFUNCTYPE, c_uint, c_long
 
             class GUID(Structure):
                 _fields_ = [
@@ -1752,14 +1751,14 @@ def open_native_windows_folder_dialog(initial_dir: str = "", title: str = "Selec
 
                 try:
                     # SetOptions (index 9): FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST
-                    v_call(p_dialog, 9, HRESULT, [c_void_p, c_uint], c_uint(FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST))
+                    v_call(p_dialog, 9, c_long, [c_void_p, c_uint], c_uint(FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST))
 
                     # SetTitle (index 17)
                     if title:
-                        v_call(p_dialog, 17, HRESULT, [c_void_p, c_wchar_p], str(title))
+                        v_call(p_dialog, 17, c_long, [c_void_p, c_wchar_p], str(title))
 
                     # SetOkButtonLabel (index 18)
-                    v_call(p_dialog, 18, HRESULT, [c_void_p, c_wchar_p], "Select Folder")
+                    v_call(p_dialog, 18, c_long, [c_void_p, c_wchar_p], "Select Folder")
 
                     # Set initial folder (index 12) if exists
                     if initial_dir and os.path.exists(initial_dir):
@@ -1771,19 +1770,19 @@ def open_native_windows_folder_dialog(initial_dir: str = "", title: str = "Selec
                             byref(p_item)
                         )
                         if hr_item == 0 and p_item:
-                            v_call(p_dialog, 12, HRESULT, [c_void_p, c_void_p], p_item)
+                            v_call(p_dialog, 12, c_long, [c_void_p, c_void_p], p_item)
                             v_call(p_item, 2, c_ulong, [c_void_p])
 
                     # Show dialog modal to active foreground window (index 3)
                     hwnd = user32.GetForegroundWindow()
-                    hr_show = v_call(p_dialog, 3, HRESULT, [c_void_p, wintypes.HWND], hwnd)
+                    hr_show = v_call(p_dialog, 3, c_long, [c_void_p, wintypes.HWND], hwnd)
                     if hr_show == 0:
                         # GetResult (index 20)
                         p_result = c_void_p()
-                        hr_res = v_call(p_dialog, 20, HRESULT, [c_void_p, POINTER(c_void_p)], byref(p_result))
+                        hr_res = v_call(p_dialog, 20, c_long, [c_void_p, POINTER(c_void_p)], byref(p_result))
                         if hr_res == 0 and p_result:
                             p_path_str = c_wchar_p()
-                            hr_name = v_call(p_result, 5, HRESULT, [c_void_p, c_uint, POINTER(c_wchar_p)], SIGDN_FILESYSPATH, byref(p_path_str))
+                            hr_name = v_call(p_result, 5, c_long, [c_void_p, c_uint, POINTER(c_wchar_p)], SIGDN_FILESYSPATH, byref(p_path_str))
                             chosen_path = None
                             if hr_name == 0 and p_path_str.value:
                                 chosen_path = str(Path(p_path_str.value).resolve()).replace("\\", "/")
@@ -1791,81 +1790,16 @@ def open_native_windows_folder_dialog(initial_dir: str = "", title: str = "Selec
                             v_call(p_result, 2, c_ulong, [c_void_p])
                             if chosen_path and os.path.exists(chosen_path):
                                 return chosen_path
-                    elif hr_show in (0x800704C7, -2147023673):
-                        return None
+                    # User clicked Cancel, pressed Esc, or closed the window -> return None cleanly without popping any second window
+                    return None
+                except Exception:
+                    return None
                 finally:
                     v_call(p_dialog, 2, c_ulong, [c_void_p])
                     ole32.CoUninitialize()
         except Exception as ce:
-            print(f"[Modern Folder Dialog] ctypes note: {ce}")
-
-    # Priority 2: Modern Windows OpenFileDialog in Folder-Selection Mode via PowerShell (Guarantees Image 2 UI)
-    init_dir_esc = str(Path(initial_dir).resolve()).replace("'", "''")
-    title_esc = str(title).replace("'", "''")
-
-    ps_code = f"""
-[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms') | Out-Null
-$dialog = New-Object System.Windows.Forms.OpenFileDialog
-$dialog.Title = '{title_esc}'
-$dialog.Filter = 'Folders|*.folder_select_only'
-$dialog.CheckFileExists = $false
-$dialog.CheckPathExists = $true
-$dialog.FileName = 'Select Current Folder'
-$dialog.AutoUpgradeEnabled = $true
-$initDir = '{init_dir_esc}'
-if (Test-Path $initDir) {{
-    $dialog.InitialDirectory = $initDir
-}}
-
-$topForm = New-Object System.Windows.Forms.Form
-$topForm.TopMost = $true
-$topForm.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
-$topForm.WindowState = [System.Windows.Forms.FormWindowState]::Minimized
-$topForm.ShowInTaskbar = $false
-$topForm.Opacity = 0
-
-$res = $dialog.ShowDialog($topForm)
-if ($res -eq [System.Windows.Forms.DialogResult]::OK) {{
-    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-    $chosen = Split-Path -Parent $dialog.FileName
-    Write-Output ("RESULT:" + $chosen)
-}} else {{
-    Write-Output "CANCELLED"
-}}
-$topForm.Dispose()
-$dialog.Dispose()
-exit 0
-"""
-    cache_dir = Path("data/cache")
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    script_file = cache_dir / f"fld_dlg_{uuid.uuid4().hex[:8]}.ps1"
-    try:
-        script_file.write_text(ps_code, encoding="utf-8")
-        proc = subprocess.run(
-            ["powershell.exe", "-STA", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", str(script_file.resolve())],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=180,
-            creationflags=0x08000000
-        )
-        for line in (proc.stdout or "").splitlines():
-            line = line.strip()
-            if line.startswith("RESULT:"):
-                chosen = line[7:].strip().replace("\\", "/")
-                if os.path.exists(chosen):
-                    return chosen
-            elif line == "CANCELLED":
-                return None
-    except Exception as e:
-        print(f"Native folder dialog fallback note: {e}")
-    finally:
-        try:
-            if script_file.exists():
-                script_file.unlink()
-        except Exception:
-            pass
+            print(f"[Modern Folder Dialog] note: {ce}")
+            return None
 
     return None
 
@@ -1874,6 +1808,7 @@ def open_native_windows_files_dialog(initial_dir: str = "", title: str = "Select
     """
     Open native Windows multi-file picker safely.
     Pops up instantly in the foreground with TopMost owner, eliminating window hiding and blurriness.
+    Returns empty list when cancelled, with no secondary popup.
     """
     if not initial_dir or not os.path.exists(initial_dir):
         initial_dir = "D:/" if os.path.exists("D:/") else "C:/"
@@ -1892,8 +1827,8 @@ def open_native_windows_files_dialog(initial_dir: str = "", title: str = "Select
             )
             if chosen:
                 return [str(Path(f).resolve()).replace("\\", "/") for f in chosen if os.path.exists(f)]
-            elif chosen is not None:
-                return []
+            # If user cancelled, return empty immediately - do not show second dialog
+            return []
     except Exception as we:
         pass
 
@@ -1965,24 +1900,6 @@ exit 0
                 script_file.unlink()
         except Exception:
             pass
-
-    # Priority 3: Seamless standard Windows fallback using Tkinter
-    try:
-        import tkinter
-        from tkinter import filedialog
-        root = tkinter.Tk()
-        root.withdraw()
-        root.attributes('-topmost', True)
-        files = filedialog.askopenfilenames(
-            title=title,
-            initialdir=initial_dir,
-            filetypes=[("Video Files", "*.mp4 *.mkv *.mov *.avi *.webm *.flv *.ts *.m4v"), ("All Files", "*.*")]
-        )
-        root.destroy()
-        if files:
-            return [str(Path(f).resolve()).replace("\\", "/") for f in files if os.path.exists(f)]
-    except Exception as te:
-        print(f"Tkinter files fallback note: {te}")
 
     return []
 
