@@ -12,7 +12,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=41.0">
+    <link rel="stylesheet" href="style.css?v=60.0">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body class="splash-active">
@@ -112,35 +112,25 @@
              TOP NAVBAR
              ==================================================================== -->
         <header class="unich-header-bar pywebview-drag-region" ondblclick="appHeaderDblClick(event)">
-            <!-- Left Brand & 3D Logo Badge -->
+            <!-- Left Brand & 3D Logo Badge (Apple Pro Minimalist) -->
             <div class="header-brand-group">
-                <div class="brand-badge-wrapper" title="SN TOOL Studio Edition">
-                    <img src="logo.png?v=6.2" class="brand-badge-logo" alt="SN Logo">
+                <div class="brand-badge-wrapper" title="SN TOOL">
+                    <img src="logo.png?v=7.0" class="brand-badge-logo" alt="SN Logo">
                 </div>
                 <div class="brand-studio-title">
                     <span class="brand-name-bold">SN TOOL</span>
-                    <span class="brand-pro-tag">STUDIO PRO</span>
                 </div>
-                <!-- Mode Toggle (matching reference Image 2) -->
-                <label class="brand-toggle-pill" title="Hardware Acceleration / Engine Mode">
-                    <input type="checkbox" id="hw-accel-toggle" checked>
-                    <span class="brand-toggle-slider"></span>
-                </label>
             </div>
 
-            <!-- Center Action Pill Buttons (Remaining studio actions) -->
+            <!-- Center: Apple macOS Segmented Frosted Capsule Bar -->
             <nav class="header-nav-pills">
                 <button class="nav-pill-btn active" id="btn-tab-translate" onclick="switchMainTab('translate')" title="Translation & Dubbing Studio">
-                    <i class="fa-solid fa-globe icon-translate"></i>
+                    <i class="fa-solid fa-wand-magic-sparkles icon-translate"></i>
                     <span>Translate</span>
                 </button>
                 <button class="nav-pill-btn" id="btn-tab-dl" onclick="switchMainTab('dl')" title="Drama Downloader Studio">
-                    <i class="fa-solid fa-download icon-dl"></i>
-                    <span>DL</span>
-                </button>
-                <button class="nav-pill-btn" id="btn-tab-export" onclick="switchMainTab('export')" title="Render & Export Video">
-                    <i class="fa-solid fa-box-archive icon-export"></i>
-                    <span>Export</span>
+                    <i class="fa-solid fa-cloud-arrow-down icon-dl"></i>
+                    <span>Downloader</span>
                 </button>
                 
                 <!-- Power Dropdown -->
@@ -148,6 +138,7 @@
                     <button class="nav-pill-btn" id="btn-tab-power" onclick="togglePowerMenu(event)" title="Power Processing Tools">
                         <i class="fa-solid fa-bolt icon-power"></i>
                         <span>Power</span>
+                        <i class="fa-solid fa-chevron-down nav-chevron-icon"></i>
                     </button>
                     <div class="power-menu-popup" id="power-menu-popup">
                         <div class="power-item" onclick="openMergeModal()">
@@ -231,13 +222,32 @@
                             </div>
                         </div>
 
+                        <!-- Live Interactive Watermark TEXT Overlay on Video Canvas -->
+                        <div class="monitor-text-overlay" id="monitor-text-overlay" style="display:none;" onclick="event.stopPropagation()">
+                            <div class="monitor-text-content" id="monitor-text-display">ភាគទី ០១</div>
+                            <button type="button" class="text-quick-remove-btn" onclick="toggleTextOverlayTool(event, false)" title="Remove Text">×</button>
+                            <div class="overlay-resize-handle text-handle" id="text-resize-handle" title="ទាញដើម្បីពង្រីក/បង្រួម (Drag to Resize)">
+                                <i class="fa-solid fa-up-right-and-down-left-from-center"></i>
+                            </div>
+                        </div>
+
                         <!-- Floating YouTube-style Back Button in Fullscreen -->
                         <button type="button" class="fullscreen-back-btn" id="fullscreen-back-btn" onclick="exitFullscreenMode(event)" title="Exit Fullscreen / Back (Esc)">
                             <i class="fa-solid fa-arrow-left"></i> <span>Back</span>
                         </button>
 
-                        <!-- Glowing Center Play Button -->
-                        <div class="monitor-center-play-button" id="center-play-btn" onclick="togglePlayPreview(event)">
+                        <!-- Apple Pro Empty State View (Visible when no video loaded) -->
+                        <div class="monitor-empty-state" id="monitor-empty-state" onclick="event.stopPropagation();">
+                            <div class="monitor-empty-badge"><i class="fa-solid fa-film"></i> 9:16 VERTICAL</div>
+                            <div class="monitor-empty-icon-wrap">
+                                <i class="fa-solid fa-clapperboard"></i>
+                            </div>
+                            <div class="monitor-empty-title">PREVIEW MONITOR</div>
+                            <div class="monitor-empty-hint">Waiting for video to preview</div>
+                        </div>
+
+                        <!-- Center Play Button (Visible when video loaded) -->
+                        <div class="monitor-center-play-button" id="center-play-btn" onclick="togglePlayPreview(event)" style="display:none;">
                             <i class="fa-solid fa-play" id="center-play-icon"></i>
                         </div>
                     </div>
@@ -277,15 +287,42 @@
                     <div class="studio-sources-box" id="studio-sources-box">
                         <!-- STATE 0: Minimalist Full-Frame Import Canvas (Matching User Reference Image 2) -->
                         <div class="studio-source-clean-view" id="studio-source-clean-view">
-                            <div class="minimal-import-canvas" id="clean-import-prompt" onclick="openImportModal()">
+                            <div class="minimal-import-canvas" id="clean-import-prompt">
                                 <div class="minimal-import-icon-box">
-                                    <img src="logo.png?v=7.0" class="minimal-import-logo" alt="SN TOOL Studio Logo" draggable="false">
+                                    <img src="studio_import_icon.png?v=1.0" class="minimal-import-logo" alt="Import Video Studio" draggable="false">
                                 </div>
                                 <div class="minimal-import-heading">Drag &amp; Drop Video Files or Folders Here</div>
                                 <div class="minimal-import-sub">Supports MP4, MKV, MOV, TS, AVI, WEBM &amp; Series Folders</div>
-                                <button type="button" class="minimal-browse-btn" onclick="openImportModal(); event.stopPropagation();">
-                                    <i class="fa-solid fa-plus"></i> Browse Files / Folder
-                                </button>
+                                <div class="apple-browse-dropdown-wrapper" id="browse-dropdown-wrapper" onclick="event.stopPropagation()">
+                                    <button type="button" class="apple-unified-browse-btn" id="btn-browse-unified" onclick="toggleBrowseMenu(event)" title="Browse Files or Folder">
+                                        <i class="fa-solid fa-folder-open"></i>
+                                        <span>Browse Files / Folder</span>
+                                        <i class="fa-solid fa-chevron-down browse-chevron-icon"></i>
+                                    </button>
+                                    <div class="apple-browse-menu-popup" id="browse-menu-popup">
+                                        <div class="browse-menu-item" onclick="handleBrowseOption('file', event)">
+                                            <div class="browse-item-icon file-icon">
+                                                <i class="fa-solid fa-file-video"></i>
+                                            </div>
+                                            <div class="browse-item-text">
+                                                <div class="browse-item-title">Select Video File</div>
+                                                <div class="browse-item-desc">ជ្រើសរើសឯកសារវីដេអូ (.mp4, .mkv, .mov)</div>
+                                            </div>
+                                            <i class="fa-solid fa-chevron-right browse-item-chevron"></i>
+                                        </div>
+                                        <div class="browse-menu-divider"></div>
+                                        <div class="browse-menu-item" onclick="handleBrowseOption('folder', event)">
+                                            <div class="browse-item-icon folder-icon">
+                                                <i class="fa-solid fa-folder"></i>
+                                            </div>
+                                            <div class="browse-item-text">
+                                                <div class="browse-item-title">Select Drama Folder</div>
+                                                <div class="browse-item-desc">ជ្រើសរើស Folder រឿងភាគទាំងមូល</div>
+                                            </div>
+                                            <i class="fa-solid fa-chevron-right browse-item-chevron"></i>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Staged Video Ready to Export State -->
@@ -301,14 +338,14 @@
                                         <span class="staged-card-meta" id="staged-file-meta">44.1 MB • 03:00</span>
                                     </div>
                                     <div class="staged-file-actions-right">
-                                        <button type="button" class="staged-start-primary-btn" id="btn-staged-direct-start" onclick="startStudioExportJob()" title="ចាប់ផ្តើមបកប្រែភ្លាមៗ">
-                                            <i class="fa-solid fa-play"></i> <span>ចាប់ផ្តើមបកប្រែ</span>
-                                        </button>
                                         <button type="button" class="staged-mini-btn" onclick="openImportModal()" title="ប្តូរវីដេអូ ឬ Folder ផ្សេង">
-                                            <i class="fa-solid fa-arrows-rotate"></i> ប្តូរ
+                                            <i class="fa-solid fa-arrows-rotate"></i> <span>ប្តូរ</span>
                                         </button>
                                         <button type="button" class="staged-mini-btn" onclick="openStorySettingsModal()" title="ការកំណត់បន្ថែម">
-                                            <i class="fa-solid fa-sliders"></i> Settings
+                                            <i class="fa-solid fa-sliders"></i> <span>Settings</span>
+                                        </button>
+                                        <button type="button" class="staged-discard-close-btn" id="btn-staged-discard" onclick="discardStagedVideo(event)" title="បោះបង់ ឬត្រឡប់ទៅទំព័រដើមវិញ (Discard / Return to Home)">
+                                            <i class="fa-solid fa-xmark"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -342,7 +379,7 @@
                                         <!-- Clean Divider Line connecting both rows seamlessly -->
                                         <div class="overlay-unified-divider"></div>
 
-                                        <!-- Row 2: Add BLUR Mask (With Obsidian Glass Intensity Selector Matching Reference Image) -->
+                                        <!-- Row 2: Add BLUR Mask (With In-Frame Intensity Selector) -->
                                         <div class="overlay-row-bar blur-row-bar" id="card-upload-blur" onclick="toggleBlurMaskDropdown(event)" title="Add Watermark Blur Mask & Adjust Blur Level">
                                             <div class="overlay-col-icon blur-icon">
                                                 <i class="fa-solid fa-eye-slash"></i>
@@ -357,143 +394,109 @@
                                                     <i class="fa-solid fa-chevron-down blur-dropdown-arrow" id="blur-dropdown-chevron"></i>
                                                 </span>
                                             </div>
+                                        </div>
 
-                                            <!-- Custom Obsidian Dark Glass Blur Intensity Panel (Matching Reference Image) -->
-                                            <div class="blur-custom-dropdown" id="blur-custom-dropdown" onclick="event.stopPropagation()">
+                                        <!-- Clean Divider Line connecting Row 2 and Row 3 -->
+                                        <div class="overlay-unified-divider"></div>
+
+                                        <!-- Row 3: Add TEXT (Title / Episode Hook / Watermark Text) -->
+                                        <div class="overlay-row-bar text-row-bar" id="card-upload-text" onclick="toggleTextOverlayDropdown(event)" title="Add Title / Episode Text & Style">
+                                            <div class="overlay-col-icon text-icon">
+                                                <i class="fa-solid fa-font"></i>
+                                            </div>
+                                            <div class="overlay-col-text">
+                                                <span class="overlay-col-title">Add TEXT</span>
+                                                <span class="overlay-col-desc" id="text-overlay-desc-label">ដាក់ចំណងជើងរឿង, លេខភាគ (EP), ឬឈ្មោះផេកលើវីដេអូ</span>
+                                            </div>
+                                            <div class="overlay-col-status" id="status-overlay-text">
+                                                <span class="overlay-status-pill empty" id="text-status-pill">
+                                                    <i class="fa-solid fa-pen-nib"></i> <span id="text-status-label">ចុចដើម្បីដាក់ Text</span>
+                                                    <i class="fa-solid fa-chevron-down text-dropdown-arrow" id="text-dropdown-chevron"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Clean Divider Line for inline expanded settings -->
+                                        <div class="overlay-unified-divider" id="overlay-inline-panel-divider" style="display:none;"></div>
+
+                                        <!-- Inline Active Settings Panel (Contained 100% Inside Frame 1, No Overlap, No Overflow) -->
+                                        <div class="overlay-inline-settings-panel" id="overlay-inline-settings-panel" style="display:none;" onclick="event.stopPropagation()">
+                                            <!-- Custom Obsidian Dark Glass Blur Intensity Panel (Compact Pro Design) -->
+                                            <div class="blur-custom-dropdown" id="blur-custom-dropdown" style="display:none;">
                                                 <div class="blur-dropdown-header">
                                                     <div class="blur-header-left">
                                                         <i class="fa-solid fa-wand-magic-sparkles"></i>
-                                                        <span>ជ្រើសរើសកម្រិត BLUR MASK (BLUR INTENSITY)</span>
+                                                        <span>ជ្រើសរើសកម្រិត BLUR MASK</span>
                                                     </div>
                                                     <button type="button" class="blur-panel-close-btn" onclick="closeBlurMaskDropdown(event)" title="បិទផ្ទាំង (Close)">
                                                         <i class="fa-solid fa-xmark"></i>
                                                     </button>
                                                 </div>
 
-                                                <!-- Dynamic Live Slider -->
-                                                <div class="blur-slider-card">
+                                                <!-- Row 1: Compact Dynamic Blur Slider -->
+                                                <div class="blur-slider-card compact">
                                                     <div class="blur-slider-header">
-                                                        <span class="blur-slider-title"><i class="fa-solid fa-sliders"></i> សារ៉េកម្រិត Blur ផ្ទាល់ (Live Dynamic Blur):</span>
+                                                        <span class="blur-slider-title"><i class="fa-solid fa-sliders"></i> កម្រិត Blur ផ្ទាល់:</span>
                                                         <span class="blur-slider-badge" id="blur-slider-badge">25px (មធ្យម)</span>
                                                     </div>
                                                     <div class="blur-slider-track-wrap">
-                                                        <span class="slider-side-txt">ស្រាល (5px)</span>
+                                                        <span class="slider-side-txt">5px</span>
                                                         <input type="range" id="input-blur-intensity" min="5" max="80" value="25" class="blur-range-slider" oninput="onBlurSliderChange(this.value, event)">
-                                                        <span class="slider-side-txt">ខ្លាំង (80px)</span>
+                                                        <span class="slider-side-txt">80px</span>
                                                     </div>
                                                 </div>
 
-                                                <!-- Mask Shapes Grid (Filmstrip, Circle, Rectangle) Matching Reference Image -->
-                                                <div class="mask-shapes-container">
-                                                    <!-- Filmstrip -->
-                                                    <div class="mask-shape-item" id="shape-opt-filmstrip" onclick="selectBlurShape('filmstrip', event)" title="Filmstrip (បិទបាំងបែបបន្ទះខ្សែភាពយន្ត)">
-                                                        <div class="mask-shape-card">
-                                                            <svg class="mask-shape-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                <rect x="4.5" y="6" width="31" height="28" rx="3" stroke="currentColor" stroke-width="2" fill="none" />
-                                                                <line x1="4.5" y1="13.5" x2="35.5" y2="13.5" stroke="currentColor" stroke-width="2" />
-                                                                <line x1="4.5" y1="26.5" x2="35.5" y2="26.5" stroke="currentColor" stroke-width="2" />
-                                                            </svg>
-                                                            <div class="mask-shape-badge">
-                                                                <i class="fa-solid fa-rotate-right"></i>
+                                                <!-- Row 2: Mask Shapes + Feather & Corners (Side-by-Side Grid) -->
+                                                <div class="blur-middle-grid">
+                                                    <!-- Mask Shapes Group (Left) -->
+                                                    <div class="mask-shapes-container compact">
+                                                        <div class="mask-shape-item" id="shape-opt-filmstrip" onclick="selectBlurShape('filmstrip', event)" title="Filmstrip">
+                                                            <div class="mask-shape-card">
+                                                                <svg class="mask-shape-svg" viewBox="0 0 40 40" fill="none">
+                                                                    <rect x="4.5" y="6" width="31" height="28" rx="3" stroke="currentColor" stroke-width="2"/>
+                                                                    <line x1="4.5" y1="13.5" x2="35.5" y2="13.5" stroke="currentColor" stroke-width="2"/>
+                                                                    <line x1="4.5" y1="26.5" x2="35.5" y2="26.5" stroke="currentColor" stroke-width="2"/>
+                                                                </svg>
                                                             </div>
+                                                            <span class="mask-shape-label">Filmstrip</span>
                                                         </div>
-                                                        <span class="mask-shape-label">Filmstrip</span>
+                                                        <div class="mask-shape-item" id="shape-opt-circle" onclick="selectBlurShape('circle', event)" title="Circle">
+                                                            <div class="mask-shape-card">
+                                                                <svg class="mask-shape-svg" viewBox="0 0 40 40" fill="none">
+                                                                    <rect x="5" y="5" width="30" height="30" rx="3" stroke="currentColor" stroke-width="2"/>
+                                                                    <circle cx="20" cy="20" r="9.5" stroke="currentColor" stroke-width="2"/>
+                                                                </svg>
+                                                            </div>
+                                                            <span class="mask-shape-label">Circle</span>
+                                                        </div>
+                                                        <div class="mask-shape-item active" id="shape-opt-rectangle" onclick="selectBlurShape('rectangle', event)" title="Rectangle">
+                                                            <div class="mask-shape-card">
+                                                                <svg class="mask-shape-svg" viewBox="0 0 40 40" fill="none">
+                                                                    <rect x="5" y="5" width="30" height="30" rx="3" stroke="currentColor" stroke-width="2"/>
+                                                                    <rect x="10.5" y="11.5" width="19" height="17" rx="1.5" stroke="currentColor" stroke-width="2"/>
+                                                                </svg>
+                                                            </div>
+                                                            <span class="mask-shape-label">Rectangle</span>
+                                                        </div>
                                                     </div>
 
-                                                    <!-- Circle -->
-                                                    <div class="mask-shape-item" id="shape-opt-circle" onclick="selectBlurShape('circle', event)" title="Circle (បិទបាំងរាងរង្វង់មូល)">
-                                                        <div class="mask-shape-card">
-                                                            <svg class="mask-shape-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                <rect x="5" y="5" width="30" height="30" rx="3" stroke="currentColor" stroke-width="2" fill="none" />
-                                                                <circle cx="20" cy="20" r="9.5" stroke="currentColor" stroke-width="2" fill="none" />
-                                                            </svg>
-                                                            <div class="mask-shape-badge">
-                                                                <i class="fa-solid fa-rotate-right"></i>
-                                                            </div>
-                                                        </div>
-                                                        <span class="mask-shape-label">Circle</span>
-                                                    </div>
-
-                                                    <!-- Rectangle (Active / Selected Default) -->
-                                                    <div class="mask-shape-item active" id="shape-opt-rectangle" onclick="selectBlurShape('rectangle', event)" title="Rectangle (បិទបាំងរាងចតុកោណកែង)">
-                                                        <div class="mask-shape-card">
-                                                            <svg class="mask-shape-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                <rect x="5" y="5" width="30" height="30" rx="3" stroke="currentColor" stroke-width="2" fill="none" />
-                                                                <rect x="10.5" y="11.5" width="19" height="17" rx="1.5" stroke="currentColor" stroke-width="2" fill="none" />
-                                                            </svg>
-                                                            <div class="mask-shape-badge">
-                                                                <i class="fa-solid fa-rotate-right"></i>
-                                                            </div>
-                                                        </div>
-                                                        <span class="mask-shape-label">Rectangle</span>
-                                                    </div>
-                                                </div>
-
-                                                <div class="blur-opt-divider"></div>
-
-                                                <!-- Feather & Round Corners Precision Controls (Matching Reference Image) -->
-                                                <div class="mask-params-container">
-                                                    <!-- Feather Control Row -->
-                                                    <div class="mask-param-row">
-                                                        <div class="mask-param-label-row">
-                                                            <span class="mask-param-title">Feather</span>
-                                                        </div>
-                                                        <div class="mask-param-control-row">
+                                                    <!-- Feather & Corners Group (Right) -->
+                                                    <div class="mask-params-container compact">
+                                                        <div class="mask-param-row compact">
+                                                            <span class="mask-param-title">Feather:</span>
                                                             <input type="range" id="input-blur-feather" min="0" max="100" value="0" class="mask-param-slider" oninput="onBlurFeatherChange(this.value, event)">
-                                                            <div class="mask-param-box-wrap">
-                                                                <div class="mask-param-val-box">
-                                                                    <input type="number" id="num-blur-feather" min="0" max="100" value="0" class="mask-param-num-input" oninput="onBlurFeatherChange(this.value, event)">
-                                                                    <div class="mask-param-stepper-col">
-                                                                        <button type="button" class="mask-stepper-btn" onclick="stepBlurParam('feather', 1, event)" title="Increase Feather">
-                                                                            <i class="fa-solid fa-caret-up"></i>
-                                                                        </button>
-                                                                        <button type="button" class="mask-stepper-btn" onclick="stepBlurParam('feather', -1, event)" title="Decrease Feather">
-                                                                            <i class="fa-solid fa-caret-down"></i>
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                                <button type="button" class="mask-diamond-reset-btn" onclick="resetBlurParam('feather', event)" title="Reset Feather (0)">
-                                                                    <svg class="mask-diamond-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                                        <path d="M12 2L22 12L12 22L2 12Z" />
-                                                                    </svg>
-                                                                </button>
-                                                            </div>
+                                                            <input type="number" id="num-blur-feather" min="0" max="100" value="0" class="mask-param-num-input" oninput="onBlurFeatherChange(this.value, event)">
                                                         </div>
-                                                    </div>
-
-                                                    <!-- Round Corners Control Row -->
-                                                    <div class="mask-param-row">
-                                                        <div class="mask-param-label-row">
-                                                            <span class="mask-param-title">Round corners</span>
-                                                        </div>
-                                                        <div class="mask-param-control-row">
+                                                        <div class="mask-param-row compact">
+                                                            <span class="mask-param-title">Corners:</span>
                                                             <input type="range" id="input-blur-corners" min="0" max="100" value="0" class="mask-param-slider" oninput="onBlurCornersChange(this.value, event)">
-                                                            <div class="mask-param-box-wrap">
-                                                                <div class="mask-param-val-box">
-                                                                    <input type="number" id="num-blur-corners" min="0" max="100" value="0" class="mask-param-num-input" oninput="onBlurCornersChange(this.value, event)">
-                                                                    <div class="mask-param-stepper-col">
-                                                                        <button type="button" class="mask-stepper-btn" onclick="stepBlurParam('corners', 1, event)" title="Increase Round Corners">
-                                                                            <i class="fa-solid fa-caret-up"></i>
-                                                                        </button>
-                                                                        <button type="button" class="mask-stepper-btn" onclick="stepBlurParam('corners', -1, event)" title="Decrease Round Corners">
-                                                                            <i class="fa-solid fa-caret-down"></i>
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                                <button type="button" class="mask-diamond-reset-btn" onclick="resetBlurParam('corners', event)" title="Reset Round Corners (0)">
-                                                                    <svg class="mask-diamond-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                                        <path d="M12 2L22 12L12 22L2 12Z" />
-                                                                    </svg>
-                                                                </button>
-                                                            </div>
+                                                            <input type="number" id="num-blur-corners" min="0" max="100" value="0" class="mask-param-num-input" oninput="onBlurCornersChange(this.value, event)">
                                                         </div>
                                                     </div>
                                                 </div>
 
-                                                <div class="blur-opt-divider"></div>
-
-                                                <!-- Position, Zoom, and Remove Controls Tray -->
-                                                <div class="blur-quick-action-tray">
+                                                <!-- Row 3: Position, Zoom, and Remove Controls Tray -->
+                                                <div class="blur-quick-action-tray compact">
                                                     <div class="blur-tray-group">
                                                         <span class="tray-label">ទីតាំង:</span>
                                                         <button type="button" class="blur-tray-pill-btn active" id="btn-blur-pos-tr" onclick="setOverlayPosition('blur', 'top-right', event)">TR ស្តាំលើ</button>
@@ -508,6 +511,98 @@
                                                     </div>
                                                     <button type="button" class="blur-tray-remove-btn" onclick="toggleBlurMaskTool(event, false)" title="បិទ Blur Mask">
                                                         <i class="fa-solid fa-trash-can"></i> ដក Blur
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <!-- Custom Obsidian Dark Glass Text Control Panel (Ultra-Compact Pro Layout) -->
+                                            <div class="text-custom-dropdown" id="text-custom-dropdown" style="display:none;">
+                                                <div class="text-dropdown-header">
+                                                    <div class="text-header-left">
+                                                        <i class="fa-solid fa-font" style="color:#38bdf8;"></i>
+                                                        <span>កំណត់អក្សរលើវីដេអូ (TEXT OVERLAY CONTROLS)</span>
+                                                    </div>
+                                                    <button type="button" class="text-panel-close-btn" onclick="closeTextOverlayDropdown(event)" title="បិទផ្ទាំង (Close)">
+                                                        <i class="fa-solid fa-xmark"></i>
+                                                    </button>
+                                                </div>
+
+                                                <!-- Row 1: Text Input + Presets (Combined in one tight container) -->
+                                                <div class="text-input-presets-card">
+                                                    <div class="text-input-box-wrapper">
+                                                        <input type="text" id="input-overlay-text-val" class="overlay-text-input compact-input" placeholder="វាយចំណងជើងរឿង ឬអត្ថបទ..." value="ភាគទី ០១" oninput="onOverlayTextInput(this.value, event)">
+                                                    </div>
+                                                    <!-- Quick Presets Row for Static Mode -->
+                                                    <div class="text-quick-presets-row compact" id="text-static-presets-row">
+                                                        <button type="button" class="text-preset-chip" onclick="applyTextPreset('ep', event)">⚡ ភាគទី ០១</button>
+                                                        <button type="button" class="text-preset-chip" onclick="applyTextPreset('full', event)">🎬 ភាគមួយចប់</button>
+                                                        <button type="button" class="text-preset-chip" onclick="applyTextPreset('credit', event)">✨ @SN_DRAMA</button>
+                                                        <button type="button" class="text-preset-chip" onclick="applyTextPreset('dub', event)">🎙️ សំឡេងខ្មែរ</button>
+                                                    </div>
+                                                    <!-- Quick Presets Row for Scroll Up Mode -->
+                                                    <div class="text-quick-presets-row compact" id="text-scroll-presets-row" style="display: none;">
+                                                        <button type="button" class="text-preset-chip" onclick="applyScrollTextPreset('ep_daily', event)">⚡ ភាគថ្មីរាល់ថ្ងៃ</button>
+                                                        <button type="button" class="text-preset-chip" onclick="applyScrollTextPreset('enjoy', event)">🎬 សូមរីករាយទស្សនា</button>
+                                                        <button type="button" class="text-preset-chip" onclick="applyScrollTextPreset('follow', event)">✨ Follow</button>
+                                                        <button type="button" class="text-preset-chip" onclick="applyScrollTextPreset('thanks', event)">🙏 អរគុណ</button>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Row 2: Motion Animation + Dark Backdrop Banner (Single tight flex row!) -->
+                                                <div class="text-compact-row-motion">
+                                                    <div class="text-motion-flex-left">
+                                                        <span class="compact-row-title"><i class="fa-solid fa-person-running"></i> ចលនា:</span>
+                                                        <button type="button" class="text-motion-pill-btn active" id="btn-motion-static" onclick="setTextMotion('static', event)" title="អក្សរនៅនឹង">
+                                                            <i class="fa-solid fa-thumbtack"></i> <span>នៅនឹងថ្កល់</span>
+                                                        </button>
+                                                        <button type="button" class="text-motion-pill-btn" id="btn-motion-scroll" onclick="setTextMotion('scroll_up', event)" title="អក្សររត់ឡើងលើ">
+                                                            <i class="fa-solid fa-arrow-up-long"></i> <span>រត់ឡើងលើ ⬆️</span>
+                                                        </button>
+                                                        <span class="text-scroll-options-box compact-speed-chips" id="text-scroll-options-box" style="display: none;">
+                                                            <button type="button" class="text-speed-chip" id="speed-chip-slow" onclick="setTextScrollSpeed(35, event)">យឺត</button>
+                                                            <button type="button" class="text-speed-chip active" id="speed-chip-normal" onclick="setTextScrollSpeed(65, event)">មធ្យម</button>
+                                                            <button type="button" class="text-speed-chip" id="speed-chip-fast" onclick="setTextScrollSpeed(110, event)">លឿន</button>
+                                                        </span>
+                                                    </div>
+
+                                                    <label class="text-banner-compact-label">
+                                                        <input type="checkbox" id="toggle-text-bg-banner" checked onchange="onTextBgToggle(this.checked, event)">
+                                                        <span class="brand-toggle-slider mini"></span>
+                                                        <span class="toggle-name"><i class="fa-solid fa-square"></i> ទ្រនាប់ខ្មៅ</span>
+                                                    </label>
+                                                </div>
+
+                                                <!-- Row 3: Font Size + Color Palette (Single tight flex row!) -->
+                                                <div class="text-compact-row-style">
+                                                    <div class="text-size-flex-col">
+                                                        <span class="compact-row-title"><i class="fa-solid fa-text-height"></i> ទំហំ:</span>
+                                                        <input type="range" id="input-text-size" min="14" max="64" value="24" class="blur-range-slider mini" oninput="onTextSizeChange(this.value, event)">
+                                                        <span class="text-slider-badge" id="text-size-badge">24px</span>
+                                                    </div>
+
+                                                    <div class="text-color-flex-col">
+                                                        <span class="compact-row-title"><i class="fa-solid fa-palette"></i> ពណ៌:</span>
+                                                        <div class="text-color-chips compact">
+                                                            <button type="button" class="text-color-chip active" style="--c:#ffffff;" onclick="setTextTextColor('#ffffff', event)" title="ស White"></button>
+                                                            <button type="button" class="text-color-chip" style="--c:#facc15;" onclick="setTextTextColor('#facc15', event)" title="លឿង Yellow"></button>
+                                                            <button type="button" class="text-color-chip" style="--c:#38bdf8;" onclick="setTextTextColor('#38bdf8', event)" title="ខៀវ Cyan"></button>
+                                                            <button type="button" class="text-color-chip" style="--c:#f43f5e;" onclick="setTextTextColor('#f43f5e', event)" title="ក្រហម Red"></button>
+                                                            <button type="button" class="text-color-chip" style="--c:#22c55e;" onclick="setTextTextColor('#22c55e', event)" title="បៃតង Green"></button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Row 4: Position Presets & Remove Button (Single tight flex row!) -->
+                                                <div class="blur-quick-action-tray compact">
+                                                    <div class="blur-tray-group">
+                                                        <span class="tray-label">ទីតាំង:</span>
+                                                        <button type="button" class="blur-tray-pill-btn active" id="btn-text-pos-tc" onclick="setOverlayPosition('text', 'top-center', event)">TC លើ</button>
+                                                        <button type="button" class="blur-tray-pill-btn" id="btn-text-pos-bc" onclick="setOverlayPosition('text', 'bottom-center', event)">BC ក្រោម</button>
+                                                        <button type="button" class="blur-tray-pill-btn" id="btn-text-pos-tl" onclick="setOverlayPosition('text', 'top-left', event)">TL ឆ្វេង</button>
+                                                        <button type="button" class="blur-tray-pill-btn" id="btn-text-pos-tr" onclick="setOverlayPosition('text', 'top-right', event)">TR ស្តាំ</button>
+                                                    </div>
+                                                    <button type="button" class="blur-tray-remove-btn" onclick="toggleTextOverlayTool(event, false)" title="ដក Text">
+                                                        <i class="fa-solid fa-trash-can"></i> ដក Text
                                                     </button>
                                                 </div>
                                             </div>
@@ -1990,6 +2085,6 @@
 
     <!-- HLS.js for Live Stream M3U8 Video Previews -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <script src="app.js?v=24.0"></script>
+    <script src="app.js?v=33.0"></script>
 </body>
 </html>

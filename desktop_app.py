@@ -477,8 +477,8 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
                             hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ctypes.byref(pref), ctypes.sizeof(pref)
                         )
                         DWMWA_BORDER_COLOR = 34
-                        # Signature Gold (#facc15 -> R:0xFA, G:0xCC, B:0x15 -> BGR: 0x0015CCFA)
-                        color = ctypes.c_int(0x0015CCFA)
+                        # Apple Pro Dark Obsidian Frame (#1e2430 -> R:0x1E, G:0x24, B:0x30 -> BGR: 0x0030241E)
+                        color = ctypes.c_int(0x0030241E)
                         ctypes.windll.dwmapi.DwmSetWindowAttribute(
                             hwnd, DWMWA_BORDER_COLOR, ctypes.byref(color), ctypes.sizeof(color)
                         )

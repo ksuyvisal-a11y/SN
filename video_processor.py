@@ -82,14 +82,16 @@ def render_dubbed_video(
             f.write(ass_content)
         ass_path = str(ass_file).replace("\\", "/").replace(":", "\\:")
 
-    # 2. Parse Logo and Blur Configurations
+    # 2. Parse Logo, Blur, and Text Configurations
     logo_cfg = overlay_config.get("logo") if isinstance(overlay_config, dict) else None
     blur_cfg = overlay_config.get("blur") if isinstance(overlay_config, dict) else None
+    text_cfg = overlay_config.get("text") if isinstance(overlay_config, dict) else None
 
     logo_active = bool(logo_cfg and logo_cfg.get("active") and logo_cfg.get("path") and Path(str(logo_cfg.get("path"))).exists())
     logo_path = str(logo_cfg.get("path")) if logo_active else None
 
     blur_active = bool(blur_cfg and blur_cfg.get("active"))
+    text_active = bool(text_cfg and text_cfg.get("active") and text_cfg.get("text"))
 
     # 3. Detect video orientation & dimensions
     w, h = get_video_dimensions(original_video_path)
@@ -98,8 +100,8 @@ def render_dubbed_video(
     is_already_vertical = (w < h)
 
     # 4. Phase 1 Turbo Optimization: Lossless Stream Copy Mode (1-2 seconds per episode!)
-    # Only if NO subtitles, NO watermark, NO logo, NO blur, and no 9:16 framing needed
-    can_use_stream_copy = (not ass_path) and (not watermark_text) and (not logo_active) and (not blur_active) and (is_already_vertical or aspect_ratio != "9:16")
+    # Only if NO subtitles, NO watermark, NO logo, NO blur, NO text, and no 9:16 framing needed
+    can_use_stream_copy = (not ass_path) and (not watermark_text) and (not logo_active) and (not blur_active) and (not text_active) and (is_already_vertical or aspect_ratio != "9:16")
     if can_use_stream_copy:
         fast_cmd = [
             get_ffmpeg_path(),
@@ -218,6 +220,101 @@ def render_dubbed_video(
             f"{current_v}drawtext=text='{wm_clean}':fontsize=24:fontcolor=white@0.8:x=30:y=30:box=1:boxcolor=black@0.4:boxborderw=6[v_after_wm]"
         )
         current_v = "[v_after_wm]"
+
+    # 10.5 Apply Watermark/Title Text Overlay
+    if text_active:
+        t_raw = str(text_cfg.get("text", "")).strip()
+        if t_raw:
+            t_clean = t_raw.replace("'", "").replace(":", "")
+            t_size = int(text_cfg.get("size", 24))
+            t_norm_x = float(text_cfg.get("norm_x", 0.50))
+            t_norm_y = float(text_cfg.get("norm_y", 0.05))
+            t_color = str(text_cfg.get("color", "#ffffff")).lstrip("#")
+            t_bg = bool(text_cfg.get("bg", True))
+            t_motion = str(text_cfg.get("motion", "static")).lower()
+            t_speed = max(15, min(250, int(text_cfg.get("speed", 65))))
+            segments = text_cfg.get("segments") or []
+
+            # Check if multi-color segments are present
+            colors_found = set()
+            if isinstance(segments, list) and len(segments) > 0:
+                for seg in segments:
+                    if isinstance(seg, dict) and seg.get("color"):
+                        colors_found.add(str(seg.get("color")).lower().strip().lstrip('#'))
+
+            has_multicolor = len(colors_found) > 1
+
+            if has_multicolor:
+                def _hex_to_ass_bgr(h_str: str) -> str:
+                    h = h_str.strip().lstrip('#')
+                    if len(h) != 6:
+                        return "&HFFFFFF&"
+                    r, g, b = h[0:2], h[2:4], h[4:6]
+                    return f"&H{b}{g}{r}&"
+
+                ass_styled_text = ""
+                for seg in segments:
+                    if not isinstance(seg, dict):
+                        continue
+                    w_txt = str(seg.get("text", "")).replace("{", "").replace("}", "")
+                    w_col = str(seg.get("color", "#ffffff"))
+                    ass_styled_text += f"{{\\c{_hex_to_ass_bgr(w_col)}}}{w_txt} "
+                ass_styled_text = ass_styled_text.strip()
+
+                ass_file = t_dir / "title_overlay.ass"
+                border_style = 3 if t_bg else 1
+                back_color = "&HA0000000" if t_bg else "&H00000000"
+                outline_w = 6 if t_bg else 2
+                pos_x = int(target_w * t_norm_x)
+                pos_y = int(target_h * t_norm_y)
+
+                ass_header = f"""[Script Info]
+ScriptType: v4.00+
+PlayResX: {target_w}
+PlayResY: {target_h}
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: TitleStyle,Arial,{t_size},&H00FFFFFF,&H000000FF,&H00000000,{back_color},-1,0,0,0,100,100,0,0,{border_style},{outline_w},0,7,0,0,0,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+"""
+                ass_events = []
+                if t_motion == "scroll_up":
+                    cycle_duration = max(3.0, (target_h + 100.0) / float(t_speed))
+                    total_cycles = int(7200 / cycle_duration) + 1
+                    for c_idx in range(min(total_cycles, 600)):
+                        c_start = c_idx * cycle_duration
+                        c_end = (c_idx + 1) * cycle_duration
+                        s_str = f"{int(c_start//3600)}:{int((c_start%3600)//60):02d}:{c_start%60:05.2f}"
+                        e_str = f"{int(c_end//3600)}:{int((c_end%3600)//60):02d}:{c_end%60:05.2f}"
+                        ass_events.append(f"Dialogue: 0,{s_str},{e_str},TitleStyle,,0,0,0,Scroll up;{target_h};0;{t_speed};0,{ass_styled_text}")
+                else:
+                    ass_events.append(f"Dialogue: 0,0:00:00.00,10:00:00.00,TitleStyle,,0,0,0,,{{\\an7\\pos({pos_x},{pos_y})}}{ass_styled_text}")
+
+                with open(ass_file, "w", encoding="utf-8") as f:
+                    f.write(ass_header + "\n".join(ass_events) + "\n")
+
+                title_ass_escaped = str(ass_file).replace("\\", "/").replace(":", "\\:")
+                filter_parts.append(
+                    f"{current_v}ass='{title_ass_escaped}'[v_after_txt]"
+                )
+                current_v = "[v_after_txt]"
+            else:
+                t_x = "(w-text_w)/2" if abs(t_norm_x - 0.50) < 0.15 else f"{int(target_w * t_norm_x)}"
+                box_style = ":box=1:boxcolor=black@0.65:boxborderw=8" if t_bg else ":box=0"
+
+                if t_motion == "scroll_up":
+                    # Upward scrolling text (from bottom to top) in continuous smooth loop
+                    t_y = f"h-mod(t*{t_speed}\\,h+text_h+60)"
+                else:
+                    t_y = f"{int(target_h * t_norm_y)}"
+
+                filter_parts.append(
+                    f"{current_v}drawtext=text='{t_clean}':fontsize={t_size}:fontcolor=0x{t_color}:x={t_x}:y={t_y}{box_style}[v_after_txt]"
+                )
+                current_v = "[v_after_txt]"
 
     # 11. Final Filter Complex and Encoding Flags
     full_filter_complex = ";".join(filter_parts)

@@ -644,12 +644,50 @@ function closePowerMenu() {
     if (menu) menu.classList.remove('active');
 }
 
+function toggleBrowseMenu(e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    const menu = document.getElementById('browse-menu-popup');
+    const btn = document.getElementById('btn-browse-unified');
+    if (!menu) return;
+    const isActive = menu.classList.contains('active');
+    if (isActive) {
+        menu.classList.remove('active');
+        if (btn) btn.classList.remove('active');
+    } else {
+        closePowerMenu();
+        menu.classList.add('active');
+        if (btn) btn.classList.add('active');
+    }
+}
+
+function closeBrowseMenu() {
+    const menu = document.getElementById('browse-menu-popup');
+    const btn = document.getElementById('btn-browse-unified');
+    if (menu) menu.classList.remove('active');
+    if (btn) btn.classList.remove('active');
+}
+
+function handleBrowseOption(type, e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    closeBrowseMenu();
+    if (type === 'file') {
+        triggerFileSelect();
+    } else if (type === 'folder') {
+        triggerFolderSelect();
+    }
+}
+
 function setupOutsideClickHandlers() {
     document.addEventListener('click', (e) => {
         const powerWrapper = document.querySelector('.power-dropdown-wrapper');
         const powerMenu = document.getElementById('power-menu-popup');
         if (powerWrapper && !powerWrapper.contains(e.target) && powerMenu) {
             powerMenu.classList.remove('active');
+        }
+
+        const browseWrapper = document.getElementById('browse-dropdown-wrapper');
+        if (browseWrapper && !browseWrapper.contains(e.target)) {
+            closeBrowseMenu();
         }
     });
 }
@@ -854,6 +892,7 @@ function toggleTrackBgmDropdown(e) {
         e.preventDefault();
     }
     if (typeof closeBlurMaskDropdown === 'function') closeBlurMaskDropdown();
+    if (typeof closeTextOverlayDropdown === 'function') closeTextOverlayDropdown();
     const dropdown = document.getElementById('track-bgm-custom-dropdown');
     const chevron = document.getElementById('track-bgm-chevron');
     if (!dropdown) return;
@@ -962,11 +1001,15 @@ document.addEventListener('click', function(e) {
         }
     }
 
-    const blurCard = document.getElementById('card-upload-blur');
+    const stagedOverlayPanel = document.getElementById('staged-overlay-unified-panel');
     const blurDropdown = document.getElementById('blur-custom-dropdown');
-    if (blurDropdown && blurDropdown.classList.contains('show')) {
-        if (blurCard && !blurCard.contains(e.target)) {
-            closeBlurMaskDropdown();
+    const textDropdown = document.getElementById('text-custom-dropdown');
+    const isBlurOpen = blurDropdown && (blurDropdown.classList.contains('show') || blurDropdown.style.display === 'flex');
+    const isTextOpen = textDropdown && (textDropdown.classList.contains('show') || textDropdown.style.display === 'flex');
+    if (isBlurOpen || isTextOpen) {
+        if (stagedOverlayPanel && !stagedOverlayPanel.contains(e.target)) {
+            if (isBlurOpen) closeBlurMaskDropdown();
+            if (isTextOpen) closeTextOverlayDropdown();
         }
     }
 });
@@ -1289,11 +1332,14 @@ function initStudioWorkspace() {
         });
     }
 
-    // Spacebar to toggle Play/Pause
+    // Spacebar to toggle Play/Pause, Escape to close popups
     document.addEventListener('keydown', (e) => {
         if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
             e.preventDefault();
             togglePlayPreview();
+        } else if (e.code === 'Escape') {
+            closeBrowseMenu();
+            closePowerMenu();
         }
     });
 
@@ -1740,7 +1786,7 @@ function startStudioExportJob() {
 
     // 3. If a dubbed video is already completed, check if Logo or Blur effect was added to re-render
     if (currentDubbedProject && (currentDubbedProject.id || currentDubbedProject.output_video_file)) {
-        const hasOverlayToBurn = (currentOverlayAssets.logo || currentOverlayAssets.serverLogoPath || currentOverlayAssets.blurActive);
+        const hasOverlayToBurn = (currentOverlayAssets.logo || currentOverlayAssets.serverLogoPath || currentOverlayAssets.blurActive || currentOverlayAssets.textActive);
         if (hasOverlayToBurn && currentDubbedProject.id) {
             reRenderCurrentDubbedProjectWithOverlay();
             return;
@@ -4212,7 +4258,13 @@ let currentOverlayAssets = {
     blurRadius: 25,
     blurShape: 'rectangle',
     blurFeather: 0,
-    blurRoundCorners: 0
+    blurRoundCorners: 0,
+    textActive: false,
+    textValue: 'ភាគទី ០១',
+    textSize: 24,
+    textColor: '#ffffff',
+    textBg: true,
+    textPosition: 'top-center'
 };
 
 function triggerOverlayUpload(type) {
@@ -4221,6 +4273,8 @@ function triggerOverlayUpload(type) {
         if (input) input.click();
     } else if (type === 'blur') {
         toggleBlurMaskTool();
+    } else if (type === 'text') {
+        toggleTextOverlayTool();
     }
 }
 
@@ -4381,21 +4435,31 @@ function toggleBlurMaskDropdown(e) {
         e.preventDefault();
     }
 
+    if (typeof closeTextOverlayDropdown === 'function') closeTextOverlayDropdown();
+    if (typeof closeTrackBgmDropdown === 'function') closeTrackBgmDropdown();
+
+    const panel = document.getElementById('overlay-inline-settings-panel');
+    const divider = document.getElementById('overlay-inline-panel-divider');
     const dropdown = document.getElementById('blur-custom-dropdown');
     const chevron = document.getElementById('blur-dropdown-chevron');
-    if (!dropdown) return;
+    const stack = document.getElementById('staged-overlay-unified-panel');
+    if (!dropdown || !panel) return;
 
-    const isOpen = dropdown.classList.contains('show');
+    const isOpen = (dropdown.classList.contains('show') || dropdown.style.display === 'flex') && dropdown.style.display !== 'none';
     
     if (isOpen) {
-        dropdown.classList.remove('show');
-        if (chevron) chevron.classList.remove('open');
+        closeBlurMaskDropdown();
     } else {
         // If blur is not yet active, activate it on video monitor
         if (!currentOverlayAssets.blurActive) {
             toggleBlurMaskTool(null, true);
         }
 
+        if (divider) divider.style.display = 'block';
+        panel.style.display = 'flex';
+        if (stack) stack.classList.add('has-inline-open');
+
+        dropdown.style.display = 'flex';
         dropdown.classList.add('show');
         if (chevron) chevron.classList.add('open');
     }
@@ -4406,10 +4470,25 @@ function closeBlurMaskDropdown(e) {
         e.stopPropagation();
         e.preventDefault();
     }
+    const panel = document.getElementById('overlay-inline-settings-panel');
+    const divider = document.getElementById('overlay-inline-panel-divider');
     const dropdown = document.getElementById('blur-custom-dropdown');
     const chevron = document.getElementById('blur-dropdown-chevron');
-    if (dropdown) dropdown.classList.remove('show');
+    const textDropdown = document.getElementById('text-custom-dropdown');
+    const stack = document.getElementById('staged-overlay-unified-panel');
+
+    if (dropdown) {
+        dropdown.style.display = 'none';
+        dropdown.classList.remove('show');
+    }
     if (chevron) chevron.classList.remove('open');
+
+    const isTextOpen = textDropdown && (textDropdown.classList.contains('show') || textDropdown.style.display === 'flex') && textDropdown.style.display !== 'none';
+    if (!isTextOpen) {
+        if (divider) divider.style.display = 'none';
+        if (panel) panel.style.display = 'none';
+        if (stack) stack.classList.remove('has-inline-open');
+    }
 }
 
 function onBlurSliderChange(val, e) {
@@ -4626,11 +4705,15 @@ function applyBlurIntensity(radius, displayLabel) {
 
 function setOverlayPosition(type, pos, event) {
     if (event) event.stopPropagation();
-    const el = document.getElementById(type === 'logo' ? 'monitor-logo-overlay' : 'monitor-blur-overlay');
+    let el = null;
+    if (type === 'logo') el = document.getElementById('monitor-logo-overlay');
+    else if (type === 'blur') el = document.getElementById('monitor-blur-overlay');
+    else if (type === 'text') el = document.getElementById('monitor-text-overlay');
     if (!el) return;
 
     if (type === 'logo') currentOverlayAssets.logoPosition = pos;
     if (type === 'blur') currentOverlayAssets.blurPosition = pos;
+    if (type === 'text') currentOverlayAssets.textPosition = pos;
 
     el.style.left = '';
     el.style.right = '';
@@ -4638,7 +4721,15 @@ function setOverlayPosition(type, pos, event) {
     el.style.bottom = '';
     el.style.transform = '';
 
-    if (pos === 'top-right') {
+    if (pos === 'top-center') {
+        el.style.top = '24px';
+        el.style.left = '50%';
+        el.style.transform = 'translateX(-50%)';
+    } else if (pos === 'bottom-center') {
+        el.style.bottom = '24px';
+        el.style.left = '50%';
+        el.style.transform = 'translateX(-50%)';
+    } else if (pos === 'top-right') {
         el.style.top = '14px';
         el.style.right = '14px';
     } else if (pos === 'top-left') {
@@ -4650,27 +4741,36 @@ function setOverlayPosition(type, pos, event) {
     } else if (pos === 'bottom-left') {
         el.style.bottom = '14px';
         el.style.left = '14px';
-    } else if (pos === 'bottom-center') {
-        el.style.bottom = '18px';
-        el.style.left = '50%';
-        el.style.transform = 'translateX(-50%)';
     }
 
     // Update active preset button styling
-    const card = document.getElementById(type === 'logo' ? 'card-upload-logo' : 'card-upload-blur');
+    const card = document.getElementById(type === 'logo' ? 'card-upload-logo' : type === 'blur' ? 'card-upload-blur' : 'card-upload-text');
     if (card) {
         card.querySelectorAll('.pos-preset-btn').forEach(btn => {
             const btnKey = btn.textContent.trim().toLowerCase();
-            const targetKey = pos === 'top-right' ? 'tr' : pos === 'top-left' ? 'tl' : pos === 'bottom-right' ? 'br' : 'bc';
+            const targetKey = pos === 'top-right' ? 'tr' : pos === 'top-left' ? 'tl' : pos === 'bottom-right' ? 'br' : pos === 'top-center' ? 'tc' : 'bc';
             btn.classList.toggle('active', btnKey === targetKey);
         });
     }
 
     if (type === 'blur') {
-        document.querySelectorAll('.blur-tray-pill-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('#blur-custom-dropdown .blur-tray-pill-btn').forEach(btn => btn.classList.remove('active'));
         const btnKey = pos === 'top-right' ? 'btn-blur-pos-tr' : pos === 'top-left' ? 'btn-blur-pos-tl' : 'btn-blur-pos-bc';
         const activeBtn = document.getElementById(btnKey);
         if (activeBtn) activeBtn.classList.add('active');
+    }
+
+    if (type === 'text') {
+        const textDropdown = document.getElementById('text-custom-dropdown');
+        if (textDropdown) {
+            textDropdown.querySelectorAll('.blur-tray-pill-btn').forEach(btn => btn.classList.remove('active'));
+            let activeId = 'btn-text-pos-tc';
+            if (pos === 'bottom-center') activeId = 'btn-text-pos-bc';
+            else if (pos === 'top-left') activeId = 'btn-text-pos-tl';
+            else if (pos === 'top-right') activeId = 'btn-text-pos-tr';
+            const activeBtn = document.getElementById(activeId);
+            if (activeBtn) activeBtn.classList.add('active');
+        }
     }
 }
 
@@ -4722,6 +4822,335 @@ function adjustOverlaySize(type, delta, event) {
         if (label) label.textContent = `${Math.round(targetScale * 100)}%`;
         const trayLabel = document.getElementById('blur-tray-size-val');
         if (trayLabel) trayLabel.textContent = `${Math.round(targetScale * 100)}%`;
+    }
+}
+
+// ==========================================================================
+// TEXT OVERLAY (Title, Episode Hook, Page Watermark) CONTROLS
+// ==========================================================================
+function toggleTextOverlayTool(event, forceState) {
+    if (event) {
+        event.stopPropagation();
+    }
+    if (typeof forceState === 'boolean') {
+        currentOverlayAssets.textActive = forceState;
+    } else {
+        currentOverlayAssets.textActive = !currentOverlayAssets.textActive;
+    }
+
+    const monitorText = document.getElementById('monitor-text-overlay');
+    const statusPill = document.getElementById('text-status-pill');
+    const statusLabel = document.getElementById('text-status-label');
+    const descLabel = document.getElementById('text-overlay-desc-label');
+
+    if (currentOverlayAssets.textActive) {
+        if (monitorText) {
+            monitorText.style.display = 'flex';
+            setOverlayPosition('text', currentOverlayAssets.textPosition || 'top-center');
+            makeOverlayDraggable(monitorText);
+            const textHandle = document.getElementById('text-resize-handle');
+            if (textHandle) makeOverlayResizable(monitorText, textHandle, 'text');
+            applyTextOverlayStyling();
+        }
+        if (statusPill) {
+            statusPill.className = 'overlay-status-pill selected text-active-pill';
+        }
+        if (statusLabel) {
+            const previewVal = (currentOverlayAssets.textValue || 'Text').slice(0, 14);
+            statusLabel.textContent = `Text: ${previewVal}`;
+        }
+        if (descLabel) {
+            descLabel.textContent = `អត្ថបទសកម្ម: "${currentOverlayAssets.textValue || 'ភាគទី ០១'}" (${currentOverlayAssets.textSize || 24}px)`;
+        }
+        showToast("បានបើក Text Overlay លើវីដេអូ (អាចសារ៉េអត្ថបទ ពណ៌ និងទាញទីតាំងបាន)!");
+        appendLiveTerminalLine("Text overlay enabled on video preview monitor (active)", "[Overlay Engine]", "success");
+    } else {
+        if (monitorText) {
+            monitorText.style.display = 'none';
+        }
+        if (statusPill) {
+            statusPill.className = 'overlay-status-pill empty';
+        }
+        if (statusLabel) {
+            statusLabel.textContent = 'ចុចដើម្បីដាក់ Text';
+        }
+        if (descLabel) {
+            descLabel.textContent = 'ដាក់ចំណងជើងរឿង, លេខភាគ (EP), ឬឈ្មោះផេកលើវីដេអូ';
+        }
+        closeTextOverlayDropdown();
+        showToast("បានដក Text Overlay ចេញពីវីដេអូ");
+    }
+}
+
+function toggleTextOverlayDropdown(e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+
+    if (typeof closeBlurMaskDropdown === 'function') closeBlurMaskDropdown();
+    if (typeof closeTrackBgmDropdown === 'function') closeTrackBgmDropdown();
+
+    const panel = document.getElementById('overlay-inline-settings-panel');
+    const divider = document.getElementById('overlay-inline-panel-divider');
+    const dropdown = document.getElementById('text-custom-dropdown');
+    const chevron = document.getElementById('text-dropdown-chevron');
+    const stack = document.getElementById('staged-overlay-unified-panel');
+    if (!dropdown || !panel) return;
+
+    const isOpen = (dropdown.classList.contains('show') || dropdown.style.display === 'flex') && dropdown.style.display !== 'none';
+    if (isOpen) {
+        closeTextOverlayDropdown();
+    } else {
+        if (!currentOverlayAssets.textActive) {
+            toggleTextOverlayTool(null, true);
+        }
+        if (divider) divider.style.display = 'block';
+        panel.style.display = 'flex';
+        if (stack) stack.classList.add('has-inline-open');
+
+        dropdown.style.display = 'flex';
+        dropdown.classList.add('show');
+        if (chevron) chevron.classList.add('open');
+    }
+}
+
+function closeTextOverlayDropdown(e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    const panel = document.getElementById('overlay-inline-settings-panel');
+    const divider = document.getElementById('overlay-inline-panel-divider');
+    const dropdown = document.getElementById('text-custom-dropdown');
+    const chevron = document.getElementById('text-dropdown-chevron');
+    const blurDropdown = document.getElementById('blur-custom-dropdown');
+    const stack = document.getElementById('staged-overlay-unified-panel');
+
+    if (dropdown) {
+        dropdown.style.display = 'none';
+        dropdown.classList.remove('show');
+    }
+    if (chevron) chevron.classList.remove('open');
+
+    const isBlurOpen = blurDropdown && (blurDropdown.classList.contains('show') || blurDropdown.style.display === 'flex') && blurDropdown.style.display !== 'none';
+    if (!isBlurOpen) {
+        if (divider) divider.style.display = 'none';
+        if (panel) panel.style.display = 'none';
+        if (stack) stack.classList.remove('has-inline-open');
+    }
+}
+
+function onOverlayTextInput(val, e) {
+    if (e) e.stopPropagation();
+    currentOverlayAssets.textValue = val || '';
+    if (!currentOverlayAssets.textActive) {
+        toggleTextOverlayTool(null, true);
+    }
+    applyTextOverlayStyling();
+}
+
+function onTextSizeChange(val, e) {
+    if (e) e.stopPropagation();
+    const size = parseInt(val, 10) || 24;
+    currentOverlayAssets.textSize = size;
+
+    const slider = document.getElementById('input-text-size');
+    if (slider && parseInt(slider.value, 10) !== size) slider.value = size;
+
+    const badge = document.getElementById('text-size-badge');
+    if (badge) badge.textContent = `${size}px`;
+
+    if (!currentOverlayAssets.textActive) {
+        toggleTextOverlayTool(null, true);
+    }
+    applyTextOverlayStyling();
+}
+
+function setTextTextColor(color, e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    currentOverlayAssets.textColor = color || '#ffffff';
+
+    const panel = document.getElementById('text-custom-dropdown');
+    if (panel) {
+        panel.querySelectorAll('.text-color-chip').forEach(btn => {
+            const btnColor = btn.style.getPropertyValue('--c') || '';
+            btn.classList.toggle('active', btnColor.toLowerCase() === (color || '').toLowerCase());
+        });
+    }
+
+    if (!currentOverlayAssets.textActive) {
+        toggleTextOverlayTool(null, true);
+    }
+    applyTextOverlayStyling();
+}
+
+function onTextBgToggle(checked, e) {
+    if (e) e.stopPropagation();
+    currentOverlayAssets.textBg = !!checked;
+
+    if (!currentOverlayAssets.textActive) {
+        toggleTextOverlayTool(null, true);
+    }
+    applyTextOverlayStyling();
+}
+
+function applyTextPreset(type, e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+
+    let val = '';
+    if (type === 'ep') val = '⚡ ភាគទី ០១';
+    else if (type === 'full') val = '🎬 ភាគមួយចប់';
+    else if (type === 'credit') val = '✨ @SN_DRAMA';
+    else if (type === 'dub') val = '🎙️ សំឡេងខ្មែរ';
+
+    const input = document.getElementById('input-overlay-text-val');
+    if (input) input.value = val;
+
+    currentOverlayAssets.textValue = val;
+    if (!currentOverlayAssets.textActive) {
+        toggleTextOverlayTool(null, true);
+    }
+    applyTextOverlayStyling();
+    showToast(`បានដាក់ Preset: ${val}`);
+}
+
+function setTextMotion(motion, e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    currentOverlayAssets.textMotion = motion || 'static';
+    if (!currentOverlayAssets.textActive) {
+        toggleTextOverlayTool(null, true);
+    }
+
+    const btnStatic = document.getElementById('btn-motion-static');
+    const btnScroll = document.getElementById('btn-motion-scroll');
+    const badge = document.getElementById('text-motion-badge');
+    const optionsBox = document.getElementById('text-scroll-options-box');
+    const staticPresets = document.getElementById('text-static-presets-row');
+    const scrollPresets = document.getElementById('text-scroll-presets-row');
+
+    if (motion === 'scroll_up') {
+        if (btnStatic) btnStatic.classList.remove('active');
+        if (btnScroll) btnScroll.classList.add('active');
+        if (badge) badge.textContent = '🚀 រត់ឡើងលើ';
+        if (optionsBox) optionsBox.style.display = 'flex';
+        if (staticPresets) staticPresets.style.display = 'none';
+        if (scrollPresets) scrollPresets.style.display = 'flex';
+        showToast("បានបើកចលនា: អក្សររត់ឡើងលើ (Scroll Up ⬆️)");
+    } else {
+        if (btnStatic) btnStatic.classList.add('active');
+        if (btnScroll) btnScroll.classList.remove('active');
+        if (badge) badge.textContent = '📌 នៅនឹងថ្កល់';
+        if (optionsBox) optionsBox.style.display = 'none';
+        if (staticPresets) staticPresets.style.display = 'flex';
+        if (scrollPresets) scrollPresets.style.display = 'none';
+        showToast("បានប្តូរទៅ: អក្សរនៅនឹងថ្កល់ (Static)");
+    }
+
+    applyTextOverlayStyling();
+}
+
+function setTextScrollSpeed(speed, e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    const s = parseInt(speed, 10) || 65;
+    currentOverlayAssets.textSpeed = s;
+
+    const chipSlow = document.getElementById('speed-chip-slow');
+    const chipNormal = document.getElementById('speed-chip-normal');
+    const chipFast = document.getElementById('speed-chip-fast');
+
+    if (chipSlow) chipSlow.classList.toggle('active', s <= 45);
+    if (chipNormal) chipNormal.classList.toggle('active', s > 45 && s < 90);
+    if (chipFast) chipFast.classList.toggle('active', s >= 90);
+
+    const speedName = s <= 45 ? 'យឺត (Slow)' : (s >= 90 ? 'លឿន (Fast)' : 'មធ្យម (Normal)');
+    showToast(`ល្បឿនរត់: ${speedName} (${s}px/s)`);
+
+    applyTextOverlayStyling();
+}
+
+function applyScrollTextPreset(type, e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+
+    let val = '';
+    if (type === 'ep_daily') val = '⚡ ភាគថ្មីជារៀងរាល់ថ្ងៃ';
+    else if (type === 'enjoy') val = '🎬 សូមរីករាយទស្សនា';
+    else if (type === 'follow') val = '✨ ចុច Follow ដើម្បីទស្សនាភាគបន្ត';
+    else if (type === 'thanks') val = '🙏 សូមអរគុណសម្រាប់ការទស្សនា';
+
+    const input = document.getElementById('input-overlay-text-val');
+    if (input) input.value = val;
+
+    currentOverlayAssets.textValue = val;
+    if (!currentOverlayAssets.textActive) {
+        toggleTextOverlayTool(null, true);
+    }
+    applyTextOverlayStyling();
+    showToast(`បានដាក់អក្សររត់: "${val}"`);
+}
+
+function applyTextOverlayStyling() {
+    const monitorText = document.getElementById('monitor-text-overlay');
+    const displayEl = document.getElementById('monitor-text-display');
+    if (!monitorText || !displayEl) return;
+
+    const text = currentOverlayAssets.textValue !== undefined ? currentOverlayAssets.textValue : 'ភាគទី ០១';
+    const size = currentOverlayAssets.textSize || 24;
+    const color = currentOverlayAssets.textColor || '#ffffff';
+    const hasBg = currentOverlayAssets.textBg !== false;
+    const motion = currentOverlayAssets.textMotion || 'static';
+    const speed = currentOverlayAssets.textSpeed || 65;
+
+    displayEl.textContent = text || '';
+    displayEl.style.fontSize = `${size}px`;
+    displayEl.style.color = color;
+
+    if (hasBg) {
+        monitorText.classList.remove('no-bg');
+    } else {
+        monitorText.classList.add('no-bg');
+    }
+
+    if (motion === 'scroll_up') {
+        monitorText.classList.add('scrolling-up');
+        const duration = speed <= 45 ? '9.5s' : (speed >= 90 ? '4s' : '6.5s');
+        monitorText.style.setProperty('--scroll-duration', duration);
+    } else {
+        monitorText.classList.remove('scrolling-up');
+    }
+
+    const statusLabel = document.getElementById('text-status-label');
+    if (statusLabel && currentOverlayAssets.textActive) {
+        const previewVal = (text || 'Text').slice(0, 12);
+        if (motion === 'scroll_up') {
+            statusLabel.textContent = `⬆️ រត់ឡើង: ${previewVal}`;
+        } else {
+            statusLabel.textContent = `Text: ${previewVal}`;
+        }
+    }
+
+    const descLabel = document.getElementById('text-overlay-desc-label');
+    if (descLabel && currentOverlayAssets.textActive) {
+        if (motion === 'scroll_up') {
+            descLabel.textContent = `អក្សររត់ឡើងលើ: "${text}" (${speed}px/s)`;
+        } else {
+            descLabel.textContent = `អត្ថបទសកម្ម: "${text}" (${size}px)`;
+        }
     }
 }
 
@@ -4800,6 +5229,11 @@ function makeOverlayResizable(overlayEl, handleEl, type) {
 
             const label = document.getElementById('logo-size-label');
             if (label) label.textContent = `${Math.round(currentOverlayAssets.logoScale * 100)}%`;
+        } else if (type === 'text') {
+            const delta = Math.abs(dx) > Math.abs(dy) ? dx : dy;
+            const curSize = currentOverlayAssets.textSize || 24;
+            const newSize = Math.max(14, Math.min(64, Math.round(curSize + delta * 0.12)));
+            onTextSizeChange(newSize);
         }
     };
 
@@ -4842,6 +5276,11 @@ function initInteractiveOverlays() {
     const blurHandle = document.getElementById('blur-resize-handle');
     if (monitorBlur) makeOverlayDraggable(monitorBlur);
     if (monitorBlur && blurHandle) makeOverlayResizable(monitorBlur, blurHandle, 'blur');
+
+    const monitorText = document.getElementById('monitor-text-overlay');
+    const textHandle = document.getElementById('text-resize-handle');
+    if (monitorText) makeOverlayDraggable(monitorText);
+    if (monitorText && textHandle) makeOverlayResizable(monitorText, textHandle, 'text');
 }
 
 function makeOverlayDraggable(el) {
@@ -5007,9 +5446,36 @@ async function getOverlayExportConfig() {
         };
     }
 
+    // 3. Watermark / Title Text Overlay
+    const monitorText = document.getElementById('monitor-text-overlay');
+    const isTextActive = monitorText && monitorText.style.display !== 'none' && currentOverlayAssets.textActive;
+    let textCfg = { active: false };
+
+    if (isTextActive) {
+        let norm_x = 0.50, norm_y = 0.05;
+        if (sRect && sRect.width > 20 && sRect.height > 20) {
+            const tRect = monitorText.getBoundingClientRect();
+            norm_x = Math.max(0, Math.min(0.95, (tRect.left - sRect.left) / sRect.width));
+            norm_y = Math.max(0, Math.min(0.95, (tRect.top - sRect.top) / sRect.height));
+        }
+        textCfg = {
+            active: true,
+            text: currentOverlayAssets.textValue || 'ភាគទី ០១',
+            size: currentOverlayAssets.textSize || 24,
+            color: currentOverlayAssets.textColor || '#ffffff',
+            bg: !!currentOverlayAssets.textBg,
+            motion: currentOverlayAssets.textMotion || 'static',
+            speed: currentOverlayAssets.textSpeed || 65,
+            position: currentOverlayAssets.textPosition || 'top-center',
+            norm_x: +norm_x.toFixed(4),
+            norm_y: +norm_y.toFixed(4)
+        };
+    }
+
     return {
         logo: logoCfg,
-        blur: blurCfg
+        blur: blurCfg,
+        text: textCfg
     };
 }
 
@@ -5896,6 +6362,56 @@ function setStagedVideo(file) {
     appendTerminalLine(`[Ready] Video "${fileName}" loaded. Click [Export] to begin studio dubbing.`);
 }
 
+function discardStagedVideo(e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+
+    // 1. Reset Preview Video Player
+    const mainVideo = document.getElementById('main-video');
+    if (mainVideo) {
+        try {
+            mainVideo.pause();
+            mainVideo.removeAttribute('src');
+            mainVideo.load();
+        } catch (err) {}
+        mainVideo.style.display = 'none';
+    }
+
+    // 2. Reset Playback state & timer
+    if (typeof isPlaying !== 'undefined') isPlaying = false;
+    if (typeof playbackTimer !== 'undefined' && playbackTimer) {
+        clearInterval(playbackTimer);
+        playbackTimer = null;
+    }
+    if (typeof playheadSeconds !== 'undefined') playheadSeconds = 0;
+    if (typeof totalDurationSeconds !== 'undefined') totalDurationSeconds = 0;
+    if (typeof updateScrubberUI === 'function') updateScrubberUI();
+    if (typeof resetVuMetersToIdle === 'function') resetVuMetersToIdle();
+
+    // 3. Reset left monitor empty state
+    const emptyState = document.getElementById('monitor-empty-state');
+    if (emptyState) emptyState.style.display = 'flex';
+    const centerPlayBtn = document.getElementById('center-play-btn');
+    if (centerPlayBtn) centerPlayBtn.style.display = 'none';
+
+    // 4. Reset staged data
+    stagedVideoFile = null;
+    stagedBatchFiles = null;
+
+    // 5. Reset overlays
+    if (typeof clearOverlayFile === 'function') clearOverlayFile(null, 'logo');
+    if (typeof toggleBlurMaskTool === 'function') toggleBlurMaskTool(null, false);
+    if (typeof toggleTextOverlayTool === 'function') toggleTextOverlayTool(null, false);
+
+    // 6. Reset engine status text
+    if (typeof resetEngineMonitorToStandby === 'function') resetEngineMonitorToStandby();
+
+    // 7. Return to State 0 Clean Drag & Drop View
+    showCleanSourceView();
+
+    showToast("បានបោះបង់ និងត្រឡប់ទៅទំព័រដើមវិញ (Returned to Home)");
+    appendTerminalLine("[SN Studio] Project discarded. Returned to home import canvas.");
+}
+
 function setStagedBatchFiles(files, folderTitle = "") {
     stagedBatchFiles = files;
     stagedVideoFile = null;
@@ -6499,54 +7015,29 @@ function showDubbingSuccessNotification(data) {
     const existing = document.getElementById('dubbing-success-banner');
     if (existing) existing.remove();
 
-    const banner = document.createElement('div');
-    banner.id = 'dubbing-success-banner';
-    banner.style.cssText = `
-        position: fixed;
-        bottom: 45px;
-        right: 20px;
-        background: linear-gradient(135deg, #18150c 0%, #0d0b06 100%);
-        border: 1px solid rgba(250, 204, 21, 0.4);
-        box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 20px rgba(250, 204, 21, 0.2);
-        border-radius: 12px;
-        padding: 16px 20px;
-        z-index: 99999;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        min-width: 320px;
-        animation: fadeIn 0.3s ease;
-    `;
-
     const isBatch = data && data.batch_count;
     const bannerMsg = isBatch
-        ? `រឿងភាគទាំងអស់ចំនួន ${data.batch_count} ភាគ បាន Render រួចរាល់ជាមួយសំឡេងខ្មែរ ពិសិដ្ឋ & ស្រីមុំ និងបានរក្សាទុកក្នុង Folder Exports!`
-        : `វីដេអូបាន Render រួចរាល់ជាមួយសំឡេងខ្មែរ ពិសិដ្ឋ & ស្រីមុំ និងបានរក្សាទុកក្នុង Folder Exports!`;
+        ? `រឿងភាគទាំងអស់ចំនួន ${data.batch_count} ភាគ បាន Render ពេញលេញ 100% ជាមួយសំឡេងខ្មែរ ពិសិដ្ឋ & ស្រីមុំ និងបានរក្សាទុកក្នុង Folder Exports!`
+        : `វីដេអូបាន Render ពេញលេញ 100% ជាមួយសំឡេងខ្មែរ ពិសិដ្ឋ & ស្រីមុំ និងបានរក្សាទុកក្នុង Folder Exports!`;
 
-    const downloadUrl = (data && data.video_url) ? data.video_url : '#';
+    // Stream directly into Studio Processing & Activity Console as requested by user
+    if (typeof appendLiveTerminalLine === 'function') {
+        appendLiveTerminalLine(bannerMsg, "[Render 100%]", "success");
+        appendLiveTerminalLine("ឯកសារត្រូវបានរក្សាទុកក្នុង Folder: data/exports (រួចរាល់ 100%)", "[Export Done]", "success");
+    }
 
-    banner.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div style="font-weight:700; color:#facc15; font-size:0.9rem; display:flex; align-items:center; gap:8px;">
-                <i class="fa-solid fa-circle-check" style="color:#22c55e;"></i> ${isBatch ? 'បកប្រែរឿងភាគមួយចប់ជោគជ័យ!' : 'បកប្រែជាសំឡេងខ្មែរជោគជ័យ!'}
-            </div>
-            <button onclick="this.parentElement.parentElement.remove()" style="background:transparent; border:none; color:#716655; font-size:0.85rem; cursor:pointer;">✕</button>
-        </div>
-        <div style="font-size:0.75rem; color:#cbd5e1;">
-            ${bannerMsg}
-        </div>
-        <div style="display:flex; gap:8px; margin-top:4px;">
-            <button onclick="openExportFolderDirect()" style="flex:1; background:rgba(250,204,21,0.15); border:1px solid #facc15; color:#facc15; border-radius:6px; padding:6px 12px; font-size:0.75rem; font-weight:600; cursor:pointer;">
-                <i class="fa-solid fa-folder-open"></i> បើក Folder វីដេអូ
-            </button>
-            ${downloadUrl !== '#' ? `
-            <a href="${downloadUrl}" download style="flex:1; text-align:center; background:#facc15; color:#000; border-radius:6px; padding:6px 12px; font-size:0.75rem; font-weight:700; text-decoration:none; display:inline-block;">
-                <i class="fa-solid fa-download"></i> ទាញយក MP4
-            </a>` : ''}
-        </div>
-    `;
+    // Set console progress to 100%
+    const pctElem = document.getElementById('monitor-export-percent');
+    if (pctElem) pctElem.textContent = '100%';
+    const fillElem = document.getElementById('monitor-progress-fill');
+    if (fillElem) fillElem.style.width = '100%';
 
-    document.body.appendChild(banner);
+    const pill = document.getElementById('monitor-engine-status-pill');
+    const dot = document.getElementById('monitor-pulse-dot');
+    const text = document.getElementById('monitor-engine-status-text');
+    if (pill) pill.className = 'engine-status-pill standby';
+    if (dot) dot.className = 'pulse-indicator standby';
+    if (text) text.textContent = 'COMPLETED 100%';
 }
 
 async function openExportFolderDirect(targetPath) {
@@ -6775,12 +7266,35 @@ async function pasteGateLicense() {
 // UTILITIES
 // ==========================================================================
 function showToast(msg) {
+    if (!msg) return;
+
+    let tag = "[SN Studio]";
+    let type = "info";
+    const str = String(msg);
+    const lower = str.toLowerCase();
+
+    if (lower.includes("100%") || str.includes("ជោគជ័យ") || str.includes("រួចរាល់") || lower.includes("complete") || lower.includes("finished")) {
+        tag = "[Completed]";
+        type = "success";
+    } else if (lower.includes("failed") || lower.includes("error") || str.includes("បរាជ័យ") || str.includes("បញ្ហា") || str.includes("កំហុស")) {
+        tag = "[Alert]";
+        type = "error";
+    } else if (str.includes("កំពុង") || lower.includes("processing") || lower.includes("progress")) {
+        tag = "[Processing]";
+        type = "info";
+    }
+
+    // Stream directly into Studio Processing & Activity Console as requested by user
+    if (typeof appendLiveTerminalLine === 'function') {
+        appendLiveTerminalLine(str, tag, type);
+    }
+
+    // Completely silence floating toast banner so it never pops up over the window
     const toast = document.getElementById('toast');
-    if (!toast) return;
-    toast.textContent = msg;
-    toast.classList.add('show');
-    clearTimeout(toast._timeout);
-    toast._timeout = setTimeout(() => { toast.classList.remove('show'); }, 3000);
+    if (toast) {
+        toast.classList.remove('show');
+        toast.style.display = 'none';
+    }
 }
 
 function escapeHtml(str) {

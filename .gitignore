@@ -19,6 +19,7 @@ scratch/
 dist/**/cache/
 dist/**/data/
 dist/**/license.key
+license.key
 dist/**/admin_key_history.json
 dist/**/generated_keys_log.txt
 dist/*.exe
