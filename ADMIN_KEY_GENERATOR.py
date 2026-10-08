@@ -80,10 +80,10 @@ def copy_to_clipboard(text: str):
         pass
 
 def print_header():
-    lic_mode = "🟢 ON (ត្រូវវាយ Key ទើបប្រើបាន)" if is_license_required() else "🟡 OFF (Free Mode - ប្រើបានភ្លាមៗមិនបាច់ Key)"
-    server_status = f"🟢 ដំណើរការស្រេច ({ADMIN_URL})" if is_server_running() else "🟡 កំពុងបើក..."
+    lic_mode = "🟢 ON (Key Required)" if is_license_required() else "🟡 OFF (Free Mode - No Key Required)"
+    server_status = f"🟢 Running ({ADMIN_URL})" if is_server_running() else "🟡 Starting..."
     print("\n" + "=" * 65)
-    print(" 👑 SN STUDIO - ADMIN KEY GENERATOR (ប្រព័ន្ធគ្រប់គ្រង KEY ជូន USER)")
+    print(" 👑 SN STUDIO - ADMIN KEY GENERATOR (KEY MANAGEMENT SYSTEM)")
     print("=" * 65)
     print(f" 💻 Admin Machine HWID: {get_machine_hwid()}")
     print(f" 🛡️  License Gate Mode:  {lic_mode}")
@@ -101,74 +101,74 @@ def print_key_card(record):
         f" ⏳ Expiry:  {record.get('expires_at')}\n"
         f" 🔒 HWID:    {record.get('bound_hwid')}\n"
         f"=======================================================\n"
-        f"👉 របៀបប្រើ៖ បើក SN STUDIO -> យក Key នេះ Paste ចូលរួចចុច Activate\n"
+        f"👉 Instructions: Open SN STUDIO -> Paste this Key and click Activate\n"
         f"======================================================="
     )
     print(msg)
     copy_to_clipboard(record.get('license_key', ''))
-    print(" (✨ បាន Copy Key ចូល Clipboard ស្វ័យប្រវត្ត រួចជាស្រេច!)")
+    print(" (✨ Key copied to Clipboard automatically!)")
 
 def interactive_menu():
     ensure_server_running()
     while True:
         try:
             print_header()
-            print(" 🌐 ផ្នែកទី ១: WEB ADMIN DASHBOARD (ផ្ទាំងគ្រប់គ្រងលើ BROWSER)")
-            print(" [1] បើកផ្ទាំង Admin Dashboard (http://127.0.0.1:8888/admin)")
+            print(" 🌐 SECTION 1: WEB ADMIN DASHBOARD (BROWSER DASHBOARD)")
+            print(" [1] Open Admin Dashboard (http://127.0.0.1:8888/admin)")
             print("-" * 65)
-            print(" 🔑 ផ្នែកទី ២: បង្កើត KEY ជូនអតិថិជន (KEY GENERATION)")
-            print(" [2] បង្កើត License Key ថ្មី (កំណត់ចំនួនថ្ងៃ 30d, 90d, 1y, មួយជីវិត)")
-            print(" [3] បង្កើត Custom Key ផ្ទាល់ខ្លួន (វាយអក្សរតាមចិត្ត ឧ. SAL-2026)")
-            print(" [9] បង្កើត Lifetime Key មួយជីវិតភ្លាមៗ (Quick Lifetime)")
+            print(" 🔑 SECTION 2: GENERATE KEY (KEY GENERATION)")
+            print(" [2] Generate New License Key (Duration: 30d, 90d, 1y, Lifetime)")
+            print(" [3] Generate Custom Key Code (e.g. SAL-2026)")
+            print(" [9] Quick Lifetime Key (Permanent Key)")
             print("-" * 65)
-            print(" 👥 ផ្នែកទី ៣: គ្រប់គ្រងអតិថិជន & BLOCK USER (MANAGEMENT)")
-            print(" [4] បញ្ឈប់ / Block Key របស់ User (Revoke / Ban Key មិនឱ្យប្រើ)")
-            print(" [5] ដោះសោ / Unban Key (Restore Key ឱ្យដំណើរការឡើងវិញ)")
-            print(" [7] មើលប្រវត្តិ Key និងអតិថិជនទាំងអស់ (View All Keys History)")
-            print(" [8] ត្រួតពិនិត្យ និង Verify License Key")
+            print(" 👥 SECTION 3: CUSTOMER MANAGEMENT & BLOCK USER")
+            print(" [4] Block / Revoke User Key (Revoke / Ban Key)")
+            print(" [5] Unban Key (Restore / Reactivate Key)")
+            print(" [7] View All Keys History")
+            print(" [8] Verify License Key")
             print("-" * 65)
-            print(" ⚙️ ផ្នែកទី ៤: ការកំណត់ GATE & SYSTEM (GATE SETTINGS)")
-            print(" [6] បិទ / បើក ការទាមទារ Key (Toggle Free Mode vs Require Key)")
-            print(" [S] 🔄 ធ្វើបច្ចុប្បន្នភាព Key Online ទាំងអស់ (Sync & Export Online Keys)")
-            print(" [0] ចាកចេញពីកម្មវិធី (Exit)")
+            print(" ⚙️ SECTION 4: GATE & SYSTEM SETTINGS")
+            print(" [6] Toggle Free Mode vs Require Key")
+            print(" [S] 🔄 Sync & Export Online Keys")
+            print(" [0] Exit")
             print("=" * 65)
 
-            choice = input("👉 សូមជ្រើសរើសជម្រើស (0-9 ឬ S): ").strip()
+            choice = input("👉 Select option (0-9 or S): ").strip()
         except (KeyboardInterrupt, EOFError):
-            print("\n\n⚠️ បានទទួលសញ្ញាផ្អាក។ ប្រសិនបើចង់ចាកចេញ សូមជ្រើសរើសលេខ 0។")
+            print("\n\n⚠️ Interrupted. To exit, choose 0.")
             time.sleep(1)
             continue
 
         if choice == "1":
             import webbrowser
-            print("\n⏳ កំពុងត្រួតពិនិត្យ និងបើកដំណើរការ Admin Server (Port 8888)...")
+            print("\n⏳ Checking and starting Admin Server (Port 8888)...")
             ready = ensure_server_running(timeout=6.0)
             url = ADMIN_URL
             if ready:
-                print(f"🌐 Admin Server ដំណើរការរួចរាល់! កំពុងបើកផ្ទាំង Dashboard ក្នុង Browser ({url})...")
+                print(f"🌐 Admin Server ready! Opening Dashboard in browser ({url})...")
             else:
-                print(f"⚠️ Admin Server កំពុងបើកយឺតបន្តិច ប៉ុន្តែកំពុងព្យាយាមបើក Browser ទៅកាន់៖ {url}")
+                print(f"⚠️ Admin Server starting slowly, attempting to open: {url}")
             try:
                 webbrowser.open(url)
             except Exception:
                 pass
-            print(f"✅ ប្រសិនបើ Browser មិនបើកដោយស្វ័យប្រវត្ត សូមចុចបើកតំណភ្ជាប់នេះ៖ {url}")
-            input("\nចុច Enter ដើម្បីបន្ត...")
+            print(f"✅ If browser does not open automatically, visit: {url}")
+            input("\nPress Enter to continue...")
 
         elif choice == "2":
-            client_name = input("\n👤 បញ្ចូលឈ្មោះ Client/User (ឧ. Sokha_FB): ").strip() or "Client"
-            print("\nជ្រើសរើសកាលកំណត់ (Duration):")
-            print(" [1] 30 ថ្ងៃ (1 Month)")
-            print(" [2] 90 ថ្ងៃ (3 Months)")
-            print(" [3] 365 ថ្ងៃ (1 Year)")
-            print(" [4] ពេញមួយជីវិត (Lifetime)")
-            print(" [5] Trial 3 ថ្ងៃ (3-Day Trial)")
-            print(" [6] វាយចំនួនថ្ងៃផ្ទាល់ខ្លួន (Custom Days ឧ. 5, 14, 60, 180...)")
+            client_name = input("\n👤 Enter Client/User Name (e.g. Sokha_FB): ").strip() or "Client"
+            print("\nSelect Duration:")
+            print(" [1] 30 Days (1 Month)")
+            print(" [2] 90 Days (3 Months)")
+            print(" [3] 365 Days (1 Year)")
+            print(" [4] Lifetime (Permanent)")
+            print(" [5] 3-Day Trial")
+            print(" [6] Custom Days (e.g. 5, 14, 60, 180...)")
             
-            dur_choice = input("👉 ជ្រើសរើស (1-6): ").strip()
+            dur_choice = input("👉 Select (1-6): ").strip()
             if dur_choice == "6":
                 try:
-                    custom_d = int(input("👉 បញ្ចូលចំនួនថ្ងៃ (វាយ 0 សម្រាប់មួយជីវិត): ").strip() or "30")
+                    custom_d = int(input("👉 Enter number of days (0 for Lifetime): ").strip() or "30")
                     days = custom_d
                     plan = f"{days}D" if days > 0 else "LIFETIME"
                 except Exception:
@@ -180,134 +180,134 @@ def interactive_menu():
                 days = days_map.get(dur_choice, 30)
                 plan = plan_map.get(dur_choice, "PRO")
             
-            bind_hw = input("\n🔒 ចង់ចាក់សោតាម HWID របស់ម៉ាស៊ីន Client ទេ?\n(ចុច Enter ដើម្បីអនុញ្ញាតប្រើបានគ្រប់ម៉ាស៊ីន ឬ Paste HWID របស់ Client): ").strip()
+            bind_hw = input("\n🔒 Lock to Client Machine HWID?\n(Press Enter for Any Machine, or paste Client HWID): ").strip()
             hwid_val = bind_hw if bind_hw else None
             
             record = generate_license_key(client_name=client_name, duration_days=days, hwid=hwid_val, plan=plan)
             print_key_card(record)
-            input("\nចុច Enter ដើម្បីបន្ត...")
+            input("\nPress Enter to continue...")
 
         elif choice == "3":
-            print("\n✍️ បង្កើត Custom Key ផ្ទាល់ខ្លួន (User-Defined Key / Password):")
-            print(" (ឧទាហរណ៍៖ SAL-2026, SAL888, KHMER-STUDIO)")
-            custom_key = input("👉 បញ្ចូល Key ឬពាក្យសម្ងាត់ដែលបងចង់បាន: ").strip()
+            print("\n✍️ Create Custom Key (User-Defined Key / Password):")
+            print(" (e.g.: SAL-2026, SAL888, VIP-STUDIO)")
+            custom_key = input("👉 Enter desired Key code: ").strip()
             if not custom_key:
-                print("⚠️ មិនបានបញ្ចូល Key ទេ!")
-                input("\nចុច Enter ដើម្បីបន្ត...")
+                print("⚠️ No Key entered!")
+                input("\nPress Enter to continue...")
                 continue
 
-            client_name = input("👤 ឈ្មោះ Client (ឧ. Sal / Sokha): ").strip() or "Client"
+            client_name = input("👤 Client Name (e.g. Sal / Sokha): ").strip() or "Client"
             
-            print("\nកាលកំណត់សម្រាប់ Key នេះ:")
-            print(" [1] ពេញមួយជីវិត (Lifetime - គ្មានថ្ងៃផុតកំណត់)")
-            print(" [2] វាយចំនួនថ្ងៃជាក់លាក់ (Custom Days ឧ. 7, 30, 90, 365...)")
-            d_opt = input("👉 ជ្រើសរើស (1 ឬ 2): ").strip()
+            print("\nDuration for this Key:")
+            print(" [1] Lifetime (Permanent - Never Expires)")
+            print(" [2] Custom Days (e.g. 7, 30, 90, 365...)")
+            d_opt = input("👉 Select (1 or 2): ").strip()
             if d_opt == "2":
                 try:
-                    days = int(input("👉 បញ្ចូលចំនួនថ្ងៃ: ").strip() or "30")
+                    days = int(input("👉 Enter number of days: ").strip() or "30")
                 except Exception:
                     days = 30
             else:
                 days = 0
 
-            bind_hw = input("\n🔒 ចង់ចាក់សោតាម HWID របស់ម៉ាស៊ីន Client ទេ?\n(ចុច Enter ដើម្បីប្រើបានគ្រប់ម៉ាស៊ីន ឬ Paste HWID): ").strip()
+            bind_hw = input("\n🔒 Lock to Client Machine HWID?\n(Press Enter for Any Machine, or paste HWID): ").strip()
             hwid_val = bind_hw if bind_hw else None
 
             plan_name = f"CUSTOM_{days}D" if days > 0 else "CUSTOM_LIFETIME"
             rec = register_custom_key(custom_key=custom_key, client_name=client_name, duration_days=days, hwid=hwid_val, plan=plan_name)
             print_key_card(rec)
-            input("\nចុច Enter ដើម្បីបន្ត...")
+            input("\nPress Enter to continue...")
 
         elif choice == "4":
-            print("\n🚫 បញ្ឈប់ / Block Key របស់ User (Revoke / Ban Key):")
-            key_to_ban = input("👉 បញ្ចូល Key ដែលបងចង់ Block មិនឱ្យប្រើ: ").strip()
+            print("\n🚫 Block / Revoke User Key:")
+            key_to_ban = input("👉 Enter Key to block: ").strip()
             if not key_to_ban:
-                print("⚠️ មិនបានបញ្ចូល Key ទេ!")
-                input("\nចុច Enter ដើម្បីបន្ត...")
+                print("⚠️ No Key entered!")
+                input("\nPress Enter to continue...")
                 continue
             
-            confirm = input(f"⚠️ តើបងប្រាកដទេថាចង់បញ្ឈប់/Block Key '{key_to_ban}'? (y/n): ").strip().lower()
-            if confirm in ('y', 'yes', 'បាទ', 'ចាស'):
+            confirm = input(f"⚠️ Are you sure you want to block Key '{key_to_ban}'? (y/n): ").strip().lower()
+            if confirm in ('y', 'yes'):
                 ok, msg = revoke_license_key(key_to_ban, reason="Admin manual revoke")
                 print(f"\n{msg}")
             else:
-                print("🚫 បានបោះបង់ប្រតិបត្តិការ។")
-            input("\nចុច Enter ដើម្បីបន្ត...")
+                print("🚫 Operation cancelled.")
+            input("\nPress Enter to continue...")
 
         elif choice == "5":
-            print("\n♻️ ដោះសោ / Unban Key (Restore Key):")
-            key_to_unban = input("👉 បញ្ចូល Key ដែលចង់ Unblock ឱ្យដំណើរការវិញ: ").strip()
+            print("\n♻️ Unban / Restore Key:")
+            key_to_unban = input("👉 Enter Key to unblock: ").strip()
             if not key_to_unban:
-                print("⚠️ មិនបានបញ្ចូល Key ទេ!")
-                input("\nចុច Enter ដើម្បីបន្ត...")
+                print("⚠️ No Key entered!")
+                input("\nPress Enter to continue...")
                 continue
             ok, msg = unrevoke_license_key(key_to_unban)
             print(f"\n{msg}")
-            input("\nចុច Enter ដើម្បីបន្ត...")
+            input("\nPress Enter to continue...")
 
         elif choice == "6":
             current_status = is_license_required()
-            print(f"\n⚙️ ស្ថានភាពបច្ចុប្បន្ន៖ {'🟢 កំពុងទាមទារ License Key (ON)' if current_status else '🟡 កំពុងបើក Free Mode (OFF - មិនបាច់វាយ Key)'}")
-            print(" [1] បើកការទាមទារ Key (User ត្រូវតែមាន Key ទើបប្រើបាន)")
-            print(" [2] បិទការទាមទារ Key (Free Mode - អ្នកណាក៏បើកប្រើបានភ្លាមៗ)")
-            toggle_choice = input("👉 ជ្រើសរើស (1 ឬ 2): ").strip()
+            print(f"\n⚙️ Current Status: {'🟢 License Key Required (ON)' if current_status else '🟡 Free Mode (OFF - No Key Required)'}")
+            print(" [1] Enable Key Requirement (Valid key required)")
+            print(" [2] Disable Key Requirement (Free Mode - Open to all)")
+            toggle_choice = input("👉 Select (1 or 2): ").strip()
             if toggle_choice == "1":
                 set_license_required(True)
-                print("✅ បានបើកការទាមទារ License Key (User ត្រូវវាយ Key ទើបប្រើបាន)")
+                print("✅ Enabled License Key Requirement (Key required)")
             elif toggle_choice == "2":
                 set_license_required(False)
-                print("🎉 បានបើក Free Mode (User មិនបាច់វាយ Key ទេ បើកមកប្រើបានភ្លាមៗ)")
-            input("\nចុច Enter ដើម្បីបន្ត...")
+                print("🎉 Enabled Free Mode (No key required)")
+            input("\nPress Enter to continue...")
 
         elif choice == "7":
             if ADMIN_HISTORY_FILE.exists():
                 with open(ADMIN_HISTORY_FILE, "r", encoding="utf-8") as f:
                     history = json.load(f)
-                print(f"\n📜 បញ្ជី License Keys ទាំងអស់ ({len(history)} Keys):")
+                print(f"\n📜 All License Keys ({len(history)} Keys):")
                 print("-" * 65)
                 for idx, k in enumerate(history, 1):
                     status_badge = "🔴 REVOKED" if k.get('status') == 'REVOKED' else "🟢 ACTIVE"
                     print(f"{idx}. [{status_badge}] {k.get('license_key')} | {k.get('client_name')} | Plan: {k.get('plan')} | Expiry: {k.get('expires_at')} | HWID: {k.get('bound_hwid')}")
                 print("-" * 65)
             else:
-                print("\n⚠️ មិនទាន់មាន Key ណាមួយត្រូវបានបង្កើតនៅឡើយទេ។")
-            input("\nចុច Enter ដើម្បីបន្ត...")
+                print("\n⚠️ No keys generated yet.")
+            input("\nPress Enter to continue...")
 
         elif choice == "8":
-            test_key = input("\n🔍 បញ្ចូល License Key ដែលចង់ Check: ").strip()
+            test_key = input("\n🔍 Enter License Key to check: ").strip()
             valid, msg, record = verify_license_key(test_key)
             print(f"\nResult: {msg}")
             if valid:
                 print(f"Client: {record.get('client_name')}, Plan: {record.get('plan')}, Expiry: {record.get('expires_at')}")
-            input("\nចុច Enter ដើម្បីបន្ត...")
+            input("\nPress Enter to continue...")
 
         elif choice == "9":
-            name = input("\n👤 ឈ្មោះ Client: ").strip() or "User_Lifetime"
+            name = input("\n👤 Client Name: ").strip() or "User_Lifetime"
             rec = generate_license_key(client_name=name, duration_days=0, plan="LIFETIME")
             print_key_card(rec)
-            input("\nចុច Enter ដើម្បីបន្ត...")
+            input("\nPress Enter to continue...")
 
         elif choice.upper() in ("S", "SYNC"):
-            print("\n🔄 កំពុង Sync Key ទាំងអស់ទៅកាន់ Online Registry...")
+            print("\n🔄 Syncing keys to Online Registry...")
             keys = sync_online_keys()
-            print(f"✅ បាន Sync Key សរុប {len(keys)} Keys ទៅកាន់ data/license_keys_online.json និង dist/ រួចរាល់!")
-            input("\nចុច Enter ដើម្បីបន្ត...")
+            print(f"✅ Synced {len(keys)} keys to data/license_keys_online.json and dist/ successfully!")
+            input("\nPress Enter to continue...")
 
         elif choice in ("0", "exit", "quit"):
-            confirm = input("👉 តើអ្នកពិតជាចង់ចាកចេញមែនទេ? (y/n): ").strip().lower()
-            if confirm in ('y', 'yes', 'បាទ', 'ចាស'):
-                print("\n👋 អរគុណ! ចាកចេញពី Admin Key Generator ដោយសុវត្ថិភាព។\n")
+            confirm = input("👉 Are you sure you want to exit? (y/n): ").strip().lower()
+            if confirm in ('y', 'yes'):
+                print("\n👋 Goodbye! Safely exited Admin Key Generator.\n")
                 break
             else:
                 continue
 
         else:
-            print(f"\n⚠️ ជម្រើស '{choice}' មិនត្រឹមត្រូវទេ! សូមជ្រើសរើសជម្រើសដែលមានក្នុងបញ្ជី (0-9 ឬ S)។")
-            input("\nចុច Enter ដើម្បីបន្ត...")
+            print(f"\n⚠️ Invalid choice '{choice}'! Please select from list (0-9 or S).")
+            input("\nPress Enter to continue...")
 
 if __name__ == "__main__":
     try:
         interactive_menu()
     except Exception as e:
-        print(f"\n⚠️ កើតមានបញ្ហា៖ {e}")
-        input("\nចុច Enter ដើម្បីបិទ...")
+        print(f"\n⚠️ An error occurred: {e}")
+        input("\nPress Enter to close...")

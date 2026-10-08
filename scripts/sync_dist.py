@@ -8,7 +8,7 @@ dist_sn = base_dir / "dist" / "SN_TOOL"
 dist_sn.mkdir(parents=True, exist_ok=True)
 
 # 1. Copy icon and configs for SN_TOOL (Do NOT copy license.key so clients are unactivated!)
-sn_sync_files = ["icon.ico", "license_config.json", "custom_keys.json", "version.json", "server.py", "license_engine.py"]
+sn_sync_files = ["icon.ico", "license_config.json", "custom_keys.json", "version.json", "server.py", "license_engine.py", "video_processor.py", "pipeline.py", "batch_engine.py"]
 for fname in sn_sync_files:
     src = base_dir / fname
     if src.exists():
@@ -32,7 +32,7 @@ color 0e
 cls
 
 echo ========================================================================
-echo  🎬 កំពុងដំណើរការ SN TOOL - STUDIO PRO (Khmer AI Drama Studio)...
+echo  🎬 Launching SN TOOL - STUDIO PRO (AI Drama Dubbing Studio)...
 echo ========================================================================
 echo.
 
@@ -42,7 +42,7 @@ if exist "%~dp0SN_TOOL.exe" (
 )
 
 if exist "%~dp0..\\..\\SN_TOOL.bat" (
-    echo [INFO] កំពុងបើកដំណើរការតាមរយៈ SN_TOOL.bat...
+    echo [INFO] Launching via SN_TOOL.bat...
     call "%~dp0..\\..\\SN_TOOL.bat"
     goto :END
 )
@@ -59,12 +59,12 @@ if exist "%~dp0..\\..\\desktop_app.py" (
 
 echo.
 echo ========================================================================
-echo  ⚠️ មិនឃើញឯកសារ SN_TOOL.exe ទេ!
-echo  🛡️  មូលហេតុ៖ កម្មវិធី Windows Defender (Antivirus) បានច្រឡំលុប ឬដាក់ Quarantine
-echo  👉 វិធីដោះស្រាយ៖
-echo     1. សូមបើក Windows Security -> Virus & threat protection -> Protection history
-echo     2. ចុចលើ Threat ចុងក្រោយ (Trojan:Win32/Bearfoos.B!ml) -> Actions -> Allow on device
-echo     3. ឬបើកដំណើរការតាមឯកសារ "SN_TOOL.bat" នៅ Folder ដើមខាងក្រៅបានភ្លាមៗ!
+echo  ⚠️ SN_TOOL.exe not found!
+echo  🛡️  Cause: Windows Defender / Antivirus may have quarantined the file.
+echo  👉 Resolution:
+echo     1. Open Windows Security -> Virus & threat protection -> Protection history
+echo     2. Locate recent blocked item -> Actions -> Allow on device
+echo     3. Or launch using "SN_TOOL.bat" in workspace root directly!
 echo ========================================================================
 pause
 

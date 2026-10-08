@@ -3,13 +3,13 @@ chcp 65001 > nul
 set PYTHONUTF8=1
 set PYTHONIOENCODING=utf-8
 cd /d "%~dp0"
-title 🎬 SN TOOL - STUDIO PRO (Khmer AI Drama Studio)
+title 🎬 SN TOOL - STUDIO PRO (AI Drama Dubbing Studio)
 color 0e
 cls
 
 echo ========================================================================
-echo  🎬 កំពុងបើកដំណើរ SN TOOL - STUDIO PRO (Native Desktop Application)...
-echo  🎙️ សំឡេងខ្មែរផ្លូវការ: ពិសិដ្ឋ (Piseth - តួប្រុស) ^& ស្រីម (Sreymom - តួស្រី)
+echo  🎬 Launching SN TOOL - STUDIO PRO (Native Desktop Application)...
+echo  🎙️ Official Voiceover Models: Piseth (Male Solo) ^& Sreymom (Female Solo)
 echo ========================================================================
 echo.
 
@@ -42,7 +42,7 @@ if exist "%LOCALAPPDATA%\Python\pythoncore-3.14-64\python.exe" (
 )
 
 if exist "dist\SN_TOOL\SN_TOOL.exe" (
-    echo [INFO] Python មិនទាន់បានដំឡើង ដូច្នេះកំពុងបើកដំណើរការតាមរយៈ Standalone EXE...
+    echo [INFO] Python is not installed. Launching via Standalone EXE...
     start "" "dist\SN_TOOL\SN_TOOL.exe"
     goto :END
 )
@@ -58,7 +58,7 @@ pause
 :END
 echo.
 echo ========================================================================
-echo  [INFO] កម្មវិធី SN TOOL បានបញ្ចប់ដំណើរការ ឬត្រូវបានបិទ។
-echo  👉 ចុច Enter ឬ Key ណាមួយដើម្បីចាកចេញពីផ្ទាំងនេះ...
+echo  [INFO] SN TOOL application has closed.
+echo  👉 Press any key to exit this window...
 echo ========================================================================
 pause >nul

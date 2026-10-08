@@ -370,7 +370,7 @@ class ProjectManager:
 
         if v_override not in ("multi", "auto_multi"):
             chosen_v = "sreymom" if v_override == "sreymom" else "piseth"
-            v_desc = "ស្រីមុំ (Sreymom Solo)" if chosen_v == "sreymom" else "ពិសិដ្ឋ (Piseth Solo)"
+            v_desc = "Sreymom (Female Solo)" if chosen_v == "sreymom" else "Piseth (Male Solo)"
             for d in translated_dialogues:
                 d["voice"] = chosen_v
                 d["pitch_hz"] = 0
@@ -478,6 +478,8 @@ class ProjectManager:
         project["burn_subtitles"] = burn_subtitles
         project["aspect_ratio"] = aspect_ratio
         project["watermark_text"] = watermark_text or ""
+        if overlay_config:
+            project["overlay_config"] = overlay_config
 
         # Mirror cleanly to drama unified folder (only .mp4 video, zero extra files)
         try:
@@ -543,7 +545,7 @@ class ProjectManager:
         proj_dir.mkdir(parents=True, exist_ok=True)
 
         # 1. Video & Audio Preparation (Direct zero-copy referencing for ultra-fast processing)
-        update_prog(12, "១/៧ កំពុងទាញយកសំឡេងពីវីដេអូ...", "Extracting audio from video...")
+        update_prog(12, "1/7 Extracting audio from video...", "Extracting audio from video...")
         dest_video = src_file
         audio_dest = proj_dir / "original_audio.wav"
         extract_audio_from_video(str(dest_video), str(audio_dest))
@@ -557,7 +559,7 @@ class ProjectManager:
         self.save_project(project)
 
         # 2. Vocal Separation (Isolate BGM, Eliminate Chinese Vocals)
-        update_prog(28, "២/៧ កំពុងច្រោះសំឡេងចិនដើមចេញពីភ្លេង (Vocal Isolation)...", "Separating Chinese vocals from BGM...")
+        update_prog(28, "2/7 Separating original vocals from BGM...", "Separating vocals from BGM...")
         voc_file = None
         try:
             bgm_file, voc_file = separate_vocals_and_bgm(str(audio_dest), output_dir=str(proj_dir))
@@ -588,14 +590,14 @@ class ProjectManager:
         v_override = str(voice_override).lower().strip()
         is_multi = v_override in ("multi", "auto_multi")
         if is_multi:
-            voice_label = "ពិសិដ្ឋ & ស្រីមុំ (Dual Voice)"
+            voice_label = "Piseth & Sreymom (Dual Voice)"
         elif v_override == "sreymom":
-            voice_label = "ស្រីមុំ (Sreymom Solo)"
+            voice_label = "Sreymom (Female Solo)"
         else:
-            voice_label = "ពិសិដ្ឋ (Piseth Solo)"
+            voice_label = "Piseth (Male Solo)"
 
         # 3. Speech-to-Text (Auto Transcribe via Faster-Whisper with word-level timestamps)
-        update_prog(45, f"៣/៧ AI កំពុងស្តាប់ និងចាប់សំឡេងដើម ({voice_label})...", "Transcribing speech...")
+        update_prog(45, f"3/7 AI transcribing dialogue ({voice_label})...", "Transcribing speech...")
         # Use isolated vocals (clean without BGM) for ultra-accurate transcription & F0 pitch diarization
         stt_target_audio = project.get("isolated_vocals_file") or str(audio_dest)
         if not Path(stt_target_audio).exists() or Path(stt_target_audio).stat().st_size < 1000:
@@ -615,7 +617,7 @@ class ProjectManager:
         # Robust Fallback: If isolated vocals produced 0 dialogues or failed, retry directly on original audio!
         if not dialogues and str(audio_dest) != str(stt_target_audio) and Path(audio_dest).exists():
             print("Notice: Isolated vocals yielded 0 dialogues, falling back to original audio for STT...")
-            update_prog(48, f"៣/៧ កំពុងស្កេនសំឡេងដើមឡើងវិញ ({voice_label})...", "Retrying transcription on original audio...")
+            update_prog(48, f"3/7 Scanning original audio ({voice_label})...", "Retrying transcription on original audio...")
             try:
                 dialogues = self.stt_engine.transcribe_audio(
                     audio_path=str(audio_dest),
@@ -633,7 +635,7 @@ class ProjectManager:
         self.save_project(project)
 
         # 4. Translate to Khmer Drama Dialogue (Strictly honors Piseth, Sreymom, or Dual Voice)
-        update_prog(62, f"៤/៧ AI កំពុងបកប្រែជាភាសាខ្មែរ {voice_label} (Story Bible)...", f"Translating script to {voice_label}...")
+        update_prog(62, f"4/7 AI translating script ({voice_label})...", f"Translating script to {voice_label}...")
         translated = await self.translator.translate_dialogues(
             dialogues=dialogues,
             mode=mode,
@@ -643,7 +645,7 @@ class ProjectManager:
         )
         if not is_multi:
             chosen_v = "sreymom" if v_override == "sreymom" else "piseth"
-            v_desc = "ស្រីមុំ (Sreymom Solo)" if chosen_v == "sreymom" else "ពិសិដ្ឋ (Piseth Solo)"
+            v_desc = "Sreymom (Female Solo)" if chosen_v == "sreymom" else "Piseth (Male Solo)"
             for d in translated:
                 d["voice"] = chosen_v
                 d["pitch_hz"] = 0
@@ -652,10 +654,10 @@ class ProjectManager:
 
         project["dialogues"] = translated
         self.save_project(project)
-        update_prog(68, f"៤/៧ បកប្រែបានជោគជ័យ! កំពុងត្រៀមបញ្ចូលសំឡេង {voice_label}...", "Translation completed! Preparing voice synthesis...", dialogues=translated)
+        update_prog(68, f"4/7 Translation completed! Preparing voice synthesis ({voice_label})...", "Translation completed! Preparing voice synthesis...", dialogues=translated)
 
         # 5. Neural Khmer Voice Synthesis
-        update_prog(76, f"៥/៧ កំពុងបញ្ចូលសំឡេងខ្មែរ {voice_label}...", f"Synthesizing Khmer neural speech ({voice_label})...")
+        update_prog(76, f"5/7 Synthesizing neural voice ({voice_label})...", f"Synthesizing neural voice ({voice_label})...")
         voice_out_dir = proj_dir / "voices"
         voice_out_dir.mkdir(parents=True, exist_ok=True)
         synthesized = await batch_synthesize(
@@ -667,7 +669,7 @@ class ProjectManager:
         self.save_project(project)
 
         # 6. Audio Ducking & Clean BGM Mixing (Zero Vocal Leakage)
-        update_prog(88, "៦/៧ កំពុងសម្រួលសំឡេង BGM & សំឡេងខ្មែរ (Zero Vocal Leakage)...", "Mixing dubbed audio with clean BGM...")
+        update_prog(88, "6/7 Mixing dubbed voice with BGM (Zero Vocal Leakage)...", "Mixing dubbed audio with clean BGM...")
         mixed_audio = proj_dir / "mixed_dubbed_audio.mp3"
         bgm_track = project.get("isolated_bgm_file") or str(audio_dest)
         if not Path(bgm_track).exists():
@@ -689,7 +691,7 @@ class ProjectManager:
         self.save_project(project)
 
         # 7. Render Final Video
-        update_prog(95, "៧/៧ កំពុង Render វីដេអូ MP4 ជាសំឡេងខ្មែរ...", "Rendering final dubbed video...")
+        update_prog(95, "7/7 Rendering final dubbed MP4 video...", "Rendering final dubbed video...")
         rendered_project = self.render_project_video_final(
             project_id=proj_id,
             burn_subtitles=burn_subtitles,
@@ -697,5 +699,5 @@ class ProjectManager:
             overlay_config=overlay_config
         )
 
-        update_prog(100, "🎉 រួចរាល់ ១០០%! វីដេអូសម្រេចបានរក្សាទុក!", "Completed! Video ready.")
+        update_prog(100, "🎉 100% Complete! Dubbed video saved successfully!", "Completed! Video ready.")
         return rendered_project

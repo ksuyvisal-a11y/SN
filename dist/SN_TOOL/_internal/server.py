@@ -47,7 +47,7 @@ def handle_unexpected_server_error(e):
     return jsonify({
         "success": False,
         "error": str(e),
-        "message": "ប្រតិបត្តិការមានបញ្ហាបច្ចេកទេសបណ្តោះអាសន្ន ប៉ុន្តែកម្មវិធីនៅតែដំណើរការធម្មតា"
+        "message": "Technical issue occurred, but system continues running normally"
     }), 500
 
 # Core Studio Modules & Engines
@@ -144,7 +144,7 @@ def get_voices():
 @app.route("/api/voices/preview", methods=["POST"])
 def preview_voice():
     data = request.get_json(force=True) or {}
-    text = data.get("text", "សួស្តី")
+    text = data.get("text", "Hello")
     voice = data.get("voice", "piseth")
     rate = int(data.get("rate_percent", 0))
     pitch = int(data.get("pitch_hz", 0))
@@ -925,7 +925,7 @@ def license_activate_endpoint():
     key = data.get("license_key", "").strip()
     client_name = data.get("client_name", "").strip() or None
     if not key:
-        return jsonify({"success": False, "error": "សូមបញ្ចូល License Key", "message": "សូមបញ្ចូល License Key"}), 400
+        return jsonify({"success": False, "error": "Please enter License Key", "message": "Please enter License Key"}), 400
 
     success, msg, record = activate_license_on_device(key, client_name=client_name)
     return jsonify({
@@ -1143,7 +1143,7 @@ def downloader_preview_endpoint(drama_id):
     return jsonify({
         "success": False,
         "error": "no_video",
-        "message": f"មិនទាន់មានវីដេអូសម្រាប់ភាគ {ep_num} នៅលើកុំព្យូទ័រទេ",
+        "message": f"Episode {ep_num} is not downloaded locally yet",
         "poster": drama.get("poster") if drama else "posters/poster_sample_ceo.jpg",
         "episode": ep_num
     }), 404
@@ -1164,10 +1164,10 @@ def downloader_import_folder_endpoint():
 
     if not folder_path:
         folder_path = open_native_windows_folder_dialog(
-            title="ជ្រើសរើស Folder រឿងភាគដែលបានទាញយក (Select Downloaded Drama Folder)"
+            title="Select Downloaded Drama Folder"
         )
         if not folder_path:
-            return jsonify({"success": False, "cancelled": True, "message": "បានបោះបង់ការជ្រើសរើស Folder"})
+            return jsonify({"success": False, "cancelled": True, "message": "Folder selection cancelled"})
 
     res = drama_downloader.import_drama_from_folder(folder_path)
     return jsonify(res)
@@ -2086,21 +2086,22 @@ def system_scan_folder_endpoint():
 @app.route("/api/system/open-folder", methods=["POST"])
 def system_open_folder_endpoint():
     """Open specified folder on the user's laptop using Windows Explorer."""
-    data = request.get_json(force=True) or {}
+    data = request.get_json(force=True, silent=True) or {}
     folder_path = data.get("path", "").strip()
     if not folder_path:
-        folder_path = str(Path.home() / "Downloads" / "SN_Dramas")
+        folder_path = str(Path("data/exports").resolve())
         
-    p = Path(folder_path)
+    p = Path(folder_path).resolve()
+    target_dir = p.parent if (p.exists() and p.is_file()) else p
     try:
-        if not p.exists():
-            p.mkdir(parents=True, exist_ok=True)
+        if not target_dir.exists():
+            target_dir.mkdir(parents=True, exist_ok=True)
             
         if sys.platform == "win32":
-            os.startfile(str(p))
+            os.startfile(str(target_dir))
         else:
-            subprocess.Popen(["xdg-open", str(p)])
-        return jsonify({"success": True, "path": str(p).replace("\\", "/")})
+            subprocess.Popen(["xdg-open", str(target_dir)])
+        return jsonify({"success": True, "path": str(target_dir).replace("\\", "/")})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -2116,10 +2117,22 @@ def power_merge_endpoint():
     if len(files) < 2:
         return jsonify({"success": False, "error": "At least 2 video files are required for merging."}), 400
         
-    out_file = f"data/exports/merged_drama_{int(time.time())}.mp4"
+    custom_name = data.get("output_name", "").strip()
+    if custom_name:
+        if not custom_name.lower().endswith((".mp4", ".mkv", ".mov")):
+            custom_name += ".mp4"
+        out_file = f"data/exports/{custom_name}"
+    else:
+        out_file = f"data/exports/merged_drama_{int(time.time())}.mp4"
+        
     try:
         res_p = merge_videos(files, out_file)
-        return jsonify({"success": True, "output_file": res_p, "download_url": f"/media/{res_p.replace(chr(92), '/')}"})
+        return jsonify({
+            "success": True,
+            "output_file": res_p.replace("\\", "/"),
+            "download_url": f"/media/{res_p.replace(chr(92), '/')}",
+            "output_dir": str(Path(res_p).parent).replace("\\", "/")
+        })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -2136,7 +2149,12 @@ def power_split_endpoint():
     out_dir = f"data/exports/split_{int(time.time())}"
     try:
         parts = split_video(video_path, chunk_sec, out_dir)
-        return jsonify({"success": True, "parts_count": len(parts), "parts": parts})
+        return jsonify({
+            "success": True,
+            "parts_count": len(parts),
+            "parts": parts,
+            "output_dir": str(Path(out_dir).resolve()).replace("\\", "/")
+        })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -2172,10 +2190,74 @@ def power_compress_endpoint():
         
     out_file = f"data/exports/compressed_{Path(video_path).stem}_{int(time.time())}.mp4"
     try:
+        orig_size = Path(video_path).stat().st_size
         res_p = compress_video(video_path, out_file, crf, preset, target_height)
-        return jsonify({"success": True, "output_file": res_p, "download_url": f"/media/{res_p.replace(chr(92), '/')}"})
+        new_size = Path(res_p).stat().st_size
+        saved_bytes = max(0, orig_size - new_size)
+        return jsonify({
+            "success": True,
+            "output_file": res_p.replace("\\", "/"),
+            "download_url": f"/media/{res_p.replace(chr(92), '/')}",
+            "output_dir": str(Path(res_p).parent).replace("\\", "/"),
+            "orig_size": orig_size,
+            "new_size": new_size,
+            "saved_bytes": saved_bytes,
+            "saved_pct": round((saved_bytes / orig_size) * 100) if orig_size > 0 else 0
+        })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/power/compress-batch", methods=["POST"])
+def power_compress_batch_endpoint():
+    """Batch compress multiple video files."""
+    data = request.get_json(force=True) or {}
+    files = data.get("files", [])
+    crf = int(data.get("crf", 26))
+    preset = data.get("preset", "fast")
+    target_height = data.get("target_height")
+    if target_height:
+        target_height = int(target_height)
+    if not files:
+        return jsonify({"success": False, "error": "No files provided."}), 400
+
+    out_dir = Path("data/exports") / f"compressed_batch_{int(time.time())}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    results = []
+    total_saved_bytes = 0
+    for fp in files:
+        p = Path(fp)
+        if not p.exists():
+            continue
+        orig_size = p.stat().st_size
+        out_p = out_dir / f"compressed_{p.name}"
+        try:
+            res_p = compress_video(str(p), str(out_p), crf, preset, target_height)
+            new_size = Path(res_p).stat().st_size
+            saved = max(0, orig_size - new_size)
+            total_saved_bytes += saved
+            results.append({
+                "original": str(p),
+                "compressed": res_p,
+                "orig_size": orig_size,
+                "new_size": new_size,
+                "saved_bytes": saved,
+                "success": True
+            })
+        except Exception as e:
+            results.append({
+                "original": str(p),
+                "error": str(e),
+                "success": False
+            })
+
+    return jsonify({
+        "success": True,
+        "results": results,
+        "output_dir": str(out_dir).replace("\\", "/"),
+        "total_saved_bytes": total_saved_bytes
+    })
 
 
 # ==========================================================================
@@ -2200,6 +2282,29 @@ def upload_overlay_logo_endpoint():
     return jsonify({
         "success": True,
         "logo_path": str(dest.resolve()),
+        "filename": file.filename
+    })
+
+
+@app.route("/api/projects/upload-overlay-lower-third", methods=["POST"])
+def upload_overlay_lower_third_endpoint():
+    """Upload Lower Third video/animation file for overlay rendering."""
+    if "lower_third_file" not in request.files:
+        return jsonify({"success": False, "error": "No lower third file provided"}), 400
+    file = request.files["lower_third_file"]
+    if not file.filename:
+        return jsonify({"success": False, "error": "Empty filename"}), 400
+    upload_dir = Path("data/uploads")
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    ext = Path(file.filename).suffix or ".mp4"
+    save_name = f"active_overlay_lt_{int(time.time())}{ext}"
+    dest = upload_dir / save_name
+    file.save(str(dest))
+    return jsonify({
+        "success": True,
+        "video_path": str(dest.resolve()),
+        "lower_third_path": str(dest.resolve()),
+        "url": f"/media/{dest.as_posix()}",
         "filename": file.filename
     })
 
@@ -2280,6 +2385,21 @@ def auto_dub_video_endpoint():
         overlay_config["logo"]["active"] = True
         overlay_config["logo"]["path"] = str(saved_logo.resolve())
 
+    # Support direct lower_third_file upload in form data
+    if "lower_third_file" in request.files and request.files["lower_third_file"].filename:
+        lt_f = request.files["lower_third_file"]
+        upload_dir = Path("data/uploads")
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        ext = Path(lt_f.filename).suffix or ".mp4"
+        saved_lt = upload_dir / f"overlay_lt_{int(time.time())}{ext}"
+        lt_f.save(str(saved_lt))
+        if not overlay_config:
+            overlay_config = {}
+        if "lower_third" not in overlay_config:
+            overlay_config["lower_third"] = {}
+        overlay_config["lower_third"]["active"] = True
+        overlay_config["lower_third"]["path"] = str(saved_lt.resolve())
+
     if not voice_override or voice_override in ("auto", "", None):
         cfg = load_stored_story_config()
         if cfg.get("auto_multi_voice") is not False or cfg.get("khmer_voice") == "multi":
@@ -2296,7 +2416,7 @@ def auto_dub_video_endpoint():
         "filename": original_filename,
         "status": "processing",
         "progress": 5,
-        "step_km": "កំពុងរៀបចំប្រព័ន្ធកែច្នៃ...",
+        "step_km": "Initializing pipeline...",
         "step_en": "Initializing pipeline...",
         "project": None,
         "error": None
@@ -2332,7 +2452,7 @@ def auto_dub_video_endpoint():
             if t_id in video_auto_tasks:
                 video_auto_tasks[t_id]["status"] = "completed"
                 video_auto_tasks[t_id]["progress"] = 100
-                video_auto_tasks[t_id]["step_km"] = "រួចរាល់ ១០០% (ជោគជ័យ!)"
+                video_auto_tasks[t_id]["step_km"] = "100% Completed (Success!)"
                 video_auto_tasks[t_id]["step_en"] = "Completed successfully!"
                 video_auto_tasks[t_id]["project"] = res_proj
                 if res_proj and res_proj.get("dialogues"):
@@ -2342,7 +2462,7 @@ def auto_dub_video_endpoint():
             if t_id in video_auto_tasks:
                 video_auto_tasks[t_id]["status"] = "failed"
                 video_auto_tasks[t_id]["error"] = str(e)
-                video_auto_tasks[t_id]["step_km"] = f"មានបញ្ហា: {str(e)}"
+                video_auto_tasks[t_id]["step_km"] = f"Error: {str(e)}"
                 video_auto_tasks[t_id]["step_en"] = f"Error: {str(e)}"
 
     threading.Thread(

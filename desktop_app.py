@@ -139,13 +139,13 @@ def check_and_handle_running_server():
                 # Server is responding: check if a visible native desktop window exists
                 if focus_existing_window():
                     print("\n" + "=" * 65)
-                    print(" ✅ SN TOOL កំពុងដំណើរការស្រេចនៅលើកុំព្យូទ័ររបស់អ្នករួចរាល់ហើយ!")
-                    print(" 🖥️ កំពុងនាំផ្ទាំងកម្មវិធី Desktop មកមុខអេក្រង់...")
+                    print(" ✅ SN TOOL is already running on your computer!")
+                    print(" 🖥️ Bringing Desktop application window to foreground...")
                     print("=" * 65 + "\n")
                     return True
                 # Port 8000 is responding but NO visible desktop window exists!
                 # Clean up the hidden orphan/zombie process so we can launch cleanly:
-                print("[INFO] រកឃើញ Server ចាស់គ្មានផ្ទាំង (Orphan Process) កំពុងបោសសម្អាតដើម្បីបើក Native Desktop Window ថ្មី...")
+                print("[INFO] Detected orphaned server process. Cleaning up to launch new Native Desktop window...")
     except Exception:
         pass
 
@@ -578,8 +578,8 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
 
 def main():
     print("========================================================")
-    print(" 🎬 កំពុងចាប់ផ្តើម SN TOOL - STUDIO PRO (Native Desktop App)...")
-    print(" 🎙️ សំឡេងខ្មែរផ្លូវការ: ពិសិដ្ឋ (Piseth) & ស្រីមុំ (Sreymom)")
+    print(" 🎬 Starting SN TOOL - STUDIO PRO (Native Desktop App)...")
+    print(" 🎙️ Official Voiceover Models: Piseth (Male Solo) & Sreymom (Female Solo)")
     print(" 🖥️ Window Mode: Dedicated Standalone Native Application")
     print("========================================================")
 

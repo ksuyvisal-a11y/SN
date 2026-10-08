@@ -172,8 +172,8 @@ if __name__ == "__main__":
     os.makedirs("data/uploads", exist_ok=True)
 
     print("\n========================================================")
-    print(" 🎬 កំពុងដំណើរការ SN TOOL - STUDIO PRO (Native Desktop App)...")
-    print(" 🎙️ សំឡេងខ្មែរផ្លូវការ: ពិសិដ្ឋ (Piseth) & ស្រីមុំ (Sreymom)")
+    print(" 🎬 Starting SN TOOL - STUDIO PRO (Native Desktop App)...")
+    print(" 🎙️ Official Voiceover Models: Piseth (Male Solo) & Sreymom (Female Solo)")
     print(" 🌐 Server Address: http://127.0.0.1:8000")
     print("========================================================\n")
 

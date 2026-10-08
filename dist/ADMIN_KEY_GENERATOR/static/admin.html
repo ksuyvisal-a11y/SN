@@ -1088,7 +1088,7 @@
             font-size: 0.9rem;
         }
 
-        /* Categorized Plan Filter Pills (បែបចែកតាមផ្នែកនីមួយៗ) */
+        /* Categorized Plan Filter Pills */
         .plan-filter-pills {
             display: flex;
             gap: 6px;
@@ -1486,7 +1486,7 @@
             </div>
 
             <div class="nav-actions">
-                <div class="admin-profile-pill" onclick="copyAdminHwid()" style="cursor: pointer;" title="ចុចដើម្បី Copy HWID របស់ Admin">
+                <div class="admin-profile-pill" onclick="copyAdminHwid()" style="cursor: pointer;" title="Click to copy Admin HWID">
                     <div class="admin-avatar"><i class="fa-solid fa-user-shield"></i></div>
                     <span>Admin HWID: <strong id="nav-hwid-text" style="color:var(--primary);">...</strong></span>
                 </div>
@@ -1497,13 +1497,13 @@
         <main class="dashboard-body">
 
             <!-- ======================================================== -->
-            <!-- SECTION 1: OVERVIEW (ទិដ្ឋភាពទូទៅ - Matching MacBook)   -->
+            <!-- SECTION 1: OVERVIEW -->
             <!-- ======================================================== -->
             <section id="view-overview" class="dashboard-view active">
                 <div class="page-header-row">
                     <div>
                         <h1 class="page-title">Overview</h1>
-                        <p class="page-subtitle">ទិដ្ឋភាពទូទៅនៃប្រព័ន្ធ License Keys និងអតិថិជន SN TOOL</p>
+                        <p class="page-subtitle">Overview of SN TOOL License Keys and Customer Database</p>
                     </div>
 
                     <div class="page-actions-group">
@@ -1511,7 +1511,7 @@
                             <i class="fa-solid fa-rotate-right"></i> Refresh
                         </button>
                         <button type="button" class="btn-action-primary" onclick="switchSection('generator')">
-                            <i class="fa-solid fa-plus"></i> បង្កើត Key ថ្មី
+                            <i class="fa-solid fa-plus"></i> Generate Key
                         </button>
                     </div>
                 </div>
@@ -1526,7 +1526,7 @@
                         </div>
                         <span class="stat-value" id="card-total-keys">0</span>
                         <span class="stat-subtext">
-                            <i class="fa-solid fa-key" style="color:var(--primary);"></i> ចំនួន Key ទាំងអស់ដែលបានបង្កើត
+                            <i class="fa-solid fa-key" style="color:var(--primary);"></i> Total Keys Generated
                         </span>
                     </div>
 
@@ -1538,19 +1538,19 @@
                         </div>
                         <span class="stat-value" id="card-active-keys">0</span>
                         <span class="stat-subtext">
-                            <i class="fa-solid fa-circle-check" style="color:var(--badge-green-text);"></i> អតិថិជនកំពុងដំណើរការសកម្ម
+                            <i class="fa-solid fa-circle-check" style="color:var(--badge-green-text);"></i> Active Customers
                         </span>
                     </div>
 
                     <!-- Expiring Soon Clients (<= 7 Days) -->
-                    <div class="stat-card" style="border-left: 3px solid #f59e0b; cursor: pointer;" onclick="switchSection('customers'); setFilter('EXPIRING_SOON', document.querySelector('.filter-pill-btn[data-filter=\'EXPIRING_SOON\']'));" title="ចុចដើម្បីមើលបញ្ជី Key ជិតផុតកំណត់">
+                    <div class="stat-card" style="border-left: 3px solid #f59e0b; cursor: pointer;" onclick="switchSection('customers'); setFilter('EXPIRING_SOON', document.querySelector('.filter-pill-btn[data-filter=\'EXPIRING_SOON\']'));" title="Click to view keys expiring soon">
                         <div class="stat-label-row">
-                            <span class="stat-label">Expiring Soon (≤ 7 ថ្ងៃ)</span>
-                            <span class="stat-badge-pill stat-pill-amber">⚠️ ជិតផុត</span>
+                            <span class="stat-label">Expiring Soon (&le; 7 Days)</span>
+                            <span class="stat-badge-pill stat-pill-amber">⚠️ Expiring</span>
                         </div>
                         <span class="stat-value" id="card-expiring-keys" style="color: #b45309;">0</span>
                         <span class="stat-subtext">
-                            <i class="fa-solid fa-triangle-exclamation" style="color:#d97706;"></i> អតិថិជនជិតដល់ថ្ងៃផុតកំណត់
+                            <i class="fa-solid fa-triangle-exclamation" style="color:#d97706;"></i> Customers Expiring Soon
                         </span>
                     </div>
 
@@ -1562,7 +1562,7 @@
                         </div>
                         <span class="stat-value" id="card-revoked-keys">0</span>
                         <span class="stat-subtext">
-                            <i class="fa-solid fa-ban" style="color:var(--badge-red-text);"></i> Key ដែលបានបញ្ឈប់មិនឱ្យប្រើ
+                            <i class="fa-solid fa-ban" style="color:var(--badge-red-text);"></i> Blocked / Revoked Keys
                         </span>
                     </div>
 
@@ -1572,9 +1572,9 @@
                             <span class="stat-label">License Gate Mode</span>
                             <span id="gate-status-pill" class="stat-badge-pill stat-pill-green">LOCKED</span>
                         </div>
-                        <span class="stat-value" id="gate-status-title" style="font-size: 1.3rem;">ទាមទារ KEY</span>
+                        <span class="stat-value" id="gate-status-title" style="font-size: 1.3rem;">LOCKED MODE</span>
                         <button type="button" id="btn-gate-toggle" class="gate-toggle-btn" onclick="handleToggleGate()">
-                            <i class="fa-solid fa-power-off"></i> ប្ដូរទៅ Free Mode
+                            <i class="fa-solid fa-power-off"></i> Switch to Free Mode
                         </button>
                     </div>
                 </div>
@@ -1586,7 +1586,7 @@
                         <div class="widget-title-row">
                             <span class="widget-title">
                                 <i class="fa-solid fa-chart-column" style="color:var(--primary);"></i>
-                                <span>ស្ថិតិកញ្ចប់ Plan (Key Breakdown)</span>
+                                <span>Plan Breakdown</span>
                             </span>
                             <span class="stat-badge-pill stat-pill-blue" id="overview-ratio-badge">100% Active</span>
                         </div>
@@ -1595,7 +1595,7 @@
                             <!-- Lifetime -->
                             <div class="plan-progress-item">
                                 <div class="plan-progress-header">
-                                    <span>👑 Lifetime (មួយជីវិត)</span>
+                                    <span>👑 Lifetime (Permanent)</span>
                                     <strong id="bar-lifetime-text">0</strong>
                                 </div>
                                 <div class="progress-bar-bg">
@@ -1605,7 +1605,7 @@
                             <!-- 1 Year -->
                             <div class="plan-progress-item">
                                 <div class="plan-progress-header">
-                                    <span>📅 1 ឆ្នាំ (365 ថ្ងៃ)</span>
+                                    <span>📅 1 Year (365 Days)</span>
                                     <strong id="bar-1y-text">0</strong>
                                 </div>
                                 <div class="progress-bar-bg">
@@ -1615,7 +1615,7 @@
                             <!-- 3 Months -->
                             <div class="plan-progress-item">
                                 <div class="plan-progress-header">
-                                    <span>📅 3 ខែ (90 ថ្ងៃ)</span>
+                                    <span>📅 3 Months (90 Days)</span>
                                     <strong id="bar-3m-text">0</strong>
                                 </div>
                                 <div class="progress-bar-bg">
@@ -1625,7 +1625,7 @@
                             <!-- 1 Month -->
                             <div class="plan-progress-item">
                                 <div class="plan-progress-header">
-                                    <span>📅 1 ខែ (30 ថ្ងៃ)</span>
+                                    <span>📅 1 Month (30 Days)</span>
                                     <strong id="bar-1m-text">0</strong>
                                 </div>
                                 <div class="progress-bar-bg">
@@ -1650,32 +1650,32 @@
                         <div class="widget-title-row">
                             <span class="widget-title">
                                 <i class="fa-solid fa-bolt" style="color:#d97706;"></i>
-                                <span>ផ្លូវកាត់រហ័ស (Quick Actions)</span>
+                                <span>Quick Actions</span>
                             </span>
                         </div>
 
                         <div class="shortcuts-grid">
                             <button type="button" class="btn-shortcut-tile" onclick="switchSection('generator')">
                                 <div class="shortcut-icon"><i class="fa-solid fa-key"></i></div>
-                                <span class="shortcut-title">បង្កើត Key</span>
-                                <span class="shortcut-desc">ចេញ Key ថ្មីជូនអតិថិជន</span>
+                                <span class="shortcut-title">Generate Key</span>
+                                <span class="shortcut-desc">Issue new key for customer</span>
                             </button>
 
                             <button type="button" class="btn-shortcut-tile" onclick="switchSection('customers')">
                                 <div class="shortcut-icon" style="color:#16a34a;"><i class="fa-solid fa-users"></i></div>
-                                <span class="shortcut-title">បញ្ជីអតិថិជន</span>
-                                <span class="shortcut-desc">មើល និងស្វែងរក Key</span>
+                                <span class="shortcut-title">Customer List</span>
+                                <span class="shortcut-desc">View and search keys</span>
                             </button>
 
                             <button type="button" class="btn-shortcut-tile" onclick="exportKeysToTxt()">
                                 <div class="shortcut-icon" style="color:#0284c7;"><i class="fa-solid fa-download"></i></div>
                                 <span class="shortcut-title">Export .txt</span>
-                                <span class="shortcut-desc">ទាញយកឯកសារកត់ត្រា</span>
+                                <span class="shortcut-desc">Download log records</span>
                             </button>
 
                             <button type="button" class="btn-shortcut-tile" onclick="switchSection('settings')">
                                 <div class="shortcut-icon" style="color:#9333ea;"><i class="fa-solid fa-sliders"></i></div>
-                                <span class="shortcut-title">ការកំណត់ Gate</span>
+                                <span class="shortcut-title">Gate Settings</span>
                                 <span class="shortcut-desc">Free Mode vs Require Key</span>
                             </button>
                         </div>
@@ -1687,10 +1687,10 @@
                     <div class="card-header-bar">
                         <span class="card-title">
                             <i class="fa-solid fa-clock-rotate-left"></i>
-                            <span>ប្រតិបត្តិការ Key ថ្មីៗ (Recent Transactions)</span>
+                            <span>Recent Transactions</span>
                         </span>
                         <button type="button" class="btn-action-light" onclick="switchSection('customers')">
-                            មើលអតិថិជនទាំងអស់ <i class="fa-solid fa-arrow-right"></i>
+                            View All Customers <i class="fa-solid fa-arrow-right"></i>
                         </button>
                     </div>
 
@@ -1701,13 +1701,13 @@
             </section>
 
             <!-- ======================================================== -->
-            <!-- SECTION 2: GENERATE KEY (បង្កើត KEY ថ្មី)                -->
+            <!-- SECTION 2: GENERATE KEY -->
             <!-- ======================================================== -->
             <section id="view-generator" class="dashboard-view">
                 <div class="page-header-row">
                     <div>
                         <h1 class="page-title">Generate Key</h1>
-                        <p class="page-subtitle">បង្កើត License Key ថ្មីជូនអតិថិជនតាមកញ្ចប់ និង Copy សារផ្ញើជូនភ្លាមៗ</p>
+                        <p class="page-subtitle">Generate new License Key for customer and copy delivery message</p>
                     </div>
                 </div>
 
@@ -1717,7 +1717,7 @@
                         <div class="card-header-bar">
                             <span class="card-title">
                                 <i class="fa-solid fa-pen-to-square"></i>
-                                <span>ទម្រង់បង្កើត Key</span>
+                                <span>Key Generation Form</span>
                             </span>
                             <span class="stat-badge-pill stat-pill-blue">STUDIO ISSUER</span>
                         </div>
@@ -1725,19 +1725,19 @@
                         <!-- 1. Customer Name Input (Required & Real-time Live Linked) -->
                         <div class="input-group">
                             <label class="input-label" for="input-client-name">
-                                <span><i class="fa-solid fa-user-tag" style="color:var(--primary);"></i> ឈ្មោះអតិថិជន (Customer Name):</span>
-                                <span class="input-hint" style="color:var(--primary); font-weight:700;">ចាំបាច់ (Required)</span>
+                                <span><i class="fa-solid fa-user-tag" style="color:var(--primary);"></i> Customer Name:</span>
+                                <span class="input-hint" style="color:var(--primary); font-weight:700;">Required</span>
                             </label>
                             <div class="input-field-row">
-                                <input type="text" id="input-client-name" class="light-input" placeholder="👉 បញ្ចូលឈ្មោះភ្ញៀវ (ឧ. Sokha, Chann Pisey, Page Movie KH...)" oninput="updateLiveDeliveryCard()" autofocus>
+                                <input type="text" id="input-client-name" class="light-input" placeholder="Enter customer name (e.g. Sokha, Chann Pisey, Movie KH...)" oninput="updateLiveDeliveryCard()" autofocus>
                             </div>
                         </div>
 
                         <!-- 2. Custom Key or Auto-Generate Input -->
                         <div class="input-group">
                             <label class="input-label" for="input-custom-key">
-                                <span><i class="fa-solid fa-key" style="color:#d97706;"></i> លេខកូដ Key កំណត់តាមចិត្ត (Custom Key - Option):</span>
-                                <span class="input-hint">ទុកទំនេរដើម្បីប្រព័ន្ធបង្កើត Auto (SN-KEY-...)</span>
+                                <span><i class="fa-solid fa-key" style="color:#d97706;"></i> Custom Key Code (Optional):</span>
+                                <span class="input-hint">Leave empty for auto-generated key (SN-KEY-...)</span>
                             </label>
                             <div class="input-field-row">
                                 <input type="text" id="input-custom-key" class="light-input mono uppercase" placeholder="Leave blank for auto key or enter custom (e.g. SAL-2026)" oninput="updateLiveDeliveryCard()">
@@ -1750,53 +1750,53 @@
                         <!-- Unified Plan Duration Selector -->
                         <div class="input-group">
                             <label class="input-label">
-                                <span>កាលកំណត់សុពលភាព (Duration Plan):</span>
-                                <span class="input-hint" id="active-plan-hint">👑 Lifetime (គ្មានថ្ងៃផុតកំណត់)</span>
+                                <span>Duration Plan:</span>
+                                <span class="input-hint" id="active-plan-hint">👑 Lifetime (Never expires)</span>
                             </label>
                             <input type="hidden" id="selected-duration" value="LIFETIME:0">
                             
                             <div class="presets-grid" style="grid-template-columns: repeat(3, 1fr); gap: 10px;">
                                 <button type="button" class="btn-preset active" onclick="applyPreset('LIFETIME:0', this)">
-                                    <span class="title">👑 មួយជីវិត</span>
+                                    <span class="title">👑 Lifetime</span>
                                     <span class="desc">Lifetime</span>
                                 </button>
                                 <button type="button" class="btn-preset" onclick="applyPreset('365D:365', this)">
-                                    <span class="title">📅 1 ឆ្នាំ</span>
-                                    <span class="desc">365 ថ្ងៃ</span>
+                                    <span class="title">📅 1 Year</span>
+                                    <span class="desc">365 Days</span>
                                 </button>
                                 <button type="button" class="btn-preset" onclick="applyPreset('90D:90', this)">
-                                    <span class="title">📅 3 ខែ</span>
-                                    <span class="desc">90 ថ្ងៃ</span>
+                                    <span class="title">📅 3 Months</span>
+                                    <span class="desc">90 Days</span>
                                 </button>
                                 <button type="button" class="btn-preset" onclick="applyPreset('30D:30', this)">
-                                    <span class="title">📅 1 ខែ</span>
-                                    <span class="desc">30 ថ្ងៃ</span>
+                                    <span class="title">📅 1 Month</span>
+                                    <span class="desc">30 Days</span>
                                 </button>
                                 <button type="button" class="btn-preset" onclick="applyPreset('7D:7', this)">
-                                    <span class="title">⚡ 1 សប្ដាហ៍</span>
-                                    <span class="desc">7 ថ្ងៃ</span>
+                                    <span class="title">⚡ 1 Week</span>
+                                    <span class="desc">7 Days</span>
                                 </button>
                                 <button type="button" class="btn-preset" onclick="applyPreset('3D:3', this)">
-                                    <span class="title">🧪 តេស្ត</span>
+                                    <span class="title">🧪 Trial</span>
                                     <span class="desc">3-Day Trial</span>
                                 </button>
                                 <button type="button" class="btn-preset" onclick="applyPreset('CUSTOM:CUSTOM', this)" style="grid-column: span 3; padding: 12px;">
-                                    <span class="title"><i class="fa-solid fa-pen-ruler"></i> ✍️ កំណត់ចំនួនថ្ងៃតាមចិត្ត (Custom Days)</span>
-                                    <span class="desc">វាយចំនួនថ្ងៃផ្ទាល់ខ្លួន ឧ. 15, 45, 60, 180...</span>
+                                    <span class="title"><i class="fa-solid fa-pen-ruler"></i> ✍️ Custom Days</span>
+                                    <span class="desc">Custom days (e.g. 15, 45, 60, 180...)</span>
                                 </button>
                             </div>
 
                             <!-- Custom Days Input Field -->
                             <div id="row-custom-days" class="input-field-row" style="display: none; margin-top: 10px;">
-                                <input type="number" id="input-custom-days" class="light-input" placeholder="👉 បញ្ចូលចំនួនថ្ងៃ (ឧ. 15, 45, 60... ឬ 0 សម្រាប់មួយជីវិត)" min="0" value="30">
+                                <input type="number" id="input-custom-days" class="light-input" placeholder="Enter number of days (e.g. 15, 45, 60... or 0 for Lifetime)" min="0" value="30">
                             </div>
                         </div>
 
                         <!-- HWID Input -->
                         <div class="input-group">
                             <label class="input-label" for="input-hwid">
-                                <span>ចាក់សោតាមកូដម៉ាស៊ីន (Hardware HWID):</span>
-                                <span class="input-hint">ទុកទំនេរដើម្បីប្រើបានគ្រប់ម៉ាស៊ីន</span>
+                                <span>Hardware HWID Lock:</span>
+                                <span class="input-hint">Leave empty for Any Machine</span>
                             </label>
                             <div class="input-field-row">
                                 <input type="text" id="input-hwid" class="light-input mono" placeholder="Leave blank for ANY machine or paste HWID">
@@ -1809,7 +1809,7 @@
                         <!-- Action Button -->
                         <button type="button" class="btn-generate-primary" onclick="handleGenerateKey()">
                             <i class="fa-solid fa-crown"></i>
-                            <span>បង្កើត KEY ជូនភ្ញៀវ (GENERATE KEY)</span>
+                            <span>GENERATE KEY</span>
                         </button>
                     </div>
 
@@ -1818,7 +1818,7 @@
                         <div class="card-header-bar">
                             <span class="card-title">
                                 <i class="fa-solid fa-id-card"></i>
-                                <span>ប័ណ្ណ Key សម្រាប់ផ្ញើជូន</span>
+                                <span>Delivery Card Preview</span>
                             </span>
                             <span class="stat-badge-pill stat-pill-green">READY TO DELIVER</span>
                         </div>
@@ -1837,8 +1837,8 @@
                             </div>
 
                             <div class="delivery-meta-grid">
-                                <span><i class="fa-solid fa-calendar-check" style="color:var(--primary);"></i> សុពលភាព: <strong id="delivery-expiry-text" style="color:var(--text-title);">LIFETIME</strong></span>
-                                <span><i class="fa-solid fa-desktop" style="color:var(--text-muted);"></i> ម៉ាស៊ីន: <strong id="delivery-hwid-text" style="color:var(--text-title);">ANY</strong></span>
+                                <span><i class="fa-solid fa-calendar-check" style="color:var(--primary);"></i> Validity: <strong id="delivery-expiry-text" style="color:var(--text-title);">LIFETIME</strong></span>
+                                <span><i class="fa-solid fa-desktop" style="color:var(--text-muted);"></i> Machine: <strong id="delivery-hwid-text" style="color:var(--text-title);">ANY</strong></span>
                             </div>
 
                             <!-- 1-Click Action Buttons -->
@@ -1847,27 +1847,27 @@
                                     <i class="fa-solid fa-copy"></i> Copy Key
                                 </button>
                                 <button type="button" class="btn-delivery-send" onclick="copyTelegramDeliveryMessage()">
-                                    <i class="fa-solid fa-paper-plane"></i> Copy Text ផ្ញើទៅភ្ញៀវ
+                                    <i class="fa-solid fa-paper-plane"></i> Copy Delivery Message
                                 </button>
                             </div>
                         </div>
 
                         <div style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.6; background: var(--bg-subtle); padding: 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
-                            <strong style="color:var(--text-title);"><i class="fa-solid fa-circle-info" style="color:var(--primary);"></i> របៀបផ្ញើជូនភ្ញៀវ៖</strong><br>
-                            ពេលបងចុច <strong>"Copy Text ផ្ញើទៅភ្ញៀវ"</strong> ប្រព័ន្ធនឹងរៀបចំសារខ្មែរស្អាត មានឈ្មោះ Key កាលកំណត់ និងរបៀបប្រើប្រាស់រួចជាស្រេច បងគ្រាន់តែបើក Telegram ឬ Facebook រួចចុច <strong>Paste (Ctrl+V)</strong> ផ្ញើជាការស្រេច!
+                            <strong style="color:var(--text-title);"><i class="fa-solid fa-circle-info" style="color:var(--primary);"></i> Delivery Guide:</strong><br>
+                            Click <strong>"Copy Delivery Message"</strong> to copy the formatted credentials and instructions, then paste (Ctrl+V) directly into Telegram or Facebook!
                         </div>
                     </div>
                 </div>
             </section>
 
             <!-- ======================================================== -->
-            <!-- SECTION 3: CUSTOMERS DATABASE (បញ្ជីអតិថិជន & KEYS)      -->
+            <!-- SECTION 3: CUSTOMERS DATABASE -->
             <!-- ======================================================== -->
             <section id="view-customers" class="dashboard-view">
                 <div class="page-header-row">
                     <div>
                         <h1 class="page-title">Customers Database</h1>
-                        <p class="page-subtitle">គ្រប់គ្រង បញ្ឈប់ (Block) ឬដោះសោ (Unban) License Keys របស់អតិថិជន</p>
+                        <p class="page-subtitle">Manage, Block, or Unban customer license keys</p>
                     </div>
 
                     <div class="page-actions-group">
@@ -1877,31 +1877,31 @@
                         <button type="button" class="btn-action-light" onclick="exportKeysToTxt()">
                             <i class="fa-solid fa-download"></i> Export .txt
                         </button>
-                        <button type="button" class="btn-action-light" onclick="handleClearAllKeys()" style="color:#dc2626; border-color:#fecaca;" title="ជម្រះបញ្ជី User ទាំងអស់ឱ្យនៅ 0">
-                            <i class="fa-solid fa-trash-can"></i> ជម្រះបញ្ជីទាំងអស់ (Clear All)
+                        <button type="button" class="btn-action-light" onclick="handleClearAllKeys()" style="color:#dc2626; border-color:#fecaca;" title="Clear all customer keys to 0">
+                            <i class="fa-solid fa-trash-can"></i> Clear All Keys
                         </button>
                     </div>
                 </div>
 
                 <div class="content-card">
-                    <!-- Search & Categorized Plan Filter Pills (បែបចែកតាមផ្នែកនីមួយៗ) -->
+                    <!-- Search & Categorized Plan Filter Pills -->
                     <div class="table-filter-bar">
                         <div class="table-search-box">
                             <i class="fa-solid fa-magnifying-glass table-search-icon"></i>
-                            <input type="text" id="table-search-input" class="table-search-input" placeholder="ស្វែងរកតាមឈ្មោះ Client ឬ Key..." onkeyup="handleSearchFilter()">
+                            <input type="text" id="table-search-input" class="table-search-input" placeholder="Search by client name or key..." onkeyup="handleSearchFilter()">
                         </div>
 
                         <!-- Categorized Filter Pills -->
                         <div class="plan-filter-pills">
-                            <button type="button" class="filter-pill-btn active" data-filter="ALL" onclick="setFilter('ALL', this)">ទាំងអស់ (All)</button>
-                            <button type="button" class="filter-pill-btn" data-filter="ACTIVE" onclick="setFilter('ACTIVE', this)">🟢 សកម្ម</button>
-                            <button type="button" class="filter-pill-btn" data-filter="EXPIRING_SOON" onclick="setFilter('EXPIRING_SOON', this)" style="color:#b45309; font-weight:800;">⚠️ ជិតផុតកំណត់</button>
-                            <button type="button" class="filter-pill-btn" data-filter="EXPIRED" onclick="setFilter('EXPIRED', this)" style="color:#b91c1c; font-weight:800;">🔴 ផុតកំណត់</button>
-                            <button type="button" class="filter-pill-btn" data-filter="LIFETIME" onclick="setFilter('LIFETIME', this)">👑 មួយជីវិត</button>
-                            <button type="button" class="filter-pill-btn" data-filter="1Y" onclick="setFilter('1Y', this)">📅 1 ឆ្នាំ</button>
-                            <button type="button" class="filter-pill-btn" data-filter="3M" onclick="setFilter('3M', this)">📅 3 ខែ</button>
-                            <button type="button" class="filter-pill-btn" data-filter="1M" onclick="setFilter('1M', this)">📅 1 ខែ</button>
-                            <button type="button" class="filter-pill-btn" data-filter="TRIAL" onclick="setFilter('TRIAL', this)">🧪 តេស្ត</button>
+                            <button type="button" class="filter-pill-btn active" data-filter="ALL" onclick="setFilter('ALL', this)">All</button>
+                            <button type="button" class="filter-pill-btn" data-filter="ACTIVE" onclick="setFilter('ACTIVE', this)">🟢 Active</button>
+                            <button type="button" class="filter-pill-btn" data-filter="EXPIRING_SOON" onclick="setFilter('EXPIRING_SOON', this)" style="color:#b45309; font-weight:800;">⚠️ Expiring Soon</button>
+                            <button type="button" class="filter-pill-btn" data-filter="EXPIRED" onclick="setFilter('EXPIRED', this)" style="color:#b91c1c; font-weight:800;">🔴 Expired</button>
+                            <button type="button" class="filter-pill-btn" data-filter="LIFETIME" onclick="setFilter('LIFETIME', this)">👑 Lifetime</button>
+                            <button type="button" class="filter-pill-btn" data-filter="1Y" onclick="setFilter('1Y', this)">📅 1 Year</button>
+                            <button type="button" class="filter-pill-btn" data-filter="3M" onclick="setFilter('3M', this)">📅 3 Months</button>
+                            <button type="button" class="filter-pill-btn" data-filter="1M" onclick="setFilter('1M', this)">📅 1 Month</button>
+                            <button type="button" class="filter-pill-btn" data-filter="TRIAL" onclick="setFilter('TRIAL', this)">🧪 Trial</button>
                             <button type="button" class="filter-pill-btn" data-filter="REVOKED" onclick="setFilter('REVOKED', this)">🚫 Blocked</button>
                         </div>
                     </div>
@@ -1910,20 +1910,20 @@
                     <div class="table-records-list" id="table-records-list">
                         <div class="empty-placeholder">
                             <i class="fa-solid fa-spinner fa-spin"></i>
-                            <span>កំពុងទាញទិន្នន័យ Keys...</span>
+                            <span>Loading License Keys...</span>
                         </div>
                     </div>
                 </div>
             </section>
 
             <!-- ======================================================== -->
-            <!-- SECTION 4: REPORTS & STATS (របាយការណ៍ & ស្ថិតិ)           -->
+            <!-- SECTION 4: REPORTS & STATS -->
             <!-- ======================================================== -->
             <section id="view-reports" class="dashboard-view">
                 <div class="page-header-row">
                     <div>
                         <h1 class="page-title">Reports & Stats</h1>
-                        <p class="page-subtitle">របាយការណ៍សង្ខេប និងការកត់ត្រាការបង្កើត Key ទាំងអស់</p>
+                        <p class="page-subtitle">Summary reports and generated key log history</p>
                     </div>
 
                     <div class="page-actions-group">
@@ -1939,13 +1939,13 @@
                         <div class="card-header-bar">
                             <span class="card-title">
                                 <i class="fa-solid fa-chart-pie" style="color:var(--primary);"></i>
-                                <span>ស្ថិតិប្រព័ន្ធ License Keys</span>
+                                <span>License Keys Statistics</span>
                             </span>
                         </div>
 
                         <div class="settings-row">
                             <div class="settings-info">
-                                <span class="settings-label">ចំនួន Key សរុបទាំងអស់</span>
+                                <span class="settings-label">Total Keys Generated</span>
                                 <span class="settings-desc">Total Generated Keys in History</span>
                             </div>
                             <strong id="rep-total-keys" style="font-size: 1.2rem; color: var(--text-title);">0</strong>
@@ -1953,7 +1953,7 @@
 
                         <div class="settings-row">
                             <div class="settings-info">
-                                <span class="settings-label">អតិថិជនសកម្ម (Active Ratio)</span>
+                                <span class="settings-label">Active Customers Ratio</span>
                                 <span class="settings-desc">Clients with working valid keys</span>
                             </div>
                             <strong id="rep-active-ratio" style="font-size: 1.2rem; color: #16a34a;">0%</strong>
@@ -1961,7 +1961,7 @@
 
                         <div class="settings-row">
                             <div class="settings-info">
-                                <span class="settings-label">Key ដែលត្រូវបាន Blocked / Revoked</span>
+                                <span class="settings-label">Blocked / Revoked Keys</span>
                                 <span class="settings-desc">Terminated customer licenses</span>
                             </div>
                             <strong id="rep-revoked-count" style="font-size: 1.2rem; color: #dc2626;">0</strong>
@@ -1969,7 +1969,7 @@
 
                         <div class="settings-row">
                             <div class="settings-info">
-                                <span class="settings-label">កញ្ចប់ Lifetime</span>
+                                <span class="settings-label">Lifetime Plan Keys</span>
                                 <span class="settings-desc">Permanent unlimited users</span>
                             </div>
                             <strong id="rep-lifetime-count" style="font-size: 1.2rem; color: #9333ea;">0</strong>
@@ -1981,26 +1981,26 @@
                         <div class="card-header-bar">
                             <span class="card-title">
                                 <i class="fa-solid fa-terminal"></i>
-                                <span>កំណត់ត្រា Key ថ្មីៗ (Generated Log)</span>
+                                <span>Recent Generated Key Log</span>
                             </span>
                             <button type="button" class="btn-action-light" onclick="copyLogContent()">
                                 <i class="fa-solid fa-copy"></i> Copy Log
                             </button>
                         </div>
 
-                        <div class="log-box" id="log-content-box"># កំពុងទាញយកកំណត់ត្រា Key...</div>
+                        <div class="log-box" id="log-content-box"># Loading key history log...</div>
                     </div>
                 </div>
             </section>
 
             <!-- ======================================================== -->
-            <!-- SECTION 5: SETTINGS & GATE (ការកំណត់ & GATE MODE)         -->
+            <!-- SECTION 5: SETTINGS & GATE -->
             <!-- ======================================================== -->
             <section id="view-settings" class="dashboard-view">
                 <div class="page-header-row">
                     <div>
                         <h1 class="page-title">Settings & License Gate</h1>
-                        <p class="page-subtitle">គ្រប់គ្រងការកំណត់ទូទៅ និងប្រព័ន្ធចាក់សោកម្មវិធី SN TOOL</p>
+                        <p class="page-subtitle">General configuration and SN TOOL access gate controls</p>
                     </div>
                 </div>
 
@@ -2016,20 +2016,20 @@
 
                         <div class="settings-row">
                             <div class="settings-info">
-                                <span class="settings-label">ស្ថានភាពប្រព័ន្ធចាក់សោរបច្ចុប្បន្ន</span>
+                                <span class="settings-label">Current Gate Lock Status</span>
                                 <span class="settings-desc" id="settings-gate-desc">
-                                    🔒 កំពុងទាមទារ License Key (User ត្រូវវាយ Key ទើបប្រើបាន)
+                                    🔒 Locked (Valid license key required to access application)
                                 </span>
                             </div>
                             <button type="button" id="settings-toggle-btn" class="gate-toggle-btn" onclick="handleToggleGate()">
-                                <i class="fa-solid fa-power-off"></i> ប្ដូរ Mode
+                                <i class="fa-solid fa-power-off"></i> Switch Mode
                             </button>
                         </div>
 
                         <div style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.6; background: var(--bg-subtle); padding: 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-top: 10px;">
-                            <strong>💡 ព័ត៌មានលម្អិតអំពី Gate Mode:</strong><br>
-                            • <strong>ទាមទារ KEY (Locked ON):</strong> នៅពេល User បើកកម្មវិធី SN TOOL វានឹងលោតផ្ទាំងទាមទារ Key ជាដាច់ខាត។ បើគ្មាន Key គឺមិនអាចប្រើមុខងារ Studio បានទេ។<br>
-                            • <strong>Free Mode (Locked OFF):</strong> បើកសេរីសម្រាប់ User ទាំងអស់ បើកមកចូល Studio ប្រើបានភ្លាមៗដោយមិនបាច់វាយ Key ឡើយ។
+                            <strong>💡 Gate Mode Details:</strong><br>
+                            • <strong>Locked ON:</strong> When users launch SN TOOL, a license key verification screen is required. Features cannot be accessed without an active key.<br>
+                            • <strong>Free Mode (Locked OFF):</strong> Completely open for all users without requiring any license key.
                         </div>
                     </div>
 
@@ -2038,14 +2038,14 @@
                         <div class="card-header-bar">
                             <span class="card-title">
                                 <i class="fa-solid fa-server" style="color:var(--text-title);"></i>
-                                <span>ព័ត៌មានប្រព័ន្ធ & Admin Info</span>
+                                <span>System & Admin Information</span>
                             </span>
                         </div>
 
                         <div class="settings-row">
                             <div class="settings-info">
                                 <span class="settings-label">Admin Machine Hardware ID (HWID)</span>
-                                <span class="settings-desc" id="settings-hwid-text">កំពុងត្រួតពិនិត្យ...</span>
+                                <span class="settings-desc" id="settings-hwid-text">Checking...</span>
                             </div>
                             <button type="button" class="btn-record-action" onclick="copyAdminHwid()">
                                 <i class="fa-solid fa-copy"></i> Copy HWID
@@ -2077,7 +2077,7 @@
     <!-- Toast Notification -->
     <div class="toast-notif" id="toast-notif">
         <i class="fa-solid fa-circle-check" style="color:#22c55e; font-size:1.1rem;"></i>
-        <span id="toast-text">បាន Copy ជោគជ័យ!</span>
+        <span id="toast-text">Copied successfully!</span>
     </div>
 
     <script>
@@ -2106,7 +2106,7 @@
             updateDeliveryCardUI(currentRecord);
         });
 
-        // 1. Section Switching (បែបចែកតាមផ្នែកនីមួយៗ)
+        // 1. Section Switching
         function switchSection(sectionId, event) {
             if (event) event.preventDefault();
             activeSection = sectionId;
@@ -2152,7 +2152,7 @@
             const hwid = document.getElementById('nav-hwid-text').textContent;
             if (hwid && hwid !== "..." && hwid !== "OFFLINE") {
                 navigator.clipboard.writeText(hwid);
-                showToast("📋 បាន Copy Admin HWID: " + hwid);
+                showToast("📋 Copied Admin HWID: " + hwid);
             }
         }
 
@@ -2182,19 +2182,19 @@
                     pill.className = "stat-badge-pill stat-pill-green";
                     pill.textContent = "LOCKED";
                 }
-                if (title) title.textContent = "ទាមទារ KEY";
-                if (btn) btn.innerHTML = `<i class="fa-solid fa-power-off"></i> ប្ដូរទៅ Free Mode`;
-                if (sBtn) sBtn.innerHTML = `<i class="fa-solid fa-power-off"></i> ប្ដូរទៅ Free Mode`;
-                if (sDesc) sDesc.textContent = "🔒 កំពុងទាមទារ License Key (User ត្រូវវាយ Key ទើបប្រើបាន)";
+                if (title) title.textContent = "LOCKED MODE";
+                if (btn) btn.innerHTML = `<i class="fa-solid fa-power-off"></i> Switch to Free Mode`;
+                if (sBtn) sBtn.innerHTML = `<i class="fa-solid fa-power-off"></i> Switch to Free Mode`;
+                if (sDesc) sDesc.textContent = "🔒 Locked (Valid license key required to access application)";
             } else {
                 if (pill) {
                     pill.className = "stat-badge-pill stat-pill-amber";
                     pill.textContent = "FREE MODE";
                 }
-                if (title) title.textContent = "មិនបាច់ KEY";
-                if (btn) btn.innerHTML = `<i class="fa-solid fa-power-off"></i> បើកការទាមទារ Key`;
-                if (sBtn) sBtn.innerHTML = `<i class="fa-solid fa-power-off"></i> បើកការទាមទារ Key`;
-                if (sDesc) sDesc.textContent = "🎉 កំពុងបើក Free Mode (User មិនបាច់វាយ Key ក៏ប្រើបាន)";
+                if (title) title.textContent = "FREE MODE";
+                if (btn) btn.innerHTML = `<i class="fa-solid fa-power-off"></i> Enable License Requirement`;
+                if (sBtn) sBtn.innerHTML = `<i class="fa-solid fa-power-off"></i> Enable License Requirement`;
+                if (sDesc) sDesc.textContent = "🎉 Free Mode Enabled (No license key required)";
             }
         }
 
@@ -2210,10 +2210,10 @@
                 if (data.success) {
                     gateRequired = data.require_license;
                     updateGateUI();
-                    showToast(gateRequired ? "🔒 បានបើកការទាមទារ Key (Locked Mode)!" : "🎉 បានបើក Free Mode (ប្រើបានភ្លាមៗមិនបាច់ Key)!");
+                    showToast(gateRequired ? "🔒 Locked Mode Enabled (License key required)!" : "🎉 Free Mode Enabled (No key required)!");
                 }
             } catch (e) {
-                showToast("❌ បរាជ័យក្នុងការប្ដូរ Mode");
+                showToast("❌ Failed to change Gate Mode");
             }
         }
 
@@ -2229,13 +2229,13 @@
             const hintElem = document.getElementById('active-plan-hint');
 
             const hintMap = {
-                'LIFETIME:0': '👑 Lifetime (ប្រើបានមួយជីវិត - គ្មានថ្ងៃផុតកំណត់)',
-                '365D:365': '📅 1 ឆ្នាំ (365 ថ្ងៃពេញ)',
-                '90D:90': '📅 3 ខែ (90 ថ្ងៃ)',
-                '30D:30': '📅 1 ខែ (30 ថ្ងៃ)',
-                '7D:7': '⚡ 1 សប្ដាហ៍ (7 ថ្ងៃ)',
-                '3D:3': '🧪 3-Day Trial (តេស្ត 3 ថ្ងៃ)',
-                'CUSTOM:CUSTOM': '✍️ កំណត់ចំនួនថ្ងៃផ្ទាល់ខ្លួន'
+                'LIFETIME:0': '👑 Lifetime (Permanent - Never Expires)',
+                '365D:365': '📅 1 Year (365 Days)',
+                '90D:90': '📅 3 Months (90 Days)',
+                '30D:30': '📅 1 Month (30 Days)',
+                '7D:7': '⚡ 1 Week (7 Days)',
+                '3D:3': '🧪 3-Day Trial (Test 3 Days)',
+                'CUSTOM:CUSTOM': '✍️ Custom Days'
             };
 
             if (hintElem) hintElem.textContent = hintMap[presetVal] || presetVal;
@@ -2259,7 +2259,7 @@
                 input.value = key;
                 updateLiveDeliveryCard();
             }
-            showToast("🎲 បានបង្កើត Key: " + key);
+            showToast("🎲 Generated Key: " + key);
         }
 
         function updateLiveDeliveryCard() {
@@ -2279,21 +2279,21 @@
             if (keyElem) keyElem.textContent = customKey;
 
             const hwidElem = document.getElementById('delivery-hwid-text');
-            if (hwidElem) hwidElem.textContent = (hwid === "ANY" || hwid === "*") ? "គ្រប់ម៉ាស៊ីន (ANY)" : hwid;
+            if (hwidElem) hwidElem.textContent = (hwid === "ANY" || hwid === "*") ? "Any Machine (ANY)" : hwid;
 
             let [tag, daysStr] = durationVal.split(':');
             let planDesc = "👑 LIFETIME";
-            let expiryDesc = "មួយជីវិត (LIFETIME)";
+            let expiryDesc = "Lifetime (LIFETIME)";
 
             if (tag === 'CUSTOM') {
                 const days = parseInt(document.getElementById('input-custom-days').value, 10) || 30;
-                planDesc = `${days} ថ្ងៃ`;
+                planDesc = `${days} Days`;
                 const expDate = new Date();
                 expDate.setDate(expDate.getDate() + days);
                 expiryDesc = expDate.toISOString().split('T')[0];
             } else if (daysStr && parseInt(daysStr, 10) > 0) {
                 const days = parseInt(daysStr, 10);
-                planDesc = `${days} ថ្ងៃ`;
+                planDesc = `${days} Days`;
                 const expDate = new Date();
                 expDate.setDate(expDate.getDate() + days);
                 expiryDesc = expDate.toISOString().split('T')[0];
@@ -2312,10 +2312,10 @@
                 if (text) {
                     document.getElementById('input-hwid').value = text.trim();
                     updateLiveDeliveryCard();
-                    showToast("📋 បាន Paste HWID ជោគជ័យ!");
+                    showToast("📋 Pasted HWID successfully!");
                 }
             } catch (err) {
-                showToast("⚠️ សូមចុច Ctrl+V ដើម្បី Paste");
+                showToast("⚠️ Please press Ctrl+V to paste");
             }
         }
 
@@ -2324,7 +2324,7 @@
             const nameInput = document.getElementById('input-client-name');
             const clientName = nameInput ? nameInput.value.trim() : "";
             if (!clientName) {
-                showToast("⚠️ សូមបញ្ចូលឈ្មោះអតិថិជនជាមុនសិន!");
+                showToast("⚠️ Please enter customer name first!");
                 if (nameInput) nameInput.focus();
                 return;
             }
@@ -2380,15 +2380,15 @@
 
                     // Auto Copy Key
                     navigator.clipboard.writeText(currentRecord.license_key).catch(() => {});
-                    showToast(`🎉 បានបង្កើត Key ជូន "${clientName}" ជោគជ័យ!`);
+                    showToast(`🎉 Generated Key for "${clientName}" successfully!`);
 
                     // Refresh table & stats
                     fetchKeysHistory();
                 } else {
-                    showToast("❌ " + (data.error || "បរាជ័យក្នុងការបង្កើត Key"));
+                    showToast("❌ " + (data.error || "Failed to generate Key"));
                 }
             } catch (err) {
-                showToast("❌ កំហុសបណ្តាញ Network");
+                showToast("❌ Network error");
             }
         }
 
@@ -2408,49 +2408,49 @@
             if (expiryElem) expiryElem.textContent = rec.expires_at || "LIFETIME";
 
             const hwidElem = document.getElementById('delivery-hwid-text');
-            if (hwidElem) hwidElem.textContent = (!rec.bound_hwid || rec.bound_hwid === "ANY" || rec.bound_hwid === "*") ? "គ្រប់ម៉ាស៊ីន (ANY)" : rec.bound_hwid;
+            if (hwidElem) hwidElem.textContent = (!rec.bound_hwid || rec.bound_hwid === "ANY" || rec.bound_hwid === "*") ? "Any Machine (ANY)" : rec.bound_hwid;
         }
 
         function copyCurrentGeneratedKey() {
             if (!currentRecord || !currentRecord.license_key) return;
             navigator.clipboard.writeText(currentRecord.license_key).then(() => {
-                showToast("📋 បាន Copy Key ចូល Clipboard!");
+                showToast("📋 Copied Key to Clipboard!");
             });
         }
 
         // Pre-formatted Telegram / Messenger Text Delivery Message
         function copyTelegramDeliveryMessage() {
             if (!currentRecord || !currentRecord.license_key) return;
-            const client = currentRecord.client_name || "អតិថិជន";
+            const client = currentRecord.client_name || "Valued Customer";
             const key = currentRecord.license_key;
             const plan = currentRecord.plan || "PRO";
-            const expiry = currentRecord.expires_at || "មួយជីវិត (Lifetime)";
-            const hwid = (!currentRecord.bound_hwid || currentRecord.bound_hwid === "ANY" || currentRecord.bound_hwid === "*") ? "ប្រើបានគ្រប់ម៉ាស៊ីន" : currentRecord.bound_hwid;
+            const expiry = currentRecord.expires_at || "Lifetime (No Expiry)";
+            const hwid = (!currentRecord.bound_hwid || currentRecord.bound_hwid === "ANY" || currentRecord.bound_hwid === "*") ? "Any Machine" : currentRecord.bound_hwid;
 
             const text = 
 `🎬 SN TOOL - LICENSE KEY
 =========================================
-👤 អតិថិជន: ${client}
+👤 Customer: ${client}
 🔑 Key: ${key}
-📦 កញ្ចប់: ${plan}
-⏳ សុពលភាព: ${expiry}
-🔒 ម៉ាស៊ីន: ${hwid}
+📦 Plan: ${plan}
+⏳ Validity: ${expiry}
+🔒 Machine: ${hwid}
 =========================================
-👉 របៀបប្រើប្រាស់៖
-១. បើកកម្មវិធី SN TOOL នៅលើកុំព្យូទ័រ
-២. ចម្លង (Copy) Key ខាងលើរួចយកទៅ Paste ចូល
-៣. ចុចប៊ូតុង "ACTIVATE NOW" ជាការស្រេច!
+👉 Instructions:
+1. Open SN TOOL on your computer
+2. Copy the Key above and paste it into the activation field
+3. Click "ACTIVATE NOW" to complete!
 
-🙏 សូមអរគុណសម្រាប់ការគាំទ្រ SN STUDIO! ✨`;
+🙏 Thank you for using SN STUDIO! ✨`;
 
             navigator.clipboard.writeText(text).then(() => {
-                showToast("💬 បាន Copy សាររួចរាល់ អាច Paste ផ្ញើទៅ Telegram/FB បានភ្លាម!");
+                showToast("💬 Message copied! Ready to paste into Telegram/Facebook!");
             });
         }
 
         function copySingleKey(keyStr) {
             navigator.clipboard.writeText(keyStr).then(() => {
-                showToast("📋 បាន Copy Key: " + keyStr);
+                showToast("📋 Copied Key: " + keyStr);
             });
         }
 
@@ -2558,7 +2558,7 @@
                 container.innerHTML = `
                     <div class="empty-placeholder">
                         <i class="fa-solid fa-folder-open"></i>
-                        <span>មិនទាន់មាន Key ណាមួយត្រូវបានបង្កើតនៅឡើយទេ</span>
+                        <span>No keys generated yet</span>
                     </div>
                 `;
                 return;
@@ -2631,7 +2631,7 @@
                 container.innerHTML = `
                     <div class="empty-placeholder">
                         <i class="fa-solid fa-folder-open"></i>
-                        <span>មិនមានទិន្នន័យ Key ត្រូវនឹងការស្វែងរក ឬប្រភេទដែលបានជ្រើសឡើយ</span>
+                        <span>No matching keys found</span>
                     </div>
                 `;
                 return;
@@ -2648,13 +2648,13 @@
             const isRevoked = item.status === "REVOKED" || item.live_status === "REVOKED";
             const isExpired = item.is_expired;
             const isExpiringSoon = item.is_expiring_soon;
-            const hwidText = (!item.bound_hwid || item.bound_hwid === "ANY" || item.bound_hwid === "*") ? "គ្រប់ម៉ាស៊ីន (ANY)" : item.bound_hwid;
+            const hwidText = (!item.bound_hwid || item.bound_hwid === "ANY" || item.bound_hwid === "*") ? "Any Machine (ANY)" : item.bound_hwid;
             const clientName = item.client_name || "Customer";
             const planText = item.plan || "PRO";
             const dateText = item.created_at || "Recent";
             const expiryText = item.expires_at || "LIFETIME";
             const daysLeft = item.days_remaining;
-            const lastActive = item.last_active || item.activated_at || "មិនទាន់ចូលប្រើ";
+            const lastActive = item.last_active || item.activated_at || "Never Used";
             const useCount = item.use_count || 0;
 
             let badgeClass = "stat-pill-green";
@@ -2665,22 +2665,22 @@
                 badgeText = "🚫 REVOKED";
             } else if (isExpired) {
                 badgeClass = "stat-pill-red";
-                badgeText = `🔴 EXPIRED (${Math.abs(daysLeft)} ថ្ងៃមុន)`;
+                badgeText = `🔴 EXPIRED (${Math.abs(daysLeft)} days ago)`;
             } else if (isExpiringSoon) {
                 badgeClass = "stat-pill-amber";
-                badgeText = `⚠️ ជិតផុតកំណត់ (សល់ ${daysLeft} ថ្ងៃ)`;
+                badgeText = `⚠️ Expiring Soon (${daysLeft}d left)`;
             } else if ((item.live_status || "").toUpperCase() === "LIFETIME" || expiryText === "LIFETIME") {
                 badgeClass = "stat-pill-purple";
                 badgeText = "👑 LIFETIME";
             } else {
                 badgeClass = "stat-pill-green";
-                badgeText = `🟢 ACTIVE (សល់ ${daysLeft} ថ្ងៃ)`;
+                badgeText = `🟢 ACTIVE (${daysLeft} days left)`;
             }
 
             const card = document.createElement('div');
             card.className = `record-card-row ${isRevoked ? 'revoked' : ''} ${isExpiringSoon ? 'expiring-soon' : ''}`;
             card.innerHTML = `
-                <div class="record-left" onclick="selectRowForDelivery(${index})" title="ចុចដើម្បីមើល ឬចម្លងព័ត៌មាន">
+                <div class="record-left" onclick="selectRowForDelivery(${index})" title="Click to view or copy details">
                     <div class="record-avatar" style="${isExpiringSoon ? 'background:#fef3c7; color:#d97706; border:1px solid #fde68a;' : ''}">
                         <i class="fa-solid ${isRevoked ? 'fa-user-slash' : (isExpiringSoon ? 'fa-user-clock' : 'fa-user-check')}"></i>
                     </div>
@@ -2694,11 +2694,11 @@
                         </div>
                         <div class="record-meta-line" style="display:flex; align-items:center; gap:14px; flex-wrap:wrap; font-size:0.75rem; color:var(--text-muted); margin-top:4px;">
                             <span class="record-meta-item"><i class="fa-solid fa-box-open" style="color:var(--primary);"></i> <strong>${planText}</strong></span>
-                            <span class="record-meta-item"><i class="fa-solid fa-hourglass-half" style="color:${isExpiringSoon ? '#d97706' : (isExpired ? '#dc2626' : 'inherit')};"></i> ផុតកំណត់: <strong>${expiryText}</strong></span>
-                            <span class="record-meta-item" title="ពេលវាលាចូលប្រើប្រាស់ចុងក្រោយ"><i class="fa-solid fa-clock" style="color:#0284c7;"></i> ចូលប្រើ: <strong>${lastActive}</strong></span>
-                            <span class="record-meta-item" title="ចំនួនដងចូលប្រើប្រាស់"><i class="fa-solid fa-arrow-right-to-bracket" style="color:#16a34a;"></i> <strong>${useCount} ដង</strong></span>
-                            <span class="record-meta-item"><i class="fa-solid fa-desktop"></i> ម៉ាស៊ីន: <code>${hwidText}</code></span>
-                            <span class="record-meta-item"><i class="fa-solid fa-calendar-plus"></i> បង្កើត: ${dateText}</span>
+                            <span class="record-meta-item"><i class="fa-solid fa-hourglass-half" style="color:${isExpiringSoon ? '#d97706' : (isExpired ? '#dc2626' : 'inherit')};"></i> Expires: <strong>${expiryText}</strong></span>
+                            <span class="record-meta-item" title="Last access time"><i class="fa-solid fa-clock" style="color:#0284c7;"></i> Last Active: <strong>${lastActive}</strong></span>
+                            <span class="record-meta-item" title="Total access count"><i class="fa-solid fa-arrow-right-to-bracket" style="color:#16a34a;"></i> <strong>${useCount} times</strong></span>
+                            <span class="record-meta-item"><i class="fa-solid fa-desktop"></i> Machine: <code>${hwidText}</code></span>
+                            <span class="record-meta-item"><i class="fa-solid fa-calendar-plus"></i> Created: ${dateText}</span>
                         </div>
                     </div>
                 </div>
@@ -2707,19 +2707,19 @@
                     <button type="button" class="btn-record-action" onclick="copySingleKey('${item.license_key}')" title="Copy Key">
                         <i class="fa-solid fa-copy"></i>
                     </button>
-                    <button type="button" class="btn-record-action" onclick="copySingleItemTelegram(${index})" title="Copy សារផ្ញើទៅភ្ញៀវ">
+                    <button type="button" class="btn-record-action" onclick="copySingleItemTelegram(${index})" title="Copy delivery message for customer">
                         <i class="fa-solid fa-paper-plane" style="color:var(--primary);"></i>
                     </button>
                     ${isRevoked ? `
-                        <button type="button" class="btn-record-action btn-rec-unban" onclick="handleUnbanRow('${item.license_key}')" title="ដោះសោ Unban">
+                        <button type="button" class="btn-record-action btn-rec-unban" onclick="handleUnbanRow('${item.license_key}')" title="Unban Key">
                             <i class="fa-solid fa-unlock"></i> Unban
                         </button>
                     ` : `
-                        <button type="button" class="btn-record-action btn-rec-block" onclick="handleBlockRow('${item.license_key}', '${clientName}')" title="ផ្អាក Block Key">
+                        <button type="button" class="btn-record-action btn-rec-block" onclick="handleBlockRow('${item.license_key}', '${clientName}')" title="Block Key">
                             <i class="fa-solid fa-ban"></i> Block
                         </button>
                     `}
-                    <button type="button" class="btn-record-action btn-rec-delete" onclick="handleDeleteRow('${item.license_key}', '${clientName}')" title="លុបចោល">
+                    <button type="button" class="btn-record-action btn-rec-delete" onclick="handleDeleteRow('${item.license_key}', '${clientName}')" title="Delete Key">
                         <i class="fa-solid fa-trash-can"></i>
                     </button>
                 </div>
@@ -2732,13 +2732,13 @@
             if (item) {
                 currentRecord = item;
                 updateDeliveryCardUI(item);
-                showToast("✨ បានជ្រើសរើស Key: " + item.client_name);
+                showToast("✨ Selected Key: " + item.client_name);
             }
         }
 
         // 8. Block / Unban / Delete Actions
         async function handleBlockRow(keyStr, clientName) {
-            if (!confirm(`⚠️ តើបងពិតជាចង់ផ្អាក / Block Key របស់ "${clientName}" មែនទេ?\nKey: ${keyStr}\n\n(នៅពេល Block ហើយ គាត់នឹងមិនអាចប្រើ Tool បានទៀតទេ)`)) return;
+            if (!confirm(`⚠️ Are you sure you want to block key for "${clientName}"?\nKey: ${keyStr}\n\n(Once blocked, the user cannot access the application.)`)) return;
             try {
                 const res = await fetch('/api/admin/revoke-key', {
                     method: 'POST',
@@ -2747,10 +2747,10 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    showToast("🚫 បាន Block Key ជោគជ័យ!");
+                    showToast("🚫 Key blocked successfully!");
                     fetchKeysHistory();
                 } else {
-                    showToast("❌ " + (data.error || "បរាជ័យក្នុងការ Block"));
+                    showToast("❌ " + (data.error || "Failed to block key"));
                 }
             } catch (e) {
                 showToast("❌ Network error");
@@ -2766,10 +2766,10 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    showToast("✅ បានដោះសោ (Unban) Key ឱ្យដំណើរការឡើងវិញ!");
+                    showToast("✅ Key unbanned and restored successfully!");
                     fetchKeysHistory();
                 } else {
-                    showToast("❌ " + (data.error || "បរាជ័យក្នុងការ Unban"));
+                    showToast("❌ " + (data.error || "Failed to unban key"));
                 }
             } catch (e) {
                 showToast("❌ Network error");
@@ -2777,7 +2777,7 @@
         }
 
         async function handleDeleteRow(keyStr, clientName) {
-            if (!confirm(`🗑️ តើបងចង់លុប Key របស់ "${clientName}" (${keyStr}) ចេញពីប្រព័ន្ធទាំងស្រុងមែនទេ?`)) return;
+            if (!confirm(`🗑️ Permanently delete license key for "${clientName}" (${keyStr})?`)) return;
             try {
                 const res = await fetch('/api/admin/delete-key', {
                     method: 'POST',
@@ -2786,10 +2786,10 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    showToast("🗑️ បានលុប Key ចេញពីបញ្ជីជោគជ័យ!");
+                    showToast("🗑️ Key deleted successfully!");
                     fetchKeysHistory();
                 } else {
-                    showToast("❌ " + (data.error || "បរាជ័យក្នុងការលុប"));
+                    showToast("❌ " + (data.error || "Failed to delete key"));
                 }
             } catch (e) {
                 showToast("❌ Network error");
@@ -2797,15 +2797,15 @@
         }
 
         async function handleClearAllKeys() {
-            if (!confirm("⚠️ តើលោកថៅកែពិតជាចង់លុបជម្រះបញ្ជីឈ្មោះ User / Customer ទាំងអស់ឱ្យនៅទទេ (0 នាក់) មែនទេ?\n\n(រាល់ Key តេស្តចាស់ៗទាំងអស់នឹងត្រូវជម្រះចេញស្អាត ហើយចាប់ផ្តើមពី 0 នាក់ឡើងវិញ រង់ចាំដល់ពេលថៅកែដាក់លក់ជូនភ្ញៀវពិតប្រាកដ)")) return;
+            if (!confirm("⚠️ Are you sure you want to clear all customer keys to 0?\n\n(All test keys will be purged and reset to zero.)")) return;
             try {
                 const res = await fetch('/api/admin/clear-all-keys', { method: 'POST' });
                 const data = await res.json();
                 if (data.success) {
-                    showToast(data.message || "✅ បានជម្រះបញ្ជី Customer ទាំងអស់រួចរាល់!");
+                    showToast(data.message || "✅ Cleared all customer keys successfully!");
                     fetchKeysHistory();
                 } else {
-                    showToast("❌ " + (data.error || "បរាជ័យក្នុងការជម្រះ"));
+                    showToast("❌ " + (data.error || "Failed to clear customers"));
                 }
             } catch (err) {
                 showToast("❌ Network error: " + err.message);
@@ -2835,7 +2835,7 @@
             const logBox = document.getElementById('log-content-box');
             if (logBox) {
                 if (allKeysData.length === 0) {
-                    logBox.textContent = "# មិនទាន់មានទិន្នន័យ Key ណាមួយត្រូវបានកត់ត្រានៅឡើយទេ។";
+                    logBox.textContent = "# No license key records found.";
                 } else {
                     let logLines = ["# SN STUDIO - LICENSE KEY REGISTRY LOG", "# Exported automatically from Admin Control Center", "--------------------------------------------------------"];
                     allKeysData.forEach((k, idx) => {
@@ -2851,7 +2851,7 @@
             const logBox = document.getElementById('log-content-box');
             if (logBox && logBox.textContent) {
                 navigator.clipboard.writeText(logBox.textContent).then(() => {
-                    showToast("📋 បាន Copy Log ចូល Clipboard រួចរាល់!");
+                    showToast("📋 Copied Log to Clipboard!");
                 });
             }
         }

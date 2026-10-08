@@ -110,7 +110,7 @@ class BatchDubbingManager:
                 "separate_bgm": separate_bgm,
                 "overlay_config": overlay_config,
                 "status": "pending",  # pending, processing, completed, failed
-                "step": "រង់ចាំចាប់ផ្តើម",  # transcribing, translating, synthesizing, rendering, done
+                "step": "Waiting to start",  # transcribing, translating, synthesizing, rendering, done
                 "progress": 0,
                 "output_video": None,
                 "error": None
@@ -162,7 +162,7 @@ class BatchDubbingManager:
                     except Exception as e:
                         target_item["status"] = "failed"
                         target_item["error"] = str(e)
-                        target_item["step"] = "មានបញ្ហា"
+                        target_item["step"] = "Error"
 
             async def _run_all():
                 tasks = [_worker_loop() for _ in range(max_workers)]
@@ -185,7 +185,7 @@ class BatchDubbingManager:
         item_dir.mkdir(parents=True, exist_ok=True)
 
         # 1. Extract Audio
-        item["step"] = "1/5 កំពុងទាញយកសំឡេងពីវីដេអូ..."
+        item["step"] = "1/5 Extracting audio from video..."
         item["progress"] = 15
         raw_audio = item_dir / "audio.wav"
         extract_audio_from_video(in_path, str(raw_audio))
@@ -194,7 +194,7 @@ class BatchDubbingManager:
         # 2. Vocal Separation if enabled
         bgm_track = str(raw_audio)
         if item.get("separate_bgm", True):
-            item["step"] = "2/5 AI កំពុងបំបែកសំឡេង & រក្សាភ្លេង BGM..."
+            item["step"] = "2/5 AI separating vocals & preserving BGM bed..."
             item["progress"] = 30
             try:
                 bgm_out, _ = separate_vocals_and_bgm(str(raw_audio), output_dir=str(item_dir))
@@ -203,7 +203,7 @@ class BatchDubbingManager:
                 print(f"Vocal separation fallback: {e}")
 
         # 3. Speech-to-Text (Auto Transcribe with Subtitle Extraction check)
-        item["step"] = "3/5 AI កំពុងស្តាប់ និងចាប់សំឡេង (Faster-Whisper)..."
+        item["step"] = "3/5 AI transcribing speech (Faster-Whisper)..."
         item["progress"] = 45
         dialogues = self.stt.transcribe_audio(str(raw_audio), source_lang="auto", video_path=in_path)
         if not dialogues:
@@ -211,7 +211,7 @@ class BatchDubbingManager:
                 "id": 1,
                 "start": 0.5,
                 "end": max(3.0, duration - 0.5),
-                "speaker": "តួអង្គ",
+                "speaker": "Character",
                 "text": "Drama video dialogue",
                 "text_original": "Drama video dialogue"
             }]
@@ -221,11 +221,11 @@ class BatchDubbingManager:
         v_override = str(v_override).lower().strip()
         is_multi = v_override in ("multi", "auto_multi")
         if is_multi:
-            v_label = "ពិសិដ្ឋ & ស្រីមុំ (Dual Voice)"
+            v_label = "Piseth & Sreymom (Dual Voice)"
         elif v_override == "sreymom":
-            v_label = "ស្រីមុំ (Sreymom Solo)"
+            v_label = "Sreymom (Female Solo)"
         else:
-            v_label = "ពិសិដ្ឋ (Piseth Solo)"
+            v_label = "Piseth (Male Solo)"
 
         # Infer drama series title and episode number from path and filename
         p_in = Path(in_path)
@@ -241,7 +241,7 @@ class BatchDubbingManager:
             clean_title = re.sub(r'[\s_\-]+', '_', clean_title).strip('_ ')
             drama_title = clean_title or "Drama_Series"
 
-        item["step"] = f"4/5 AI កំពុងបកប្រែជាភាសាខ្មែរ {v_label} (Story Bible)..."
+        item["step"] = f"4/5 AI translating to Khmer {v_label} (Story Bible)..."
         item["progress"] = 65
         translated_dialogues = await self.translator.translate_dialogues(
             dialogues=dialogues,
@@ -260,7 +260,7 @@ class BatchDubbingManager:
             print(f"Record episode summary note: {e}")
 
         # 5. Batch TTS Synthesis
-        item["step"] = f"5/5 កំពុងបញ្ចូលសំឡេងខ្មែរ {v_label} & Render..."
+        item["step"] = f"5/5 Synthesizing audio {v_label} & Rendering..."
         item["progress"] = 80
         voices_dir = item_dir / "voices"
         voices_dir.mkdir(parents=True, exist_ok=True)
@@ -322,7 +322,7 @@ class BatchDubbingManager:
 
         item["progress"] = 100
         item["status"] = "completed"
-        item["step"] = "រួចរាល់ ១០០%"
+        item["step"] = "100% Completed"
         item["output_video"] = str(final_video_path)
         item["drama_folder"] = str(primary_dir.resolve()).replace("\\", "/")
 

@@ -356,27 +356,27 @@ def check_key_online(cleaned_key: str, current_hwid: str) -> Tuple[bool, str, Di
 
     # Validate status
     if record.get("status") == "REVOKED":
-        return False, "❌ License Key នេះត្រូវបាន Admin ផ្អាកការប្រើប្រាស់ (Revoked/Suspended)", {}
+        return False, "❌ This License Key has been suspended/revoked by Admin", {}
 
     # Validate HWID binding
     bound_hwid = str(record.get("bound_hwid", "ANY")).strip().upper()
     if bound_hwid not in ("ANY", "*", "", "NONE") and bound_hwid != current_hwid:
-        return False, "❌ License Key នេះត្រូវបានចាក់សោសម្រាប់តែម៉ាស៊ីនមួយប៉ុណ្ណោះ (HWID មិនត្រឹមត្រូវ)", {}
+        return False, "❌ This License Key is locked to a different machine (HWID mismatch)", {}
 
     # Validate Expiration
     expiry_ts = record.get("expiry_timestamp", 0)
     if expiry_ts > 0 and time.time() > expiry_ts:
-        return False, f"⚠️ License Key នេះបានផុតកំណត់កាលបរិច្ឆេទហើយ ({record.get('expires_at')})", {}
+        return False, f"⚠️ This License Key has expired ({record.get('expires_at')})", {}
 
     status_tag = "Online Cloud" if source == "online_cloud" else "Verified"
-    return True, f"✅ License Key {status_tag} ត្រឹមត្រូវ និងសកម្ម!", record
+    return True, f"✅ License Key {status_tag} is valid and active!", record
 
 
 def revoke_license_key(target_key: str, reason: str = "Banned by Admin") -> Tuple[bool, str]:
     """Revoke/Ban a license key so the user cannot use the tool anymore."""
     cleaned = target_key.strip().upper()
     if not cleaned:
-        return False, "សូមបញ្ចូល Key ដែលត្រូវ Revoke"
+        return False, "Please enter Key to revoke"
 
     revoked_list = get_revoked_keys()
     if cleaned not in revoked_list:
@@ -430,7 +430,7 @@ def revoke_license_key(target_key: str, reason: str = "Banned by Admin") -> Tupl
     except Exception:
         pass
 
-    return True, f"🚫 បាន Revoke / Ban Key {cleaned} ជោគជ័យ!"
+    return True, f"🚫 Successfully revoked Key {cleaned}!"
 
 
 def unrevoke_license_key(target_key: str) -> Tuple[bool, str]:
@@ -475,14 +475,14 @@ def unrevoke_license_key(target_key: str) -> Tuple[bool, str]:
     except Exception:
         pass
 
-    return True, f"✅ បានដោះសោ (Unban) Key {cleaned} ឱ្យដំណើរការឡើងវិញជោគជ័យ!"
+    return True, f"✅ Successfully unbanned Key {cleaned}!"
 
 
 def delete_license_key_record(target_key: str) -> Tuple[bool, str]:
     """Delete a key record completely from history, custom keys, and revocations."""
     cleaned = target_key.strip().upper()
     if not cleaned:
-        return False, "សូមជ្រើសរើស Key ដែលត្រូវលុប"
+        return False, "Please select Key to delete"
 
     # Remove from admin_key_history.json
     if ADMIN_HISTORY_FILE.exists():
@@ -533,7 +533,7 @@ def delete_license_key_record(target_key: str) -> Tuple[bool, str]:
     except Exception:
         pass
 
-    return True, f"🗑️ បានលុប Key {cleaned} ចេញពីបញ្ជីជោគជ័យ!"
+    return True, f"🗑️ Successfully deleted Key {cleaned}!"
 
 
 def clear_all_admin_keys() -> Tuple[bool, str]:
@@ -574,7 +574,7 @@ def clear_all_admin_keys() -> Tuple[bool, str]:
     except Exception:
         pass
 
-    return True, "✅ បានជម្រះបញ្ជីឈ្មោះ Customer និង Keys ទាំងអស់ជោគជ័យ! បញ្ជី Key ឥឡូវនៅសល់ 0 ត្រៀមសម្រាប់ដាក់លក់ជូន User ថ្មី។"
+    return True, "✅ Cleared all customer and key records successfully!"
 
 
 def check_remote_revocation_online(cleaned_key: str, current_hwid: str) -> Optional[str]:
@@ -596,9 +596,9 @@ def check_remote_revocation_online(cleaned_key: str, current_hwid: str) -> Optio
                 remote_revoked = [k.strip().upper() for k in data.get("revoked_keys", [])]
                 remote_hwids = [h.strip().upper() for h in data.get("revoked_hwids", [])]
                 if cleaned_key in remote_revoked:
-                    return "❌ License Key នេះត្រូវបាន Admin បញ្ឈប់ពីចម្ងាយ (Remote Revoked by Admin)"
+                    return "❌ License Key remotely revoked by Admin"
                 if current_hwid in remote_hwids:
-                    return "❌ ម៉ាស៊ីននេះត្រូវបាន Admin បញ្ឈប់ពីចម្ងាយ (Device Banned by Admin)"
+                    return "❌ Device remotely banned by Admin"
     except Exception:
         pass
     return None
@@ -734,9 +734,9 @@ def calculate_key_live_status(key_record: Dict[str, Any]) -> Dict[str, Any]:
         rec["is_expiring_soon"] = False
         rec["badge_class"] = "stat-pill-red"
         rec["badge_label"] = "REVOKED"
-        rec["status_kh"] = "🚫 បានផ្អាក (Revoked)"
-        rec["remaining_text"] = "ត្រូវបានផ្អាកដោយ Admin"
-        rec["last_active"] = rec.get("last_active") or rec.get("activated_at") or "មិនទាន់ចូលប្រើ"
+        rec["status_kh"] = "🚫 Revoked"
+        rec["remaining_text"] = "Suspended by Admin"
+        rec["last_active"] = rec.get("last_active") or rec.get("activated_at") or "Never"
         rec["use_count"] = rec.get("use_count", 0)
         return rec
 
@@ -751,9 +751,9 @@ def calculate_key_live_status(key_record: Dict[str, Any]) -> Dict[str, Any]:
         rec["is_expiring_soon"] = False
         rec["badge_class"] = "stat-pill-purple"
         rec["badge_label"] = "LIFETIME"
-        rec["status_kh"] = "👑 មួយជីវិត (Lifetime)"
-        rec["remaining_text"] = "ប្រើប្រាស់បានរហូត (Lifetime)"
-        rec["last_active"] = rec.get("last_active") or rec.get("activated_at") or "មិនទាន់ចូលប្រើ"
+        rec["status_kh"] = "👑 Lifetime"
+        rec["remaining_text"] = "Lifetime (Permanent)"
+        rec["last_active"] = rec.get("last_active") or rec.get("activated_at") or "Never"
         rec["use_count"] = rec.get("use_count", 0)
         return rec
 
@@ -777,9 +777,9 @@ def calculate_key_live_status(key_record: Dict[str, Any]) -> Dict[str, Any]:
         rec["is_expiring_soon"] = False
         rec["badge_class"] = "stat-pill-green"
         rec["badge_label"] = "ACTIVE"
-        rec["status_kh"] = "🟢 សកម្ម (Active)"
+        rec["status_kh"] = "🟢 Active"
         rec["remaining_text"] = expires_at
-        rec["last_active"] = rec.get("last_active") or rec.get("activated_at") or "មិនទាន់ចូលប្រើ"
+        rec["last_active"] = rec.get("last_active") or rec.get("activated_at") or "Never"
         rec["use_count"] = rec.get("use_count", 0)
         return rec
 
@@ -793,8 +793,8 @@ def calculate_key_live_status(key_record: Dict[str, Any]) -> Dict[str, Any]:
         rec["is_expiring_soon"] = False
         rec["badge_class"] = "stat-pill-red"
         rec["badge_label"] = "EXPIRED"
-        rec["status_kh"] = f"🔴 ផុតកំណត់ ({abs(days_left)} ថ្ងៃមុន)"
-        rec["remaining_text"] = f"ផុតកំណត់កាលពី {abs(days_left)} ថ្ងៃមុន"
+        rec["status_kh"] = f"🔴 Expired ({abs(days_left)} days ago)"
+        rec["remaining_text"] = f"Expired {abs(days_left)} days ago"
     elif days_left <= 7:
         rec["live_status"] = "EXPIRING_SOON"
         rec["days_remaining"] = days_left
@@ -802,8 +802,8 @@ def calculate_key_live_status(key_record: Dict[str, Any]) -> Dict[str, Any]:
         rec["is_expiring_soon"] = True
         rec["badge_class"] = "stat-pill-amber"
         rec["badge_label"] = f"EXPIRING ({days_left}D)"
-        rec["status_kh"] = f"⚠️ ជិតផុតកំណត់ (សល់ {days_left} ថ្ងៃ)"
-        rec["remaining_text"] = f"នៅសល់ {days_left} ថ្ងៃទៀតផុតកំណត់"
+        rec["status_kh"] = f"⚠️ Expiring Soon ({days_left} days left)"
+        rec["remaining_text"] = f"{days_left} days remaining"
     else:
         rec["live_status"] = "ACTIVE"
         rec["days_remaining"] = days_left
@@ -811,10 +811,10 @@ def calculate_key_live_status(key_record: Dict[str, Any]) -> Dict[str, Any]:
         rec["is_expiring_soon"] = False
         rec["badge_class"] = "stat-pill-green"
         rec["badge_label"] = "ACTIVE"
-        rec["status_kh"] = f"🟢 សកម្ម (សល់ {days_left} ថ្ងៃ)"
-        rec["remaining_text"] = f"នៅសល់ {days_left} ថ្ងៃ"
+        rec["status_kh"] = f"🟢 Active ({days_left} days left)"
+        rec["remaining_text"] = f"{days_left} days remaining"
 
-    rec["last_active"] = rec.get("last_active") or rec.get("activated_at") or "មិនទាន់ចូលប្រើ"
+    rec["last_active"] = rec.get("last_active") or rec.get("activated_at") or "Never"
     rec["use_count"] = rec.get("use_count", 0)
     return rec
 
@@ -901,14 +901,14 @@ def verify_license_key(input_key: str, current_hwid: Optional[str] = None) -> Tu
     """
     cleaned_key = input_key.strip().upper()
     if not cleaned_key:
-        return False, "សូមបញ្ចូល License Key", {}
+        return False, "Please enter License Key", {}
 
     if not current_hwid:
         current_hwid = get_machine_hwid()
 
     # 0. Check Blacklist / Revocations (Local & Remote Kill Switch)
     if cleaned_key in get_revoked_keys():
-        return False, "❌ License Key នេះត្រូវបាន Admin បញ្ឈប់/ផ្អាកការប្រើប្រាស់ (Revoked/Suspended by Admin)", {}
+        return False, "❌ This License Key has been suspended/revoked by Admin", {}
 
     remote_msg = check_remote_revocation_online(cleaned_key, current_hwid)
     if remote_msg:
@@ -917,7 +917,7 @@ def verify_license_key(input_key: str, current_hwid: Optional[str] = None) -> Tu
     # 1. Check Default Master Keys (100% Offline & Online, Universal)
     if cleaned_key in DEFAULT_MASTER_KEYS:
         master_info = DEFAULT_MASTER_KEYS[cleaned_key]
-        return True, "✅ License Key ត្រឹមត្រូវ!", {
+        return True, "✅ Valid License Key!", {
             "license_key": cleaned_key,
             "client_name": master_info.get("client_name", "Administrator"),
             "plan": master_info.get("plan", "LIFETIME"),
@@ -936,17 +936,17 @@ def verify_license_key(input_key: str, current_hwid: Optional[str] = None) -> Tu
             if cleaned_key in custom_dict:
                 rec = custom_dict[cleaned_key]
                 if rec.get("status") == "REVOKED":
-                    return False, "❌ Custom Key នេះត្រូវបានផ្អាកដោយ Admin", {}
+                    return False, "❌ This Custom Key has been suspended by Admin", {}
 
                 bound_hwid = str(rec.get("bound_hwid", "ANY")).strip().upper()
                 if bound_hwid not in ("ANY", "*", "", "NONE") and bound_hwid != current_hwid:
-                    return False, "❌ Custom Key នេះត្រូវបានចាក់សោសម្រាប់តែម៉ាស៊ីនមួយប៉ុណ្ណោះ (HWID មិនត្រឹមត្រូវ)", {}
+                    return False, "❌ This Custom Key is locked to a different machine (HWID mismatch)", {}
 
                 expiry_ts = rec.get("expiry_timestamp", 0)
                 if expiry_ts > 0 and time.time() > expiry_ts:
-                    return False, f"⚠️ Custom Key នេះបានផុតកំណត់កាលបរិច្ឆេទហើយ ({rec.get('expires_at')})", {}
+                    return False, f"⚠️ This Custom Key has expired ({rec.get('expires_at')})", {}
 
-                return True, "✅ Custom Key ផ្ទាល់ខ្លួនត្រឹមត្រូវ និងសកម្ម!", rec
+                return True, "✅ Custom Key is valid and active!", rec
         except Exception:
             pass
 
@@ -959,17 +959,17 @@ def verify_license_key(input_key: str, current_hwid: Optional[str] = None) -> Tu
                 for record in history:
                     if record.get("license_key", "").strip().upper() == cleaned_key:
                         if record.get("status") == "REVOKED":
-                            return False, "❌ License Key នេះត្រូវបានផ្អាកដោយ Admin", {}
+                            return False, "❌ This License Key has been suspended by Admin", {}
 
                         bound_hwid = str(record.get("bound_hwid", "ANY")).strip().upper()
                         if bound_hwid not in ("ANY", "*", "", "NONE") and bound_hwid != current_hwid:
-                            return False, "❌ License Key នេះត្រូវបានចាក់សោសម្រាប់តែម៉ាស៊ីនមួយប៉ុណ្ណោះ (HWID មិនត្រឹមត្រូវ)", {}
+                            return False, "❌ This License Key is locked to a different machine (HWID mismatch)", {}
 
                         expiry_ts = record.get("expiry_timestamp", 0)
                         if expiry_ts > 0 and time.time() > expiry_ts:
-                            return False, f"⚠️ License Key នេះបានផុតកំណត់កាលបរិច្ឆេទហើយ ({record.get('expires_at')})", {}
+                            return False, f"⚠️ This License Key has expired ({record.get('expires_at')})", {}
 
-                        return True, "✅ License Key ត្រឹមត្រូវ និងសកម្ម!", record
+                        return True, "✅ License Key is valid and active!", record
         except Exception:
             pass
 
@@ -977,7 +977,7 @@ def verify_license_key(input_key: str, current_hwid: Optional[str] = None) -> Tu
     online_ok, online_msg, online_rec = check_key_online(cleaned_key, current_hwid)
     if online_ok:
         return True, online_msg, online_rec
-    elif online_msg and ("ផ្អាក" in online_msg or "ផុតកំណត់" in online_msg or "HWID" in online_msg):
+    elif online_msg and ("suspended" in online_msg.lower() or "revoked" in online_msg.lower() or "expired" in online_msg.lower() or "hwid" in online_msg.lower() or "ផ្អាក" in online_msg or "ផុតកំណត់" in online_msg or "HWID" in online_msg):
         return False, online_msg, {}
 
     # 5. Cryptographic Signature Offline Verification (Standard 6-part SN key)
@@ -999,7 +999,7 @@ def verify_license_key(input_key: str, current_hwid: Optional[str] = None) -> Tu
                 break
 
         if not is_sig_valid:
-            return False, "❌ License Key មិនត្រឹមត្រូវ (Invalid Signature)", {}
+            return False, "❌ Invalid License Key (Invalid Signature)", {}
 
         # Verify Expiration
         if expiry_code in ("0000", "9999"):
@@ -1012,17 +1012,17 @@ def verify_license_key(input_key: str, current_hwid: Optional[str] = None) -> Tu
                 exp_dt = datetime.fromtimestamp(expiry_ts)
                 expiry_str = exp_dt.strftime("%Y-%m-%d")
                 if time.time() > expiry_ts:
-                    return False, f"⚠️ License Key នេះបានផុតកំណត់កាលបរិច្ឆេទហើយ ({expiry_str})", {}
+                    return False, f"⚠️ This License Key has expired ({expiry_str})", {}
             except Exception:
-                return False, "❌ ទម្រង់ Expiry នៃ License Key មិនត្រឹមត្រូវ", {}
+                return False, "❌ Invalid License Key Expiry format", {}
 
         # Verify HWID Binding
         if hwid_tag not in ("9999", "AAAA"):
             expected_hwid_tag = hashlib.sha256((current_hwid.upper() + SECRET_ADMIN_SALT).encode()).hexdigest()[:4].upper()
             if hwid_tag != expected_hwid_tag:
-                return False, "❌ License Key នេះត្រូវបានចាក់សោសម្រាប់តែម៉ាស៊ីនមួយផ្សេងទៀតប៉ុណ្ណោះ (HWID មិនត្រឹមត្រូវ)", {}
+                return False, "❌ This License Key is locked to a different machine (HWID mismatch)", {}
 
-        return True, "✅ License Key ត្រឹមត្រូវ និងសកម្ម!", {
+        return True, "✅ License Key is valid and active!", {
             "license_key": cleaned_key,
             "client_name": "User",
             "plan": f"PRO_{plan_tag}",
@@ -1032,7 +1032,7 @@ def verify_license_key(input_key: str, current_hwid: Optional[str] = None) -> Tu
             "status": "ACTIVE"
         }
 
-    return False, "❌ License Key មិនត្រឹមត្រូវ សូមទាក់ទង Admin ដើម្បីទទួលយក Key", {}
+    return False, "❌ Invalid License Key. Please contact Admin to get a valid key.", {}
 
 
 def activate_license_on_device(license_key: str, client_name: Optional[str] = None) -> Tuple[bool, str, Dict[str, Any]]:
@@ -1106,7 +1106,7 @@ def activate_license_on_device(license_key: str, client_name: Optional[str] = No
         except Exception:
             pass
 
-    return True, f"🎉 បាន Activate License Key ជោគជ័យ! ស្វាគមន៍ {final_client_name}!", data_to_save
+    return True, f"🎉 License Key activated successfully! Welcome {final_client_name}!", data_to_save
 
 
 def check_current_device_license() -> Dict[str, Any]:
@@ -1122,7 +1122,7 @@ def check_current_device_license() -> Dict[str, Any]:
             "plan": "LIFETIME_UNLOCKED",
             "expires_at": "LIFETIME",
             "hwid": current_hwid,
-            "message": "License Gate ត្រូវបានបិទ (បើកដំណើរការដោយសេរី Free 100%)"
+            "message": "License Gate is disabled (Free Mode)"
         }
 
     # Strict License Protection: Require valid key entry if license.key does not exist
@@ -1130,7 +1130,7 @@ def check_current_device_license() -> Dict[str, Any]:
     if not lic_path.exists():
         return {
             "is_activated": False,
-            "message": "សូមបញ្ចូល License Key ដើម្បីបើកដំណើរការ Tool",
+            "message": "Please enter License Key to activate tool",
             "hwid": current_hwid
         }
 
@@ -1147,7 +1147,7 @@ def check_current_device_license() -> Dict[str, Any]:
         if checksum != expected_checksum:
             return {
                 "is_activated": False,
-                "message": "License Key File ត្រូវបានកែបន្លំ",
+                "message": "License Key file has been tampered with",
                 "hwid": current_hwid
             }
 
@@ -1155,7 +1155,7 @@ def check_current_device_license() -> Dict[str, Any]:
         if saved_hwid != current_hwid:
             return {
                 "is_activated": False,
-                "message": "សូមបញ្ចូល License Key ដើម្បីបើកដំណើរការ Tool (Machine Mismatch)",
+                "message": "Please enter License Key to activate tool (Machine Mismatch)",
                 "hwid": current_hwid
             }
 
@@ -1163,7 +1163,7 @@ def check_current_device_license() -> Dict[str, Any]:
         if license_key in get_revoked_keys():
             return {
                 "is_activated": False,
-                "message": "❌ License Key នេះត្រូវបាន Admin ផ្អាកការប្រើប្រាស់",
+                "message": "❌ This License Key has been suspended by Admin",
                 "hwid": current_hwid
             }
 
@@ -1182,7 +1182,7 @@ def check_current_device_license() -> Dict[str, Any]:
         if live.get("is_expired"):
             return {
                 "is_activated": False,
-                "message": f"⚠️ License Key របស់អ្នកបានផុតកំណត់កាលពី {abs(live.get('days_remaining', 0))} ថ្ងៃមុន សូមទាក់ទង Admin ដើម្បីបន្តសុពលភាព",
+                "message": f"⚠️ Your License Key expired {abs(live.get('days_remaining', 0))} days ago. Please contact Admin to renew.",
                 "hwid": current_hwid,
                 "is_expired": True
             }
@@ -1195,10 +1195,10 @@ def check_current_device_license() -> Dict[str, Any]:
             "expires_at": data.get("expires_at", "LIFETIME"),
             "days_remaining": live.get("days_remaining", 99999),
             "is_expiring_soon": live.get("is_expiring_soon", False),
-            "status_kh": live.get("status_kh", "សកម្ម"),
+            "status_kh": live.get("status_kh", "Active"),
             "last_active": data.get("last_active", "Just now"),
             "hwid": current_hwid,
-            "message": "License សកម្ម ១០០%"
+            "message": "License is 100% active"
         }
     except Exception as e:
         return {
