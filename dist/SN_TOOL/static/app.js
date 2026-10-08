@@ -184,12 +184,16 @@ function appCloseWindow() {
 window.addEventListener('mousedown', function(e) {
     installPywebviewDragInterceptor();
 
+    const interactive = e.target.closest('button, a, input, select, textarea, .win-btn, .nav-pill-btn, .brand-toggle-pill, .power-dropdown-wrapper, .power-menu-popup, .power-item, .monitor-blur-overlay, .monitor-logo-overlay, .blur-custom-dropdown, [role="slider"], input[type="range"]');
+
     // 1. If window is MAXIMIZED or FULLSCREEN: strictly lock the window
     if (document.body.classList.contains('is-maximized') || isWindowMaximizedOrFullscreen()) {
         window._isHeaderDraggingActive = false;
-        const header = e.target.closest('.unich-header-bar, .pywebview-drag-region, [data-drag-region]');
-        if (header) {
-            e.stopImmediatePropagation();
+        if (!interactive) {
+            const header = e.target.closest('.unich-header-bar, .pywebview-drag-region, [data-drag-region]');
+            if (header) {
+                e.stopImmediatePropagation();
+            }
         }
         return;
     }
@@ -197,17 +201,17 @@ window.addEventListener('mousedown', function(e) {
     // 2. Only allow window dragging in restored mode with Left Mouse Button (e.button === 0)
     if (e.button !== 0) {
         window._isHeaderDraggingActive = false;
-        const header = e.target.closest('.unich-header-bar, .pywebview-drag-region, [data-drag-region]');
-        if (header) {
-            e.stopImmediatePropagation();
+        if (!interactive) {
+            const header = e.target.closest('.unich-header-bar, .pywebview-drag-region, [data-drag-region]');
+            if (header) {
+                e.stopImmediatePropagation();
+            }
         }
         return;
     }
 
     // 3. In restored / small mode:
     const header = e.target.closest('.unich-header-bar');
-    const interactive = e.target.closest('button, a, input, select, textarea, .win-btn, .nav-pill-btn, .brand-toggle-pill, .power-dropdown-wrapper, .monitor-blur-overlay, .monitor-logo-overlay, .blur-custom-dropdown, [role="slider"], input[type="range"]');
-
     if (header && !interactive) {
         window._isHeaderDraggingActive = true;
     } else {
@@ -634,14 +638,33 @@ function switchMainTab(tabKey) {
 // 2. POWER DROPDOWN & ACTIONS (Exact Match to Image 1)
 // ==========================================================================
 function togglePowerMenu(event) {
-    if (event) event.stopPropagation();
+    if (event) {
+        if (event.stopPropagation) event.stopPropagation();
+        if (event.preventDefault) event.preventDefault();
+    }
+    const wrapper = document.querySelector('.power-dropdown-wrapper');
     const menu = document.getElementById('power-menu-popup');
-    if (menu) menu.classList.toggle('active');
+    const btn = document.getElementById('btn-tab-power');
+    if (!menu) return;
+
+    const isOpen = menu.classList.contains('active');
+    if (isOpen) {
+        closePowerMenu();
+    } else {
+        closeBrowseMenu();
+        menu.classList.add('active');
+        if (wrapper) wrapper.classList.add('open');
+        if (btn) btn.classList.add('menu-open');
+    }
 }
 
 function closePowerMenu() {
+    const wrapper = document.querySelector('.power-dropdown-wrapper');
     const menu = document.getElementById('power-menu-popup');
+    const btn = document.getElementById('btn-tab-power');
     if (menu) menu.classList.remove('active');
+    if (wrapper) wrapper.classList.remove('open');
+    if (btn) btn.classList.remove('menu-open');
 }
 
 function toggleBrowseMenu(e) {
@@ -681,8 +704,8 @@ function setupOutsideClickHandlers() {
     document.addEventListener('click', (e) => {
         const powerWrapper = document.querySelector('.power-dropdown-wrapper');
         const powerMenu = document.getElementById('power-menu-popup');
-        if (powerWrapper && !powerWrapper.contains(e.target) && powerMenu) {
-            powerMenu.classList.remove('active');
+        if (powerWrapper && !powerWrapper.contains(e.target) && powerMenu && powerMenu.classList.contains('active')) {
+            closePowerMenu();
         }
 
         const browseWrapper = document.getElementById('browse-dropdown-wrapper');
