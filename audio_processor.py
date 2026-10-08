@@ -479,8 +479,17 @@ def mix_dubbed_audio(
                 if safe_gain > 0:
                     line_seg = line_seg + safe_gain
 
+            # Strip any dead leading digital silence so voice strikes instantaneously with mouth opening
+            try:
+                from pydub.silence import detect_leading_silence
+                s_lead = detect_leading_silence(line_seg, silence_threshold=-40.0)
+                if s_lead > 15:
+                    line_seg = line_seg[max(0, s_lead - 15):]
+            except Exception:
+                pass
+
             # Micro-fades to eliminate digital clicks and boundary pops
-            if len(line_seg) > 60:
+            if len(line_seg) > 50:
                 line_seg = line_seg.fade_in(15).fade_out(25)
 
             # Envelope bounds covering both original dialogue and Khmer audio
@@ -489,35 +498,35 @@ def mix_dubbed_audio(
             orig_start_ms = max(0, int(orig_s * 1000))
             orig_end_ms = max(0, int(orig_e * 1000))
 
-            # 1. Lip-Sync & Anti-Overlap Dynamic Time-Stretch:
-            # Synchronize speech duration with actor's mouth movement window (orig_end_ms - orig_start_ms)
-            # and prevent overrunning into the next dialogue turn.
-            target_mouth_window_ms = max(400, orig_end_ms - orig_start_ms)
+            # 1. Millisecond Precision Lip-Sync Anchor (Zero Cumulative Drift):
+            # Speech duration window matches the actor's actual mouth movement (orig_end_ms - orig_start_ms)
+            mouth_dur_ms = max(350, orig_end_ms - orig_start_ms)
             if i + 1 < len(valid_lines):
                 next_item = valid_lines[i + 1][1]
                 next_orig_s = float(next_item.get("orig_start", next_item.get("start", 0.0)))
                 next_start_ms = max(0, int(next_orig_s * 1000))
-                available_window_ms = max(350, next_start_ms - orig_start_ms - min_dialogue_gap_ms)
-                # Bounded by mouth closure with small natural buffer, or by next speaker
-                target_window_ms = min(target_mouth_window_ms + 250, available_window_ms)
+                # Next speaker boundary with 50ms clear breathing room
+                hard_limit_ms = max(350, next_start_ms - orig_start_ms - 50)
+                target_window_ms = min(mouth_dur_ms + 100, hard_limit_ms)
             else:
-                target_window_ms = target_mouth_window_ms + 250
+                hard_limit_ms = mouth_dur_ms + 250
+                target_window_ms = mouth_dur_ms + 100
 
             cur_dur_ms = len(line_seg)
             if cur_dur_ms > target_window_ms and target_window_ms >= 350:
                 needed_speed = cur_dur_ms / max(300, target_window_ms)
-                # Apply speedup up to 1.35x to sync tightly with mouth movement
-                speed_to_apply = min(1.35, max(1.04, needed_speed))
-                if speed_to_apply >= 1.05:
+                # Natural human tempo stretch capped at 1.22x (neither rushed nor dragging)
+                speed_to_apply = min(1.22, max(1.02, needed_speed))
+                if speed_to_apply >= 1.04:
                     line_seg = time_stretch_audio_segment(line_seg, speed_to_apply)
 
-            # 2. Strict Sequential Anti-Collision Placement:
-            # Guarantees that line i NEVER starts while line i-1 is still talking!
-            if prev_end_ms > 0:
-                start_ms = max(orig_start_ms, prev_end_ms + min_dialogue_gap_ms)
-            else:
-                start_ms = orig_start_ms
+            # Prevent overrunning into the next actor's speech turn
+            if i + 1 < len(valid_lines) and len(line_seg) > hard_limit_ms:
+                line_seg = line_seg[:hard_limit_ms].fade_out(40)
 
+            # 2. Strict Onset Pinning (100% Mouth Synchronized):
+            # Pin start_ms strictly to orig_start_ms! Never push lines into the future!
+            start_ms = orig_start_ms
             line_len_ms = len(line_seg)
             speech_end_ms = start_ms + line_len_ms
             prev_end_ms = speech_end_ms
@@ -526,9 +535,9 @@ def mix_dubbed_audio(
             item["start"] = round(start_ms / 1000.0, 2)
             item["end"] = round(speech_end_ms / 1000.0, 2)
 
-            # The ducking interval covers original speech and dubbing with generous 280ms padding
-            pad_start = max(0, min(orig_start_ms, start_ms) - 280)
-            pad_end = max(orig_end_ms, speech_end_ms) + 280
+            # The ducking interval covers original speech and dubbing with safety margin (350ms)
+            pad_start = max(0, min(orig_start_ms, start_ms) - 350)
+            pad_end = max(orig_end_ms, speech_end_ms) + 350
             speech_intervals.append((pad_start, pad_end))
             processed_lines.append((start_ms, line_seg))
         except Exception as e:
@@ -610,7 +619,7 @@ def mix_dubbed_audio(
     else:
         speech_track = AudioSegment.silent(duration=target_len_ms, frame_rate=target_fr).set_channels(channels)
 
-    # 3. Apply Professional Dual-Stem Cinema Mixing (Continuous Musical Bed & Zero Pumping)
+    # 3. Apply Professional Dual-Stem Cinema Mixing (Zero Vocal Leakage)
     if dubbing_mode == "pure_voice":
         final_mixed = speech_track
     elif bg_audio and speech_intervals:
@@ -621,7 +630,7 @@ def mix_dubbed_audio(
                 merged_intervals.append([start, end])
             else:
                 prev = merged_intervals[-1]
-                if start <= prev[1] + 2400:  # Smooth hold across 2.4s conversation pauses
+                if start <= prev[1] + 1600:  # Smooth hold across 1.6s conversation pauses
                     prev[1] = max(prev[1], end)
                 else:
                     merged_intervals.append([start, end])
@@ -646,17 +655,15 @@ def mix_dubbed_audio(
                 # Pure voice mode or 0% BGM -> mute BGM entirely
                 ducked_bg = AudioSegment.silent(duration=target_len_ms, frame_rate=target_fr).set_channels(channels)
             else:
-                # The user's chosen BGM setting IS the continuous baseline volume!
+                # The user's chosen BGM setting IS the continuous baseline volume for non-speech gaps!
                 bgm_nominal = user_bgm_vol
 
-                # Gentle, transparent studio ducking during speech (~2.5dB dip):
-                # When speech occurs, music stays present at 70% of user's chosen volume
-                # When speech ends, music stays at user's chosen volume
-                # The music NEVER cuts out into awkward dead silence, and NEVER surges abruptly!
-                bgm_ducked = user_bgm_vol * 0.70
+                # ZERO VOCAL BLEED: During all speech intervals, duck original audio strictly to 0.0!
+                # This guarantees 100% elimination of original Chinese actors' voices under the Khmer dub!
+                bgm_ducked = 0.0
 
-                fade_in_frames = max(1, int(0.350 * sr))   # 350ms smooth S-curve dip
-                fade_out_frames = max(1, int(0.500 * sr))  # 500ms smooth S-curve return
+                fade_in_frames = max(1, int(0.120 * sr))   # Fast 120ms smooth S-curve dip into silence
+                fade_out_frames = max(1, int(0.250 * sr))  # Smooth 250ms S-curve return to BGM
 
                 block_frames = 60 * sr
                 ducked_bytes = bytearray()
@@ -710,6 +717,8 @@ def mix_dubbed_audio(
                                             loc_rise_e - loc_rise_s, dtype=np.float32)
                             ramp_up = bgm_ducked + (bgm_nominal - bgm_ducked) * 0.5 * (1.0 - np.cos(t))
                             gain_blk[loc_rise_s:loc_rise_e] = np.minimum(gain_blk[loc_rise_s:loc_rise_e], ramp_up)
+
+                    gain_blk = np.clip(gain_blk, 0.0, 1.0)
 
                     blk_sample_s = blk_start * bg_channels
                     blk_sample_e = blk_end * bg_channels

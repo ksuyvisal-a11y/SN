@@ -327,15 +327,15 @@ class SpeechToTextEngine:
                 best_of=1,
                 condition_on_previous_text=False,
                 compression_ratio_threshold=2.4,
-                no_speech_threshold=0.75,
+                no_speech_threshold=0.88,
                 word_timestamps=True,
                 vad_filter=True,
                 vad_parameters=dict(
-                    threshold=0.30,
-                    min_speech_duration_ms=80,
-                    max_speech_duration_s=9.0,
-                    min_silence_duration_ms=320,
-                    speech_pad_ms=160
+                    threshold=0.25,
+                    min_speech_duration_ms=60,
+                    max_speech_duration_s=8.0,
+                    min_silence_duration_ms=250,
+                    speech_pad_ms=120
                 )
             )
 
@@ -390,16 +390,19 @@ class SpeechToTextEngine:
                         # 1. Punctuation in word (ending marks)
                         has_punct = bool(re.search(r'[。！？!?；;\n]', w_txt))
 
-                        # 2. Pause between this word and next word >= 0.85s (dialogue pause / turn-taking)
+                        # 2. Pause between this word and next word (dialogue turn / breathing pause)
                         has_pause = False
                         if w_idx + 1 < len(words):
                             next_w = words[w_idx + 1]
-                            if (next_w.start - w.end) >= 0.85:
+                            pause_gap = next_w.start - w.end
+                            if pause_gap >= 0.42:
+                                has_pause = True
+                            elif pause_gap >= 0.22 and bool(re.search(r'[，,、]', w_txt)):
                                 has_pause = True
 
-                        # 3. Accumulated length >= 6.5 seconds (prevents runaway sentences)
+                        # 3. Accumulated length >= 5.5 seconds (prevents runaway sentences)
                         span = curr_words[-1].end - curr_words[0].start
-                        is_too_long = span >= 6.5 and len(curr_words) >= 4
+                        is_too_long = span >= 5.5 and len(curr_words) >= 4
 
                         if (has_punct or has_pause or is_too_long) and len(curr_words) > 0:
                             line_txt = "".join(getattr(cw, "word", "") for cw in curr_words).strip()

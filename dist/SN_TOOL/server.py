@@ -119,6 +119,60 @@ def add_cors_headers(response):
     return response
 
 
+def play_windows_completion_sound():
+    """
+    Plays the authentic Windows System Notification Sound directly on Windows OS.
+    Runs asynchronously in a daemon thread so it never blocks HTTP request handling.
+    Built-in, permanent notification sound.
+    """
+    def _play():
+        try:
+            if sys.platform == "win32":
+                import winsound
+                windir = os.environ.get("WINDIR", "C:\\Windows")
+                candidates = [
+                    os.path.join(windir, "Media", "Windows Notify System Generic.wav"),
+                    os.path.join(str(STATIC_DIR), "system_notification.wav"),
+                    os.path.join(windir, "Media", "Windows Background.wav"),
+                    os.path.join(str(STATIC_DIR), "windows_notify.wav"),
+                    os.path.join(windir, "Media", "Windows Notify.wav"),
+                ]
+                for p in candidates:
+                    if os.path.exists(p):
+                        try:
+                            winsound.PlaySound(p, winsound.SND_FILENAME | winsound.SND_ASYNC)
+                            return
+                        except Exception:
+                            pass
+                
+                try:
+                    winsound.PlaySound("SystemNotification", winsound.SND_ALIAS | winsound.SND_ASYNC)
+                    return
+                except Exception:
+                    pass
+
+                try:
+                    winsound.PlaySound("Notification.Default", winsound.SND_ALIAS | winsound.SND_ASYNC)
+                    return
+                except Exception:
+                    pass
+
+                try:
+                    winsound.MessageBeep(winsound.MB_ICONASTERISK)
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"[Sound Notification] Sound play note: {e}", file=sys.stderr)
+
+    threading.Thread(target=_play, daemon=True).start()
+
+
+@app.route("/api/system/play-completion-sound", methods=["POST", "GET"])
+def system_play_completion_sound_endpoint():
+    play_windows_completion_sound()
+    return jsonify({"success": True, "message": "Windows completion sound played"})
+
+
 @app.route("/")
 def index():
     return send_from_directory(str(STATIC_DIR), "index.html")
@@ -423,6 +477,7 @@ def render_video_endpoint(project_id):
             watermark_text=watermark,
             overlay_config=overlay_config
         )
+        play_windows_completion_sound()
         return jsonify({
             "success": True,
             "project": updated_project,
@@ -2127,6 +2182,7 @@ def power_merge_endpoint():
         
     try:
         res_p = merge_videos(files, out_file)
+        play_windows_completion_sound()
         return jsonify({
             "success": True,
             "output_file": res_p.replace("\\", "/"),
@@ -2149,6 +2205,7 @@ def power_split_endpoint():
     out_dir = f"data/exports/split_{int(time.time())}"
     try:
         parts = split_video(video_path, chunk_sec, out_dir)
+        play_windows_completion_sound()
         return jsonify({
             "success": True,
             "parts_count": len(parts),
@@ -2169,6 +2226,7 @@ def power_rename_endpoint():
     
     try:
         res = batch_rename_files(files, prefix, start_num)
+        play_windows_completion_sound()
         return jsonify({"success": True, "results": res})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
@@ -2194,6 +2252,7 @@ def power_compress_endpoint():
         res_p = compress_video(video_path, out_file, crf, preset, target_height)
         new_size = Path(res_p).stat().st_size
         saved_bytes = max(0, orig_size - new_size)
+        play_windows_completion_sound()
         return jsonify({
             "success": True,
             "output_file": res_p.replace("\\", "/"),
@@ -2252,6 +2311,7 @@ def power_compress_batch_endpoint():
                 "success": False
             })
 
+    play_windows_completion_sound()
     return jsonify({
         "success": True,
         "results": results,
@@ -2342,9 +2402,11 @@ def auto_dub_video_endpoint():
                 overlay_config = json.loads(raw_oc) if isinstance(raw_oc, str) else raw_oc
             except Exception:
                 pass
+        project_title = None
     elif request.is_json:
         data = request.get_json(force=True) or {}
         saved_video_path = data.get("filepath")
+        project_title = data.get("title")
         if saved_video_path:
             original_filename = data.get("filename") or Path(saved_video_path).name
             mode = data.get("drama_mode", mode)
@@ -2363,12 +2425,15 @@ def auto_dub_video_endpoint():
     elif request.form.get("filepath"):
         saved_video_path = request.form.get("filepath")
         original_filename = request.form.get("filename") or Path(saved_video_path).name
+        project_title = request.form.get("title")
         raw_oc = request.form.get("overlay_config")
         if raw_oc:
             try:
                 overlay_config = json.loads(raw_oc) if isinstance(raw_oc, str) else raw_oc
             except Exception:
                 pass
+    else:
+        project_title = request.form.get("title")
 
     # Support direct logo_file upload in form data
     if "logo_file" in request.files and request.files["logo_file"].filename:
@@ -2422,7 +2487,7 @@ def auto_dub_video_endpoint():
         "error": None
     }
 
-    def _worker(t_id: str, v_path: str, m: str, sl: str, vo: str, ar: str, bs: bool, oc: dict):
+    def _worker(t_id: str, v_path: str, m: str, sl: str, vo: str, ar: str, bs: bool, oc: dict, p_title: str = None):
         def _prog_cb(pct: int, km: str, en: str, dialogues: list = None):
             if t_id in video_auto_tasks:
                 video_auto_tasks[t_id]["progress"] = pct
@@ -2435,9 +2500,15 @@ def auto_dub_video_endpoint():
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
+                target_title = p_title or f"Dubbed_{Path(v_path).stem}"
+                clean_target = re.sub(r'^(?:Dubbed_)+', '', str(target_title), flags=re.IGNORECASE)
+                clean_target = re.sub(r'^Raw_Full_Movie_', '', clean_target, flags=re.IGNORECASE)
+                clean_target = re.sub(r'_\d{9,12}$', '', clean_target)
+                final_title = f"Dubbed_{clean_target}"
+
                 res_proj = loop.run_until_complete(pm.process_video_pipeline(
                     video_path=v_path,
-                    title=f"Dubbed_{Path(v_path).stem}",
+                    title=final_title,
                     mode=m,
                     source_lang=sl,
                     voice_override=vo,
@@ -2457,6 +2528,7 @@ def auto_dub_video_endpoint():
                 video_auto_tasks[t_id]["project"] = res_proj
                 if res_proj and res_proj.get("dialogues"):
                     video_auto_tasks[t_id]["dialogues"] = res_proj.get("dialogues")
+                play_windows_completion_sound()
         except Exception as e:
             print(f"Auto dubbing worker error: {e}")
             if t_id in video_auto_tasks:
@@ -2467,7 +2539,7 @@ def auto_dub_video_endpoint():
 
     threading.Thread(
         target=_worker,
-        args=(task_id, saved_video_path, mode, source_lang, voice_override, aspect_ratio, burn_subtitles, overlay_config),
+        args=(task_id, saved_video_path, mode, source_lang, voice_override, aspect_ratio, burn_subtitles, overlay_config, project_title),
         daemon=True
     ).start()
 
@@ -2539,7 +2611,8 @@ def merge_episodes_endpoint():
     video_paths = data.get("video_paths", [])
     series_title = data.get("series_title", "Drama_Series")
 
-    clean_title = re.sub(r'[^\w\-_.]', '_', str(series_title)).strip('_')
+    clean_title = re.sub(r'^(?:Dubbed_)+', '', str(series_title), flags=re.IGNORECASE)
+    clean_title = re.sub(r'[^\w\-_.]', '_', clean_title).strip('_')
     if not clean_title:
         clean_title = "Drama_Series"
 
@@ -2570,6 +2643,7 @@ def merge_episodes_endpoint():
     try:
         from video_processor import merge_videos
         final_path = merge_videos(resolved_paths, str(out_file))
+        play_windows_completion_sound()
         return jsonify({
             "success": True,
             "merged_path": str(final_path),
@@ -2578,6 +2652,121 @@ def merge_episodes_endpoint():
         })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/projects/pre-merge-raw-episodes", methods=["POST"])
+def pre_merge_raw_episodes_endpoint():
+    """
+    Pre-merge raw source video episodes into a single full-movie source video
+    before dubbing, so the AI Dubbing engine dubs the full movie at once.
+    """
+    data = request.get_json(force=True) or {}
+    video_paths = data.get("video_paths", [])
+    series_title = data.get("series_title", "Drama_Series")
+
+    clean_title = re.sub(r'^(?:Dubbed_)+', '', str(series_title), flags=re.IGNORECASE)
+    clean_title = re.sub(r'[^\w\-_.]', '_', clean_title).strip('_')
+    if not clean_title:
+        clean_title = "Drama_Series"
+
+    if not video_paths:
+        return jsonify({"success": False, "error": "No video paths provided"}), 400
+
+    resolved_paths = []
+    for vp in video_paths:
+        p = Path(vp)
+        if p.exists():
+            resolved_paths.append(str(p.resolve()))
+            continue
+        p_base = (BASE_DIR / vp).resolve()
+        if p_base.exists():
+            resolved_paths.append(str(p_base))
+            continue
+        p_uploads = (Path("data/uploads") / p.name).resolve()
+        if p_uploads.exists():
+            resolved_paths.append(str(p_uploads))
+            continue
+
+    if not resolved_paths:
+        return jsonify({"success": False, "error": "None of the episode files were found on disk"}), 404
+
+    try:
+        from video_processor import merge_videos
+        upload_dir = Path("data/uploads")
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        out_filename = f"Raw_Full_Movie_{clean_title}_{int(time.time())}.mp4"
+        out_file = upload_dir / out_filename
+
+        final_path = merge_videos(resolved_paths, str(out_file))
+        file_size_mb = round(Path(final_path).stat().st_size / (1024 * 1024), 2)
+        play_windows_completion_sound()
+        return jsonify({
+            "success": True,
+            "merged_path": str(final_path),
+            "merged_filename": out_filename,
+            "series_title": clean_title,
+            "episodes_count": len(resolved_paths),
+            "size_mb": file_size_mb,
+            "video_url": f"/media/{Path(final_path).as_posix()}"
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/system/find-sibling-episodes", methods=["POST"])
+def find_sibling_episodes_endpoint():
+    """
+    Check if a staged single video has sibling episodes in its directory.
+    Useful when user selected EP_01 but wants to export Full Movie Merged.
+    """
+    data = request.get_json(force=True) or {}
+    filepath = data.get("filepath", "")
+    if not filepath:
+        return jsonify({"success": False, "has_siblings": False, "files": []})
+
+    p = Path(filepath)
+    if not p.exists():
+        p_base = BASE_DIR / filepath
+        if p_base.exists():
+            p = p_base
+
+    if not p.exists() or not p.is_file():
+        return jsonify({"success": False, "has_siblings": False, "files": []})
+
+    parent_dir = p.parent
+    valid_exts = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".ts"}
+    candidates = []
+    try:
+        for item in parent_dir.iterdir():
+            if item.is_file() and item.suffix.lower() in valid_exts:
+                if not item.name.startswith("Dubbed_") and not item.name.startswith("Raw_"):
+                    candidates.append(item)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e), "has_siblings": False, "files": []})
+
+    def natural_sort_key(s):
+        return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', s.name)]
+
+    candidates.sort(key=natural_sort_key)
+
+    if len(candidates) > 1:
+        dir_name = parent_dir.name
+        files_data = [{
+            "filepath": str(f.resolve()),
+            "filename": f.name,
+            "size_mb": round(f.stat().st_size / (1024 * 1024), 1)
+        } for f in candidates]
+        return jsonify({
+            "success": True,
+            "has_siblings": True,
+            "total_count": len(candidates),
+            "folder_name": dir_name,
+            "files": files_data
+        })
+
+    return jsonify({"success": True, "has_siblings": False, "files": []})
 
 
 @app.route("/media/<path:filename>")

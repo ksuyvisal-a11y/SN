@@ -122,6 +122,8 @@ def render_dubbed_video(
             get_ffmpeg_path(),
             "-nostdin",
             "-y",
+            "-fflags", "+genpts",
+            "-avoid_negative_ts", "make_zero",
             "-i", str(original_video_path),
             "-i", str(mixed_audio_path),
             "-map", "0:v:0",
@@ -482,33 +484,54 @@ def merge_videos(video_paths: List[str], output_path: str) -> str:
             "-safe", "0",
             "-i", str(list_file),
             "-c", "copy",
+            "-fflags", "+genpts",
+            "-avoid_negative_ts", "make_zero",
             str(out_p)
         ]
         proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", timeout=7200, **get_silent_kwargs())
         if proc.returncode != 0:
-            # Re-encoding concat fallback
-            inputs = []
-            filter_parts = []
-            for idx, vp in enumerate(video_paths):
-                inputs.extend(["-i", str(vp)])
-                filter_parts.append(f"[{idx}:v:0][{idx}:a:0]")
-            
-            filter_complex = f"{''.join(filter_parts)}concat=n={len(video_paths)}:v=1:a=1[v][a]"
-            cmd_reencode = [
+            # 1. First fallback: re-encoding via concat demuxer (supports unlimited episode count cleanly)
+            cmd_list_reencode = [
                 get_ffmpeg_path(),
                 "-nostdin",
                 "-y",
-                *inputs,
-                "-filter_complex", filter_complex,
-                "-map", "[v]",
-                "-map", "[a]",
+                "-fflags", "+genpts",
+                "-avoid_negative_ts", "make_zero",
+                "-f", "concat",
+                "-safe", "0",
+                "-i", str(list_file),
                 "-c:v", "libx264",
                 "-preset", "fast",
                 "-crf", "23",
                 "-c:a", "aac",
+                "-b:a", "192k",
                 str(out_p)
             ]
-            subprocess.run(cmd_reencode, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=7200, **get_silent_kwargs())
+            proc_list_re = subprocess.run(cmd_list_reencode, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=7200, **get_silent_kwargs())
+            if proc_list_re.returncode != 0 and len(video_paths) <= 60:
+                # 2. Second fallback: filter_complex concat for mismatched dimensions
+                inputs = []
+                filter_parts = []
+                for idx, vp in enumerate(video_paths):
+                    inputs.extend(["-i", str(vp)])
+                    filter_parts.append(f"[{idx}:v:0][{idx}:a:0]")
+                
+                filter_complex = f"{''.join(filter_parts)}concat=n={len(video_paths)}:v=1:a=1[v][a]"
+                cmd_reencode = [
+                    get_ffmpeg_path(),
+                    "-nostdin",
+                    "-y",
+                    *inputs,
+                    "-filter_complex", filter_complex,
+                    "-map", "[v]",
+                    "-map", "[a]",
+                    "-c:v", "libx264",
+                    "-preset", "fast",
+                    "-crf", "23",
+                    "-c:a", "aac",
+                    str(out_p)
+                ]
+                subprocess.run(cmd_reencode, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=7200, **get_silent_kwargs())
     finally:
         if list_file.exists():
             try:

@@ -440,19 +440,18 @@ def _get_cache_filename(text: str, voice_id: str, rate: str, pitch: str) -> Path
 
 def calculate_optimal_tts_rate(text_km: str, target_window_sec: float) -> int:
     """
-    Calculate the exact Edge-TTS speed rate percentage (+0% to +35%)
-    so that Khmer speech naturally completes within the character's speaking window.
-    Khmer average natural speech speed is ~5.6 characters per second.
+    Calculate optimal Edge-TTS speaking rate (+0% to +12%) for pure natural human tempo.
+    Khmer average natural speech speed is ~13.5 characters per second (including vowels and diacritics).
     """
     if not text_km or target_window_sec <= 0.3:
         return 0
     clean = text_km.strip()
-    est_natural_sec = len(clean) / 5.6
+    est_natural_sec = len(clean) / 13.5
     if est_natural_sec <= target_window_sec:
         return 0
     factor = est_natural_sec / target_window_sec
     needed_rate = int((factor - 1.0) * 100)
-    return min(35, max(5, needed_rate))
+    return min(12, max(0, needed_rate))
 
 
 async def synthesize_khmer_speech(
@@ -598,9 +597,9 @@ def trim_and_fit_voice_audio(audio_path: str, max_duration_sec: Optional[float] 
             target_ms = int(max_duration_sec * 1000)
             cur_ms = len(trimmed)
             if cur_ms > target_ms:
-                # Speed ratio capped at 1.35x to maintain 100% natural timbre without distortion
-                speed = min(1.35, cur_ms / max(300, target_ms - 80))
-                if speed >= 1.05:
+                # Speed ratio capped at 1.22x for natural, relaxed human speech (neither rushed nor dragging)
+                speed = min(1.22, cur_ms / max(300, target_ms - 50))
+                if speed >= 1.04:
                     import io
                     wav_io = io.BytesIO()
                     trimmed.export(wav_io, format="wav")
@@ -627,6 +626,10 @@ def trim_and_fit_voice_audio(audio_path: str, max_duration_sec: Optional[float] 
                         stretched = AudioSegment.from_file(io.BytesIO(proc.stdout), format="wav")
                         if len(stretched) > 0:
                             trimmed = stretched
+
+            # Strictly guarantee speech does not overrun the available slot before the next speaker
+            if len(trimmed) > target_ms + 80:
+                trimmed = trimmed[:target_ms + 50].fade_out(35)
 
         save_audio_safely(trimmed, str(audio_path))
         return len(trimmed) / 1000.0

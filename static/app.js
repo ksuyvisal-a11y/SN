@@ -1918,7 +1918,9 @@ function toggleAudioTrack() {
     showToast(`Audio Track: ${vLabel}`);
 }
 
-// Dynamic Video Frame Engine: Adapts monitor screen box to original video aspect ratio (Zero black bars)
+// Dynamic Video Frame Engine: Adapts monitor screen box or fills entire area
+window.videoFitMode = 'fit'; // Default strictly to FIT mode so video is NEVER cut off!
+
 function adaptMonitorScreenToVideo() {
     const mainVideo = document.getElementById('main-video');
     const screenArea = document.getElementById('monitor-screen-area');
@@ -1927,13 +1929,47 @@ function adaptMonitorScreenToVideo() {
     const w = mainVideo.videoWidth;
     const h = mainVideo.videoHeight;
     if (w && h && w > 0 && h > 0) {
-        screenArea.style.aspectRatio = `${w} / ${h}`;
-        screenArea.style.height = 'auto';
-        screenArea.style.width = 'auto';
-        screenArea.style.maxHeight = 'calc(100% - 84px)';
-        screenArea.style.maxWidth = '100%';
-        mainVideo.style.objectFit = 'contain';
+        if (window.videoFitMode === 'fill') {
+            screenArea.style.aspectRatio = 'auto';
+            screenArea.style.flex = '1';
+            screenArea.style.height = '100%';
+            screenArea.style.width = '100%';
+            screenArea.style.maxHeight = '100%';
+            screenArea.style.maxWidth = '100%';
+            mainVideo.style.objectFit = 'cover';
+        } else {
+            // FIT Mode: STRICT GUARANTEE - Video is NEVER cut off in any screen size!
+            screenArea.style.aspectRatio = `${w} / ${h}`;
+            screenArea.style.flex = '0 1 auto';
+            screenArea.style.maxHeight = 'calc(100% - 10px)';
+            screenArea.style.maxWidth = '100%';
+            mainVideo.style.objectFit = 'contain';
+        }
         mainVideo.style.background = 'transparent';
+    }
+}
+
+function toggleVideoFitFillMode() {
+    const mainVideo = document.getElementById('main-video');
+    const btn = document.getElementById('btn-video-fit-fill');
+    const label = document.getElementById('label-fit-fill');
+    const icon = document.getElementById('icon-fit-fill');
+    if (!mainVideo) return;
+
+    if (window.videoFitMode === 'fit') {
+        window.videoFitMode = 'fill';
+        if (label) label.textContent = 'FILL';
+        if (icon) icon.className = 'fa-solid fa-up-right-and-down-left-from-center';
+        if (btn) btn.title = 'Current: FILL (Full Box). Click for FIT (Original Full Frame - មិនដាច់)';
+        adaptMonitorScreenToVideo();
+        showToast('Monitor: FILL Mode (ពេញផ្ទៃ)');
+    } else {
+        window.videoFitMode = 'fit';
+        if (label) label.textContent = 'FIT';
+        if (icon) icon.className = 'fa-solid fa-compress';
+        if (btn) btn.title = 'Current: FIT (Full Frame - មិនដាច់). Click for FILL';
+        adaptMonitorScreenToVideo();
+        showToast('Monitor: FIT Mode (ពេញរូបភាព មិនដាច់)');
     }
 }
 
@@ -2567,6 +2603,9 @@ let exportPercent = 0;
 let exportElapsedSec = 0;
 let currentExportOutputMode = 'separate'; // 'separate' | 'full' | 'both'
 
+let stagedVideoSiblings = null;
+let stagedVideoFolderTitle = "";
+
 function openExportOptionsModal() {
     const epCountElem = document.getElementById('export-output-ep-count');
     const epChainElem = document.getElementById('export-output-ep-chain');
@@ -2574,6 +2613,8 @@ function openExportOptionsModal() {
     const descBothElem = document.getElementById('export-desc-both');
 
     let baseTitle = "Drama_Series";
+    stagedVideoSiblings = null;
+    stagedVideoFolderTitle = "";
 
     if (stagedBatchFiles && stagedBatchFiles.length > 0) {
         const count = stagedBatchFiles.length;
@@ -2592,9 +2633,9 @@ function openExportOptionsModal() {
         const rawName = fName.replace(/\.[^/.]+$/, '');
         baseTitle = rawName.replace(/(?:_part|[-_]ep|[-_]e|\bep|\bepisode)[-_]?\d+/i, '').replace(/[-_]+$/, '').trim() || "Drama_Series";
 
-        const cleanSeriesTitle = baseTitle.replace(/^Dubbed_/i, '');
-        const mergedName = `Dubbed_${cleanSeriesTitle}_Full.mp4`;
-        if (descFullElem) descFullElem.textContent = `Combined into ${mergedName}`;
+        const cleanSeriesTitle = baseTitle.replace(/^(?:Dubbed_)+/i, '');
+        const mergedName = `Dubbed_${cleanSeriesTitle}_Full_Movie.mp4`;
+        if (descFullElem) descFullElem.textContent = `Pre-merge ${count} episodes & dub as 1 full movie (${mergedName})`;
         if (descBothElem) descBothElem.textContent = `Separate episodes + ${mergedName}`;
 
     } else if (stagedVideoFile) {
@@ -2604,11 +2645,33 @@ function openExportOptionsModal() {
 
         const rawName = vName.replace(/\.[^/.]+$/, '');
         baseTitle = rawName || "Video";
-        const cleanBase = baseTitle.replace(/^Dubbed_/i, '');
+        const cleanBase = baseTitle.replace(/^(?:Dubbed_)+/i, '');
         const singleOutName = `Dubbed_${cleanBase}.mp4`;
 
         if (descFullElem) descFullElem.textContent = `Saved as: ${singleOutName}`;
         if (descBothElem) descBothElem.textContent = `Saved as: ${singleOutName}`;
+
+        // Check if single video has sibling episodes in parent folder
+        const vPath = getMediaFilePath(stagedVideoFile);
+        if (vPath) {
+            fetch("/api/system/find-sibling-episodes", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ filepath: vPath })
+            }).then(r => r.json()).then(sibData => {
+                if (sibData && sibData.success && sibData.has_siblings && sibData.files && sibData.files.length > 1) {
+                    stagedVideoSiblings = sibData.files;
+                    stagedVideoFolderTitle = sibData.folder_name;
+                    const sibCount = sibData.total_count;
+                    const fTitle = sibData.folder_name || cleanBase;
+                    const cleanFolderTitle = fTitle.replace(/^(?:Dubbed_)+/i, '');
+                    const fullOutName = `Dubbed_${cleanFolderTitle}_Full_Movie.mp4`;
+                    if (epCountElem) epCountElem.textContent = `1 Video • Detected ${sibCount} episodes in "${sibData.folder_name}"`;
+                    if (descFullElem) descFullElem.textContent = `Pre-merge all ${sibCount} episodes in folder into 1 full movie (${fullOutName})`;
+                    if (descBothElem) descBothElem.textContent = `Dub ${sibCount} separate episodes + ${fullOutName}`;
+                }
+            }).catch(e => console.warn("Sibling probe note:", e));
+        }
     } else {
         showToast("Please stage a video first, then click Export!");
         openImportModal();
@@ -2637,10 +2700,27 @@ async function confirmAndExecuteExport() {
     // 1. Single video staged
     if (stagedVideoFile) {
         const fileToDub = stagedVideoFile;
+        const siblings = stagedVideoSiblings;
+        const folderTitle = stagedVideoFolderTitle;
         stagedVideoFile = null;
+        stagedVideoSiblings = null;
+        stagedVideoFolderTitle = "";
+
         const exportBtn = document.getElementById('btn-tab-export');
         if (exportBtn) exportBtn.classList.remove('export-ready-pulse');
-        startAutoDubbingPipeline(fileToDub);
+
+        // If user chose full movie merged or both, and sibling episodes were detected in directory
+        if ((chosenMode === 'full' || chosenMode === 'both') && siblings && siblings.length > 1) {
+            showToast(`Auto-combining all ${siblings.length} episodes from "${folderTitle}" into full movie...`);
+            startStudioBatchDubbingPipeline(siblings, chosenMode);
+            return;
+        }
+
+        const fileName = getMediaFileName(fileToDub);
+        const rawName = fileName.replace(/\.[^/.]+$/, '');
+        const cleanBase = rawName.replace(/^(?:Dubbed_)+/i, '');
+        const customTitle = (chosenMode === 'full') ? `Dubbed_${cleanBase}_Full_Movie` : `Dubbed_${cleanBase}`;
+        startAutoDubbingPipeline(fileToDub, customTitle);
         return;
     }
 
@@ -2734,6 +2814,13 @@ function updateExportProgressUI(pct, elapsedSec, etaSec, taskName) {
 
     if (taskElem) {
         taskElem.innerHTML = `<i class="fa-solid fa-gear fa-spin" style="color:#facc15; font-size:0.65rem;"></i> ${escapeHtml(taskName)}`;
+    }
+
+    if (pct >= 100 && !window._exportChimePlayedThisRun) {
+        window._exportChimePlayedThisRun = true;
+        if (typeof playWindowsCompletionSound === 'function') {
+            playWindowsCompletionSound();
+        }
     }
 }
 
@@ -5228,6 +5315,9 @@ function handleOverlayFileSelect(event, type) {
             if (logoHandle) makeOverlayResizable(monitorLogo, logoHandle, 'logo');
         }
 
+        const logoCard = document.getElementById('card-upload-logo');
+        if (logoCard) logoCard.classList.add('has-active-controls');
+
         const statusEl = document.getElementById('status-overlay-logo');
         const sizeKb = (file.size / 1024).toFixed(1);
 
@@ -5275,6 +5365,9 @@ function clearOverlayFile(event, type) {
 
         const monitorLogo = document.getElementById('monitor-logo-overlay');
         if (monitorLogo) monitorLogo.style.display = 'none';
+
+        const logoCard = document.getElementById('card-upload-logo');
+        if (logoCard) logoCard.classList.remove('has-active-controls');
 
         const statusEl = document.getElementById('status-overlay-logo');
         if (statusEl) {
@@ -6857,6 +6950,17 @@ function getActualVideoRect() {
         return vRect;
     }
 
+    if (window.videoFitMode === 'fill') {
+        return {
+            left: vRect.left,
+            top: vRect.top,
+            right: vRect.right,
+            bottom: vRect.bottom,
+            width: vRect.width,
+            height: vRect.height
+        };
+    }
+
     const videoAspect = vw / vh;
     const boxAspect = vRect.width / vRect.height;
 
@@ -8166,14 +8270,11 @@ function handleSelectedFiles(files, folderTitle = "") {
         setStagedVideo(fileList[0]);
     } else {
         setStagedBatchFiles(fileList, folderTitle);
-        // Automatically pop up export options modal so user can choose export format and start immediately
-        setTimeout(() => {
-            openExportOptionsModal();
-        }, 350);
     }
 }
 
-async function startAutoDubbingPipeline(file) {
+async function startAutoDubbingPipeline(file, customTitle = null) {
+    window._exportChimePlayedThisRun = false;
     const fileName = getMediaFileName(file);
     const fileSizeMB = file.size_mb !== undefined ? file.size_mb : (file.size ? (file.size / (1024*1024)).toFixed(1) : "?");
     const filePath = getMediaFilePath(file);
@@ -8217,6 +8318,7 @@ async function startAutoDubbingPipeline(file) {
 
     try {
         let res;
+        const projectTitleToUse = customTitle || file.title || undefined;
         if (filePath) {
             res = await fetch("/api/projects/auto-dub-video", {
                 method: "POST",
@@ -8224,6 +8326,7 @@ async function startAutoDubbingPipeline(file) {
                 body: JSON.stringify({
                     filepath: filePath,
                     filename: fileName,
+                    title: projectTitleToUse,
                     drama_mode: activeDramaMode,
                     source_lang: activeSourceLang,
                     voice_override: activeVoiceOverride,
@@ -8235,6 +8338,9 @@ async function startAutoDubbingPipeline(file) {
         } else {
             const formData = new FormData();
             formData.append("file", file);
+            if (projectTitleToUse) {
+                formData.append("title", projectTitleToUse);
+            }
             formData.append("drama_mode", activeDramaMode);
             formData.append("source_lang", activeSourceLang);
             formData.append("voice_override", activeVoiceOverride);
@@ -8391,8 +8497,93 @@ async function startAutoDubbingPipeline(file) {
 
 async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
     if (!files || files.length === 0) return;
+    window._exportChimePlayedThisRun = false;
     const totalBatchCount = files.length;
     const modeLabel = outputMode === 'full' ? 'One Full Merged Video' : (outputMode === 'both' ? 'Both Separate Episodes & Merged Full Movie' : 'Separate Episodes');
+
+    // =========================================================================
+    // MODE 1: FULL MOVIE MERGED (Fast Pre-merge all episodes into 1 unified
+    // source video, then dub the full movie at once: "បកពេញតែម្ដង់ មិនមែនជាភាគ")
+    // =========================================================================
+    if (outputMode === 'full') {
+        clearLiveTerminal();
+        appendLiveTerminalLine(`========================================================================`, "[Full Movie Mode]", "info");
+        appendLiveTerminalLine(`🎬 FULL MOVIE MERGED DUBBING INITIATED`, "[Full Movie Mode]", "info");
+        appendLiveTerminalLine(`Episodes: ${totalBatchCount} episodes loaded in story order.`, "[Full Movie Mode]", "info");
+        appendLiveTerminalLine(`Mode: Single-Pass Full Movie Dubbing (បកពេញតែម្ដង់ មិនមែនជាភាគ)`, "[Full Movie Mode]", "info");
+        appendLiveTerminalLine(`Voices: Piseth (Male Solo) & Sreymom (Female Solo) • Zero Vocal Leakage`, "[Full Movie Mode]", "info");
+        appendLiveTerminalLine(`========================================================================`, "[Full Movie Mode]", "info");
+
+        showToast(`Starting drama dubbing (${totalBatchCount} episodes) - Full Movie Merged...`);
+        showCleanSourceView();
+
+        const pill = document.getElementById('monitor-engine-status-pill');
+        const dot = document.getElementById('monitor-pulse-dot');
+        const text = document.getElementById('monitor-engine-status-text');
+        if (pill) pill.className = 'engine-status-pill';
+        if (dot) dot.className = 'pulse-indicator';
+        if (text) text.textContent = `FULL MOVIE MERGE (${totalBatchCount} EPS)`;
+
+        updateExportProgressUI(5, 0, 180, `Step 1/2: Pre-merging ${totalBatchCount} episodes into 1 unified video...`);
+
+        let seriesTitle = "Drama_Series";
+        if (files && files[0]) {
+            const f0Name = getMediaFileName(files[0]);
+            seriesTitle = f0Name.replace(/\.[^/.]+$/, '').replace(/(?:_part|[-_]ep|[-_]e|\bep|\bepisode)[-_]?\d+/i, '').replace(/[-_]+$/, '').trim() || "Drama_Series";
+            seriesTitle = seriesTitle.replace(/^(?:Dubbed_)+/i, '');
+        }
+
+        const videoPaths = files.map(f => getMediaFilePath(f)).filter(Boolean);
+        let mergedSourcePath = null;
+        let mergedSourceName = null;
+        let mergedSizeMb = "?";
+
+        if (videoPaths.length === totalBatchCount) {
+            appendLiveTerminalLine(`▶ Lossless stream-copying ${totalBatchCount} episodes into unified container...`, "[Full Movie Mode]", "info");
+            try {
+                const mRes = await fetch("/api/projects/pre-merge-raw-episodes", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        video_paths: videoPaths,
+                        series_title: seriesTitle
+                    })
+                });
+                const mData = await mRes.json();
+                if (mData.success && mData.merged_path) {
+                    mergedSourcePath = mData.merged_path;
+                    mergedSourceName = mData.merged_filename;
+                    mergedSizeMb = mData.size_mb;
+                    appendLiveTerminalLine(`✓ Fast Pre-merge complete: "${mergedSourceName}" (${mergedSizeMb} MB, ${totalBatchCount} episodes unified)`, "[Full Movie Mode]", "success");
+                } else {
+                    appendLiveTerminalLine(`Pre-merge warning: ${mData.error || 'Server note'}. Falling back to batch merge.`, "[Full Movie Mode]", "warning");
+                }
+            } catch (mErr) {
+                appendLiveTerminalLine(`Pre-merge network note: ${mErr.message}. Falling back to batch merge.`, "[Full Movie Mode]", "warning");
+            }
+        }
+
+        if (mergedSourcePath) {
+            appendLiveTerminalLine(`▶ Step 2/2: Starting Full-Movie Automated AI Dubbing on unified video...`, "[Full Movie Mode]", "info");
+            appendLiveTerminalLine(`Single-pass transcription & translation for seamless storytelling across scenes!`, "[Full Movie Mode]", "info");
+            updateExportProgressUI(10, 0, 150, `Step 2/2: Dubbing full movie "${seriesTitle}" with Piseth & Sreymom...`);
+
+            const fullMovieFile = {
+                filepath: mergedSourcePath,
+                filename: mergedSourceName,
+                name: mergedSourceName,
+                size_mb: mergedSizeMb,
+                title: `${seriesTitle}_Full_Movie`
+            };
+
+            await startAutoDubbingPipeline(fullMovieFile, `Dubbed_${seriesTitle}_Full_Movie`);
+            return;
+        }
+    }
+
+    // =========================================================================
+    // MODE 2 & 3: SEPARATE EPISODES / BOTH EPISODES & FULL MOVIE (Sequential)
+    // =========================================================================
     showToast(`Starting drama dubbing (${totalBatchCount} episodes) - ${modeLabel}...`);
 
     clearLiveTerminal();
@@ -8601,6 +8792,7 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
         if (files && files[0]) {
             const f0Name = getMediaFileName(files[0]);
             seriesTitle = f0Name.replace(/\.[^/.]+$/, '').replace(/(?:_part|[-_]ep|[-_]e|\bep|\bepisode)[-_]?\d+/i, '').replace(/[-_]+$/, '').trim() || "Drama_Series";
+            seriesTitle = seriesTitle.replace(/^(?:Dubbed_)+/i, '');
         }
 
         try {
@@ -8688,6 +8880,10 @@ function showDubbingSuccessNotification(data) {
     if (pill) pill.className = 'engine-status-pill standby';
     if (dot) dot.className = 'pulse-indicator standby';
     if (text) text.textContent = 'COMPLETED 100%';
+
+    if (typeof playWindowsCompletionSound === 'function') {
+        playWindowsCompletionSound();
+    }
 }
 
 async function openExportFolderDirect(targetPath) {
@@ -8913,6 +9109,135 @@ async function pasteGateLicense() {
 }
 
 // ==========================================================================
+// WINDOWS SYSTEM NOTIFICATION SOUND AUDIO SYSTEM (BUILT-IN & PERMANENT)
+// Plays genuine Microsoft Windows System Notification Sound whenever any task finishes
+// (Export 100%, Batch Dubbing, Concat/Merge, Download, Split, Compress, Rename).
+// Embedded directly inside the application; cannot be disabled, muted, or removed.
+// ==========================================================================
+let _lastWindowsChimeTimestamp = 0;
+let _cachedChimeAudio = null;
+
+function initWindowsCompletionSound() {
+    try {
+        if (!_cachedChimeAudio) {
+            _cachedChimeAudio = new Audio('/static/system_notification.mp3');
+            _cachedChimeAudio.preload = 'auto';
+            _cachedChimeAudio.volume = 1.0;
+        }
+    } catch (e) {
+        console.warn("[Sound System] Audio preload note:", e);
+    }
+}
+
+// Fail-safe Web Audio API synthesizer matching harmonic frequencies:
+// Tone 1: F#5 (739.99 Hz)
+// Tone 2: C#6 (1108.73 Hz) + F6 (1396.91 Hz) harmonic overtone
+function playSynthesizedWindowsNotifyChime() {
+    try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        if (!window._winAudioCtx) {
+            window._winAudioCtx = new AudioCtx();
+        }
+        const ctx = window._winAudioCtx;
+        if (ctx.state === 'suspended') {
+            ctx.resume();
+        }
+        
+        const now = ctx.currentTime;
+        // Tone 1: F#5 (739.99 Hz)
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(739.99, now);
+        gain1.gain.setValueAtTime(0, now);
+        gain1.gain.linearRampToValueAtTime(0.35, now + 0.02);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.45);
+
+        // Tone 2: C#6 (1108.73 Hz)
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(1108.73, now + 0.14);
+        gain2.gain.setValueAtTime(0, now + 0.14);
+        gain2.gain.linearRampToValueAtTime(0.38, now + 0.16);
+        gain2.gain.exponentialRampToValueAtTime(0.0001, now + 1.15);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start(now + 0.14);
+        osc2.stop(now + 1.15);
+
+        // Harmonic overtone for Tone 2: F6 (1396.91 Hz)
+        const osc3 = ctx.createOscillator();
+        const gain3 = ctx.createGain();
+        osc3.type = 'sine';
+        osc3.frequency.setValueAtTime(1396.91, now + 0.14);
+        gain3.gain.setValueAtTime(0, now + 0.14);
+        gain3.gain.linearRampToValueAtTime(0.20, now + 0.16);
+        gain3.gain.exponentialRampToValueAtTime(0.0001, now + 0.95);
+        osc3.connect(gain3);
+        gain3.connect(ctx.destination);
+        osc3.start(now + 0.14);
+        osc3.stop(now + 0.95);
+    } catch (e) {
+        console.warn("[Sound System] Synthesis note:", e);
+    }
+}
+
+function playWindowsCompletionSound() {
+    const now = Date.now();
+    // Debounce to prevent overlapping triggers within 1.0s
+    if (now - _lastWindowsChimeTimestamp < 1000) {
+        return;
+    }
+    _lastWindowsChimeTimestamp = now;
+
+    // 1. Direct native Windows OS playback via Python backend (rings OS audio device directly)
+    fetch('/api/system/play-completion-sound', { method: 'POST' }).catch(() => {});
+
+    // 2. Browser / WebView2 HTML5 Audio with genuine Windows System Notification sound
+    try {
+        if (!_cachedChimeAudio) {
+            _cachedChimeAudio = new Audio('/static/system_notification.mp3');
+            _cachedChimeAudio.volume = 1.0;
+        }
+        _cachedChimeAudio.currentTime = 0;
+        const playPromise = _cachedChimeAudio.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(err => {
+                const wavAudio = new Audio('/static/system_notification.wav');
+                wavAudio.volume = 1.0;
+                wavAudio.play().catch(() => {
+                    playSynthesizedWindowsNotifyChime();
+                });
+            });
+        }
+    } catch (err) {
+        playSynthesizedWindowsNotifyChime();
+    }
+}
+
+// Preload audio and unlock audio contexts
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initWindowsCompletionSound);
+    } else {
+        initWindowsCompletionSound();
+    }
+    ['click', 'keydown', 'pointerdown'].forEach(evt => {
+        window.addEventListener(evt, () => {
+            if (window._winAudioCtx && window._winAudioCtx.state === 'suspended') {
+                window._winAudioCtx.resume();
+            }
+        }, { once: true });
+    });
+}
+
+// ==========================================================================
 // UTILITIES
 // ==========================================================================
 function showToast(msg) {
@@ -8922,6 +9247,21 @@ function showToast(msg) {
     let type = "info";
     const str = String(msg);
     const lower = str.toLowerCase();
+
+    // Trigger authentic Windows completion chime on any finished operation
+    const isCompletedAction = (
+        lower.includes("100%") ||
+        lower.includes("completed") ||
+        lower.includes("successfully") ||
+        lower.includes("finished") ||
+        lower.includes("downloaded all") ||
+        lower.includes("merged") ||
+        (lower.includes("saved") && lower.includes("mb"))
+    ) && !lower.includes("engine ready") && !lower.includes("console ready") && !lower.includes("modal");
+
+    if (isCompletedAction) {
+        playWindowsCompletionSound();
+    }
 
     if (lower.includes("100%") || lower.includes("success") || lower.includes("ready") || lower.includes("complete") || lower.includes("finished")) {
         tag = "[Completed]";

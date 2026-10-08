@@ -485,9 +485,17 @@ class ProjectManager:
         try:
             import shutil
             from batch_engine import resolve_drama_export_directories
+            import re
             clean_title = project.get("title") or Path(video_in).stem
             dest_dirs = resolve_drama_export_directories(video_in, clean_title)
-            out_stem = f"Dubbed_{Path(video_in).stem}"
+            
+            # Format clean output stem avoiding 'Dubbed_Dubbed_' or raw prefixes
+            title_stem = project.get("title") or Path(video_in).stem
+            clean_stem = re.sub(r'^(?:Dubbed_)+', '', str(title_stem), flags=re.IGNORECASE)
+            clean_stem = re.sub(r'^Raw_Full_Movie_', '', clean_stem, flags=re.IGNORECASE)
+            clean_stem = re.sub(r'_\d{9,12}$', '', clean_stem)
+            out_stem = f"Dubbed_{clean_stem}"
+            
             for d in dest_dirs:
                 dest_file = d / f"{out_stem}.mp4"
                 if Path(output_video_path).resolve() != dest_file.resolve():
@@ -598,10 +606,8 @@ class ProjectManager:
 
         # 3. Speech-to-Text (Auto Transcribe via Faster-Whisper with word-level timestamps)
         update_prog(45, f"3/7 AI transcribing dialogue ({voice_label})...", "Transcribing speech...")
-        # Use isolated vocals (clean without BGM) for ultra-accurate transcription & F0 pitch diarization
-        stt_target_audio = project.get("isolated_vocals_file") or str(audio_dest)
-        if not Path(stt_target_audio).exists() or Path(stt_target_audio).stat().st_size < 1000:
-            stt_target_audio = str(audio_dest)
+        # Use full-fidelity original audio for 100% complete dialogue capture (Zero Dropped Words Guarantee)
+        stt_target_audio = str(audio_dest)
         try:
             dialogues = self.stt_engine.transcribe_audio(
                 audio_path=stt_target_audio,

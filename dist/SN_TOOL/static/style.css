@@ -714,7 +714,7 @@ textarea {
 #main-video {
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    object-fit: contain !important;
     background: transparent;
     cursor: pointer;
     border-radius: 8px;
@@ -1686,7 +1686,7 @@ textarea {
     height: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;
+    justify-content: space-between;
     gap: 12px;
     padding: 14px 18px;
     background: radial-gradient(circle at 85% 15%, rgba(99, 102, 241, 0.08) 0%, transparent 45%),
@@ -1735,9 +1735,10 @@ textarea {
 .staged-file-info-left {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     overflow: hidden;
     min-width: 0;
+    flex: 1;
 }
 
 .staged-source-kicker {
@@ -1774,13 +1775,14 @@ textarea {
 
 .staged-card-title {
     font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
-    font-size: 0.94rem;
+    font-size: 0.92rem;
     font-weight: 700;
     color: #ffffff;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 380px;
+    max-width: 240px;
+    flex-shrink: 1;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
@@ -1789,7 +1791,10 @@ textarea {
     color: #94a3b8;
     font-family: var(--font-mono);
     white-space: nowrap;
-    flex-shrink: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 1;
+    max-width: 380px;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 6px;
@@ -1871,7 +1876,7 @@ textarea {
 .staged-workspace-frame {
     flex: 1;
     width: 100%;
-    min-height: 0;
+    min-height: 200px;
     background: linear-gradient(145deg, rgba(22, 29, 48, 0.55) 0%, rgba(13, 17, 30, 0.72) 100%);
     backdrop-filter: blur(28px) saturate(190%);
     -webkit-backdrop-filter: blur(28px) saturate(190%);
@@ -1887,8 +1892,25 @@ textarea {
     align-items: flex-start;
     padding: 14px 18px;
     position: relative;
-    overflow: hidden !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(250, 204, 21, 0.3) transparent;
     transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.staged-workspace-frame::-webkit-scrollbar {
+    width: 5px;
+}
+.staged-workspace-frame::-webkit-scrollbar-track {
+    background: transparent;
+}
+.staged-workspace-frame::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+}
+.staged-workspace-frame::-webkit-scrollbar-thumb:hover {
+    background: rgba(250, 204, 21, 0.4);
 }
 
 .staged-workspace-frame::before {
@@ -4216,8 +4238,24 @@ select, option, optgroup {
 .overlay-active-controls {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     min-width: 0;
+    flex-wrap: nowrap;
+}
+
+/* Hide long generic description when active controls are shown so the row never squishes */
+.overlay-row-bar:has(.overlay-active-controls) .overlay-col-desc,
+.overlay-row-bar.active .overlay-col-desc {
+    display: none !important;
+}
+
+.overlay-file-name {
+    max-width: 120px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+    vertical-align: middle;
 }
 
 .overlay-thumb-mini {
@@ -5309,9 +5347,9 @@ select, option, optgroup {
    POINT 3: Studio Processing & Activity Console (Pro Desktop Studio Console)
    ========================================================================== */
 .studio-engine-monitor-box {
-    height: 240px;
-    min-height: 240px;
-    max-height: 240px;
+    min-height: 160px;
+    max-height: 360px;
+    flex: 0 1 240px;
     flex-shrink: 0;
     background: rgba(13, 16, 24, 0.75);
     backdrop-filter: var(--glass-blur);
@@ -11413,6 +11451,94 @@ body.license-locked #tab-content-power {
     border-color: #f59e0b;
     color: #fde68a;
 }
+
+/* ==========================================================================
+   PRO STUDIO RESPONSIVE LAYOUT (Non-Maximized / Compact Window Enhancements)
+   ========================================================================== */
+@media (max-width: 1400px) {
+    .studio-layout-grid {
+        grid-template-columns: 350px 1fr;
+        gap: 10px;
+    }
+    .staged-compact-header {
+        padding: 8px 14px;
+        gap: 8px;
+    }
+    .staged-card-title {
+        max-width: 200px;
+    }
+    .staged-card-meta {
+        max-width: 300px;
+    }
+}
+
+@media (max-width: 1240px) {
+    .studio-layout-grid {
+        grid-template-columns: 320px 1fr;
+        gap: 8px;
+    }
+    .staged-compact-header {
+        flex-wrap: wrap;
+    }
+    .staged-file-actions-right {
+        margin-left: auto;
+    }
+    .overlay-row-bar {
+        padding: 0 10px;
+        gap: 8px;
+    }
+    .overlay-col-title {
+        font-size: 0.82rem;
+    }
+}
+
+@media (min-height: 860px) {
+    .studio-engine-monitor-box {
+        flex: 0 1 260px;
+        min-height: 200px;
+        max-height: 380px;
+    }
+    .studio-layout-grid {
+        grid-template-columns: minmax(390px, 440px) 1fr;
+    }
+}
+
+@media (max-height: 840px) {
+    .studio-engine-monitor-box {
+        min-height: 120px;
+        max-height: 180px;
+        flex: 0 1 150px;
+        padding: 8px 12px;
+    }
+    .staged-video-ready-card {
+        gap: 8px;
+        padding: 10px 14px;
+    }
+    .staged-workspace-frame {
+        padding: 10px 14px;
+        min-height: 180px;
+    }
+    .overlay-row-bar {
+        height: 42px;
+        min-height: 42px;
+        max-height: 42px;
+    }
+    .staged-overlay-stack {
+        margin-top: 6px;
+    }
+}
+
+@media (max-height: 720px) {
+    .studio-engine-monitor-box {
+        min-height: 100px;
+        max-height: 140px;
+        flex: 0 1 120px;
+    }
+    .staged-workspace-frame {
+        min-height: 150px;
+    }
+}
+
 
 
 

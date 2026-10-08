@@ -538,6 +538,15 @@ def enrich_khmer_drama_dialogue(
     clean_no_punct = re.sub(r'[!！?？។.\s]+', '', res)
     zh_clean = re.sub(r'[\s!！?？,，.。~～`\'"]+', '', str(zh_text or ''))
 
+    # 4.1 Syllable Budget Adaptation for Short Mouth Timecodes (<= 1.2s):
+    if duration_sec is not None and duration_sec <= 1.2:
+        res = re.sub(r'^(?:សូមមេត្តា|សូម|យ៉ាងណាវិញ|ដោយសារតែ|ដូច្នេះហើយ|តាមពិតទៅ)\s*', '', res)
+        if len(zh_clean) <= 6 and len(res) > 22:
+            parts = re.split(r'[,!?;:។\n]', res)
+            first_clause = parts[0].strip() if parts else ""
+            if len(first_clause) >= 4 and len(first_clause) <= 22:
+                res = first_clause + ("?!" if any(q in res for q in ('?', '？')) else ("!" if any(e in res for e in ('!', '！')) else "។"))
+
     # Only apply standalone shout overrides when zh_clean is strictly an isolated short phrase (<= 4 chars)
     # This guarantees that sentences like "我们快走吧不要迟到" or "等一下我有话要说" are NEVER truncated or dropped!
     if len(zh_clean) <= 4:
@@ -972,6 +981,51 @@ class DramaTranslator:
             "character_role": persona["speaker"]
         }
 
+    async def _translate_single_line(
+        self,
+        item: Dict[str, Any],
+        idx: int,
+        source_lang: str = "auto",
+        target_voice_override: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Translate a single dialogue item using high-speed local engine with drama enrichment (Zero-Drop Guarantee)."""
+        orig_text = item.get("text") or item.get("text_original", "")
+        start = item.get("start", 0.0)
+        end = item.get("end", 0.0)
+        dur_sec = round(max(0.2, float(end) - float(start)), 2)
+
+        v_info = self._determine_strictly_two_voices(item, target_voice_override)
+        chosen_voice = v_info["voice"]
+
+        try:
+            text_km = await self.translate_text_free(
+                orig_text,
+                source_lang=source_lang,
+                voice=chosen_voice
+            )
+        except Exception as e:
+            print(f"Fallback translation note on line {idx}: {e}")
+            text_km = orig_text
+
+        final_text_km = enrich_khmer_drama_dialogue(
+            text_km,
+            orig_text,
+            chosen_voice,
+            duration_sec=dur_sec
+        )
+
+        return {
+            "id": item.get("id", idx + 1),
+            "start": start,
+            "end": end,
+            "speaker": v_info["character_role"],
+            "text_original": orig_text,
+            "text_km": final_text_km,
+            "voice": chosen_voice,
+            "rate_percent": v_info["rate_percent"],
+            "pitch_hz": v_info["pitch_hz"]
+        }
+
     async def translate_dialogues_groq(
         self,
         dialogues: List[Dict[str, Any]],
@@ -982,7 +1036,7 @@ class DramaTranslator:
         chosen_single_voice: str = "piseth",
         is_multi: bool = True
     ) -> Optional[List[Dict[str, Any]]]:
-        """Ultra-fast Qwen-3.8-27b / GPT-OSS-120b / Llama via Groq Cloud API for cinematic Khmer dubbing."""
+        """Ultra-fast Qwen-3.8-27b / GPT-OSS-120b / Llama via Groq Cloud API for cinematic Khmer dubbing with Zero-Drop Guarantee."""
         active_key = self.get_active_groq_key()
         if not active_key or not str(active_key).startswith("gsk_"):
             return None
@@ -1016,12 +1070,12 @@ Input script items in JSON (includes exact 'duration' in seconds and 'max_words'
 
 Translate each dialogue item into emotional, natural spoken Khmer dubbing script ('text_km').
 {voice_directive}
-CRITICAL LIP-SYNC & MOUTH-MOVEMENT SYNCHRONIZATION (ត្រូវទាន់ជាមួយតួអង្គហាមាត់និយាយ):
+CRITICAL LIP-SYNC & SYLLABLE-PACING (ត្រូវទាន់ជាមួយតួអង្គហាមាត់និយាយ និងល្បឿននិយាយធម្មជាតិ 1.0x):
 - COMPLETE MEANING: Translate the entire dialogue without omitting words, clauses, character names, or statements. NEVER drop parts of what the speaker says!
-- Spoken length of 'text_km' MUST fit within 'duration' seconds and MUST NOT exceed 'max_words'.
-- The spoken Khmer voice MUST finish exactly when the character's mouth closes!
-- For short lines (duration <= 1.5s or short words like 送什么, 滚, 走, 站住, 住手, 救命, 闭嘴, 谁啊, 等一下, 找死): strictly translate into 1-3 PUNCHY words max (e.g. "ជូនស្អី?!", "ចេញទៅ!", "ឈប់ភ្លាម!", "ទៅណា?!", "ជួយផង!", "បិទមាត់!", "ចាំសិន!", "ចង់ងាប់មែនទេ?!"). NEVER hallucinate or expand short shouts into long explanations.
-- For longer lines (duration >= 3.0s): translate with natural dramatic cadence matching the mouth duration window.
+- SYLLABLE BUDGET MATCHING: The Khmer sentence length MUST match the actor's mouth duration so that the voice speaks at a natural, unhurried human pace (1.0x). DO NOT write overly long sentences for short clips!
+  * Duration <= 1.2s: strictly translate into 1-3 PUNCHY words max (e.g. "ជូនស្អី?!", "ចេញទៅ!", "ឈប់ភ្លាម!", "ទៅណា?!", "ជួយផង!", "បិទមាត់!", "ចាំសិន!", "ចង់ងាប់មែនទេ?!"). NEVER expand short shouts into long explanations.
+  * Duration 1.3s - 2.5s: 4-7 natural spoken Khmer words.
+  * Duration >= 3.0s: translate with natural dramatic cadence matching the mouth duration window.
 - Natural spoken Khmer drama dubbing style (ពិរោះស្ដាប់ រណ្តំចិត្ត ដូចទូរទស្សន៍ហង្សមាស បាយ័ន ស៊ីធីអិន): no robotic "តើអ្នក", no formal book language.
 Return JSON object with key "dialogues" containing an array with keys: id, start, end, text_original, text_km, speaker, voice, rate_percent, pitch_hz, emotion."""
 
@@ -1090,15 +1144,29 @@ Return JSON object with key "dialogues" containing an array with keys: id, start
                     continue
             return None
 
-        # Execute all chunks in parallel for ultra-high speed
+        # Execute all chunks in parallel for ultra-high speed with Zero-Drop Reconciliation
         chunk_tasks = [_process_groq_chunk(c) for c in chunks]
         results = await asyncio.gather(*chunk_tasks)
-        if all(r is not None for r in results):
-            all_results = []
-            for r in results:
-                all_results.extend(r)
-            if len(all_results) == len(dialogues):
-                return all_results
+        
+        translated_map: Dict[int, Dict[str, Any]] = {}
+        for chunk_idx, r in enumerate(results):
+            chunk_start = chunk_idx * chunk_size
+            if r and isinstance(r, list):
+                for j, item in enumerate(r):
+                    global_idx = chunk_start + j
+                    if global_idx < len(dialogues):
+                        translated_map[global_idx] = item
+
+        # If Groq successfully translated at least 40% of the dialogues, reconcile missing ones
+        if len(translated_map) >= len(dialogues) * 0.4:
+            missing_indices = [i for i in range(len(dialogues)) if i not in translated_map]
+            if missing_indices:
+                missing_tasks = [self._translate_single_line(dialogues[mi], mi, source_lang, None) for mi in missing_indices]
+                missing_results = await asyncio.gather(*missing_tasks)
+                for mi, m_item in zip(missing_indices, missing_results):
+                    translated_map[mi] = m_item
+            return [translated_map[i] for i in range(len(dialogues))]
+
         return None
 
     async def translate_dialogues(
@@ -1191,13 +1259,13 @@ Input script items in JSON (includes exact 'duration' in seconds and 'max_words'
 
 Translate each dialogue item into emotional, natural spoken Khmer dubbing script ('text_km').
 {voice_directive}
-CRITICAL LIP-SYNC & MOUTH-MOVEMENT SYNCHRONIZATION (ត្រូវទាន់ជាមួយតួអង្គហាមាត់និយាយ):
+CRITICAL LIP-SYNC & SYLLABLE-PACING (ត្រូវទាន់ជាមួយតួអង្គហាមាត់និយាយ និងល្បឿននិយាយធម្មជាតិ 1.0x):
 - COMPLETE MEANING: Translate the entire dialogue without omitting words, clauses, character names, or statements. NEVER drop parts of what the speaker says!
-- Spoken length of 'text_km' MUST fit within 'duration' seconds and MUST NOT exceed 'max_words'.
-- The spoken Khmer voice MUST finish exactly when the character's mouth closes!
-- For short lines (duration <= 1.5s or short words like 滚, 走, 站住, 住手, 救命, 闭嘴, 谁啊, 找死): strictly translate into 1-3 PUNCHY words (e.g. "ចេញទៅ!", "ឈប់ភ្លាម!", "ទៅ!", "ជួយផង!", "បិទមាត់!", "ចង់ងាប់មែនទេ?!"). NEVER expand short shouts into long explanations.
-- For longer lines (duration >= 3.0s): translate with natural dramatic cadence matching the mouth duration window.
-- Natural spoken Khmer drama dubbing style (ពិរោះស្ដាប់ រណ្តំចិត្ត): no robotic "តើអ្នក", no formal book language.
+- SYLLABLE BUDGET MATCHING: The Khmer sentence length MUST match the actor's mouth duration so that the voice speaks at a natural, unhurried human pace (1.0x). DO NOT write overly long sentences for short clips!
+  * Duration <= 1.2s: strictly translate into 1-3 PUNCHY words (e.g. "ចេញទៅ!", "ឈប់ភ្លាម!", "ទៅណា?!", "ជួយផង!", "បិទមាត់!", "ចាំសិន!", "ចង់ងាប់មែនទេ?!"). NEVER expand short shouts into long explanations.
+  * Duration 1.3s - 2.5s: 4-7 natural spoken Khmer words.
+  * Duration >= 3.0s: translate with natural dramatic cadence matching the mouth duration window.
+- Natural spoken Khmer drama dubbing style (ពិរោះស្ដាប់ រណ្តំចិត្ត ដូចទូរទស្សន៍ហង្សមាស បាយ័ន ស៊ីធីអិន): no robotic "តើអ្នក", no formal book language.
 Return ONLY valid JSON array with keys: id, start, end, text_original, text_km, speaker, voice, rate_percent, pitch_hz, emotion."""
 
                     active_client = self.get_client() or self.client
@@ -1226,8 +1294,9 @@ Return ONLY valid JSON array with keys: id, start, end, text_original, text_km, 
 
                     if response and response.text:
                         parsed = json.loads(response.text)
-                        if isinstance(parsed, list):
-                            for j, item in enumerate(parsed):
+                        items = parsed if isinstance(parsed, list) else parsed.get("dialogues") or parsed.get("items") or list(parsed.values())[0]
+                        if isinstance(items, list):
+                            for j, item in enumerate(items):
                                 if j < len(chunk):
                                     item["start"] = chunk[j].get("start", item.get("start", 0))
                                     item["end"] = chunk[j].get("end", item.get("end", 0))
@@ -1257,17 +1326,30 @@ Return ONLY valid JSON array with keys: id, start, end, text_original, text_km, 
                                         item["voice"],
                                         duration_sec=dur_sec
                                     )
-                            return parsed
+                            return items
                     return None
 
                 g_tasks = [_process_gemini_chunk(c) for c in g_chunks]
                 g_results = await asyncio.gather(*g_tasks)
-                if all(r is not None for r in g_results):
-                    all_gemini = []
-                    for r in g_results:
-                        all_gemini.extend(r)
-                    if len(all_gemini) == len(dialogues):
-                        return all_gemini
+                
+                g_translated_map: Dict[int, Dict[str, Any]] = {}
+                for chunk_idx, r in enumerate(g_results):
+                    chunk_start = chunk_idx * chunk_size
+                    if r and isinstance(r, list):
+                        for j, item in enumerate(r):
+                            global_idx = chunk_start + j
+                            if global_idx < len(dialogues):
+                                g_translated_map[global_idx] = item
+
+                # If Gemini translated at least 40% of the dialogues, reconcile missing ones with Zero-Drop
+                if len(g_translated_map) >= len(dialogues) * 0.4:
+                    missing_indices = [i for i in range(len(dialogues)) if i not in g_translated_map]
+                    if missing_indices:
+                        missing_tasks = [self._translate_single_line(dialogues[mi], mi, source_lang, target_voice_override) for mi in missing_indices]
+                        missing_results = await asyncio.gather(*missing_tasks)
+                        for mi, m_item in zip(missing_indices, missing_results):
+                            g_translated_map[mi] = m_item
+                    return [g_translated_map[i] for i in range(len(dialogues))]
             except Exception as e:
                 print(f"Gemini translation note: {e}. Using professional free drama dubbing engine.")
 

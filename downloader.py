@@ -35,6 +35,44 @@ import hongguo_service
 import shortmax_service
 import reelshort_service
 
+def play_windows_completion_sound():
+    def _play():
+        try:
+            if sys.platform == "win32":
+                import winsound
+                windir = os.environ.get("WINDIR", "C:\\Windows")
+                candidates = [
+                    os.path.join(windir, "Media", "Windows Notify System Generic.wav"),
+                    os.path.join(_ROOT_DIR, "static", "system_notification.wav"),
+                    os.path.join(windir, "Media", "Windows Background.wav"),
+                    os.path.join(_ROOT_DIR, "static", "windows_notify.wav"),
+                    os.path.join(windir, "Media", "Windows Notify.wav"),
+                ]
+                for p in candidates:
+                    if os.path.exists(p):
+                        try:
+                            winsound.PlaySound(p, winsound.SND_FILENAME | winsound.SND_ASYNC)
+                            return
+                        except Exception:
+                            pass
+                try:
+                    winsound.PlaySound("SystemNotification", winsound.SND_ALIAS | winsound.SND_ASYNC)
+                    return
+                except Exception:
+                    pass
+                try:
+                    winsound.PlaySound("Notification.Default", winsound.SND_ALIAS | winsound.SND_ASYNC)
+                    return
+                except Exception:
+                    pass
+                try:
+                    winsound.MessageBeep(winsound.MB_ICONASTERISK)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+    threading.Thread(target=_play, daemon=True).start()
+
 def resolve_safe_save_location(save_location: Optional[str] = None) -> Path:
     """
     Safely resolves, creates, and verifies write access to a download folder across diverse customer PCs.
@@ -2891,6 +2929,7 @@ class DramaDownloadManager:
                     self.is_downloading = False
                     self.stop_requested = False
                     self.stats["progress_percent"] = 100
+                    play_windows_completion_sound()
                     self.add_log(f"🎉 ជោគជ័យ ១០០%! បានទាញយកចប់សព្វគ្រប់ {len(selected_eps)} ភាគ ដោយគ្មាន Error ឡើយ!")
                     return
 
@@ -3112,6 +3151,7 @@ class DramaDownloadManager:
             self.is_downloading = False
             self.stop_requested = False
             self.stats["progress_percent"] = 100
+            play_windows_completion_sound()
             self.add_log(f"🎉 Batch download finished: {self.stats['completed']} completed, {self.stats['failed']} failed out of {total} episodes in '{drama_dest_dir}'.")
 
         def worker():

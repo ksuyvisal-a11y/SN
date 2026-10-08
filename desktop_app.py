@@ -333,9 +333,9 @@ def get_standard_window_geometry():
         except Exception:
             pass
 
-    # Dimensions calculated to leave generous margin on all sides (centered horizontally & vertically)
-    target_w = min(1180, max(980, int(sw * 0.74)))
-    target_h = min(660, max(580, int(sh * 0.76)))
+    # Generous Pro Studio desktop window dimensions:
+    target_w = min(1520, max(1240, int(sw * 0.82)))
+    target_h = min(920, max(750, int(sh * 0.86)))
 
     x = wa_left + max(0, (sw - target_w) // 2)
     y = wa_top + max(0, (sh - target_h) // 2)
@@ -359,8 +359,8 @@ def enforce_center_window(target_hwnd):
         wa_w = wa.right - wa.left
         wa_h = wa.bottom - wa.top
 
-        w = min(1180, max(980, int(wa_w * 0.74)))
-        h = min(660, max(580, int(wa_h * 0.76)))
+        w = min(1520, max(1240, int(wa_w * 0.82)))
+        h = min(920, max(750, int(wa_h * 0.86)))
 
         cx = wa.left + max(0, (wa_w - w) // 2)
         cy = wa.top + max(0, (wa_h - h) // 2)
@@ -399,7 +399,7 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
             x=x,  # Explicitly centered X coordinate
             y=y,  # Explicitly centered Y coordinate
             resizable=True,
-            min_size=(960, 580),
+            min_size=(1180, 680),
             background_color="#08090d",
             text_select=True,
             zoomable=True,

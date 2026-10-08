@@ -32,18 +32,18 @@ def separate_vocals_and_bgm(
     # Deep multi-band speech notch filter (vocal formant suppression without phase cancellation)
     # This guarantees that mono or dual-mono audio (TikTok/Reels/Short dramas) is NEVER cancelled to dead silence!
     speech_notch_filter = (
-        "highpass=f=40,lowpass=f=16000,"
-        "equalizer=f=250:t=q:w=1.2:g=-14,"
-        "equalizer=f=600:t=q:w=1.5:g=-18,"
-        "equalizer=f=1200:t=q:w=1.8:g=-22,"
-        "equalizer=f=2200:t=q:w=1.8:g=-22,"
-        "equalizer=f=3200:t=q:w=1.8:g=-18,"
-        "equalizer=f=4200:t=q:w=1.5:g=-14"
+        "highpass=f=50,lowpass=f=15000,"
+        "equalizer=f=250:t=q:w=1.5:g=-24,"
+        "equalizer=f=600:t=q:w=2.0:g=-30,"
+        "equalizer=f=1200:t=q:w=2.0:g=-36,"
+        "equalizer=f=2200:t=q:w=2.0:g=-36,"
+        "equalizer=f=3200:t=q:w=2.0:g=-30,"
+        "equalizer=f=4200:t=q:w=1.5:g=-24"
     )
 
     # 1. First attempt: Stereotools center-channel vocal suppression (Mid-Side extraction) + speech formant notch
     phase_cancel_filter = (
-        "stereotools=mlev=0.01:slev=1.35,"
+        "stereotools=mlev=0.0:slev=1.4,"
         + speech_notch_filter
     )
 
@@ -66,11 +66,11 @@ def separate_vocals_and_bgm(
         need_fallback = True
     else:
         try:
-            # Fast check on a 5-second sample instead of decoding the entire file into memory
+            # Dual-window probe to avoid false fallbacks on quiet drama intros
             probe_cmd = [
                 get_ffmpeg_path(),
                 "-nostdin",
-                "-ss", "5",
+                "-ss", "12",
                 "-t", "5",
                 "-i", str(bgm_output),
                 "-af", "volumedetect",
@@ -86,9 +86,30 @@ def separate_vocals_and_bgm(
                         break
                     except Exception:
                         pass
-            if m_db < -46.0:
-                print(f"Notice: Phase cancellation resulted in silence (mean_volume={m_db:.1f}dB), switching to speech notch filter.")
-                need_fallback = True
+            if m_db < -60.0:
+                # Confirm with a second window at 28 seconds
+                probe_cmd2 = [
+                    get_ffmpeg_path(),
+                    "-nostdin",
+                    "-ss", "28",
+                    "-t", "5",
+                    "-i", str(bgm_output),
+                    "-af", "volumedetect",
+                    "-f", "null",
+                    "-"
+                ]
+                p_res2 = subprocess.run(probe_cmd2, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", timeout=15, **get_silent_kwargs())
+                m_db2 = -50.0
+                for line in (p_res2.stderr or "").splitlines():
+                    if "mean_volume:" in line:
+                        try:
+                            m_db2 = float(line.split("mean_volume:")[1].split("dB")[0].strip())
+                            break
+                        except Exception:
+                            pass
+                if m_db2 < -60.0:
+                    print(f"Notice: Phase cancellation resulted in mono silence (mean_volume={m_db:.1f}dB, {m_db2:.1f}dB), switching to deep speech notch filter.")
+                    need_fallback = True
         except Exception:
             pass
 
