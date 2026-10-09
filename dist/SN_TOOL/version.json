@@ -1,9 +1,9 @@
 {
-  "version": "1.0.1",
+  "version": "1.0.2",
   "app_name": "SN TOOL - STUDIO PRO",
-  "release_date": "2026-10-06",
-  "title": "SN TOOL STUDIO PRO - Official Update v1.0.1",
-  "release_notes": "• Official Version 1.0.1 PRO Release\n• Optimized Audio Processor for ultra-low RAM usage\n• Enhanced ShortMax and ReelShort stream decryption engine\n• 1-Click Cloud Auto-Updater integration\n• Enhanced Watermark and Blur Logo rendering for full movies\n• Premium 3D Gold Emblem icon update\n• Fixed Windows file path length (Error 206) limitations",
+  "release_date": "2026-10-09",
+  "title": "SN TOOL STUDIO PRO - Official Update v1.0.2",
+  "release_notes": "• Built-in AI Auto-Detect & Trim Frozen Outros\n• Split Video starting from 1 Minute with Total Generated EP estimation\n• Streamlined Power Tools suite (Clean & Minimalist)\n• Lossless Stream-Copy Concat engine\n• Seamless Full Movie Dubbing with cliffhanger freeze removal",
   "download_url": "https://github.com/ksuyvisal-a11y/SN/releases/latest/download/SN_TOOL_UPDATE.zip",
   "github_repo": "ksuyvisal-a11y/SN",
   "channel": "stable"

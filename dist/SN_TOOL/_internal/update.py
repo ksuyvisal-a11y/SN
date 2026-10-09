@@ -13,7 +13,7 @@ import urllib.error
 from pathlib import Path
 from typing import Dict, Any, Tuple
 
-CURRENT_VERSION = "1.0.1"
+CURRENT_VERSION = "1.0.2"
 GITHUB_OWNER = "ksuyvisal-a11y"
 GITHUB_REPO = "SN"
 UPDATE_CHECK_RAW_URL = f"https://raw.githubusercontent.com/{GITHUB_OWNER}/{GITHUB_REPO}/main/version.json"
