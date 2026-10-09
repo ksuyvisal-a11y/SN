@@ -8,7 +8,7 @@ import hashlib
 import subprocess
 import json
 from pathlib import Path
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Optional, Dict, Any, List, Tuple, Callable
 import edge_tts
 from audio_processor import get_ffmpeg_path, get_silent_kwargs
 
@@ -641,20 +641,27 @@ def trim_and_fit_voice_audio(audio_path: str, max_duration_sec: Optional[float] 
 async def batch_synthesize(
     dialogue_items: List[Dict[str, Any]],
     output_dir: str,
-    default_voice: str = "piseth"
+    default_voice: str = "piseth",
+    progress_callback: Optional[Callable] = None
 ) -> List[Dict[str, Any]]:
     """
     Synthesize dialogue items using authentic, natural Piseth & Sreymom neural voices.
     Pure natural voice, zero pitch shifting, zero artificial rate changes.
+    Supports real-time progress callbacks for responsive UI status.
     """
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
-    semaphore = asyncio.Semaphore(3)
+    semaphore = asyncio.Semaphore(4)
+
+    total_items = len(dialogue_items)
+    completed_count = 0
+    progress_lock = asyncio.Lock()
 
     async def _process_item(item: Dict[str, Any], index: int) -> Dict[str, Any]:
+        nonlocal completed_count
         async with semaphore:
-            if index > 0 and index % 10 == 0:
-                await asyncio.sleep(0.15)
+            if index > 0 and index % 15 == 0:
+                await asyncio.sleep(0.08)
             item_id = item.get("id", index)
             text = (item.get("text_km") or item.get("text", "")).strip()
             voice = item.get("voice") or default_voice
@@ -681,13 +688,17 @@ async def batch_synthesize(
 
             line_audio_path = out_path / f"line_{index:04d}_{item_id}.mp3"
             try:
-                audio_file = await synthesize_khmer_speech(
-                    text=text,
-                    voice=voice,
-                    rate_percent=rate,
-                    pitch_hz=pitch,
-                    output_path=str(line_audio_path)
-                )
+                # Fast disk cache check: If already generated and valid, reuse!
+                if line_audio_path.exists() and line_audio_path.stat().st_size > 200:
+                    audio_file = str(line_audio_path)
+                else:
+                    audio_file = await synthesize_khmer_speech(
+                        text=text,
+                        voice=voice,
+                        rate_percent=rate,
+                        pitch_hz=pitch,
+                        output_path=str(line_audio_path)
+                    )
 
                 # Strip dead silence and dynamically fit within lip-sync mouth window
                 final_dur = trim_and_fit_voice_audio(audio_file, max_duration_sec=avail_dur)
@@ -707,6 +718,17 @@ async def batch_synthesize(
                 else:
                     item_copy["end"] = calculated_end
                 item_copy["success"] = True
+
+                async with progress_lock:
+                    completed_count += 1
+                    if progress_callback:
+                        try:
+                            if asyncio.iscoroutinefunction(progress_callback):
+                                await progress_callback(completed_count, total_items, item_copy)
+                            else:
+                                progress_callback(completed_count, total_items, item_copy)
+                        except Exception:
+                            pass
                 return item_copy
             except Exception as e:
                 print(f"TTS line {index} error: {e}")
@@ -714,6 +736,17 @@ async def batch_synthesize(
                 item_copy["audio_file"] = None
                 item_copy["error"] = str(e)
                 item_copy["success"] = False
+
+                async with progress_lock:
+                    completed_count += 1
+                    if progress_callback:
+                        try:
+                            if asyncio.iscoroutinefunction(progress_callback):
+                                await progress_callback(completed_count, total_items, item_copy)
+                            else:
+                                progress_callback(completed_count, total_items, item_copy)
+                        except Exception:
+                            pass
                 return item_copy
 
     tasks = [_process_item(item, idx) for idx, item in enumerate(dialogue_items)]

@@ -8,7 +8,11 @@ dist_sn = base_dir / "dist" / "SN_TOOL"
 dist_sn.mkdir(parents=True, exist_ok=True)
 
 # 1. Copy icon and configs for SN_TOOL (Do NOT copy license.key so clients are unactivated!)
-sn_sync_files = ["icon.ico", "license_config.json", "custom_keys.json", "version.json", "server.py", "license_engine.py", "video_processor.py", "pipeline.py", "batch_engine.py"]
+sn_sync_files = [
+    "icon.ico", "license_config.json", "custom_keys.json", "version.json", "server.py",
+    "license_engine.py", "video_processor.py", "pipeline.py", "batch_engine.py",
+    "tts_engine.py", "audio_processor.py", "update.py", "translator.py", "stt_engine.py"
+]
 for fname in sn_sync_files:
     src = base_dir / fname
     if src.exists():

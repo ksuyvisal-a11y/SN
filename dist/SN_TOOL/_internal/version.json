@@ -3,7 +3,7 @@
   "app_name": "SN TOOL - STUDIO PRO",
   "release_date": "2026-10-06",
   "title": "SN TOOL STUDIO PRO - Official Update v1.0.1",
-  "release_notes": "• កំណែទម្រង់ផ្លូវការ Version 1.0.1 PRO\n• ជួសជុលបញ្ហា Cryptography Module លើ ShortMax Stream Engine ឲ្យដំណើរការ ១០០%\n• បំពាក់ប្រព័ន្ធ 1-Click GitHub Auto-Updater ស្វ័យប្រវត្តិតាមរយៈ Cloud\n• កែលម្អប្រព័ន្ធ Watermark & Blur Logo ពេល Export រឿងពេញ (Full Movie Merged)\n• រចនារូបរាង Logo Icon 3D មាស កម្រិតច្បាស់ 112px លើ Native Header & Import\n• ជួសជុលបញ្ហា Error 206 (Filename or extension too long) លើ Windows Dialog",
+  "release_notes": "• Official Version 1.0.1 PRO Release\n• Optimized Audio Processor for ultra-low RAM usage\n• Enhanced ShortMax and ReelShort stream decryption engine\n• 1-Click Cloud Auto-Updater integration\n• Enhanced Watermark and Blur Logo rendering for full movies\n• Premium 3D Gold Emblem icon update\n• Fixed Windows file path length (Error 206) limitations",
   "download_url": "https://github.com/ksuyvisal-a11y/SN/releases/latest/download/SN_TOOL_UPDATE.zip",
   "github_repo": "ksuyvisal-a11y/SN",
   "channel": "stable"

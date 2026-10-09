@@ -805,7 +805,7 @@ def series_merge_endpoint():
     from video_processor import merge_videos
     out_file = EXPORTS_DIR / f"Full_Movie_{series_name}.mp4"
     try:
-        merge_videos(video_paths, str(out_file))
+        merge_videos(video_paths, str(out_file), auto_trim_freeze=True)
         return jsonify({
             "success": True,
             "output_video": str(out_file.resolve()).replace("\\", "/"),
@@ -2180,14 +2180,23 @@ def power_merge_endpoint():
     else:
         out_file = f"data/exports/merged_drama_{int(time.time())}.mp4"
         
+    auto_trim_freeze = bool(data.get("auto_trim_freeze", True))
+        
     try:
-        res_p = merge_videos(files, out_file)
+        merge_res = merge_videos(files, out_file, auto_trim_freeze=auto_trim_freeze, return_details=True)
+        res_p = merge_res["output_file"]
         play_windows_completion_sound()
         return jsonify({
             "success": True,
             "output_file": res_p.replace("\\", "/"),
             "download_url": f"/media/{res_p.replace(chr(92), '/')}",
-            "output_dir": str(Path(res_p).parent).replace("\\", "/")
+            "output_dir": str(Path(res_p).parent).replace("\\", "/"),
+            "auto_trim_freeze": auto_trim_freeze,
+            "total_episodes": merge_res.get("total_episodes", len(files)),
+            "trimmed_count": merge_res.get("trimmed_count", 0),
+            "unaltered_count": merge_res.get("unaltered_count", len(files)),
+            "total_seconds_saved": merge_res.get("total_seconds_saved", 0.0),
+            "details": merge_res.get("details", [])
         })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
@@ -2198,7 +2207,7 @@ def power_split_endpoint():
     """Split video file into parts."""
     data = request.get_json(force=True) or {}
     video_path = data.get("video_path", "")
-    chunk_sec = int(data.get("chunk_duration_sec", 60))
+    chunk_sec = max(60, int(data.get("chunk_duration_sec", 60)))
     if not video_path or not Path(video_path).exists():
         return jsonify({"success": False, "error": "Invalid source video path."}), 400
         
@@ -2212,6 +2221,20 @@ def power_split_endpoint():
             "parts": parts,
             "output_dir": str(Path(out_dir).resolve()).replace("\\", "/")
         })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/power/media-duration", methods=["POST"])
+def power_media_duration_endpoint():
+    """Get exact duration of a video file via ffprobe."""
+    data = request.get_json(silent=True) or {}
+    vpath = data.get("filepath") or data.get("video_path") or ""
+    if not vpath or not Path(vpath).exists():
+        return jsonify({"success": False, "error": "File does not exist."}), 400
+    try:
+        dur = get_media_duration(str(vpath))
+        return jsonify({"success": True, "duration": round(dur, 2)})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -2642,7 +2665,7 @@ def merge_episodes_endpoint():
 
     try:
         from video_processor import merge_videos
-        final_path = merge_videos(resolved_paths, str(out_file))
+        final_path = merge_videos(resolved_paths, str(out_file), auto_trim_freeze=True)
         play_windows_completion_sound()
         return jsonify({
             "success": True,
@@ -2697,7 +2720,8 @@ def pre_merge_raw_episodes_endpoint():
         out_filename = f"Raw_Full_Movie_{clean_title}_{int(time.time())}.mp4"
         out_file = upload_dir / out_filename
 
-        final_path = merge_videos(resolved_paths, str(out_file))
+        merge_res = merge_videos(resolved_paths, str(out_file), auto_trim_freeze=True, return_details=True)
+        final_path = merge_res["output_file"]
         file_size_mb = round(Path(final_path).stat().st_size / (1024 * 1024), 2)
         play_windows_completion_sound()
         return jsonify({
@@ -2706,6 +2730,8 @@ def pre_merge_raw_episodes_endpoint():
             "merged_filename": out_filename,
             "series_title": clean_title,
             "episodes_count": len(resolved_paths),
+            "trimmed_count": merge_res.get("trimmed_count", 0),
+            "total_seconds_saved": merge_res.get("total_seconds_saved", 0.0),
             "size_mb": file_size_mb,
             "video_url": f"/media/{Path(final_path).as_posix()}"
         })

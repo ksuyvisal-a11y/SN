@@ -736,8 +736,10 @@ function openMergeModal() {
     closePowerMenu();
     const progBox = document.getElementById('power-merge-progress-box');
     const resBox = document.getElementById('power-merge-result-box');
+    const aiStats = document.getElementById('power-merge-ai-stats');
     if (progBox) progBox.style.display = 'none';
     if (resBox) resBox.style.display = 'none';
+    if (aiStats) aiStats.style.display = 'none';
     renderPowerMergeQueue();
     openModal('modal-power-merge');
 }
@@ -855,12 +857,14 @@ async function executeVideoMerge() {
     }
 
     const outputName = document.getElementById('power-merge-output-name')?.value?.trim() || 'merged_full_drama.mp4';
+    const autoTrimFreeze = true;
     const btn = document.getElementById('btn-power-merge-start');
     const progBox = document.getElementById('power-merge-progress-box');
     const resBox = document.getElementById('power-merge-result-box');
     const progFill = document.getElementById('power-merge-prog-fill');
     const statusText = document.getElementById('power-merge-status-text');
     const statusPct = document.getElementById('power-merge-status-pct');
+    const aiStatsEl = document.getElementById('power-merge-ai-stats');
 
     if (btn) {
         btn.disabled = true;
@@ -868,19 +872,31 @@ async function executeVideoMerge() {
     }
     if (progBox) progBox.style.display = 'block';
     if (resBox) resBox.style.display = 'none';
+    if (aiStatsEl) aiStatsEl.style.display = 'none';
     if (progFill) progFill.style.width = '30%';
-    if (statusText) statusText.textContent = `Merging ${powerMergeQueue.length} episodes via Lossless Stream Copy...`;
-    if (statusPct) statusPct.textContent = 'CONCAT';
-
-    appendTerminalLine(`[Power Merge] Merging ${powerMergeQueue.length} clips into "${outputName}"...`);
-    showToast(`Merging ${powerMergeQueue.length} episodes...`);
+    
+    if (autoTrimFreeze) {
+        if (statusText) statusText.textContent = `AI scanning & merging ${powerMergeQueue.length} episodes (detecting frozen outros)...`;
+        if (statusPct) statusPct.textContent = 'AI SCAN';
+        appendTerminalLine(`[Power Merge] Merging ${powerMergeQueue.length} clips into "${outputName}" with AI Freeze Detection enabled...`);
+        showToast(`AI Scanning & merging ${powerMergeQueue.length} episodes...`);
+    } else {
+        if (statusText) statusText.textContent = `Merging ${powerMergeQueue.length} episodes via Lossless Stream Copy...`;
+        if (statusPct) statusPct.textContent = 'CONCAT';
+        appendTerminalLine(`[Power Merge] Merging ${powerMergeQueue.length} clips into "${outputName}"...`);
+        showToast(`Merging ${powerMergeQueue.length} episodes...`);
+    }
 
     try {
         const filePaths = powerMergeQueue.map(f => f.filepath);
         const res = await fetch('/api/power/merge', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ files: filePaths, output_name: outputName })
+            body: JSON.stringify({ 
+                files: filePaths, 
+                output_name: outputName,
+                auto_trim_freeze: autoTrimFreeze
+            })
         });
         const data = await res.json();
 
@@ -893,8 +909,43 @@ async function executeVideoMerge() {
             const resPathEl = document.getElementById('power-merge-result-path');
             if (resPathEl) resPathEl.textContent = data.output_file;
 
-            showToast("Videos merged successfully!");
-            appendTerminalLine(`[Power Merge] Success! Output: ${data.output_file}`);
+            if (data.auto_trim_freeze) {
+                const trimmedCount = data.trimmed_count || 0;
+                const unalteredCount = data.unaltered_count ?? (data.total_episodes - trimmedCount);
+                const savedSec = (data.total_seconds_saved || 0).toFixed(1);
+
+                if (aiStatsEl) {
+                    aiStatsEl.style.display = 'block';
+                    aiStatsEl.innerHTML = `
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                            <span style="font-weight:700; color:#c084fc; display:flex; align-items:center; gap:6px;">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> AI Freeze Detection Report
+                            </span>
+                            <span style="color:#facc15; font-weight:700; font-family:'JetBrains Mono', monospace;">-${savedSec}s Removed</span>
+                        </div>
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; font-size:0.73rem;">
+                            <div style="background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.25); padding:5px 8px; border-radius:6px; color:#fca5a5;">
+                                ✂️ <strong>${trimmedCount}</strong> Frozen Outros Trimmed
+                            </div>
+                            <div style="background:rgba(34,197,94,0.15); border:1px solid rgba(34,197,94,0.25); padding:5px 8px; border-radius:6px; color:#86efac;">
+                                🛡️ <strong>${unalteredCount}</strong> Active Episodes 100% Intact
+                            </div>
+                        </div>
+                    `;
+                }
+
+                if (trimmedCount > 0) {
+                    showToast(`Merged ${powerMergeQueue.length} eps! AI trimmed ${trimmedCount} frozen outros (-${savedSec}s).`, "success");
+                    appendTerminalLine(`[Power Merge] Success! AI scanned ${data.total_episodes} eps: trimmed ${trimmedCount} frozen outros (-${savedSec}s), preserved ${unalteredCount} moving episodes intact 100%. Output: ${data.output_file}`);
+                } else {
+                    showToast(`Merged ${powerMergeQueue.length} eps! All episodes had active endings (0s cut).`, "success");
+                    appendTerminalLine(`[Power Merge] Success! AI verified all ${data.total_episodes} eps had active motion. Kept 100% intact. Output: ${data.output_file}`);
+                }
+            } else {
+                if (aiStatsEl) aiStatsEl.style.display = 'none';
+                showToast("Videos merged successfully!");
+                appendTerminalLine(`[Power Merge] Success! Output: ${data.output_file}`);
+            }
         } else {
             throw new Error(data.error || "Concat failed");
         }
@@ -932,6 +983,37 @@ function playPowerResultVideo() {
 // 2. SPLIT VIDEO SUITE (Presplit chunking for TikTok / Reels)
 // --------------------------------------------------------------------------
 let powerSplitSelectedFile = null;
+let currentSplitVideoDurationSec = 0;
+
+function formatDurationPretty(seconds) {
+    if (!seconds || isNaN(seconds) || seconds <= 0) return "--:--";
+    const sec = Math.round(seconds);
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    if (h > 0) {
+        return `${h}h ${m}m ${s}s`;
+    }
+    return `${m}m ${s.toString().padStart(2, '0')}s`;
+}
+
+async function fetchVideoDurationForSplit(filePath) {
+    if (!filePath) return;
+    try {
+        const res = await fetch('/api/power/media-duration', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filepath: filePath })
+        });
+        const data = await res.json();
+        if (data && data.success && data.duration > 0) {
+            currentSplitVideoDurationSec = data.duration;
+            updateSplitCalcPreview();
+        }
+    } catch (e) {
+        console.warn("fetchVideoDurationForSplit note:", e);
+    }
+}
 
 function openSplitModal() {
     closePowerMenu();
@@ -940,13 +1022,17 @@ function openSplitModal() {
     if (progBox) progBox.style.display = 'none';
     if (resBox) resBox.style.display = 'none';
 
-    if (!powerSplitSelectedFile && stagedVideoFile) {
-        powerUseCurrentVideoForSplit();
+    if (powerSplitSelectedFile) {
+        const fPath = getMediaFilePath(powerSplitSelectedFile) || powerSplitSelectedFile.filepath;
+        if (fPath && currentSplitVideoDurationSec <= 0) {
+            fetchVideoDurationForSplit(fPath);
+        }
     }
+    setSplitMinutes(1);
     openModal('modal-power-split');
 }
 
-function powerUseCurrentVideoForSplit() {
+async function powerUseCurrentVideoForSplit() {
     if (!stagedVideoFile) {
         showToast("No video currently loaded in Studio. Please select a file!", "warning");
         return;
@@ -957,8 +1043,25 @@ function powerUseCurrentVideoForSplit() {
     const fName = getMediaFileName(stagedVideoFile);
     const fPath = getMediaFilePath(stagedVideoFile) || fName;
     if (titleEl) titleEl.textContent = fName;
-    if (subEl) subEl.textContent = `Loaded from Studio • ${fPath}`;
+
+    // Detect duration from main video element or project or probe backend
+    const mainVid = document.getElementById('main-video');
+    if (mainVid && !isNaN(mainVid.duration) && mainVid.duration > 0) {
+        currentSplitVideoDurationSec = mainVid.duration;
+    } else if (typeof totalDurationSeconds !== 'undefined' && totalDurationSeconds > 0) {
+        currentSplitVideoDurationSec = totalDurationSeconds;
+    } else if (currentProject && currentProject.duration) {
+        currentSplitVideoDurationSec = currentProject.duration;
+    } else if (fPath) {
+        await fetchVideoDurationForSplit(fPath);
+    }
+
+    if (subEl) {
+        const durStr = formatDurationPretty(currentSplitVideoDurationSec);
+        subEl.textContent = `Loaded from Studio • ${durStr !== '--:--' ? durStr + ' • ' : ''}${fPath}`;
+    }
     showToast(`Selected: ${fName}`);
+    updateSplitCalcPreview();
 }
 
 async function powerPickFileForSplit() {
@@ -973,6 +1076,13 @@ async function powerPickFileForSplit() {
             if (titleEl) titleEl.textContent = f.filename;
             if (subEl) subEl.textContent = `${f.size_mb || '0'} MB • ${f.filepath}`;
             showToast(`Selected: ${f.filename}`);
+
+            if (f.duration && f.duration > 0) {
+                currentSplitVideoDurationSec = f.duration;
+                updateSplitCalcPreview();
+            } else if (f.filepath) {
+                await fetchVideoDurationForSplit(f.filepath);
+            }
             return;
         }
         if (data && data.cancelled) return;
@@ -996,23 +1106,72 @@ function handlePowerSplitHtmlFile(event) {
     if (titleEl) titleEl.textContent = file.name;
     if (subEl) subEl.textContent = `${(file.size / (1024 * 1024)).toFixed(1)} MB (Local File)`;
     event.target.value = '';
-}
 
-function setSplitPreset(sec) {
-    const input = document.getElementById('split-duration-val');
-    if (input) input.value = sec;
-
-    const pills = document.querySelectorAll('#modal-power-split .power-pill-btn');
-    pills.forEach(p => p.classList.remove('active'));
-    pills.forEach(p => {
-        if (p.textContent.includes(`${sec} `) || p.id === `split-pill-${sec}`) {
-            p.classList.add('active');
+    autoDetectVideoDuration(file, (dur) => {
+        if (dur > 0) {
+            currentSplitVideoDurationSec = dur;
+            updateSplitCalcPreview();
         }
     });
+    updateSplitCalcPreview();
+}
+
+function setSplitMinutes(mins) {
+    mins = Math.max(1, parseInt(mins) || 1);
+    const input = document.getElementById('split-duration-mins');
+    if (input) input.value = mins;
+
+    const chips = document.querySelectorAll('#modal-power-split .power-chip-btn');
+    chips.forEach(c => c.classList.remove('active'));
+    const targetChip = document.getElementById(`quick-min-${mins}`);
+    if (targetChip) targetChip.classList.add('active');
+
+    updateSplitCalcPreview();
 }
 
 function updateSplitCalcPreview() {
-    // Live preview update
+    const input = document.getElementById('split-duration-mins');
+    let mins = 1;
+    if (input) {
+        mins = parseFloat(input.value) || 1;
+        if (mins < 1) {
+            mins = 1;
+            input.value = 1;
+        }
+    }
+
+    const intMins = Math.round(mins);
+    const chips = document.querySelectorAll('#modal-power-split .power-chip-btn');
+    chips.forEach(c => {
+        if (c.id === `quick-min-${intMins}` && mins === intMins) {
+            c.classList.add('active');
+        } else {
+            c.classList.remove('active');
+        }
+    });
+
+    const partSec = Math.max(60, Math.round(mins * 60));
+    const partDurationEl = document.getElementById('split-stat-part-duration');
+    if (partDurationEl) {
+        partDurationEl.textContent = `${mins} Minute${mins > 1 ? 's' : ''} (${partSec}s)`;
+    }
+
+    const totalDurEl = document.getElementById('split-stat-total-duration');
+    const totalCountEl = document.getElementById('split-stat-total-count');
+    const badgeTextEl = document.getElementById('split-calc-badge-text');
+
+    if (currentSplitVideoDurationSec > 0) {
+        const totalParts = Math.max(1, Math.ceil(currentSplitVideoDurationSec / partSec));
+        const formattedTotal = formatDurationPretty(currentSplitVideoDurationSec);
+
+        if (totalDurEl) totalDurEl.textContent = formattedTotal;
+        if (totalCountEl) totalCountEl.textContent = `${totalParts} EP`;
+        if (badgeTextEl) badgeTextEl.textContent = `${totalParts} EP`;
+    } else {
+        if (totalDurEl) totalDurEl.textContent = "--:--";
+        if (totalCountEl) totalCountEl.textContent = "-- EP";
+        if (badgeTextEl) badgeTextEl.textContent = "-- EP";
+    }
 }
 
 async function executeVideoSplit() {
@@ -1022,7 +1181,15 @@ async function executeVideoSplit() {
         return;
     }
 
-    const sec = parseInt(document.getElementById('split-duration-val')?.value) || 60;
+    let mins = parseFloat(document.getElementById('split-duration-mins')?.value) || 1;
+    if (mins < 1) {
+        mins = 1;
+        const minsInput = document.getElementById('split-duration-mins');
+        if (minsInput) minsInput.value = 1;
+        showToast("Minimum split chunk duration is 1 minute (60 seconds)!", "info");
+    }
+    const sec = Math.max(60, Math.round(mins * 60));
+
     const btn = document.getElementById('btn-power-split-start');
     const progBox = document.getElementById('power-split-progress-box');
     const resBox = document.getElementById('power-split-result-box');
@@ -1034,10 +1201,10 @@ async function executeVideoSplit() {
     }
     if (progBox) progBox.style.display = 'block';
     if (resBox) resBox.style.display = 'none';
-    if (statusText) statusText.textContent = `Splitting video into ${sec}s parts...`;
+    if (statusText) statusText.textContent = `Splitting video into ${mins} min (${sec}s) EP...`;
 
-    appendTerminalLine(`[Power Split] Splitting "${videoPath}" into ${sec}s chunks...`);
-    showToast(`Splitting video into ${sec}s parts...`);
+    appendTerminalLine(`[Power Split] Splitting "${videoPath}" into ${mins}m (${sec}s) EP chunks...`);
+    showToast(`Splitting video into ${mins}m EP chunks...`);
 
     try {
         const res = await fetch('/api/power/split', {
@@ -1058,8 +1225,9 @@ async function executeVideoSplit() {
 
             lastPowerOutputPaths.split = data.output_dir || (data.parts?.[0] || 'data/exports');
 
-            showToast(`Split completed successfully into ${data.parts_count} parts!`);
-            appendTerminalLine(`[Power Split] Successfully created ${data.parts_count} parts in ${data.output_dir}`);
+            if (typeof playCompletionChime === 'function') playCompletionChime();
+            showToast(`Split completed successfully into ${data.parts_count} EP!`);
+            appendTerminalLine(`[Power Split] Successfully created ${data.parts_count} EP in ${data.output_dir}`);
         } else {
             throw new Error(data.error || "Split failed");
         }
@@ -2814,6 +2982,13 @@ function updateExportProgressUI(pct, elapsedSec, etaSec, taskName) {
 
     if (taskElem) {
         taskElem.innerHTML = `<i class="fa-solid fa-gear fa-spin" style="color:#facc15; font-size:0.65rem;"></i> ${escapeHtml(taskName)}`;
+    }
+
+    if (pct >= 100 && !window._exportChimePlayedThisRun) {
+        window._exportChimePlayedThisRun = true;
+        if (typeof playWindowsCompletionSound === 'function') {
+            playWindowsCompletionSound();
+        }
     }
 }
 
@@ -8267,6 +8442,7 @@ function handleSelectedFiles(files, folderTitle = "") {
 }
 
 async function startAutoDubbingPipeline(file, customTitle = null) {
+    window._exportChimePlayedThisRun = false;
     const fileName = getMediaFileName(file);
     const fileSizeMB = file.size_mb !== undefined ? file.size_mb : (file.size ? (file.size / (1024*1024)).toFixed(1) : "?");
     const filePath = getMediaFilePath(file);
@@ -8489,6 +8665,7 @@ async function startAutoDubbingPipeline(file, customTitle = null) {
 
 async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
     if (!files || files.length === 0) return;
+    window._exportChimePlayedThisRun = false;
     const totalBatchCount = files.length;
     const modeLabel = outputMode === 'full' ? 'One Full Merged Video' : (outputMode === 'both' ? 'Both Separate Episodes & Merged Full Movie' : 'Separate Episodes');
 
@@ -8545,7 +8722,11 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
                     mergedSourcePath = mData.merged_path;
                     mergedSourceName = mData.merged_filename;
                     mergedSizeMb = mData.size_mb;
-                    appendLiveTerminalLine(`✓ Fast Pre-merge complete: "${mergedSourceName}" (${mergedSizeMb} MB, ${totalBatchCount} episodes unified)`, "[Full Movie Mode]", "success");
+                    if (mData.trimmed_count > 0) {
+                        appendLiveTerminalLine(`✓ Pre-merge AI Freeze Detector: trimmed ${mData.trimmed_count} frozen outros (-${mData.total_seconds_saved}s), creating seamless "${mergedSourceName}" (${mergedSizeMb} MB, ${totalBatchCount} eps)`, "[Full Movie Mode]", "success");
+                    } else {
+                        appendLiveTerminalLine(`✓ Fast Pre-merge complete: "${mergedSourceName}" (${mergedSizeMb} MB, ${totalBatchCount} episodes unified, 100% active scenes)`, "[Full Movie Mode]", "success");
+                    }
                 } else {
                     appendLiveTerminalLine(`Pre-merge warning: ${mData.error || 'Server note'}. Falling back to batch merge.`, "[Full Movie Mode]", "warning");
                 }
@@ -8871,6 +9052,10 @@ function showDubbingSuccessNotification(data) {
     if (pill) pill.className = 'engine-status-pill standby';
     if (dot) dot.className = 'pulse-indicator standby';
     if (text) text.textContent = 'COMPLETED 100%';
+
+    if (typeof playWindowsCompletionSound === 'function') {
+        playWindowsCompletionSound();
+    }
 }
 
 async function openExportFolderDirect(targetPath) {
@@ -9096,6 +9281,135 @@ async function pasteGateLicense() {
 }
 
 // ==========================================================================
+// WINDOWS SYSTEM NOTIFICATION SOUND AUDIO SYSTEM (BUILT-IN & PERMANENT)
+// Plays genuine Microsoft Windows System Notification Sound whenever any task finishes
+// (Export 100%, Batch Dubbing, Concat/Merge, Download, Split, Compress, Rename).
+// Embedded directly inside the application; cannot be disabled, muted, or removed.
+// ==========================================================================
+let _lastWindowsChimeTimestamp = 0;
+let _cachedChimeAudio = null;
+
+function initWindowsCompletionSound() {
+    try {
+        if (!_cachedChimeAudio) {
+            _cachedChimeAudio = new Audio('/static/system_notification.mp3');
+            _cachedChimeAudio.preload = 'auto';
+            _cachedChimeAudio.volume = 1.0;
+        }
+    } catch (e) {
+        console.warn("[Sound System] Audio preload note:", e);
+    }
+}
+
+// Fail-safe Web Audio API synthesizer matching harmonic frequencies:
+// Tone 1: F#5 (739.99 Hz)
+// Tone 2: C#6 (1108.73 Hz) + F6 (1396.91 Hz) harmonic overtone
+function playSynthesizedWindowsNotifyChime() {
+    try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        if (!window._winAudioCtx) {
+            window._winAudioCtx = new AudioCtx();
+        }
+        const ctx = window._winAudioCtx;
+        if (ctx.state === 'suspended') {
+            ctx.resume();
+        }
+        
+        const now = ctx.currentTime;
+        // Tone 1: F#5 (739.99 Hz)
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(739.99, now);
+        gain1.gain.setValueAtTime(0, now);
+        gain1.gain.linearRampToValueAtTime(0.35, now + 0.02);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.45);
+
+        // Tone 2: C#6 (1108.73 Hz)
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(1108.73, now + 0.14);
+        gain2.gain.setValueAtTime(0, now + 0.14);
+        gain2.gain.linearRampToValueAtTime(0.38, now + 0.16);
+        gain2.gain.exponentialRampToValueAtTime(0.0001, now + 1.15);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start(now + 0.14);
+        osc2.stop(now + 1.15);
+
+        // Harmonic overtone for Tone 2: F6 (1396.91 Hz)
+        const osc3 = ctx.createOscillator();
+        const gain3 = ctx.createGain();
+        osc3.type = 'sine';
+        osc3.frequency.setValueAtTime(1396.91, now + 0.14);
+        gain3.gain.setValueAtTime(0, now + 0.14);
+        gain3.gain.linearRampToValueAtTime(0.20, now + 0.16);
+        gain3.gain.exponentialRampToValueAtTime(0.0001, now + 0.95);
+        osc3.connect(gain3);
+        gain3.connect(ctx.destination);
+        osc3.start(now + 0.14);
+        osc3.stop(now + 0.95);
+    } catch (e) {
+        console.warn("[Sound System] Synthesis note:", e);
+    }
+}
+
+function playWindowsCompletionSound() {
+    const now = Date.now();
+    // Debounce to prevent overlapping triggers within 1.0s
+    if (now - _lastWindowsChimeTimestamp < 1000) {
+        return;
+    }
+    _lastWindowsChimeTimestamp = now;
+
+    // 1. Direct native Windows OS playback via Python backend (rings OS audio device directly)
+    fetch('/api/system/play-completion-sound', { method: 'POST' }).catch(() => {});
+
+    // 2. Browser / WebView2 HTML5 Audio with genuine Windows System Notification sound
+    try {
+        if (!_cachedChimeAudio) {
+            _cachedChimeAudio = new Audio('/static/system_notification.mp3');
+            _cachedChimeAudio.volume = 1.0;
+        }
+        _cachedChimeAudio.currentTime = 0;
+        const playPromise = _cachedChimeAudio.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(err => {
+                const wavAudio = new Audio('/static/system_notification.wav');
+                wavAudio.volume = 1.0;
+                wavAudio.play().catch(() => {
+                    playSynthesizedWindowsNotifyChime();
+                });
+            });
+        }
+    } catch (err) {
+        playSynthesizedWindowsNotifyChime();
+    }
+}
+
+// Preload audio and unlock audio contexts
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initWindowsCompletionSound);
+    } else {
+        initWindowsCompletionSound();
+    }
+    ['click', 'keydown', 'pointerdown'].forEach(evt => {
+        window.addEventListener(evt, () => {
+            if (window._winAudioCtx && window._winAudioCtx.state === 'suspended') {
+                window._winAudioCtx.resume();
+            }
+        }, { once: true });
+    });
+}
+
+// ==========================================================================
 // UTILITIES
 // ==========================================================================
 function showToast(msg) {
@@ -9105,6 +9419,21 @@ function showToast(msg) {
     let type = "info";
     const str = String(msg);
     const lower = str.toLowerCase();
+
+    // Trigger authentic Windows completion chime on any finished operation
+    const isCompletedAction = (
+        lower.includes("100%") ||
+        lower.includes("completed") ||
+        lower.includes("successfully") ||
+        lower.includes("finished") ||
+        lower.includes("downloaded all") ||
+        lower.includes("merged") ||
+        (lower.includes("saved") && lower.includes("mb"))
+    ) && !lower.includes("engine ready") && !lower.includes("console ready") && !lower.includes("modal");
+
+    if (isCompletedAction) {
+        playWindowsCompletionSound();
+    }
 
     if (lower.includes("100%") || lower.includes("success") || lower.includes("ready") || lower.includes("complete") || lower.includes("finished")) {
         tag = "[Completed]";
@@ -9151,13 +9480,21 @@ document.addEventListener('DOMContentLoaded', () => {
 let _latestUpdateInfo = null;
 
 async function checkForAppUpdates(manual = false) {
+    const footerBtns = document.querySelectorAll('.footer-check-update-btn');
+    const origHtmls = [];
+    footerBtns.forEach((btn, idx) => {
+        origHtmls[idx] = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="font-size:0.65rem;"></i> <span>Checking...</span>`;
+    });
+
     try {
-        if (manual) showToast("Checking for new version from GitHub...");
+        if (manual) showToast("Checking for updates...");
         const res = await fetch('/api/update/check');
         const data = await res.json();
         
         if (!data || !data.success) {
-            if (manual) showToast(data.error || "Cannot connect to GitHub");
+            if (manual) showToast(data.error || "Unable to connect to update server");
             return;
         }
 
@@ -9168,33 +9505,42 @@ async function checkForAppUpdates(manual = false) {
         const btnUpdate = document.getElementById('btn-do-update');
         const progContainer = document.getElementById('update-progress-container');
 
-        if (curEl) curEl.textContent = `v${data.current_version || '1.0.1'}`;
-        if (latEl) latEl.textContent = `v${data.latest_version || '1.0.1'}`;
+        const curVer = data.current_version || '1.0.1';
+        const latVer = data.latest_version || curVer;
+
+        if (curEl) curEl.textContent = `v${curVer}`;
+        if (latEl) latEl.textContent = `v${latVer}`;
         const settingsVer = document.getElementById('settings-version-tag');
-        if (settingsVer && data.current_version) settingsVer.textContent = `v${data.current_version}`;
-        if (notesEl) notesEl.textContent = data.release_notes || "General system enhancements";
+        if (settingsVer && curVer) settingsVer.textContent = `v${curVer}`;
+        if (notesEl) notesEl.textContent = data.release_notes || "Performance enhancements and bug fixes";
         if (progContainer) progContainer.style.display = 'none';
 
         if (data.has_update) {
             if (btnUpdate) {
                 btnUpdate.disabled = false;
-                btnUpdate.innerHTML = `<i class="fa-solid fa-bolt"></i> Update to v${data.latest_version}`;
+                btnUpdate.innerHTML = `<i class="fa-solid fa-bolt"></i> Update to v${latVer}`;
                 btnUpdate.style.display = 'inline-flex';
             }
             openModal('modal-update');
+            if (manual) showToast(`New version available: v${latVer}`);
         } else {
             if (manual) {
                 if (btnUpdate) {
                     btnUpdate.disabled = true;
-                    btnUpdate.innerHTML = `<i class="fa-solid fa-check"></i> Latest Version`;
+                    btnUpdate.innerHTML = `<i class="fa-solid fa-check"></i> v${curVer} Up to Date`;
                 }
                 openModal('modal-update');
-                showToast("You are using the latest version!");
+                showToast(`Version v${curVer} is the latest version!`);
             }
         }
     } catch (err) {
         console.error("Update check error:", err);
         if (manual) showToast("Update check failed");
+    } finally {
+        footerBtns.forEach((btn, idx) => {
+            btn.disabled = false;
+            btn.innerHTML = origHtmls[idx] || `<i class="fa-solid fa-cloud-arrow-down"></i> <span>Check Updates</span>`;
+        });
     }
 }
 
@@ -9207,7 +9553,7 @@ async function executeAppUpdate() {
 
     if (btnUpdate) btnUpdate.disabled = true;
     if (progContainer) progContainer.style.display = 'flex';
-    if (statusMsg) statusMsg.textContent = "Downloading update from GitHub...";
+    if (statusMsg) statusMsg.textContent = "Downloading update package...";
     if (progressBar) progressBar.style.width = "45%";
 
     try {

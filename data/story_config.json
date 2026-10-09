@@ -6,7 +6,7 @@
   "aspect_ratio": "9:16",
   "subtitle_mode": "none",
   "dubbing_mode": "smart_bgm",
-  "ducking_volume": "0.32",
+  "ducking_volume": "0.20",
   "speech_boost_db": 6,
   "speechgen_token": "",
   "speechgen_email": ""

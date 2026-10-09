@@ -79,7 +79,7 @@ def check_for_updates(github_token: str = None) -> Dict[str, Any]:
                     "current_version": local_ver,
                     "latest_version": remote_ver,
                     "title": data.get("title", f"SN TOOL v{remote_ver}"),
-                    "release_notes": data.get("release_notes", "ការកែលម្អប្រព័ន្ធ និងបង្កើនល្បឿន"),
+                    "release_notes": data.get("release_notes", "General system improvements and performance optimizations"),
                     "download_url": data.get("download_url", ""),
                     "release_date": data.get("release_date", ""),
                     "channel": data.get("channel", "stable")
@@ -115,7 +115,7 @@ def check_for_updates(github_token: str = None) -> Dict[str, Any]:
                     "current_version": local_ver,
                     "latest_version": remote_ver,
                     "title": rel.get("name", f"SN TOOL v{remote_ver}"),
-                    "release_notes": rel.get("body", "កំណែទម្រង់ថ្មីលើ GitHub"),
+                    "release_notes": rel.get("body", "General system improvements and performance optimizations"),
                     "download_url": download_url,
                     "release_date": rel.get("published_at", "")[:10] if rel.get("published_at") else "",
                     "channel": "stable"
@@ -130,7 +130,7 @@ def check_for_updates(github_token: str = None) -> Dict[str, Any]:
         "current_version": local_ver,
         "latest_version": local_ver,
         "title": "SN TOOL STUDIO PRO",
-        "release_notes": "កម្មវិធីរបស់អ្នកស្ថិតក្នុងកំណែទម្រង់ចុងក្រោយបង្អស់ (Latest Version)",
+        "release_notes": "You are running the latest version of SN TOOL STUDIO PRO.",
         "download_url": "",
         "channel": "stable"
     }

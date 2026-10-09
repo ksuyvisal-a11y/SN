@@ -263,11 +263,15 @@ class BatchDubbingManager:
         item["step"] = f"5/5 Synthesizing audio {v_label} & Rendering..."
         item["progress"] = 80
         voices_dir = item_dir / "voices"
-        voices_dir.mkdir(parents=True, exist_ok=True)
+        def on_batch_tts(completed: int, total: int, itm: Dict[str, Any]):
+            item["progress"] = 80 + int((completed / max(1, total)) * 10)
+            item["step"] = f"5/5 Synthesizing audio ({completed}/{total} lines)..."
+
         synthesized_items = await batch_synthesize(
             translated_dialogues,
             output_dir=str(voices_dir),
-            default_voice="piseth" if is_multi else v_override
+            default_voice="piseth" if is_multi else v_override,
+            progress_callback=on_batch_tts
         )
 
         # Mix Audio with BGM volume and Speech Boost from story settings
@@ -358,7 +362,7 @@ class BatchDubbingManager:
                 if not full_movie_out.exists() or full_movie_out.stat().st_size < 1000:
                     try:
                         from video_processor import merge_videos
-                        merge_videos([str(p) for p in ep_paths], str(full_movie_out))
+                        merge_videos([str(p) for p in ep_paths], str(full_movie_out), auto_trim_freeze=True)
                         print(f"[OK] Full Drama Series Movie merged in drama folder: {full_movie_out} ({len(ep_paths)} episodes)")
 
                         # Also mirror to data/exports/{s_name}/

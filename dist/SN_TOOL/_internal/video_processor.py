@@ -4,10 +4,12 @@ Video Processing Engine: Video Rendering, Audio Replacement, Subtitle Burning, A
 import os
 import re
 import time
+import shutil
+import tempfile
 import subprocess
 from pathlib import Path
 from typing import Optional, List, Dict, Any, Union
-from audio_processor import get_ffmpeg_path, get_silent_kwargs
+from audio_processor import get_ffmpeg_path, get_silent_kwargs, get_media_duration
 from translator import format_srt_content
 from subtitle_styler import generate_ass_subtitles
 
@@ -460,21 +462,185 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     return str(out_p)
 
 
-def merge_videos(video_paths: List[str], output_path: str) -> str:
-    """Merge multiple video clips / drama episodes into a single MP4 file."""
+def detect_ending_freeze_duration(
+    video_path: Union[str, Path],
+    scan_window_sec: float = 7.0,
+    min_freeze_sec: float = 1.0,
+    noise_tolerance: float = 0.003
+) -> float:
+    """
+    Scans the outro / ending of a video to detect if it has frozen frames (cliffhanger still frame).
+    Returns the duration in seconds of the trailing freeze (e.g. 2.45), or 0.0 if the ending is normal/active motion.
+    
+    Parameters:
+      - video_path: Path to the video file
+      - scan_window_sec: How many seconds before EOF to scan (default 7.0s)
+      - min_freeze_sec: Minimum frozen duration to qualify as a cliffhanger pause (default 1.0s)
+      - noise_tolerance: Frame pixel noise variance (0.003 allows minor compression artifacts)
+    """
+    try:
+        dur = get_media_duration(str(video_path))
+        if dur <= min_freeze_sec + 0.5:
+            return 0.0
+            
+        scan_start = max(0.0, dur - scan_window_sec)
+        window_dur = dur - scan_start
+
+        cmd = [
+            get_ffmpeg_path(),
+            "-nostdin",
+            "-ss", f"{scan_start:.3f}",
+            "-i", str(video_path),
+            "-vf", f"freezedetect=n={noise_tolerance}:d={min_freeze_sec}",
+            "-map", "0:v:0",
+            "-f", "null",
+            "-"
+        ]
+        proc = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
+            **get_silent_kwargs()
+        )
+        
+        last_freeze_start = None
+        last_freeze_end = None
+        last_freeze_dur = None
+        
+        for line in proc.stderr.splitlines():
+            if "lavfi.freezedetect.freeze_start:" in line:
+                m = re.search(r"freeze_start:\s*([0-9.]+)", line)
+                if m:
+                    last_freeze_start = float(m.group(1))
+                    last_freeze_end = None
+                    last_freeze_dur = None
+            elif "lavfi.freezedetect.freeze_end:" in line:
+                m = re.search(r"freeze_end:\s*([0-9.]+)", line)
+                if m:
+                    last_freeze_end = float(m.group(1))
+            elif "lavfi.freezedetect.freeze_duration:" in line:
+                m = re.search(r"freeze_duration:\s*([0-9.]+)", line)
+                if m:
+                    last_freeze_dur = float(m.group(1))
+
+        if last_freeze_start is None:
+            return 0.0
+
+        # Case 1: Still frozen all the way until EOF
+        if last_freeze_end is None:
+            freeze_tail = window_dur - last_freeze_start
+            return round(freeze_tail, 2) if freeze_tail >= min_freeze_sec else 0.0
+
+        # Case 2: Freeze ended right around EOF (container/packet rounding within 0.4s of end)
+        if last_freeze_end >= (window_dur - 0.40):
+            freeze_tail = last_freeze_dur if last_freeze_dur is not None else (window_dur - last_freeze_start)
+            return round(freeze_tail, 2) if freeze_tail >= min_freeze_sec else 0.0
+
+        # Case 3: Freeze happened earlier in the window, but scenes moved afterwards. Do NOT cut!
+        return 0.0
+    except Exception as e:
+        print(f"[detect_ending_freeze_duration] Warning checking {video_path}: {e}")
+        return 0.0
+
+
+def merge_videos(
+    video_paths: List[str],
+    output_path: str,
+    auto_trim_freeze: bool = True,
+    return_details: bool = False
+) -> Union[str, Dict[str, Any]]:
+    """Merge multiple video clips / drama episodes into a single MP4 file.
+    
+    If auto_trim_freeze=True, automatically scans each episode using FFmpeg AI freeze detection.
+    Episodes with a cliffhanger freeze (>= 1.0s still frame at the end) are trimmed losslessly.
+    Episodes without frozen endings are kept 100% intact.
+    """
     if not video_paths:
         raise ValueError("No video paths provided for merging.")
     
     out_p = Path(output_path)
     out_p.parent.mkdir(parents=True, exist_ok=True)
 
-    # Create concat list file
-    list_file = out_p.parent / f"concat_list_{int(time.time())}.txt"
+    temp_dir = None
+    processed_paths = []
+    episode_details = []
+    trimmed_count = 0
+    total_freeze_saved = 0.0
+
     try:
+        if auto_trim_freeze:
+            temp_dir = Path(tempfile.mkdtemp(prefix="sn_freeze_trim_"))
+            for idx, vp in enumerate(video_paths):
+                vp_path = Path(vp).resolve()
+                orig_dur = get_media_duration(str(vp_path))
+                freeze_dur = detect_ending_freeze_duration(vp_path)
+                
+                # Check if this episode has a real freeze at the end
+                if freeze_dur >= 1.0 and orig_dur > (freeze_dur + 1.0):
+                    target_dur = max(0.5, orig_dur - freeze_dur)
+                    temp_trimmed = temp_dir / f"ep_{idx:03d}_{vp_path.name}"
+                    
+                    trim_cmd = [
+                        get_ffmpeg_path(),
+                        "-nostdin",
+                        "-y",
+                        "-i", str(vp_path),
+                        "-t", f"{target_dur:.3f}",
+                        "-c", "copy",
+                        "-avoid_negative_ts", "make_zero",
+                        str(temp_trimmed)
+                    ]
+                    trim_proc = subprocess.run(
+                        trim_cmd,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        **get_silent_kwargs()
+                    )
+                    
+                    if trim_proc.returncode == 0 and temp_trimmed.exists() and temp_trimmed.stat().st_size > 1000:
+                        processed_paths.append(str(temp_trimmed))
+                        trimmed_count += 1
+                        total_freeze_saved += freeze_dur
+                        episode_details.append({
+                            "index": idx + 1,
+                            "filename": vp_path.name,
+                            "original_duration": round(orig_dur, 2),
+                            "freeze_duration": round(freeze_dur, 2),
+                            "trimmed": True,
+                            "final_duration": round(target_dur, 2)
+                        })
+                    else:
+                        processed_paths.append(str(vp_path))
+                        episode_details.append({
+                            "index": idx + 1,
+                            "filename": vp_path.name,
+                            "original_duration": round(orig_dur, 2),
+                            "freeze_duration": 0.0,
+                            "trimmed": False,
+                            "final_duration": round(orig_dur, 2)
+                        })
+                else:
+                    processed_paths.append(str(vp_path))
+                    episode_details.append({
+                        "index": idx + 1,
+                        "filename": vp_path.name,
+                        "original_duration": round(orig_dur, 2),
+                        "freeze_duration": 0.0,
+                        "trimmed": False,
+                        "final_duration": round(orig_dur, 2)
+                    })
+        else:
+            processed_paths = [str(Path(p).resolve()) for p in video_paths]
+
+        # Create concat list file
+        list_file = out_p.parent / f"concat_list_{int(time.time())}.txt"
         with open(list_file, "w", encoding="utf-8") as f:
-            for vp in video_paths:
-                p_abs = Path(vp).resolve()
-                f.write(f"file '{str(p_abs).replace(chr(92), '/')}'\n")
+            for vp in processed_paths:
+                f.write(f"file '{str(vp).replace(chr(92), '/')}'\n")
 
         cmd = [
             get_ffmpeg_path(),
@@ -508,15 +674,15 @@ def merge_videos(video_paths: List[str], output_path: str) -> str:
                 str(out_p)
             ]
             proc_list_re = subprocess.run(cmd_list_reencode, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=7200, **get_silent_kwargs())
-            if proc_list_re.returncode != 0 and len(video_paths) <= 60:
+            if proc_list_re.returncode != 0 and len(processed_paths) <= 60:
                 # 2. Second fallback: filter_complex concat for mismatched dimensions
                 inputs = []
                 filter_parts = []
-                for idx, vp in enumerate(video_paths):
+                for idx, vp in enumerate(processed_paths):
                     inputs.extend(["-i", str(vp)])
                     filter_parts.append(f"[{idx}:v:0][{idx}:a:0]")
                 
-                filter_complex = f"{''.join(filter_parts)}concat=n={len(video_paths)}:v=1:a=1[v][a]"
+                filter_complex = f"{''.join(filter_parts)}concat=n={len(processed_paths)}:v=1:a=1[v][a]"
                 cmd_reencode = [
                     get_ffmpeg_path(),
                     "-nostdin",
@@ -533,12 +699,27 @@ def merge_videos(video_paths: List[str], output_path: str) -> str:
                 ]
                 subprocess.run(cmd_reencode, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=7200, **get_silent_kwargs())
     finally:
-        if list_file.exists():
+        if 'list_file' in locals() and list_file.exists():
             try:
                 list_file.unlink()
             except Exception:
                 pass
+        if temp_dir and temp_dir.exists():
+            try:
+                shutil.rmtree(temp_dir, ignore_errors=True)
+            except Exception:
+                pass
 
+    if return_details:
+        return {
+            "output_file": str(out_p),
+            "total_episodes": len(video_paths),
+            "trimmed_count": trimmed_count,
+            "unaltered_count": len(video_paths) - trimmed_count,
+            "total_seconds_saved": round(total_freeze_saved, 2),
+            "auto_trim_freeze": auto_trim_freeze,
+            "details": episode_details
+        }
     return str(out_p)
 
 
@@ -548,7 +729,7 @@ def split_video(video_path: str, chunk_duration_sec: int, output_dir: str) -> Li
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    out_pattern = str(out_dir / f"{in_p.stem}_part%03d.mp4")
+    out_pattern = str(out_dir / f"{in_p.stem}_EP%03d.mp4")
     cmd = [
         get_ffmpeg_path(),
         "-nostdin",
@@ -562,7 +743,10 @@ def split_video(video_path: str, chunk_duration_sec: int, output_dir: str) -> Li
         out_pattern
     ]
     subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=600, **get_silent_kwargs())
-    return [str(p) for p in sorted(out_dir.glob(f"{in_p.stem}_part*.mp4"))]
+    parts = sorted(out_dir.glob(f"{in_p.stem}_EP*.mp4"))
+    if not parts:
+        parts = sorted(out_dir.glob(f"{in_p.stem}_part*.mp4"))
+    return [str(p) for p in parts]
 
 
 def batch_rename_files(file_paths: List[str], prefix: str = "Drama_EP", start_num: int = 1) -> List[Dict[str, str]]:

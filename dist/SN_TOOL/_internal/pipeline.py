@@ -663,13 +663,27 @@ class ProjectManager:
         update_prog(68, f"4/7 Translation completed! Preparing voice synthesis ({voice_label})...", "Translation completed! Preparing voice synthesis...", dialogues=translated)
 
         # 5. Neural Khmer Voice Synthesis
-        update_prog(76, f"5/7 Synthesizing neural voice ({voice_label})...", f"Synthesizing neural voice ({voice_label})...")
         voice_out_dir = proj_dir / "voices"
         voice_out_dir.mkdir(parents=True, exist_ok=True)
+        total_d = len(translated)
+
+        last_update_time = [0.0]
+        def on_tts_progress(completed: int, total: int, item: Dict[str, Any]):
+            # Progress smoothly spans 76% to 87%
+            pct = 76 + int((completed / max(1, total)) * 11)
+            now = time.time()
+            if completed == total or completed % 3 == 0 or (now - last_update_time[0]) >= 1.0:
+                last_update_time[0] = now
+                pct_str = f"{int((completed / max(1, total)) * 100)}%"
+                msg = f"5/7 Synthesizing neural voice ({completed}/{total} lines - {pct_str})..."
+                update_prog(pct, msg, msg)
+
+        update_prog(76, f"5/7 Synthesizing neural voice ({voice_label}) 0/{total_d} lines...", f"Synthesizing neural voice ({voice_label})...")
         synthesized = await batch_synthesize(
             translated,
             output_dir=str(voice_out_dir),
-            default_voice="piseth" if is_multi else v_override
+            default_voice="piseth" if is_multi else v_override,
+            progress_callback=on_tts_progress
         )
         project["dialogues"] = synthesized
         self.save_project(project)

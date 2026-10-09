@@ -5621,6 +5621,57 @@ select, option, optgroup {
     border-radius: 9999px;
 }
 
+/* Footer Check Updates Button (Clean, Minimal & Modern) */
+.footer-check-update-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 18px;
+    padding: 0 8px;
+    background: rgba(250, 204, 21, 0.08);
+    border: 1px solid rgba(250, 204, 21, 0.28);
+    border-radius: 9999px;
+    color: #facc15;
+    font-size: 0.64rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    user-select: none;
+    line-height: 1;
+    white-space: nowrap;
+    outline: none;
+}
+
+.footer-check-update-btn:hover {
+    background: rgba(250, 204, 21, 0.22);
+    border-color: #facc15;
+    color: #fff;
+    box-shadow: 0 0 10px rgba(250, 204, 21, 0.35);
+    transform: translateY(-0.5px);
+}
+
+.footer-check-update-btn:active {
+    transform: translateY(0);
+}
+
+.footer-check-update-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.footer-check-update-btn i {
+    font-size: 0.65rem;
+    color: #facc15;
+    transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.footer-check-update-btn:hover i {
+    color: #fff;
+}
+
 /* ==========================================================================
    VIEW 2: DOWNLOADER STUDIO (Exact 3-Column Layout from Reference Image)
    ========================================================================== */
@@ -6817,6 +6868,7 @@ select, option, optgroup {
     align-items: center;
     gap: 14px;
     min-width: 0;
+    flex: 1;
 }
 
 .power-picker-icon {
@@ -6839,6 +6891,10 @@ select, option, optgroup {
     font-weight: 700;
     color: #f8fafc;
     letter-spacing: 0.2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 250px;
 }
 
 .power-picker-text-sub {
@@ -6848,7 +6904,7 @@ select, option, optgroup {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 330px;
+    max-width: 250px;
 }
 
 .power-picker-actions {
@@ -7078,6 +7134,153 @@ select, option, optgroup {
     color: #fef08a !important;
     font-weight: 700;
     box-shadow: 0 0 16px rgba(250, 204, 21, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Split Video Summary & Calculation Box */
+.power-split-summary-box {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(20, 20, 30, 0.7) 100%);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(250, 204, 21, 0.22);
+    border-radius: 14px;
+    padding: 13px 16px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 2px;
+}
+
+.power-split-summary-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.power-split-summary-title {
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    letter-spacing: 0.3px;
+}
+
+.power-split-badge-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(250, 204, 21, 0.14);
+    border: 1px solid rgba(250, 204, 21, 0.45);
+    border-radius: 9999px;
+    padding: 2px 10px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: #fef08a;
+    box-shadow: 0 0 12px rgba(250, 204, 21, 0.2);
+}
+
+.power-split-stats-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 14px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    padding: 10px 18px;
+}
+
+.power-split-stat-col {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.power-split-stat-divider {
+    width: 1px;
+    height: 26px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.power-split-stat-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.power-split-stat-val {
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: #f8fafc;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.power-split-stat-val.gold {
+    color: #facc15;
+    font-size: 0.95rem;
+    font-weight: 800;
+    text-shadow: 0 0 10px rgba(250, 204, 21, 0.35);
+}
+
+.power-input-unit-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.power-input-unit-wrapper .power-input {
+    padding-right: 95px !important;
+}
+
+.power-input-unit-badge {
+    position: absolute;
+    right: 10px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #facc15;
+    pointer-events: none;
+    background: rgba(250, 204, 21, 0.12);
+    border: 1px solid rgba(250, 204, 21, 0.25);
+    padding: 2px 7px;
+    border-radius: 6px;
+}
+
+.power-quick-chips {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 5px;
+}
+
+.power-chip-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: #cbd5e1;
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.power-chip-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.25);
+    color: #fff;
+}
+
+.power-chip-btn.active {
+    background: rgba(250, 204, 21, 0.2);
+    border-color: rgba(250, 204, 21, 0.55);
+    color: #fef08a;
+    font-weight: 700;
+    box-shadow: 0 0 8px rgba(250, 204, 21, 0.25);
 }
 
 /* Glassmorphism Progress Box */

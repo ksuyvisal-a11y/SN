@@ -153,14 +153,6 @@
                             <i class="fa-solid fa-pen-to-square" style="color:#fbbf24;"></i>
                             <span>Rename</span>
                         </div>
-                        <div class="power-item" onclick="openCompressModal('single')">
-                            <i class="fa-solid fa-file-zipper" style="color:#a855f7;"></i>
-                            <span>Single Compress</span>
-                        </div>
-                        <div class="power-item" onclick="openCompressModal('multi')">
-                            <i class="fa-solid fa-folder-tree" style="color:#eab308;"></i>
-                            <span>Multi Compress</span>
-                        </div>
                     </div>
                 </div>
 
@@ -1341,7 +1333,10 @@
             </div>
             <div style="display:flex; align-items:center; gap:8px;">
                 <span>0%</span>
-                <i class="fa-solid fa-arrows-rotate" style="cursor:pointer;" onclick="refreshAppTelemetry()"></i>
+                <button type="button" class="footer-check-update-btn" id="btn-footer-check-update" onclick="checkForAppUpdates(true)" title="Check for Updates">
+                    <i class="fa-solid fa-cloud-arrow-down"></i>
+                    <span>Check Updates</span>
+                </button>
             </div>
         </footer>
 
@@ -1352,8 +1347,14 @@
                 <div class="dl-stat-pill-item"><span class="dot-red">●</span> Failed <strong id="dl-stat-failed">0</strong></div>
                 <div class="dl-stat-pill-item"><span class="dot-yellow">●</span> Locked <strong id="dl-stat-locked">0</strong></div>
             </div>
-            <div class="dl-overall-progress-box">
-                <span class="dl-overall-text">Overall <strong id="dl-stat-overall-percent">0%</strong></span>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div class="dl-overall-progress-box">
+                    <span class="dl-overall-text">Overall <strong id="dl-stat-overall-percent">0%</strong></span>
+                </div>
+                <button type="button" class="footer-check-update-btn" onclick="checkForAppUpdates(true)" title="Check for Updates">
+                    <i class="fa-solid fa-cloud-arrow-down"></i>
+                    <span>Check Updates</span>
+                </button>
             </div>
         </footer>
 
@@ -1416,65 +1417,7 @@
                         </div>
                         <i class="fa-solid fa-chevron-right modal-chevron-arrow"></i>
                     </div>
-
-                    <!-- Row 4: Check for Updates -->
-                    <div class="modal-nav-row-card" onclick="checkForAppUpdates(true)">
-                        <div class="modal-card-left-col">
-                            <div class="modal-icon-badge" style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3);">
-                                <i class="fa-solid fa-cloud-arrow-down" style="color: #60a5fa;"></i>
-                            </div>
-                            <div class="modal-card-titles">
-                                <div class="modal-card-title-main" style="display:flex; align-items:center; gap:8px;">
-                                    <span>Check for Updates</span>
-                                    <span id="settings-version-tag" style="font-size:0.68rem; background:rgba(250,204,21,0.15); color:var(--gold-glow); padding:1px 6px; border-radius:4px; font-weight:700;">v1.0.1</span>
-                                </div>
-                                <div class="modal-card-desc-sub">Check GitHub for new features &amp; improvements</div>
-                            </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-right modal-chevron-arrow"></i>
-                    </div>
                 </div>
-
-        <!-- MODAL: SOFTWARE UPDATE (GitHub 1-Click Updater) -->
-        <div class="modal-backdrop-overlay" id="modal-update" style="display:none; align-items:center; justify-content:center; z-index:99999;">
-            <div class="modal-content-card" style="max-width:440px; border:1px solid rgba(250,204,21,0.3); box-shadow: 0 20px 40px rgba(0,0,0,0.8), 0 0 30px rgba(234,179,8,0.15); background:#0c0a09; border-radius:14px; overflow:hidden;">
-                <div class="modal-top-header" style="background: linear-gradient(135deg, rgba(234,179,8,0.15), rgba(0,0,0,0.5)); border-bottom:1px solid rgba(250,204,21,0.2); padding:14px 18px;">
-                    <div class="modal-title" style="display:flex; align-items:center; gap:10px;">
-                        <img src="logo.png?v=6.2" style="width:28px; height:28px; border-radius:6px;" alt="SN Logo">
-                        <span style="color:#facc15; font-weight:700; font-size:0.95rem;">SN TOOL UPDATE</span>
-                    </div>
-                    <button class="modal-close-icon-btn" onclick="closeModal('modal-update')">✕</button>
-                </div>
-                <div class="modal-inner-body" style="padding:18px; display:flex; flex-direction:column; gap:12px;">
-                    <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.03); padding:10px 14px; border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
-                        <div style="font-size:0.8rem; color:#94a3b8;">Current Version:</div>
-                        <div id="update-curr-ver" style="font-size:0.82rem; font-weight:700; color:#e2e8f0;">v1.0.0</div>
-                    </div>
-                    <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(250,204,21,0.08); padding:10px 14px; border-radius:8px; border:1px solid rgba(250,204,21,0.25);">
-                        <div style="font-size:0.8rem; color:#facc15; font-weight:600;">Latest Version on GitHub:</div>
-                        <div id="update-latest-ver" style="font-size:0.88rem; font-weight:800; color:#4ade80;">v1.0.0</div>
-                    </div>
-                    <div>
-                        <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">What&#39;s New / Release Notes:</div>
-                        <div id="update-release-notes" style="background:#050403; border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:10px 12px; font-size:0.76rem; color:#cbd5e1; line-height:1.5; max-height:140px; overflow-y:auto; white-space:pre-line;">
-                            - Feature enhancements and performance optimizations
-                        </div>
-                    </div>
-                    <div id="update-progress-container" style="display:none; flex-direction:column; gap:6px;">
-                        <div id="update-status-msg" style="font-size:0.75rem; color:#facc15; text-align:center;">Downloading new version...</div>
-                        <div style="width:100%; height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden;">
-                            <div id="update-progress-bar" style="width:40%; height:100%; background:linear-gradient(90deg, #facc15, #22c55e); transition:width 0.3s;"></div>
-                        </div>
-                    </div>
-                    <div style="display:flex; gap:10px; margin-top:6px;">
-                        <button type="button" class="ai-footer-cancel-btn" style="flex:1;" onclick="closeModal('modal-update')">Close</button>
-                        <button type="button" id="btn-do-update" class="dl-big-btn-yellow" style="flex:2; margin:0;" onclick="executeAppUpdate()">
-                            <i class="fa-solid fa-bolt"></i> Update Now
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
 
                 <!-- Subpage 1: Studio Translation Engine -->
                 <div class="modal-inner-body" id="settings-subpage-ai" style="display:none;">
@@ -1523,6 +1466,47 @@
                         <option selected>Piseth Solo (Male Drama Narration)</option>
                         <option>Sreymom Solo (Female Drama Narration)</option>
                     </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: SOFTWARE UPDATE (GitHub 1-Click Updater) -->
+        <div class="modal-backdrop-overlay" id="modal-update" style="display:none; align-items:center; justify-content:center; z-index:99999;">
+            <div class="modal-content-card" style="max-width:440px; border:1px solid rgba(250,204,21,0.3); box-shadow: 0 20px 40px rgba(0,0,0,0.8), 0 0 30px rgba(234,179,8,0.15); background:#0c0a09; border-radius:14px; overflow:hidden;">
+                <div class="modal-top-header" style="background: linear-gradient(135deg, rgba(234,179,8,0.15), rgba(0,0,0,0.5)); border-bottom:1px solid rgba(250,204,21,0.2); padding:14px 18px;">
+                    <div class="modal-title" style="display:flex; align-items:center; gap:10px;">
+                        <img src="logo.png?v=6.2" style="width:28px; height:28px; border-radius:6px;" alt="SN Logo">
+                        <span style="color:#facc15; font-weight:700; font-size:0.95rem;">SN TOOL UPDATE</span>
+                    </div>
+                    <button class="modal-close-icon-btn" onclick="closeModal('modal-update')">✕</button>
+                </div>
+                <div class="modal-inner-body" style="padding:18px; display:flex; flex-direction:column; gap:12px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.03); padding:10px 14px; border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
+                        <div style="font-size:0.8rem; color:#94a3b8;">Current Version:</div>
+                        <div id="update-curr-ver" style="font-size:0.82rem; font-weight:700; color:#e2e8f0;">v1.0.1</div>
+                    </div>
+                    <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(250,204,21,0.08); padding:10px 14px; border-radius:8px; border:1px solid rgba(250,204,21,0.25);">
+                        <div style="font-size:0.8rem; color:#facc15; font-weight:600;">Latest Version Available:</div>
+                        <div id="update-latest-ver" style="font-size:0.88rem; font-weight:800; color:#4ade80;">v1.0.1</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">What&#39;s New / Release Notes:</div>
+                        <div id="update-release-notes" style="background:#050403; border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:10px 12px; font-size:0.76rem; color:#cbd5e1; line-height:1.5; max-height:140px; overflow-y:auto; white-space:pre-line;">
+                            - Feature enhancements and performance optimizations
+                        </div>
+                    </div>
+                    <div id="update-progress-container" style="display:none; flex-direction:column; gap:6px;">
+                        <div id="update-status-msg" style="font-size:0.75rem; color:#facc15; text-align:center;">Downloading new version...</div>
+                        <div style="width:100%; height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden;">
+                            <div id="update-progress-bar" style="width:40%; height:100%; background:linear-gradient(90deg, #facc15, #22c55e); transition:width 0.3s;"></div>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:10px; margin-top:6px;">
+                        <button type="button" class="ai-footer-cancel-btn" style="flex:1;" onclick="closeModal('modal-update')">Close</button>
+                        <button type="button" id="btn-do-update" class="dl-big-btn-yellow" style="flex:2; margin:0;" onclick="executeAppUpdate()">
+                            <i class="fa-solid fa-bolt"></i> Update Now
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2080,7 +2064,7 @@
                             </div>
                             <div class="export-opt-text-wrap">
                                 <div class="export-opt-title">Full Movie Merged</div>
-                                <div class="export-opt-desc" id="export-desc-full">Combine all episodes into a single full movie video</div>
+                                <div class="export-opt-desc" id="export-desc-full">Combine all episodes into a single full movie (AI auto-trims frozen outros)</div>
                             </div>
                             <div class="export-opt-check-wrap">
                                 <i class="fa-solid fa-check"></i>
@@ -2169,8 +2153,8 @@
                         <div class="power-field-group">
                             <label class="power-label">Concat Engine</label>
                             <div class="power-input" style="display:flex; align-items:center; gap:8px; color:#fef08a;">
-                                <i class="fa-solid fa-bolt" style="color:#facc15;"></i>
-                                <span style="font-size:0.75rem;">Lossless Stream-Copy (Ultra Fast 100% Original)</span>
+                                <i class="fa-solid fa-wand-magic-sparkles" style="color:#c084fc;"></i>
+                                <span style="font-size:0.75rem;">Lossless Stream-Copy + AI Auto-Trim Outros (ស្កេនកាត់ស្កប់ស្វ័យប្រវត្តិ)</span>
                             </div>
                         </div>
                     </div>
@@ -2190,7 +2174,8 @@
                     <div class="power-result-card" id="power-merge-result-box" style="display:none;">
                         <div class="power-result-title"><i class="fa-solid fa-circle-check"></i> Videos merged successfully!</div>
                         <div class="power-result-path" id="power-merge-result-path">data/exports/merged_drama.mp4</div>
-                        <div style="display:flex; gap:8px; margin-top:4px;">
+                        <div id="power-merge-ai-stats" style="font-size:0.75rem; color:#cbd5e1; margin-top:8px; display:none; background:rgba(168,85,247,0.12); border:1px solid rgba(168,85,247,0.3); border-radius:6px; padding:8px 12px; line-height:1.5;"></div>
+                        <div style="display:flex; gap:8px; margin-top:8px;">
                             <button type="button" class="power-btn-choose" id="power-merge-btn-open-folder" onclick="openPowerOutputFolder()"><i class="fa-solid fa-folder-open"></i> Open Folder</button>
                             <button type="button" class="power-btn-choose" id="power-merge-btn-play" onclick="playPowerResultVideo()"><i class="fa-solid fa-play"></i> Preview (Play)</button>
                         </div>
@@ -2222,35 +2207,68 @@
                             <div class="power-picker-icon" style="color:#ec4899; background:rgba(236,72,153,0.12);"><i class="fa-solid fa-scissors"></i></div>
                             <div>
                                 <div class="power-picker-text-title" id="power-split-source-title">Select Video to Split</div>
-                                <div class="power-picker-text-sub" id="power-split-source-sub">Select single MP4/MKV file or use current Studio video</div>
+                                <div class="power-picker-text-sub" id="power-split-source-sub">Select single MP4/MKV video file</div>
                             </div>
                         </div>
                         <div class="power-picker-actions">
-                            <button type="button" class="power-btn-choose" onclick="powerUseCurrentVideoForSplit()"><i class="fa-solid fa-desktop"></i> Use Current Video</button>
                             <button type="button" class="power-btn-choose" onclick="powerPickFileForSplit()"><i class="fa-solid fa-folder-open"></i> Browse File</button>
                         </div>
                     </div>
 
-                    <!-- Presets & Inputs -->
-                    <div class="power-field-group">
-                        <label class="power-label">Chunk Duration Presets</label>
-                        <div class="power-preset-pills">
-                            <button type="button" class="power-pill-btn" onclick="setSplitPreset(30)">⚡ 30 Seconds (Shorts / TikTok)</button>
-                            <button type="button" class="power-pill-btn active" id="split-pill-60" onclick="setSplitPreset(60)">🎬 60 Seconds (TikTok / Reels)</button>
-                            <button type="button" class="power-pill-btn" onclick="setSplitPreset(180)">⏱️ 3 Minutes (Reels / Clip)</button>
-                            <button type="button" class="power-pill-btn" onclick="setSplitPreset(300)">⌛ 5 Minutes (Drama Part)</button>
+                    <!-- Live Split Breakdown & Total EP Estimation -->
+                    <div class="power-split-summary-box" id="power-split-summary-box">
+                        <div class="power-split-summary-top">
+                            <div class="power-split-summary-title">
+                                <i class="fa-solid fa-chart-pie" style="color:#facc15;"></i>
+                                <span>Split Summary & Total EP Estimation</span>
+                            </div>
+                            <div class="power-split-badge-pill" id="split-calc-badge">
+                                <i class="fa-solid fa-film"></i> <span id="split-calc-badge-text">-- Total EP</span>
+                            </div>
+                        </div>
+                        
+                        <div class="power-split-stats-row">
+                            <div class="power-split-stat-col">
+                                <div class="power-split-stat-label">Length per EP</div>
+                                <div class="power-split-stat-val" id="split-stat-part-duration">1 Minute (60s)</div>
+                            </div>
+                            <div class="power-split-stat-divider"></div>
+                            <div class="power-split-stat-col highlight">
+                                <div class="power-split-stat-label">Total Generated EP</div>
+                                <div class="power-split-stat-val gold" id="split-stat-total-count">-- EP</div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="power-options-grid">
+                    <!-- Duration Input (Starts from 1 Minute upwards) & Output Naming Format -->
+                    <div class="power-options-grid" style="margin-top:4px;">
                         <div class="power-field-group">
-                            <label class="power-label">Custom Duration (in Seconds)</label>
-                            <input type="number" id="split-duration-val" class="power-input" value="60" min="5" max="3600" onchange="updateSplitCalcPreview()">
+                            <label class="power-label">
+                                <i class="fa-solid fa-clock" style="color:#facc15;"></i>
+                                <span>Duration Per EP (in Minutes - Min 1 min)</span>
+                            </label>
+                            <div class="power-input-unit-wrapper">
+                                <input type="number" id="split-duration-mins" class="power-input" value="1" min="1" max="180" step="1" oninput="updateSplitCalcPreview()" onchange="updateSplitCalcPreview()">
+                                <span class="power-input-unit-badge">Minute(s)</span>
+                            </div>
+                            <div class="power-quick-chips">
+                                <button type="button" class="power-chip-btn active" id="quick-min-1" onclick="setSplitMinutes(1)">1 min</button>
+                                <button type="button" class="power-chip-btn" id="quick-min-2" onclick="setSplitMinutes(2)">2 min</button>
+                                <button type="button" class="power-chip-btn" id="quick-min-3" onclick="setSplitMinutes(3)">3 min</button>
+                                <button type="button" class="power-chip-btn" id="quick-min-5" onclick="setSplitMinutes(5)">5 min</button>
+                                <button type="button" class="power-chip-btn" id="quick-min-10" onclick="setSplitMinutes(10)">10 min</button>
+                            </div>
                         </div>
                         <div class="power-field-group">
-                            <label class="power-label">Output Naming Format</label>
-                            <div class="power-input" style="color:#94a3b8; font-size:0.75rem;">
-                                <code>[video_name]_part001.mp4 ...</code>
+                            <label class="power-label">
+                                <i class="fa-solid fa-signature" style="color:#ec4899;"></i>
+                                <span>Output Naming Format</span>
+                            </label>
+                            <div class="power-input" style="color:#94a3b8; font-size:0.75rem; display:flex; align-items:center; height:40px;">
+                                <code>[video_name]_EP001.mp4 ...</code>
+                            </div>
+                            <div style="font-size:0.72rem; color:#64748b; margin-top:2px;">
+                                <i class="fa-solid fa-bolt" style="color:#facc15;"></i> Stream-copy turbo split (~2 seconds per movie)
                             </div>
                         </div>
                     </div>
@@ -2268,7 +2286,7 @@
 
                     <!-- Result Box -->
                     <div class="power-result-card" id="power-split-result-box" style="display:none;">
-                        <div class="power-result-title"><i class="fa-solid fa-circle-check"></i> Video split successfully! (<span id="power-split-parts-count">0</span> parts)</div>
+                        <div class="power-result-title"><i class="fa-solid fa-circle-check"></i> Video split successfully! (<span id="power-split-parts-count">0</span> EP)</div>
                         <div class="power-result-path" id="power-split-result-path">data/exports/split_...</div>
                         <div style="display:flex; gap:8px; margin-top:4px;">
                             <button type="button" class="power-btn-choose" onclick="openPowerOutputFolder('split')"><i class="fa-solid fa-folder-open"></i> Open Folder</button>
@@ -2343,170 +2361,7 @@
             </div>
         </div>
 
-        <!-- MODAL 4: SINGLE COMPRESS -->
-        <div class="modal-backdrop-overlay" id="modal-power-compress">
-            <div class="modal-content-card power-modal-card">
-                <div class="modal-top-header">
-                    <div class="modal-title"><i class="fa-solid fa-file-zipper" style="color:#a855f7;"></i> <span>Single Compress (Video Size Compressor)</span></div>
-                    <button type="button" class="modal-close-icon-btn" onclick="closeModal('modal-power-compress')">✕</button>
-                </div>
-                <div class="power-modal-body">
-                    <p class="power-modal-desc">Compress video file size significantly while retaining HD quality using H.264 & CRF rate control.</p>
-                    
-                    <input type="file" id="power-compress-file-input" accept="video/*" style="display:none;" onchange="handlePowerCompressHtmlFile(event)">
-                    
-                    <!-- Video Source -->
-                    <div class="power-picker-card">
-                        <div class="power-picker-info">
-                            <div class="power-picker-icon" style="color:#a855f7; background:rgba(168,85,247,0.12);"><i class="fa-solid fa-file-video"></i></div>
-                            <div>
-                                <div class="power-picker-text-title" id="power-compress-source-title">Select Video to Compress</div>
-                                <div class="power-picker-text-sub" id="power-compress-source-sub">Select MP4/MKV file or use current Studio video</div>
-                            </div>
-                        </div>
-                        <div class="power-picker-actions">
-                            <button type="button" class="power-btn-choose" onclick="powerUseCurrentVideoForCompress()"><i class="fa-solid fa-desktop"></i> Use Current Video</button>
-                            <button type="button" class="power-btn-choose" onclick="powerPickFileForCompress()"><i class="fa-solid fa-folder-open"></i> Browse File</button>
-                        </div>
-                    </div>
 
-                    <!-- Presets -->
-                    <div class="power-field-group">
-                        <label class="power-label">Compression Presets</label>
-                        <div class="power-preset-pills">
-                            <button type="button" class="power-pill-btn active" id="compress-pill-26" onclick="setCompressCrfPreset(26)">⚖️ Balanced (CRF 26 - ~55% reduction)</button>
-                            <button type="button" class="power-pill-btn" id="compress-pill-22" onclick="setCompressCrfPreset(22)">💎 High Quality (CRF 22 - ~30% reduction)</button>
-                            <button type="button" class="power-pill-btn" id="compress-pill-30" onclick="setCompressCrfPreset(30)">📦 Max Saver (CRF 30 - ~75% reduction)</button>
-                        </div>
-                    </div>
-
-                    <div class="power-options-grid">
-                        <div class="power-field-group">
-                            <label class="power-label">CRF Value (18-32): <span id="crf-number-display" style="color:#facc15; font-weight:700;">26</span></label>
-                            <input type="range" id="compress-crf-val" min="18" max="32" value="26" class="power-input" style="padding:4px 0;" oninput="document.getElementById('crf-number-display').textContent=this.value">
-                        </div>
-                        <div class="power-field-group">
-                            <label class="power-label">Optional Resolution Downscale</label>
-                            <select id="compress-target-height" class="power-input" style="cursor:pointer;">
-                                <option value="">Keep Original Resolution</option>
-                                <option value="1080">1080p FHD</option>
-                                <option value="720">720p HD (Fast & Lightweight)</option>
-                                <option value="480">480p SD</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Progress Box -->
-                    <div class="power-progress-box" id="power-compress-progress-box" style="display:none;">
-                        <div class="power-prog-header">
-                            <span id="power-compress-status-text">Compressing video in progress...</span>
-                            <span id="power-compress-status-pct" style="font-family:'JetBrains Mono', monospace; font-weight:700; color:#a855f7;">Encoding</span>
-                        </div>
-                        <div class="power-prog-track">
-                            <div class="power-prog-fill" id="power-compress-prog-fill" style="background:linear-gradient(90deg, #a855f7, #c084fc);"></div>
-                        </div>
-                    </div>
-
-                    <!-- Result Box -->
-                    <div class="power-result-card" id="power-compress-result-box" style="display:none;">
-                        <div class="power-result-title"><i class="fa-solid fa-circle-check"></i> Video compressed successfully!</div>
-                        <div class="power-result-path" id="power-compress-result-path">data/exports/compressed_...</div>
-                        <div style="display:flex; gap:8px; margin-top:4px;">
-                            <button type="button" class="power-btn-choose" onclick="openPowerOutputFolder('compress')"><i class="fa-solid fa-folder-open"></i> Open Folder</button>
-                            <button type="button" class="power-btn-choose" id="power-compress-btn-play" onclick="playPowerCompressedVideo()"><i class="fa-solid fa-play"></i> Preview (Play)</button>
-                        </div>
-                    </div>
-
-                    <div class="power-modal-actions-footer">
-                        <button type="button" class="power-btn-cancel" onclick="closeModal('modal-power-compress')">Close</button>
-                        <button type="button" class="power-btn-submit" id="btn-power-compress-start" onclick="executeVideoCompress()" style="background:linear-gradient(135deg, #a855f7 0%, #7e22ce 100%); color:#fff;"><i class="fa-solid fa-file-zipper"></i> Compress Video Now</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- MODAL 5: MULTI COMPRESS -->
-        <div class="modal-backdrop-overlay" id="modal-power-multi-compress">
-            <div class="modal-content-card power-modal-card" style="width:680px;">
-                <div class="modal-top-header">
-                    <div class="modal-title"><i class="fa-solid fa-folder-tree" style="color:#eab308;"></i> <span>Multi Compress (Batch Folder Compressor)</span></div>
-                    <button type="button" class="modal-close-icon-btn" onclick="closeModal('modal-power-multi-compress')">✕</button>
-                </div>
-                <div class="power-modal-body">
-                    <p class="power-modal-desc">Batch compress all episodes in a drama series folder in a queue automatically, saving massive hard drive space.</p>
-                    
-                    <input type="file" id="power-multi-compress-file-input" multiple accept="video/*" style="display:none;" onchange="handlePowerMultiCompressHtmlFiles(event)">
-                    
-                    <div class="power-picker-card">
-                        <div class="power-picker-info">
-                            <div class="power-picker-icon" style="color:#eab308; background:rgba(234,179,8,0.12);"><i class="fa-solid fa-boxes-stacked"></i></div>
-                            <div>
-                                <div class="power-picker-text-title">Select Folder or Multiple Files to Compress</div>
-                                <div class="power-picker-text-sub" id="power-multi-count-label">0 files in compression queue</div>
-                            </div>
-                        </div>
-                        <div class="power-picker-actions">
-                            <button type="button" class="power-btn-choose" onclick="powerPickFolderForMultiCompress()"><i class="fa-solid fa-folder-open"></i> Select Folder</button>
-                            <button type="button" class="power-btn-choose" onclick="powerPickFilesForMultiCompress()"><i class="fa-solid fa-file-video"></i> Select Files</button>
-                        </div>
-                    </div>
-
-                    <!-- Queue List -->
-                    <div class="power-field-group">
-                        <div class="power-label" style="justify-content:space-between;">
-                            <span><i class="fa-solid fa-list-check"></i> Compression Queue</span>
-                            <button type="button" onclick="clearPowerMultiCompressQueue()" style="background:none; border:none; color:#f87171; font-size:0.7rem; cursor:pointer;">Clear Queue</button>
-                        </div>
-                        <div class="power-queue-wrap" style="max-height:160px;" id="power-multi-queue-list">
-                            <div style="text-align:center; padding:14px; color:#64748b; font-size:0.75rem;">No videos in queue. Click buttons above to select a folder or files.</div>
-                        </div>
-                    </div>
-
-                    <div class="power-options-grid">
-                        <div class="power-field-group">
-                            <label class="power-label">Global CRF Level</label>
-                            <select id="power-multi-crf-val" class="power-input" style="cursor:pointer;">
-                                <option value="26">CRF 26 - Balanced (~55% reduction - Recommended)</option>
-                                <option value="22">CRF 22 - High Quality (~30% reduction)</option>
-                                <option value="30">CRF 30 - Maximum Space Saver (~75% reduction)</option>
-                            </select>
-                        </div>
-                        <div class="power-field-group">
-                            <label class="power-label">Downscale Resolution</label>
-                            <select id="power-multi-target-height" class="power-input" style="cursor:pointer;">
-                                <option value="">Keep Original Resolution</option>
-                                <option value="720">720p HD (Fast & Space Saver)</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Progress Box -->
-                    <div class="power-progress-box" id="power-multi-progress-box" style="display:none;">
-                        <div class="power-prog-header">
-                            <span id="power-multi-status-text">Compressing batch in progress...</span>
-                            <span id="power-multi-status-pct" style="font-family:'JetBrains Mono', monospace; font-weight:700; color:#eab308;">0/0</span>
-                        </div>
-                        <div class="power-prog-track">
-                            <div class="power-prog-fill" id="power-multi-prog-fill"></div>
-                        </div>
-                    </div>
-
-                    <!-- Result Box -->
-                    <div class="power-result-card" id="power-multi-result-box" style="display:none;">
-                        <div class="power-result-title"><i class="fa-solid fa-circle-check"></i> All videos compressed successfully!</div>
-                        <div class="power-result-path" id="power-multi-result-path">Saved space: 0 MB</div>
-                        <div style="display:flex; gap:8px; margin-top:4px;">
-                            <button type="button" class="power-btn-choose" onclick="openPowerOutputFolder('multi_compress')"><i class="fa-solid fa-folder-open"></i> Open Folder</button>
-                        </div>
-                    </div>
-
-                    <div class="power-modal-actions-footer">
-                        <button type="button" class="power-btn-cancel" onclick="closeModal('modal-power-multi-compress')">Close</button>
-                        <button type="button" class="power-btn-submit" id="btn-power-multi-compress-start" onclick="executeMultiCompress()"><i class="fa-solid fa-folder-tree"></i> Start Batch Compress</button>
-                    </div>
-                </div>
-            </div>
-        </div>
 
         <!-- MODAL 7: LICENSE ACTIVATION GATE (Cyber-Gold Lock Screen) -->
         <div class="license-gate-overlay" id="modal-license-gate">
