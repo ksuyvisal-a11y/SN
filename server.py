@@ -995,6 +995,21 @@ def set_story_config_endpoint():
 def license_status_endpoint():
     """Check device license status & HWID."""
     info = check_current_device_license()
+    try:
+        from update import get_local_version
+        info["app_version"] = get_local_version()
+    except Exception:
+        info["app_version"] = "1.0.3"
+
+    cfg_path = get_data_file("license_config.json")
+    if cfg_path.exists():
+        try:
+            with open(cfg_path, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+                info["telegram_link"] = cfg.get("telegram_link", "https://t.me/")
+                info["facebook_link"] = cfg.get("facebook_link", "https://facebook.com/")
+        except Exception:
+            pass
     return jsonify(info)
 
 

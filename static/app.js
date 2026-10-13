@@ -9118,6 +9118,13 @@ async function checkDeviceLicenseStatus() {
             gateClientNameInput.value = data.client_name;
         }
 
+        if (data.telegram_link) window._adminTelegramLink = data.telegram_link;
+        if (data.facebook_link) window._adminFacebookLink = data.facebook_link;
+        const gateVerElem = document.getElementById('gate-security-version');
+        if (gateVerElem && data.app_version) {
+            gateVerElem.textContent = `SN TOOL Security Engine • v${data.app_version}`;
+        }
+
         if (data.is_activated) {
             // License is valid & active
             window._isDeviceActivated = true;
@@ -9261,6 +9268,34 @@ function copyHwid(elemId = 'settings-hwid-text') {
         }).catch(() => {
             showToast(`HWID: ${text}`);
         });
+    }
+}
+
+function contactAdmin(platform) {
+    const hwidElem = document.getElementById('gate-hwid-text');
+    const hwid = hwidElem ? hwidElem.textContent.trim() : (currentHwid || '');
+    const isTg = (platform === 'tg' || platform === 'telegram');
+    const pName = isTg ? 'Telegram' : 'Facebook';
+
+    if (hwid && hwid !== 'FETCHING...') {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(hwid).then(() => {
+                showToast(`📋 Copied HWID (${hwid})! Send to ${pName} Admin.`);
+            }).catch(() => {
+                showToast(`📋 Machine HWID: ${hwid}`);
+            });
+        } else {
+            showToast(`📋 Machine HWID: ${hwid}`);
+        }
+    }
+
+    const link = isTg
+        ? (window._adminTelegramLink || 'https://t.me/')
+        : (window._adminFacebookLink || 'https://facebook.com/');
+    try {
+        window.open(link, '_blank');
+    } catch (e) {
+        console.log("Open contact link error:", e);
     }
 }
 

@@ -2448,13 +2448,26 @@
                         <i class="fa-solid fa-unlock-keyhole"></i> ACTIVATE NOW
                     </button>
 
-                    <!-- Footer Note -->
+                    <!-- Contact Admin Action Section -->
+                    <div class="license-gate-divider">
+                        <span>OR CONTACT ADMIN FOR KEY</span>
+                    </div>
+
+                    <div class="license-gate-contact-buttons">
+                        <button type="button" class="license-gate-contact-btn tg" onclick="contactAdmin('telegram')">
+                            <i class="fa-brands fa-telegram"></i> Telegram Admin
+                        </button>
+                        <button type="button" class="license-gate-contact-btn fb" onclick="contactAdmin('facebook')">
+                            <i class="fa-brands fa-facebook"></i> Facebook Admin
+                        </button>
+                    </div>
+
+                    <!-- Footer Note with Dynamic Version -->
                     <div class="license-gate-footer">
                         <div class="license-gate-footer-badge">
                             <i class="fa-solid fa-shield-halved" style="color:#facc15;"></i>
-                            <span>SN TOOL Security Engine • v6.3</span>
+                            <span id="gate-security-version">SN TOOL Security Engine • v1.0.3</span>
                         </div>
-                        <div>Contact Admin (Telegram / Facebook) to get an official License Key</div>
                     </div>
                 </div>
             </div>
