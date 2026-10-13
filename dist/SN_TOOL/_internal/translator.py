@@ -4,6 +4,7 @@ Specialized in Authentic Cambodian Television Drama Dubbing (ភាសាបញ�
 Strictly Two Professional Voices: ពិសិដ្ឋ (Piseth - Male Lead) and ស្រីមុំ (Sreymom - Female Lead)
 """
 import os
+import sys
 import re
 import json
 import httpx
@@ -434,13 +435,41 @@ KHMER_DUBBING_POST_CLEANUP = [
     (r'លី\s*ម៉ូ\s*ឈៀន', 'លីមូឈៀន'),
 ]
 
-DRAMA_DICTIONARY_FILE = Path("data/drama_dictionary.json")
+def get_data_file(filename: str) -> Path:
+    """Bulletproof resolver for data files across source, package, and runtime environments."""
+    if getattr(sys, 'frozen', False):
+        app_dir = Path(os.path.dirname(sys.executable))
+        base = Path(sys._MEIPASS)
+    else:
+        app_dir = Path(__file__).resolve().parent
+        base = app_dir
+
+    candidates = [
+        app_dir / "data" / filename,
+        app_dir / filename,
+        base / "data" / filename,
+        base / filename,
+        Path("data") / filename,
+        Path(filename),
+        app_dir.parent / "data" / filename,
+        base.parent / "data" / filename,
+        app_dir / "_internal" / "data" / filename,
+        Path(os.getcwd()) / "data" / filename,
+        Path(os.getcwd()) / filename,
+    ]
+    for c in candidates:
+        if c.exists():
+            return c
+    return app_dir / "data" / filename
+
+DRAMA_DICTIONARY_FILE = get_data_file("drama_dictionary.json")
 
 def load_drama_dictionary() -> Dict[str, str]:
     """Load user-defined character names, titles, and drama vocabulary dictionary."""
-    if DRAMA_DICTIONARY_FILE.exists():
+    dict_p = get_data_file("drama_dictionary.json")
+    if dict_p.exists():
         try:
-            with open(DRAMA_DICTIONARY_FILE, "r", encoding="utf-8") as f:
+            with open(dict_p, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
             pass
@@ -622,7 +651,7 @@ def resolve_dubbing_mode(target_voice_override: Optional[str] = None) -> Tuple[b
     override_str = str(target_voice_override or "").lower().strip()
     if not override_str or override_str in ("auto", "none"):
         try:
-            cfg_p = Path("data/story_config.json")
+            cfg_p = get_data_file("story_config.json")
             if cfg_p.exists():
                 with open(cfg_p, "r", encoding="utf-8") as f:
                     cfg_data = json.load(f)
@@ -783,6 +812,30 @@ def infer_drama_persona_acoustics(
     }
 
 
+BUILTIN_GROQ_KEYS = [
+    "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",
+    "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",
+    "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",
+    "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",
+    "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",
+    "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",
+    "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",
+    "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",
+    "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",
+    "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",
+    "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",
+    "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",
+    "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",
+    "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",
+    "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",
+    "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",
+    "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",
+    "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",
+    "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",
+    "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",
+]
+
+
 class DramaTranslator:
     def __init__(self, gemini_api_key: Optional[str] = None, groq_api_key: Optional[str] = None):
         self.api_keys: List[str] = []
@@ -801,6 +854,9 @@ class DramaTranslator:
         groq_pool = cfg.get("groq_keys") or []
         if isinstance(groq_pool, list) and groq_pool:
             self.groq_keys = [k.strip() for k in groq_pool if k and str(k).startswith("gsk_")]
+        if not self.groq_keys:
+            # Bulletproof built-in fallback pool for client machines
+            self.groq_keys = list(BUILTIN_GROQ_KEYS)
         if self.groq_api_key and self.groq_api_key not in self.groq_keys:
             self.groq_keys.insert(0, self.groq_api_key)
         if self.groq_keys and not self.groq_api_key:
@@ -830,7 +886,7 @@ class DramaTranslator:
 
     def _load_ai_config(self) -> Dict[str, Any]:
         try:
-            cfg_p = Path("data/ai_provider_config.json")
+            cfg_p = get_data_file("ai_provider_config.json")
             if cfg_p.exists():
                 with open(cfg_p, "r", encoding="utf-8") as f:
                     return json.load(f)
@@ -841,8 +897,8 @@ class DramaTranslator:
     def get_http_client(self) -> httpx.AsyncClient:
         if self._shared_http_client is None or self._shared_http_client.is_closed:
             self._shared_http_client = httpx.AsyncClient(
-                timeout=httpx.Timeout(5.0, connect=3.0),
-                limits=httpx.Limits(max_keepalive_connections=20, max_connections=40),
+                timeout=httpx.Timeout(15.0, connect=8.0),
+                limits=httpx.Limits(max_keepalive_connections=25, max_connections=50),
                 follow_redirects=True
             )
         return self._shared_http_client
@@ -957,6 +1013,20 @@ class DramaTranslator:
         except Exception:
             pass
 
+        # 3. Tertiary: MyMemory Translation API fallback
+        try:
+            import urllib.parse
+            mm_sl = "zh" if sl.startswith("zh") else ("en" if sl.startswith("en") else sl)
+            url3 = f"https://api.mymemory.translated.net/get?q={urllib.parse.quote(cleaned)}&langpair={mm_sl}|km"
+            resp3 = await client.get(url3, headers=headers)
+            if resp3.status_code == 200:
+                mm_data = resp3.json()
+                t_res = mm_data.get("responseData", {}).get("translatedText", "").strip()
+                if t_res and t_res != cleaned and "MYMEMORY WARNING" not in t_res:
+                    return self._post_polish_khmer(t_res, cleaned, voice)
+        except Exception:
+            pass
+
         return self._post_polish_khmer(cleaned, cleaned, voice)
 
     def _determine_strictly_two_voices(
@@ -1043,7 +1113,7 @@ class DramaTranslator:
 
         client = self.get_http_client()
         chunk_size = 25
-        candidate_models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "qwen/qwen3.8-27b", "mixtral-8x7b-32768"]
+        candidate_models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"]
 
         chunks = [dialogues[i:i + chunk_size] for i in range(0, len(dialogues), chunk_size)]
 

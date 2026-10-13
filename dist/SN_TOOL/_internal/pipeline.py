@@ -2,11 +2,22 @@
 Unified Drama Voice Translation & Facebook Movie Recap Pipeline Manager (V2.0 Pro)
 """
 import os
+import sys
 import json
 import uuid
 import asyncio
 from pathlib import Path
 from typing import Dict, Any, List, Optional
+
+if getattr(sys, 'frozen', False):
+    APP_DIR = Path(os.path.dirname(sys.executable))
+else:
+    APP_DIR = Path(__file__).resolve().parent
+
+DATA_DIR = APP_DIR / "data" / "projects"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+CACHE_DIR = APP_DIR / "cache"
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 from tts_engine import batch_synthesize, synthesize_khmer_speech, get_available_voices
 from translator import DramaTranslator, parse_srt_content, format_srt_content
@@ -16,7 +27,6 @@ from audio_processor import (
     create_waveform_data,
     get_media_duration
 )
-from tts_engine import batch_synthesize
 
 def safe_float(val: Any, default: float = 0.02) -> float:
     """Safely convert value to float with reliable fallback against empty strings and None."""
@@ -32,11 +42,6 @@ from vocal_remover import separate_vocals_and_bgm
 from stt_engine import SpeechToTextEngine
 from recap_engine import RecapEngine, VIRAL_KHMER_HOOKS
 from downloader import download_video_from_url
-
-DATA_DIR = Path("data/projects")
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-CACHE_DIR = Path("cache")
-CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 SAMPLE_DRAMAS = {
     "chinese_romance": {
@@ -582,7 +587,9 @@ class ProjectManager:
         # Resolve Voice Mode (Piseth Solo, Sreymom Solo, or Dual Multi-Voice)
         cfg_data = {}
         try:
-            cfg_p = Path("data/story_config.json")
+            cfg_p = APP_DIR / "data" / "story_config.json"
+            if not cfg_p.exists():
+                cfg_p = Path("data/story_config.json")
             if cfg_p.exists():
                 with open(cfg_p, "r", encoding="utf-8") as f:
                     cfg_data = json.load(f)

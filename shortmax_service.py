@@ -39,17 +39,28 @@ AES_IV = b"shortwebapiaesen"
 TS_IV = bytes([115, 104, 111, 114, 116, 109, 97, 120, 48, 48, 48, 48, 48, 48, 48, 48])
 
 def _resolve_data_path(rel_name: str) -> Path:
-    base = Path(__file__).resolve().parent
+    if getattr(sys, 'frozen', False):
+        app_dir = Path(os.path.dirname(sys.executable))
+        base = Path(sys._MEIPASS)
+    else:
+        app_dir = Path(__file__).resolve().parent
+        base = app_dir
+
     candidates = [
-        base / rel_name,
+        app_dir / "data" / rel_name,
+        app_dir / rel_name,
         base / "data" / rel_name,
+        base / rel_name,
         Path("data") / rel_name,
-        base.parent / "data" / rel_name
+        Path(rel_name),
+        app_dir.parent / "data" / rel_name,
+        base.parent / "data" / rel_name,
+        app_dir / "_internal" / "data" / rel_name
     ]
     for c in candidates:
         if c.exists():
             return c
-    return base / rel_name
+    return app_dir / "data" / rel_name
 
 CACHE_DIR = _resolve_data_path("cache/shortmax")
 CACHE_DIR.mkdir(parents=True, exist_ok=True)

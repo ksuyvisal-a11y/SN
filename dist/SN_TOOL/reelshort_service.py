@@ -37,17 +37,28 @@ HEADERS = {
 _SSL_CTX = ssl._create_unverified_context()
 
 def _resolve_data_path(rel_name: str) -> Path:
-    base = Path(__file__).resolve().parent
+    if getattr(sys, 'frozen', False):
+        app_dir = Path(os.path.dirname(sys.executable))
+        base = Path(sys._MEIPASS)
+    else:
+        app_dir = Path(__file__).resolve().parent
+        base = app_dir
+
     candidates = [
-        base / rel_name,
+        app_dir / "data" / rel_name,
+        app_dir / rel_name,
         base / "data" / rel_name,
+        base / rel_name,
         Path("data") / rel_name,
-        base.parent / "data" / rel_name
+        Path(rel_name),
+        app_dir.parent / "data" / rel_name,
+        base.parent / "data" / rel_name,
+        app_dir / "_internal" / "data" / rel_name
     ]
     for c in candidates:
         if c.exists():
             return c
-    return base / rel_name
+    return app_dir / "data" / rel_name
 
 DRAMAS_FILE = _resolve_data_path("reelshort_all_dramas.json")
 STREAMS_FILE = _resolve_data_path("reelshort_streams_cache.json")

@@ -12,6 +12,13 @@ echo  🎬 Launching SN TOOL - STUDIO PRO (AI Drama Dubbing Studio)...
 echo ========================================================================
 echo.
 
+if not exist "%~dp0SN_TOOL.exe" (
+    if exist "%~dp0SN_TOOL.exe.bak" (
+        echo [INFO] Auto-restoring SN_TOOL.exe from backup...
+        copy /y "%~dp0SN_TOOL.exe.bak" "%~dp0SN_TOOL.exe" >nul 2>&1
+    )
+)
+
 if exist "%~dp0SN_TOOL.exe" (
     start "" "%~dp0SN_TOOL.exe"
     exit

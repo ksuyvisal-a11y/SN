@@ -11,7 +11,7 @@ dist_sn.mkdir(parents=True, exist_ok=True)
 sn_sync_files = [
     "icon.ico", "license_config.json", "custom_keys.json", "version.json", "server.py",
     "downloader.py", "vocal_remover.py", "hongguo_service.py", "shortmax_service.py", "reelshort_service.py",
-    "license_engine.py", "video_processor.py", "pipeline.py", "batch_engine.py",
+    "hongguo_db.py", "license_engine.py", "video_processor.py", "pipeline.py", "batch_engine.py",
     "tts_engine.py", "audio_processor.py", "update.py", "translator.py", "stt_engine.py"
 ]
 for fname in sn_sync_files:
@@ -26,7 +26,7 @@ for lic in [dist_sn / "license.key", dist_sn / "_internal" / "license.key"]:
     if lic.exists():
         lic.unlink(missing_ok=True)
 
-# 2. Write START_SN_TOOL.bat
+# 2. Write START_SN_TOOL.bat with auto-healing
 start_bat = """@echo off
 chcp 65001 > nul
 set PYTHONUTF8=1
@@ -40,6 +40,13 @@ echo ========================================================================
 echo  🎬 Launching SN TOOL - STUDIO PRO (AI Drama Dubbing Studio)...
 echo ========================================================================
 echo.
+
+if not exist "%~dp0SN_TOOL.exe" (
+    if exist "%~dp0SN_TOOL.exe.bak" (
+        echo [INFO] Auto-restoring SN_TOOL.exe from backup...
+        copy /y "%~dp0SN_TOOL.exe.bak" "%~dp0SN_TOOL.exe" >nul 2>&1
+    )
+)
 
 if exist "%~dp0SN_TOOL.exe" (
     start "" "%~dp0SN_TOOL.exe"

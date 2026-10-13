@@ -586,8 +586,32 @@ def open_export_folder():
     return jsonify({"success": True, "opened_path": str(target_dir)})
 
 
-AI_CONFIG_FILE = Path("data/ai_provider_config.json")
-STORY_CONFIG_FILE = Path("data/story_config.json")
+def get_data_file(filename: str, create_dir: bool = False) -> Path:
+    """Bulletproof resolver for data files across runtime, package, and user environments."""
+    candidates = [
+        APP_DIR / "data" / filename,
+        APP_DIR / filename,
+        BASE_DIR / "data" / filename,
+        BASE_DIR / filename,
+        Path("data") / filename,
+        Path(filename),
+        APP_DIR.parent / "data" / filename,
+        BASE_DIR.parent / "data" / filename,
+        APP_DIR / "_internal" / "data" / filename,
+        Path(os.getcwd()) / "data" / filename,
+        Path(os.getcwd()) / filename,
+    ]
+    for c in candidates:
+        if c.exists():
+            return c
+    target = APP_DIR / "data" / filename
+    if create_dir:
+        target.parent.mkdir(parents=True, exist_ok=True)
+    return target
+
+
+AI_CONFIG_FILE = get_data_file("ai_provider_config.json", create_dir=True)
+STORY_CONFIG_FILE = get_data_file("story_config.json", create_dir=True)
 
 def load_stored_ai_config() -> dict:
     if AI_CONFIG_FILE.exists():
@@ -750,7 +774,7 @@ def set_ai_config_endpoint():
 
 @app.route("/api/drama-dictionary", methods=["GET", "POST"])
 def drama_dictionary_endpoint():
-    dict_file = Path("data/drama_dictionary.json")
+    dict_file = get_data_file("drama_dictionary.json", create_dir=True)
     if request.method == "POST":
         data = request.get_json(force=True) or {}
         entries = data.get("dictionary", data)
@@ -818,7 +842,7 @@ def series_merge_endpoint():
 
 @app.route("/api/story-config", methods=["GET", "POST"])
 def story_config_endpoint():
-    cfg_file = Path("data/story_config.json")
+    cfg_file = get_data_file("story_config.json", create_dir=True)
     if request.method == "POST":
         data = request.get_json(force=True) or {}
         cfg = {}
