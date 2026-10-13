@@ -1,10 +1,10 @@
 {
   "version": "1.0.3",
   "app_name": "SN TOOL - STUDIO PRO",
-  "release_date": "2026-10-09",
-  "title": "SN TOOL STUDIO PRO - Official Update v1.0.2",
-  "release_notes": "• Built-in AI Auto-Detect & Trim Frozen Outros\n• Split Video starting from 1 Minute with Total Generated EP estimation\n• Streamlined Power Tools suite (Clean & Minimalist)\n• Lossless Stream-Copy Concat engine\n• Seamless Full Movie Dubbing with cliffhanger freeze removal",
-  "download_url": "https://github.com/ksuyvisal-a11y/SN/releases/latest/download/SN_TOOL_UPDATE.zip",
+  "release_date": "2026-10-13",
+  "title": "SN TOOL STUDIO PRO - Official Update v1.0.3",
+  "release_notes": "• Clean frameless 7 platforms navigation\n• Beautiful Glassmorphism save location card\n• Fix horizontal scrollbar overflow\n• 1-Click Standalone Installer & Auto-Update",
+  "download_url": "https://github.com/ksuyvisal-a11y/SN/releases/latest/download/SN_TOOL_Setup.exe",
   "github_repo": "ksuyvisal-a11y/SN",
   "channel": "stable"
 }
