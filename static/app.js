@@ -9125,6 +9125,45 @@ async function checkDeviceLicenseStatus() {
             gateVerElem.textContent = `SN TOOL Security Engine • v${data.app_version}`;
         }
 
+        if (data.is_banned) {
+            window._isDeviceBanned = true;
+            window._isDeviceActivated = false;
+            document.body.classList.add('license-locked');
+            if (gateModal) gateModal.classList.add('active');
+            const cardBody = document.querySelector('.license-gate-body');
+            const cardHeader = document.querySelector('.license-gate-header');
+            if (cardHeader) {
+                cardHeader.innerHTML = `
+                    <div style="width: 50px; height: 50px; margin: 0 auto 6px auto; background: rgba(239,68,68,0.18); border: 2px solid #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #ef4444; font-size: 1.5rem;">
+                        <i class="fa-solid fa-ban"></i>
+                    </div>
+                    <div style="font-size: 1.1rem; font-weight: 800; color: #f87171; letter-spacing: 0.5px;">DEVICE PERMANENTLY BANNED</div>
+                    <div style="font-size: 0.75rem; color: #cbd5e1; margin-top: 3px; line-height: 1.4;">
+                        ការប៉ុនប៉ង Hack / Bypass ត្រូវបានចាប់បាន!<br>
+                        ឧបករណ៍កុំព្យូទ័រនេះត្រូវបានចាក់សោរជាអចិន្ត្រៃយ៍។
+                    </div>
+                `;
+            }
+            if (cardBody) {
+                cardBody.innerHTML = `
+                    <div style="background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; padding: 10px; margin-bottom: 12px; text-align: center;">
+                        <div style="font-size: 0.68rem; color: #94a3b8; margin-bottom: 3px;">LOCKED MACHINE HWID:</div>
+                        <div style="font-family: monospace; font-size: 0.86rem; font-weight: 800; color: #fca5a5; letter-spacing: 1px;">${data.hwid || currentHwid}</div>
+                    </div>
+                    <div class="license-gate-divider"><span>CONTACT ADMIN FOR APPEAL</span></div>
+                    <div class="license-gate-contact-buttons" style="margin-top: 8px;">
+                        <button type="button" class="license-gate-contact-btn tg" onclick="contactAdmin('telegram')">
+                            <i class="fa-brands fa-telegram"></i> Telegram Admin
+                        </button>
+                        <button type="button" class="license-gate-contact-btn fb" onclick="contactAdmin('facebook')">
+                            <i class="fa-brands fa-facebook"></i> Facebook Admin
+                        </button>
+                    </div>
+                `;
+            }
+            return;
+        }
+
         if (data.is_activated) {
             // License is valid & active
             window._isDeviceActivated = true;

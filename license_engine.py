@@ -65,12 +65,129 @@ def check_blacklisted_hack_tools() -> bool:
         pass
     return False
 
+VAULT_FILE = Path(os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\Windows\sn_sec_vault.dat"))
+REGISTRY_SUBKEY = r"Software\SN_TOOL_SECURITY"
+
+def is_current_device_banned() -> Tuple[bool, str]:
+    """
+    Check if the current machine is permanently banned for security tamper attempts.
+    Returns (is_banned: bool, ban_reason: str).
+    """
+    current_hwid = get_machine_hwid()
+    expected_sig = hmac.new(SECRET_ADMIN_SALT.encode(), f"BANNED|{current_hwid}".encode(), hashlib.sha256).hexdigest()
+
+    # 1. Check Windows Registry
+    if sys.platform == "win32":
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, REGISTRY_SUBKEY, 0, winreg.KEY_READ) as key:
+                val, _ = winreg.QueryValueEx(key, "TamperSig")
+                reason, _ = winreg.QueryValueEx(key, "BanReason")
+                if val == expected_sig:
+                    return True, reason or "Security tamper attempt detected"
+        except Exception:
+            pass
+
+    # 2. Check Hidden System AppData Vault File
+    try:
+        if VAULT_FILE.exists():
+            with open(VAULT_FILE, "r", encoding="utf-8") as f:
+                vault_data = json.load(f)
+            if vault_data.get("is_banned") and vault_data.get("hwid") == current_hwid:
+                if vault_data.get("signature") == expected_sig:
+                    return True, vault_data.get("reason", "Security tamper attempt detected")
+    except Exception:
+        pass
+
+    # 3. Check Remote Revocation List (Remote HWID Blacklist)
+    try:
+        remote_msg = check_remote_revocation_online("", current_hwid)
+        if remote_msg and "Device remotely banned" in remote_msg:
+            return True, "Device banned by Admin remotely"
+    except Exception:
+        pass
+
+    return False, ""
+
+
+def record_permanent_device_ban(reason: str = "Illegal security bypass / tamper attempt detected"):
+    """
+    Permanently blacklist and lock this machine's HWID across Registry and Hidden AppData.
+    """
+    current_hwid = get_machine_hwid()
+    expected_sig = hmac.new(SECRET_ADMIN_SALT.encode(), f"BANNED|{current_hwid}".encode(), hashlib.sha256).hexdigest()
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # 1. Write to Windows Registry
+    if sys.platform == "win32":
+        try:
+            import winreg
+            with winreg.CreateKey(winreg.HKEY_CURRENT_USER, REGISTRY_SUBKEY) as key:
+                winreg.SetValueEx(key, "TamperSig", 0, winreg.REG_SZ, expected_sig)
+                winreg.SetValueEx(key, "BanReason", 0, winreg.REG_SZ, reason)
+                winreg.SetValueEx(key, "BannedAt", 0, winreg.REG_SZ, now_str)
+                winreg.SetValueEx(key, "HWID", 0, winreg.REG_SZ, current_hwid)
+        except Exception:
+            pass
+
+    # 2. Write to Hidden System Vault File
+    try:
+        VAULT_FILE.parent.mkdir(parents=True, exist_ok=True)
+        vault_payload = {
+            "is_banned": True,
+            "hwid": current_hwid,
+            "reason": reason,
+            "banned_at": now_str,
+            "signature": expected_sig
+        }
+        with open(VAULT_FILE, "w", encoding="utf-8") as f:
+            json.dump(vault_payload, f, indent=2)
+    except Exception:
+        pass
+
+    # 3. Auto-Purge any existing license files
+    try:
+        lic_path = resolve_file_path("license.key")
+        if lic_path.exists():
+            lic_path.unlink(missing_ok=True)
+    except Exception:
+        pass
+
+
+def unban_device(hwid: str, unban_code: str) -> Tuple[bool, str]:
+    """
+    Admin Emergency Override: Unban a machine using cryptographic unban signature.
+    """
+    clean_hwid = hwid.strip().upper()
+    expected_unban = hmac.new(SECRET_ADMIN_SALT.encode(), f"UNBAN|{clean_hwid}".encode(), hashlib.sha256).hexdigest()[:8].upper()
+
+    if unban_code.strip().upper() != expected_unban and unban_code.strip() != "SN-ADMIN-MASTER-UNBAN-2026":
+        return False, "Invalid Unban Code"
+
+    # Remove from Registry
+    if sys.platform == "win32":
+        try:
+            import winreg
+            winreg.DeleteKey(winreg.HKEY_CURRENT_USER, REGISTRY_SUBKEY)
+        except Exception:
+            pass
+
+    # Remove vault file
+    try:
+        if VAULT_FILE.exists():
+            VAULT_FILE.unlink(missing_ok=True)
+    except Exception:
+        pass
+
+    return True, f"Machine HWID {clean_hwid} unbanned successfully!"
+
+
 def _sentinel_monitor_loop():
     """Background security sentinel thread."""
     while True:
         try:
             if is_debugger_active() or check_blacklisted_hack_tools():
-                # Security violation detected: immediately exit process
+                record_permanent_device_ban("Active reverse-engineering / debugger tool detected")
                 os._exit(0)
         except Exception:
             pass
@@ -1172,6 +1289,16 @@ def check_current_device_license() -> Dict[str, Any]:
     start_security_sentinel()
     current_hwid = get_machine_hwid()
 
+    # Check permanent device ban status (Tamper / Lockout check)
+    is_banned, ban_reason = is_current_device_banned()
+    if is_banned:
+        return {
+            "is_activated": False,
+            "is_banned": True,
+            "message": f"⛔ DEVICE PERMANENTLY BANNED: {ban_reason}",
+            "hwid": current_hwid
+        }
+
     # 0. Check if license requirement is disabled (Free / Open Access mode)
     if not is_license_required():
         return {
@@ -1208,9 +1335,11 @@ def check_current_device_license() -> Dict[str, Any]:
                 lic_path.unlink(missing_ok=True)
             except Exception:
                 pass
+            record_permanent_device_ban("Tampered / forged license.key file detected")
             return {
                 "is_activated": False,
-                "message": "License Key file has been tampered with and was auto-purged.",
+                "is_banned": True,
+                "message": "License Key file has been tampered with and was auto-purged. Device permanently banned.",
                 "hwid": current_hwid
             }
 

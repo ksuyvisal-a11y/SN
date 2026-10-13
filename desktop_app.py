@@ -583,6 +583,28 @@ def main():
     print(" 🖥️ Window Mode: Dedicated Standalone Native Application")
     print("========================================================")
 
+    # 0. Check Hardware Ban / Tamper Lockout
+    try:
+        from license_engine import is_current_device_banned, get_machine_hwid
+        banned, reason = is_current_device_banned()
+        if banned:
+            hwid = get_machine_hwid()
+            if sys.platform == "win32":
+                import ctypes
+                ctypes.windll.user32.MessageBoxW(
+                    0,
+                    f"⛔ ឧបករណ៍កុំព្យូទ័រនេះត្រូវបានចាក់សោរជាអចិន្ត្រៃយ៍ (PERMANENT HARDWARE BAN)!\n\n"
+                    f"⚠️ មូលហេតុ: {reason}\n"
+                    f"🔒 Machine HWID: {hwid}\n\n"
+                    f"កម្មវិធីនឹងមិនអាចដំណើរការនៅលើកុំព្យូទ័រនេះបានទៀតឡើយ។\n"
+                    f"ប្រសិនបើនេះជាការភាន់ច្រឡំ សូមទាក់ទងមក Admin ផ្ទាល់ដើម្បីស្នើសុំដោះសោរ។",
+                    "SN TOOL - HARDWARE SECURITY LOCKOUT",
+                    0x10 | 0x00010000  # MB_ICONSTOP | MB_SETFOREGROUND
+                )
+            sys.exit(1)
+    except Exception:
+        pass
+
     # 1. Check if server is already running - if healthy window exists, focus it; if orphan, clean it
     if check_and_handle_running_server():
         time.sleep(1.0)

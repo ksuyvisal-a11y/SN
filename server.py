@@ -95,6 +95,9 @@ from license_engine import (
     is_license_required,
     set_license_required,
     get_machine_hwid,
+    record_permanent_device_ban,
+    is_current_device_banned,
+    unban_device,
     ADMIN_HISTORY_FILE
 )
 from update import (
@@ -156,6 +159,15 @@ def server_license_firewall():
         # Layer 1: Check License Requirement & Device License Status
         if is_license_required():
             lic = check_current_device_license()
+            if lic.get("is_banned"):
+                return jsonify({
+                    "success": False,
+                    "error": "DEVICE_PERMANENTLY_BANNED",
+                    "message": lic.get("message", "⛔ ឧបករណ៍កុំព្យូទ័រនេះត្រូវបានចាក់សោរជាអចិន្ត្រៃយ៍"),
+                    "code": 403,
+                    "hwid": lic.get("hwid")
+                }), 403
+
             if not lic.get("is_activated"):
                 return jsonify({
                     "success": False,
@@ -1069,9 +1081,19 @@ def license_status_endpoint():
     return jsonify(info)
 
 
+_FAILED_ACTIVATION_ATTEMPTS = {}
+
 @app.route("/api/license/activate", methods=["POST"])
 def license_activate_endpoint():
-    """Activate license key on this device with optional customer name."""
+    """Activate license key on this device with brute-force ban defense."""
+    banned, reason = is_current_device_banned()
+    if banned:
+        return jsonify({
+            "success": False,
+            "error": "DEVICE_PERMANENTLY_BANNED",
+            "message": f"⛔ ឧបករណ៍កុំព្យូទ័រនេះត្រូវបានចាក់សោរជាអចិន្ត្រៃយ៍! ({reason})"
+        }), 403
+
     data = request.get_json(force=True) or {}
     key = data.get("license_key", "").strip()
     client_name = data.get("client_name", "").strip() or None
@@ -1079,12 +1101,35 @@ def license_activate_endpoint():
         return jsonify({"success": False, "error": "Please enter License Key", "message": "Please enter License Key"}), 400
 
     success, msg, record = activate_license_on_device(key, client_name=client_name)
+    hwid = get_machine_hwid()
+    if not success:
+        _FAILED_ACTIVATION_ATTEMPTS[hwid] = _FAILED_ACTIVATION_ATTEMPTS.get(hwid, 0) + 1
+        if _FAILED_ACTIVATION_ATTEMPTS[hwid] >= 5:
+            record_permanent_device_ban("Excessive failed license key activation attempts (Brute Force)")
+            return jsonify({
+                "success": False,
+                "error": "DEVICE_PERMANENTLY_BANNED",
+                "message": "⛔ ឧបករណ៍កុំព្យូទ័ររបស់អ្នកត្រូវបានចាក់សោរជាអចិន្ត្រៃយ៍ ដោយសារការវាយបញ្ចូល Key ខុសច្រើនដង!"
+            }), 403
+    else:
+        _FAILED_ACTIVATION_ATTEMPTS.pop(hwid, None)
+
     return jsonify({
         "success": success,
         "message": msg,
         "error": None if success else msg,
         "license": record
     })
+
+
+@app.route("/api/license/unban", methods=["POST"])
+def license_unban_endpoint():
+    """Admin Emergency Override to unban a machine."""
+    data = request.get_json(force=True) or {}
+    unban_code = data.get("unban_code", "").strip()
+    hwid = data.get("hwid", "").strip() or get_machine_hwid()
+    success, msg = unban_device(hwid, unban_code)
+    return jsonify({"success": success, "message": msg})
 
 
 @app.route("/api/update/check", methods=["GET"])
