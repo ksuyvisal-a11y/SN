@@ -70,7 +70,8 @@ from downloader import (
     drama_downloader,
     find_authentic_episode_video,
     merge_downloaded_drama_episodes,
-    get_hongguo_episode_real_stream_url
+    get_hongguo_episode_real_stream_url,
+    resolve_safe_save_location
 )
 import hongguo_db
 import shortmax_service
@@ -1258,7 +1259,7 @@ def downloader_download_episodes_endpoint():
     """Start batch download for selected episodes with turbo concurrency and auto full drama merge."""
     data = request.get_json(force=True) or {}
     episode_ids = data.get("episode_ids", [])
-    save_location = data.get("save_location") or ("D:/SN_Dramas" if os.path.exists("D:/") else "C:/SN_Dramas")
+    save_location = data.get("save_location") or str(resolve_safe_save_location()).replace("\\", "/")
     save_poster = data.get("save_poster", True)
     auto_merge_full = data.get("auto_merge_full", False)
     
@@ -1273,7 +1274,7 @@ def downloader_download_poster_endpoint():
     poster_url = data.get("poster_url", "")
     drama_id = data.get("drama_id", "")
     title = data.get("title", "Drama")
-    save_location = data.get("save_location") or ("D:/SN_Dramas" if os.path.exists("D:/") else "C:/SN_Dramas")
+    save_location = data.get("save_location") or str(resolve_safe_save_location()).replace("\\", "/")
     
     if not poster_url and drama_id:
         d_info = hongguo_db.get_drama_by_id(drama_id)
@@ -1324,7 +1325,7 @@ def downloader_queue_endpoint():
     elif request.method == "POST":
         data = request.get_json(silent=True) or {}
         drama_data = data.get("drama") or drama_downloader.current_drama
-        save_loc = data.get("save_location") or ("D:/SN_Dramas" if os.path.exists("D:/") else "C:/SN_Dramas")
+        save_loc = data.get("save_location") or str(resolve_safe_save_location()).replace("\\", "/")
         if not drama_data:
             return jsonify({"success": False, "error": "No drama data provided"}), 400
         res = drama_downloader.add_to_queue(drama_data, save_loc)
@@ -1338,7 +1339,7 @@ def downloader_queue_endpoint():
 def downloader_queue_start_endpoint():
     """Start automated sequential processing of all queued dramas."""
     data = request.get_json(silent=True) or {}
-    save_loc = data.get("save_location") or ("D:/SN_Dramas" if os.path.exists("D:/") else "C:/SN_Dramas")
+    save_loc = data.get("save_location") or str(resolve_safe_save_location()).replace("\\", "/")
     res = drama_downloader.start_queue(save_loc)
     return jsonify(res)
 

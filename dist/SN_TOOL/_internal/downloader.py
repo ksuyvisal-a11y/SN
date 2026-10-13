@@ -804,11 +804,29 @@ def get_drama_episodes(drama: Any, drama_obj: Optional[Dict[str, Any]] = None) -
 
     found_stream_map = {it.get("episode_num"): it for it in stream_eps} if stream_eps else {}
 
-    # If only master full stream is available
-    if not stream_eps and master_full_url:
+    # If only master full stream is available, or cluster returned a single master stream for a multi-episode drama
+    is_master_stream_only = bool(
+        master_full_url and (
+            not stream_eps or
+            (len(stream_eps) == 1 and (stream_eps[0].get("is_master_full") or total_expected > 1))
+        )
+    )
+    if is_master_stream_only:
         episodes = []
         for ep_num in range(1, total_expected + 1):
             ep_id = f"{drama_id}_ep_{ep_num:03d}"
+            is_done = False
+            f_path = ""
+            v_url = master_full_url
+            sz_mb = "35.0"
+            if local_drama_dir:
+                ep_f = local_drama_dir / f"EP_{ep_num:02d}.mp4"
+                if ep_f.exists() and ep_f.stat().st_size > 100000:
+                    is_done = True
+                    f_path = str(ep_f.resolve()).replace("\\", "/")
+                    v_url = f"/media/{f_path}"
+                    sz_mb = f"{(ep_f.stat().st_size / (1024 * 1024)):.1f}"
+
             episodes.append({
                 "id": ep_id,
                 "drama_id": drama_id,
@@ -818,10 +836,12 @@ def get_drama_episodes(drama: Any, drama_obj: Optional[Dict[str, Any]] = None) -
                 "duration": "02:00",
                 "duration_sec": 120,
                 "resolution": "1080p Full HD",
-                "file_size": "35.0 MB",
-                "size_mb": "35.0",
-                "status": "Ready",
-                "progress": 0,
+                "file_size": f"{sz_mb} MB",
+                "size_mb": sz_mb,
+                "status": "Completed" if is_done else "Ready",
+                "progress": 100 if is_done else 0,
+                "filepath": f_path,
+                "video_url": v_url,
                 "stream_url": master_full_url,
                 "download_url": master_full_url,
                 "master_stream_url": master_full_url,
@@ -1315,14 +1335,19 @@ def download_stream_universal(stream_url: str, dest_file: Path, timeout_sec: int
             ydl_opts = {
                 'paths': {'home': str(isolated_dir), 'temp': str(isolated_dir)},
                 'outtmpl': str(isolated_dir / 'video.%(ext)s'),
-                'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+                'format': 'best[protocol=m3u8_native]/bestvideo[protocol=m3u8_native]+bestaudio[protocol=m3u8_native]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
                 'ffmpeg_location': ffmpeg_bin,
                 'merge_output_format': 'mp4',
-                'concurrent_fragment_downloads': 24,
+                'concurrent_fragment_downloads': 16,
                 'retries': 5,
                 'fragment_retries': 5,
                 'nocheckcertificate': True,
                 'socket_timeout': 30,
+                'extractor_args': {
+                    'youtube': {
+                        'player_client': ['android', 'ios', 'mweb', 'web']
+                    }
+                },
                 'http_headers': {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                     'Accept': '*/*',
@@ -1331,8 +1356,17 @@ def download_stream_universal(stream_url: str, dest_file: Path, timeout_sec: int
                 'no_warnings': True,
                 'progress_hooks': [ydl_hook]
             }
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([stream_url])
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    ydl.download([stream_url])
+            except Exception:
+                try:
+                    ydl_opts_fb = dict(ydl_opts)
+                    ydl_opts_fb['format'] = 'best/bestvideo+bestaudio'
+                    with yt_dlp.YoutubeDL(ydl_opts_fb) as ydl_fb:
+                        ydl_fb.download([stream_url])
+                except Exception:
+                    pass
 
             cands = [c for c in isolated_dir.glob("video*") if c.is_file() and c.stat().st_size > 1000000 and not any(x in c.name for x in [".part", ".ytdl", ".tmp"])]
             if cands:
@@ -1524,8 +1558,24 @@ def slice_full_movie_into_episodes(
                 str(temp_slice_file)
             ]
             try:
-                subprocess.run(cmd_slice, capture_output=True, timeout=30, **silent_kw)
-                if temp_slice_file.exists() and temp_slice_file.stat().st_size > 100000:
+                subprocess.run(cmd_slice, capture_output=True, timeout=40, **silent_kw)
+                if not (temp_slice_file.exists() and temp_slice_file.stat().st_size > 50000):
+                    cmd_rec = [
+                        ffmpeg_bin,
+                        "-y",
+                        "-ss", f"{start_t:.2f}",
+                        "-t", f"{ep_duration:.2f}",
+                        "-i", str(full_movie_file),
+                        "-c:v", "libx264",
+                        "-preset", "ultrafast",
+                        "-crf", "22",
+                        "-c:a", "aac",
+                        "-movflags", "+faststart",
+                        str(temp_slice_file)
+                    ]
+                    subprocess.run(cmd_rec, capture_output=True, timeout=60, **silent_kw)
+
+                if temp_slice_file.exists() and temp_slice_file.stat().st_size > 50000:
                     if ep_dest.exists():
                         try:
                             ep_dest.unlink()
@@ -2482,15 +2532,15 @@ class DramaDownloadManager:
 
                 # Assemble candidates list (primary + alternates for this specific episode)
                 cand_urls = []
-                if primary_url and (total_cnt == 1 or primary_url != master_full_url):
+                if primary_url:
                     cand_urls.append(primary_url)
-                if ep.get("download_url") and ep["download_url"] not in cand_urls and (total_cnt == 1 or ep["download_url"] != master_full_url):
+                if ep.get("download_url") and ep["download_url"] not in cand_urls:
                     cand_urls.append(ep["download_url"])
-                if stream_obj and stream_obj.get("stream_url") and stream_obj["stream_url"] not in cand_urls and (total_cnt == 1 or stream_obj["stream_url"] != master_full_url):
+                if stream_obj and stream_obj.get("stream_url") and stream_obj["stream_url"] not in cand_urls:
                     cand_urls.append(stream_obj["stream_url"])
                 if ep_num in alt_streams_map:
                     for alt_u in alt_streams_map[ep_num]:
-                        if alt_u not in cand_urls and (total_cnt == 1 or alt_u != master_full_url):
+                        if alt_u not in cand_urls:
                             cand_urls.append(alt_u)
 
                 # Dynamically check ReelShort stream cache if empty
@@ -2627,17 +2677,34 @@ class DramaDownloadManager:
                         ydl_down_opts = {
                             'paths': {'home': str(isolated_ep_dir), 'temp': str(isolated_ep_dir)},
                             'outtmpl': str(isolated_ep_dir / f"EP_{ep_num:02d}.%(ext)s"),
-                            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+                            'format': 'best[protocol=m3u8_native]/bestvideo[protocol=m3u8_native]+bestaudio[protocol=m3u8_native]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
                             'ffmpeg_location': ffmpeg_bin,
                             'merge_output_format': 'mp4',
                             'concurrent_fragment_downloads': 16,
+                            'retries': 5,
+                            'fragment_retries': 5,
+                            'nocheckcertificate': True,
                             'socket_timeout': 30,
+                            'extractor_args': {
+                                'youtube': {
+                                    'player_client': ['android', 'ios', 'mweb', 'web']
+                                }
+                            },
                             'quiet': True,
                             'no_warnings': True,
                             'progress_hooks': [ydl_ep_hook]
                         }
-                        with yt_dlp.YoutubeDL(ydl_down_opts) as ydl:
-                            ydl.download([ep["stream_url"]])
+                        try:
+                            with yt_dlp.YoutubeDL(ydl_down_opts) as ydl:
+                                ydl.download([ep["stream_url"]])
+                        except Exception:
+                            try:
+                                ydl_fb = dict(ydl_down_opts)
+                                ydl_fb['format'] = 'best/bestvideo+bestaudio'
+                                with yt_dlp.YoutubeDL(ydl_fb) as ydl_inst:
+                                    ydl_inst.download([ep["stream_url"]])
+                            except Exception:
+                                pass
                         
                         cand_eps = [c for c in isolated_ep_dir.glob(f"EP_{ep_num:02d}*") if c.is_file() and c.stat().st_size > 100000 and not any(x in c.name for x in [".part", ".ytdl", ".tmp"])]
                         if cand_eps:
@@ -2796,14 +2863,25 @@ class DramaDownloadManager:
                         return False
 
             # Evaluate available stream coverage across selected episodes
-            available_stream_count = sum(
+            total_needed = len(selected_eps)
+            unique_stream_urls = set(
+                ep_it.get("stream_url") for ep_it in selected_eps
+                if ep_it.get("stream_url") and str(ep_it["stream_url"]).startswith("http")
+            )
+            all_share_same_stream = (len(unique_stream_urls) == 1 and total_needed > 1)
+            any_is_master_full = any(ep_it.get("is_master_full") for ep_it in selected_eps)
+            cluster_is_single_full = len(cluster_streams) == 1 and (
+                cluster_streams.get(1, {}).get("is_master_full") or
+                "全集" in str(cluster_streams.get(1, {}).get("title", "")) or
+                "Full Series" in str(cluster_streams.get(1, {}).get("title", "")) or
+                total_needed > 1
+            )
+            available_stream_count = len(unique_stream_urls) if all_share_same_stream else sum(
                 1 for ep_it in selected_eps
                 if (ep_it.get("stream_url") and str(ep_it["stream_url"]).startswith("http"))
                 or (cluster_streams.get(ep_it.get("episode_number")) and cluster_streams[ep_it.get("episode_number")].get("stream_url"))
                 or (sid and ep_it.get("vid"))
             )
-            total_needed = len(selected_eps)
-            # Detect partial preview stream tier (e.g. <= 5 preview episodes out of 20+ episodes)
             has_partial_preview = (available_stream_count < total_needed) and (available_stream_count <= max(5, int(total_needed * 0.4)))
 
             is_master_mode = False
@@ -2830,9 +2908,15 @@ class DramaDownloadManager:
                         effective_master_url = found_master
                         self.add_log(f"✔ Full Series Master stream located: {found_master[:65]}...")
 
-            # If only partial preview streams exist (e.g. <= 5 preview episodes) and master stream is available,
+            # If only partial preview streams exist (e.g. <= 5 preview episodes) or all episodes share master stream,
             # switch to Master Full Drama Stream Mode to guarantee 100% full series download & slicing!
-            if effective_master_url and (has_partial_preview or available_stream_count <= 1):
+            if effective_master_url and (
+                has_partial_preview or 
+                available_stream_count <= 1 or 
+                all_share_same_stream or 
+                any_is_master_full or 
+                cluster_is_single_full
+            ):
                 is_master_mode = True
                 self.add_log(f"🎬 Full series master mode activated: Downloading full drama movie to slice into all {total_needed} episodes!")
 
@@ -2865,7 +2949,7 @@ class DramaDownloadManager:
             full_movie_name = f"{safe_drama_title}_Full_Drama_1080p.mp4"
             full_movie_dest = drama_dest_dir / full_movie_name
 
-            if (is_master_mode or (not cluster_streams and effective_master_url)) and effective_master_url and not self.stop_requested:
+            if (is_master_mode or (len(cluster_streams) <= 1 and effective_master_url)) and effective_master_url and not self.stop_requested:
                 self.add_log(f"🎬 Downloading MASTER FULL DRAMA STREAM (1080p Full HD) into '{full_movie_dest.name}'...")
 
                 # Only mark the first batch of 5 episodes as Downloading; all remaining episodes stay Queued (0%)
