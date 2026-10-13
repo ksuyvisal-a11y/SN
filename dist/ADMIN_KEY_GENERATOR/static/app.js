@@ -9150,15 +9150,6 @@ async function checkDeviceLicenseStatus() {
                         <div style="font-size: 0.68rem; color: #94a3b8; margin-bottom: 3px;">LOCKED MACHINE HWID:</div>
                         <div style="font-family: monospace; font-size: 0.86rem; font-weight: 800; color: #fca5a5; letter-spacing: 1px;">${data.hwid || currentHwid}</div>
                     </div>
-                    <div class="license-gate-divider"><span>CONTACT ADMIN FOR APPEAL</span></div>
-                    <div class="license-gate-contact-buttons" style="margin-top: 8px;">
-                        <button type="button" class="license-gate-contact-btn tg" onclick="contactAdmin('telegram')">
-                            <i class="fa-brands fa-telegram"></i> Telegram Admin
-                        </button>
-                        <button type="button" class="license-gate-contact-btn fb" onclick="contactAdmin('facebook')">
-                            <i class="fa-brands fa-facebook"></i> Facebook Admin
-                        </button>
-                    </div>
                 `;
             }
             return;
