@@ -112,6 +112,62 @@ Path("data/exports").mkdir(parents=True, exist_ok=True)
 Path("cache").mkdir(parents=True, exist_ok=True)
 
 
+# ==========================================================================
+# 🛡️ SERVER-LEVEL API FIREWALL & LICENSE ENFORCEMENT GUARD (Layer 1 & 3)
+# ==========================================================================
+PUBLIC_API_WHITELIST = {
+    "/api/license/status",
+    "/api/license/activate",
+    "/api/license/hwid",
+    "/api/system/play-completion-sound",
+    "/api/version",
+    "/health",
+    "/api/health"
+}
+
+@app.before_request
+def server_license_firewall():
+    """
+    Strictly intercepts and blocks unlicensed requests before reaching any engine.
+    Ensures that bypasses on Frontend UI cannot execute any backend operations.
+    """
+    path = request.path
+
+    # Allow static assets and root HTML page
+    if path in ("/", "/index.html", "/favicon.ico", "/logo.png") or path.startswith("/static/"):
+        return None
+
+    # Allow whitelisted public endpoints (license verification / activation / health)
+    if path in PUBLIC_API_WHITELIST or path.startswith("/api/license/") or path.startswith("/api/update/"):
+        return None
+
+    # Strictly protect all remaining /api/* endpoints
+    if path.startswith("/api/"):
+        # Layer 3: Localhost Origin & Referer Binding
+        client_ip = request.remote_addr or ""
+        if client_ip not in ("127.0.0.1", "::1", "localhost", "testclient"):
+            return jsonify({
+                "success": False,
+                "error": "ACCESS_DENIED_EXTERNAL_IP",
+                "message": "Security Violation: External network access is strictly prohibited.",
+                "code": 403
+            }), 403
+
+        # Layer 1: Check License Requirement & Device License Status
+        if is_license_required():
+            lic = check_current_device_license()
+            if not lic.get("is_activated"):
+                return jsonify({
+                    "success": False,
+                    "error": "DEVICE_UNLICENSED",
+                    "message": "⚠️ ឧបករណ៍នេះមិនទាន់បានចុះឈ្មោះ License ស្របច្បាប់ឡើយ! សូមទាក់ទង Admin ដើម្បីទទួលបាន License Key។",
+                    "code": 403,
+                    "hwid": lic.get("hwid")
+                }), 403
+
+    return None
+
+
 @app.after_request
 def add_cors_headers(response):
     response.headers["Access-Control-Allow-Origin"] = "*"

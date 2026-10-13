@@ -9729,4 +9729,34 @@ if (document.readyState === 'loading') {
     initStudioSplashScreen();
 }
 
+// ==========================================================================
+// 🛡️ ANTI-INSPECT & DEVTOOLS BLOCKER (Client-Side Protection)
+// ==========================================================================
+document.addEventListener('contextmenu', function(e) {
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) {
+        return true;
+    }
+    e.preventDefault();
+    return false;
+});
+
+document.addEventListener('keydown', function(e) {
+    // Block F12 (DevTools)
+    if (e.key === 'F12' || e.keyCode === 123) {
+        e.preventDefault();
+        return false;
+    }
+    // Block Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C (DevTools inspect)
+    if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) {
+        e.preventDefault();
+        return false;
+    }
+    // Block Ctrl+U (View Source)
+    if (e.ctrlKey && (e.key === 'u' || e.key === 'U')) {
+        e.preventDefault();
+        return false;
+    }
+});
+
 

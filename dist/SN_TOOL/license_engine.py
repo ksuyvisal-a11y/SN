@@ -52,26 +52,12 @@ def resolve_file_path(relative_path: str) -> Path:
     return p
 
 
-# Built-in Master Keys that work permanently out of the box (100% Offline & Online)
+# Built-in Master Keys for Admin Emergency Access
 DEFAULT_MASTER_KEYS: Dict[str, Dict[str, Any]] = {
     "SN-ADMIN-MASTER-2026": {"client_name": "Administrator", "plan": "LIFETIME"},
     "SN-ADMIN-MASTER-2026-VIP": {"client_name": "Administrator", "plan": "LIFETIME"},
     "SN-VIP-LIFETIME-PRO-2026": {"client_name": "Administrator", "plan": "LIFETIME"},
-    "SN-PRO-8888-9999-VIP": {"client_name": "Administrator", "plan": "LIFETIME"},
-    "SAL-VIP-2026": {"client_name": "Sal", "plan": "LIFETIME"},
-    "SAL-VIP-888": {"client_name": "Khmer User", "plan": "LIFETIME"},
-    "SAL-2026": {"client_name": "Sal", "plan": "LIFETIME"},
-    "MYPASS888": {"client_name": "Customer", "plan": "LIFETIME"},
-    "VIP-CAMBODIA-2026": {"client_name": "Cambodia User", "plan": "LIFETIME"},
-    "VIP-PRO-2026": {"client_name": "Studio Pro", "plan": "LIFETIME"},
-    "SN-STUDIO-PRO": {"client_name": "Studio Pro", "plan": "LIFETIME"},
-    "SN-VIP-8888": {"client_name": "Member", "plan": "LIFETIME"},
-    "VIP-STUDIO-2026": {"client_name": "Studio Member", "plan": "LIFETIME"},
-    "SN-2026-PRO": {"client_name": "SN Pro", "plan": "LIFETIME"},
-    "LIFETIME-VIP": {"client_name": "Lifetime User", "plan": "LIFETIME"},
-    "VIP-DARA-2026": {"client_name": "Dara", "plan": "LIFETIME"},
-    "SN-VIP": {"client_name": "Member", "plan": "LIFETIME"},
-    "VIP2026": {"client_name": "Member", "plan": "LIFETIME"},
+    "SN-PRO-8888-9999-VIP": {"client_name": "Administrator", "plan": "LIFETIME"}
 }
 
 
@@ -1145,30 +1131,46 @@ def check_current_device_license() -> Dict[str, Any]:
         # Verify integrity
         expected_checksum = hmac.new(SECRET_ADMIN_SALT.encode(), f"{license_key}|{saved_hwid}".encode(), hashlib.sha256).hexdigest()[:16]
         if checksum != expected_checksum:
+            try:
+                lic_path.unlink(missing_ok=True)
+            except Exception:
+                pass
             return {
                 "is_activated": False,
-                "message": "License Key file has been tampered with",
+                "message": "License Key file has been tampered with and was auto-purged.",
                 "hwid": current_hwid
             }
 
-        # Check machine HWID match
+        # Check machine HWID match (Strict Anti-Copy)
         if saved_hwid != current_hwid:
+            try:
+                lic_path.unlink(missing_ok=True)
+            except Exception:
+                pass
             return {
                 "is_activated": False,
-                "message": "Please enter License Key to activate tool (Machine Mismatch)",
+                "message": "Please enter License Key to activate tool (Machine HWID Mismatch).",
                 "hwid": current_hwid
             }
 
         # Check local and remote revocation
         if license_key in get_revoked_keys():
+            try:
+                lic_path.unlink(missing_ok=True)
+            except Exception:
+                pass
             return {
                 "is_activated": False,
-                "message": "❌ This License Key has been suspended by Admin",
+                "message": "❌ This License Key has been suspended by Admin.",
                 "hwid": current_hwid
             }
 
         remote_msg = check_remote_revocation_online(license_key, current_hwid)
         if remote_msg:
+            try:
+                lic_path.unlink(missing_ok=True)
+            except Exception:
+                pass
             return {
                 "is_activated": False,
                 "message": remote_msg,

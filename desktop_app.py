@@ -527,7 +527,7 @@ def launch_native_window(url="http://127.0.0.1:8000", title="SN TOOL - STUDIO PR
         except Exception:
             pass
 
-        webview.start(on_gui_ready, window, private_mode=False, gui='edgechromium')
+        webview.start(on_gui_ready, window, private_mode=False, gui='edgechromium', debug=False)
         # Window closed cleanly: exit application immediately
         os._exit(0)
     except Exception as e:
