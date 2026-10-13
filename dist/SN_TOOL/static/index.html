@@ -12,7 +12,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=67.0">
+    <link rel="stylesheet" href="style.css?v=71.0">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body class="splash-active">
@@ -975,12 +975,21 @@
                         <!-- Populated dynamically via JS -->
                     </div>
 
-                    <!-- Save Location Section (Clean Modern Style matching Image 2, Cyber-Gold Theme) -->
+                    <!-- Save Location Section (Clean Modern Glassmorphism Style) -->
                     <div class="dl-save-location-box">
-                        <div class="dl-clean-save-title">SAVE LOCATION</div>
+                        <div class="dl-clean-save-title">
+                            <span class="dl-save-title-text">
+                                <i class="fa-solid fa-folder-open dl-save-header-icon"></i>
+                                Save Location
+                            </span>
+                            <span class="dl-save-active-badge">
+                                <span class="dl-save-dot"></span>Ready
+                            </span>
+                        </div>
 
                         <!-- Path Input & Folder Picker Button -->
                         <div class="dl-clean-path-row">
+                            <i class="fa-solid fa-hard-drive dl-path-lead-icon"></i>
                             <input type="text" id="dl-save-path-input" value="D:/SN_Dramas" spellcheck="false" placeholder="Select save folder..." title="Click folder icon to change directory or paste path">
                             <button type="button" class="dl-clean-folder-btn" onclick="browseSaveLocation()" title="Select folder on Laptop">
                                 <i class="fa-solid fa-folder"></i>

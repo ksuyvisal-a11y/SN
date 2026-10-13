@@ -101,11 +101,20 @@ def check_for_updates(github_token: str = None) -> Dict[str, Any]:
                 remote_ver = tag_name or local_ver
                 has_update = is_newer_version(remote_ver, local_ver)
                 download_url = ""
-                # Find zip asset if any
+                # Prioritize single-file installer SN_TOOL_Setup.exe, then any .exe, then .zip
                 for asset in rel.get("assets", []):
-                    if asset.get("name", "").endswith(".zip"):
+                    aname = asset.get("name", "").lower()
+                    if aname == "sn_tool_setup.exe":
                         download_url = asset.get("browser_download_url", "")
                         break
+                    elif aname.endswith(".exe"):
+                        download_url = asset.get("browser_download_url", "")
+                        break
+                if not download_url:
+                    for asset in rel.get("assets", []):
+                        if asset.get("name", "").endswith(".zip"):
+                            download_url = asset.get("browser_download_url", "")
+                            break
                 if not download_url:
                     download_url = rel.get("zipball_url", "")
 
@@ -162,37 +171,47 @@ def apply_git_pull_update(app_dir: Path) -> Dict[str, Any]:
 
 def apply_zip_download_update(download_url: str, app_dir: Path) -> Dict[str, Any]:
     """
-    Download zip update and launch detached updater script on Windows.
+    Download update (supports 1-File SN_TOOL_Setup.exe or update_package.zip) and launch detached updater script on Windows.
     """
     if not download_url:
         return {"success": False, "error": "No download URL provided for update."}
 
     cache_dir = app_dir / "data" / "cache" / "update"
     cache_dir.mkdir(parents=True, exist_ok=True)
-    zip_dest = cache_dir / "update_package.zip"
+    is_exe = download_url.lower().split("?")[0].endswith(".exe")
+    dest_file = cache_dir / ("SN_TOOL_Setup.exe" if is_exe else "update_package.zip")
 
     try:
         # Download file
         req = urllib.request.Request(download_url, headers={"User-Agent": "SN_TOOL-Updater/5.0"})
-        with urllib.request.urlopen(req, timeout=120) as resp, open(zip_dest, "wb") as out_f:
+        with urllib.request.urlopen(req, timeout=300) as resp, open(dest_file, "wb") as out_f:
             while True:
                 chunk = resp.read(65536)
                 if not chunk:
                     break
                 out_f.write(chunk)
 
-        # Create detached batch script to extract and restart
+        # Create detached batch script to launch installer or extract zip and restart
         bat_file = app_dir / "apply_update.bat"
         exe_file = app_dir / "SN_TOOL.exe"
         run_bat = app_dir / "START_SN_TOOL.bat"
         restart_cmd = f'start "" "{exe_file}"' if exe_file.exists() else f'start "" "{run_bat}"'
 
-        bat_content = f"""@echo off
+        if is_exe:
+            bat_content = f"""@echo off
+chcp 65001 >nul
+echo [SN TOOL UPDATER] Launching Setup Update...
+timeout /t 2 /nobreak >nul
+start "" "{dest_file}"
+del "%~f0" & exit
+"""
+        else:
+            bat_content = f"""@echo off
 chcp 65001 >nul
 echo [SN TOOL UPDATER] Applying updates...
 timeout /t 2 /nobreak >nul
-tar -xf "{zip_dest}" -C "{app_dir}" 2>nul || powershell -command "Expand-Archive -Path '{zip_dest}' -DestinationPath '{app_dir}' -Force"
-del /f /q "{zip_dest}" 2>nul
+tar -xf "{dest_file}" -C "{app_dir}" 2>nul || powershell -command "Expand-Archive -Path '{dest_file}' -DestinationPath '{app_dir}' -Force"
+del /f /q "{dest_file}" 2>nul
 echo [SN TOOL UPDATER] Update finished! Relaunching SN TOOL...
 {restart_cmd}
 del "%~f0" & exit
@@ -210,7 +229,7 @@ del "%~f0" & exit
 
         return {
             "success": True,
-            "message": "ការទាញយកជោគជ័យ! កម្មវិធីនឹង Restart ឡើង Version ថ្មីក្នុងរយៈពេល 2 វិនាទី..."
+            "message": "ការទាញយកជោគជ័យ! កម្មវិធីនឹង Update ឡើង Version ថ្មីក្នុងរយៈពេល 2 វិនាទី..."
         }
     except Exception as e:
         return {"success": False, "error": str(e)}

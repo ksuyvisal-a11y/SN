@@ -64,6 +64,16 @@ def main():
     except Exception:
         pass
 
+    # Backup existing user license.key if already activated
+    saved_lic = None
+    for lic_check in [target_dir / "license.key", target_dir / "_internal" / "license.key"]:
+        if lic_check.exists():
+            try:
+                saved_lic = lic_check.read_bytes()
+                break
+            except Exception:
+                pass
+
     # Extract setup payload with latest desktop application code & assets
     payload_zip = get_resource_path("setup_payload.zip")
     if not payload_zip.exists():
@@ -77,13 +87,21 @@ def main():
         except Exception:
             pass
 
-    # Ensure unactivated fresh state (no leftover license.key)
-    for lic_file in [target_dir / "license.key", target_dir / "_internal" / "license.key"]:
-        if lic_file.exists():
-            try:
-                lic_file.unlink(missing_ok=True)
-            except Exception:
-                pass
+    # Restore license if user was activated, or ensure clean state for fresh install
+    if saved_lic:
+        try:
+            (target_dir / "license.key").write_bytes(saved_lic)
+            if (target_dir / "_internal").exists():
+                (target_dir / "_internal" / "license.key").write_bytes(saved_lic)
+        except Exception:
+            pass
+    else:
+        for lic_file in [target_dir / "license.key", target_dir / "_internal" / "license.key"]:
+            if lic_file.exists():
+                try:
+                    lic_file.unlink(missing_ok=True)
+                except Exception:
+                    pass
 
     # Create / Update Desktop and Start Menu shortcuts
     icon_file = target_dir / "icon.ico"

@@ -4,31 +4,40 @@ import zipfile
 import shutil
 from pathlib import Path
 
+CLIENT_RUNTIME_PY = [
+    "server.py", "desktop_app.py", "downloader.py", "pipeline.py",
+    "batch_engine.py", "video_processor.py", "audio_processor.py",
+    "translator.py", "tts_engine.py", "stt_engine.py", "vocal_remover.py",
+    "license_engine.py", "hongguo_service.py", "hongguo_db.py",
+    "shortmax_service.py", "reelshort_service.py", "recap_engine.py",
+    "series_memory.py", "subtitle_styler.py", "translate_video.py",
+    "run_studio.py", "update.py"
+]
+
+CLIENT_ROOT_FILES = [
+    "version.json", "icon.ico", "license_config.json", "custom_keys.json",
+    "START_SN_TOOL.bat", "SN_TOOL.bat", "CREATE_DESKTOP_SHORTCUT.bat"
+]
+
 def package_update_zip():
     base_dir = Path(__file__).resolve().parent.parent
     zip_path = base_dir / "SN_TOOL_UPDATE.zip"
     temp_zip = base_dir / "SN_TOOL_UPDATE.tmp.zip"
     
-    print(f"[*] Packaging {zip_path.name}...")
-    
-    include_root_files = [
-        "version.json", "icon.ico", "license_config.json", "custom_keys.json",
-        "admin_key_history.json", "revoked_keys.json",
-        "SN_TOOL.bat", "START_ADMIN_KEY_GENERATOR.bat", "START_ADMIN_DASHBOARD.bat",
-        "CREATE_DESKTOP_SHORTCUT.bat", "Khmer_Drama_Studio_Launcher.bat", "LAUNCH_STUDIO_SILENT.vbs"
-    ]
+    print(f"[*] Packaging clean in-app update patch: {zip_path.name}...")
     
     if temp_zip.exists():
         temp_zip.unlink(missing_ok=True)
         
     with zipfile.ZipFile(temp_zip, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
-        # 1. Add all .py files in root
-        for py_file in base_dir.glob("*.py"):
-            arcname = py_file.name
-            zf.write(py_file, arcname)
+        # 1. Add only client runtime .py files (strictly exclude admin tools, generators, and dev scripts)
+        for py_name in CLIENT_RUNTIME_PY:
+            fpath = base_dir / py_name
+            if fpath.exists():
+                zf.write(fpath, py_name)
             
-        # 2. Add specific root files
-        for fname in include_root_files:
+        # 2. Add client root configs & batch launchers (no admin keys or history)
+        for fname in CLIENT_ROOT_FILES:
             fpath = base_dir / fname
             if fpath.exists():
                 zf.write(fpath, fname)
@@ -42,7 +51,7 @@ def package_update_zip():
                     rel_p = full_p.relative_to(base_dir)
                     zf.write(full_p, str(rel_p).replace('\\', '/'))
                     
-        # 4. Add data folder (exclude heavy databases and temporary caches)
+        # 4. Add data folder (essential configs and catalogs, exclude temp caches and user projects)
         data_dir = base_dir / "data"
         if data_dir.exists():
             for root, dirs, files in os.walk(data_dir):
@@ -55,16 +64,10 @@ def package_update_zip():
                     rel_p = full_p.relative_to(base_dir)
                     zf.write(full_p, str(rel_p).replace('\\', '/'))
                     
-        # 5. Add scripts folder
-        scripts_dir = base_dir / "scripts"
-        if scripts_dir.exists():
-            for root, dirs, files in os.walk(scripts_dir):
-                if "__pycache__" in root:
-                    continue
-                for f in files:
-                    full_p = Path(root) / f
-                    rel_p = full_p.relative_to(base_dir)
-                    zf.write(full_p, str(rel_p).replace('\\', '/'))
+        # 5. Add only essential scripts needed for shortcut creation (exclude all 100+ dev test scripts)
+        shortcut_ps1 = base_dir / "scripts" / "create_shortcut.ps1"
+        if shortcut_ps1.exists():
+            zf.write(shortcut_ps1, "scripts/create_shortcut.ps1")
 
     # Replace target zip
     try:
@@ -75,7 +78,38 @@ def package_update_zip():
         shutil.move(str(temp_zip), str(zip_path))
         
     size_mb = zip_path.stat().st_size / (1024 * 1024)
-    print(f"[OK] Successfully created {zip_path.name} ({size_mb:.2f} MB)")
+    print(f"[OK] Successfully created clean {zip_path.name} ({size_mb:.2f} MB)")
+
+
+def package_portable_zip():
+    """
+    Creates a clean portable zip from dist/SN_TOOL enclosed in a single root folder.
+    When a user unzips this, it unpacks into a single neat 'SN_TOOL' folder with SN_TOOL.exe!
+    """
+    base_dir = Path(__file__).resolve().parent.parent
+    dist_dir = base_dir / "dist" / "SN_TOOL"
+    if not dist_dir.exists():
+        print("[-] dist/SN_TOOL does not exist. Skipping portable zip.")
+        return
+
+    portable_zip = base_dir / "dist" / "SN_TOOL_Portable.zip"
+    print(f"[*] Packaging standalone portable zip: {portable_zip.name}...")
+    
+    with zipfile.ZipFile(portable_zip, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
+        for root, dirs, files in os.walk(dist_dir):
+            for f in files:
+                if f.lower() == "license.key":
+                    continue  # Ensure clients start unactivated
+                full_p = Path(root) / f
+                rel_p = full_p.relative_to(dist_dir)
+                # Store under SN_TOOL/ so unzipping creates a single clean folder!
+                archive_name = f"SN_TOOL/{str(rel_p).replace(chr(92), '/')}"
+                zf.write(full_p, archive_name)
+
+    size_mb = portable_zip.stat().st_size / (1024 * 1024)
+    print(f"[OK] Successfully created {portable_zip.name} ({size_mb:.2f} MB)")
+
 
 if __name__ == "__main__":
     package_update_zip()
+    package_portable_zip()
