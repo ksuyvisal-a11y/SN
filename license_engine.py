@@ -13,11 +13,83 @@ import hmac
 import hashlib
 import platform
 import subprocess
+import threading
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Any, Optional, Tuple, List
 
 SECRET_ADMIN_SALT = "SN_TOOL_U_NICH_AI_DRAMA_STUDIO_2026_MASTER_SECRET_KEY"
+
+# ==========================================================================
+# 🛡️ SYSTEM 3 & 4: ANTI-DEBUG, ANTI-REVERSE ENGINEERING & PROCESS SENTINEL
+# ==========================================================================
+BLACK_LISTED_PROCESSES = {
+    "x64dbg.exe", "x32dbg.exe", "x96dbg.exe", "ida.exe", "ida64.exe",
+    "idag.exe", "idag64.exe", "ollydbg.exe", "cheatengine-x86_64.exe",
+    "cheatengine-i386.exe", "cheatengine.exe", "processhacker.exe",
+    "fiddler.exe", "httpdebuggerui.exe", "httpdebugger.exe",
+    "wireshark.exe", "dnspy.exe", "scylla.exe", "hxd.exe"
+}
+
+_sentinel_started = False
+
+def is_debugger_active() -> bool:
+    """Detect if Windows Debugger or remote debugging probe is attached."""
+    if sys.platform != "win32":
+        return False
+    try:
+        import ctypes
+        if ctypes.windll.kernel32.IsDebuggerPresent():
+            return True
+        is_remote = ctypes.c_bool(False)
+        ctypes.windll.kernel32.CheckRemoteDebuggerPresent(ctypes.windll.kernel32.GetCurrentProcess(), ctypes.byref(is_remote))
+        if is_remote.value:
+            return True
+    except Exception:
+        pass
+    return False
+
+def check_blacklisted_hack_tools() -> bool:
+    """Scan running processes for blacklisted reverse-engineering / memory-tampering tools."""
+    if sys.platform != "win32":
+        return False
+    try:
+        out = subprocess.check_output("tasklist /FO CSV /NH", shell=True, text=True, stderr=subprocess.DEVNULL)
+        for line in out.splitlines():
+            parts = line.split(",")
+            if parts:
+                pname = parts[0].strip(' "').lower()
+                if pname in BLACK_LISTED_PROCESSES:
+                    return True
+    except Exception:
+        pass
+    return False
+
+def _sentinel_monitor_loop():
+    """Background security sentinel thread."""
+    while True:
+        try:
+            if is_debugger_active() or check_blacklisted_hack_tools():
+                # Security violation detected: immediately exit process
+                os._exit(0)
+        except Exception:
+            pass
+        time.sleep(4.0)
+
+def start_security_sentinel():
+    """Start the background security sentinel if not already active."""
+    global _sentinel_started
+    if _sentinel_started:
+        return
+    _sentinel_started = True
+    threading.Thread(target=_sentinel_monitor_loop, daemon=True).start()
+
+# Auto-start sentinel in production environments
+if getattr(sys, 'frozen', False) or os.environ.get("SN_PRODUCTION_GUARD") == "1":
+    try:
+        start_security_sentinel()
+    except Exception:
+        pass
 LICENSE_FILE = Path("license.key")
 ADMIN_HISTORY_FILE = Path("admin_key_history.json")
 GENERATED_KEYS_LOG = Path("generated_keys_log.txt")
@@ -1097,6 +1169,7 @@ def activate_license_on_device(license_key: str, client_name: Optional[str] = No
 
 def check_current_device_license() -> Dict[str, Any]:
     """Check if the current device is activated with a valid license."""
+    start_security_sentinel()
     current_hwid = get_machine_hwid()
 
     # 0. Check if license requirement is disabled (Free / Open Access mode)
