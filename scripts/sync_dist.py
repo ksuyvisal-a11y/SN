@@ -10,6 +10,7 @@ dist_sn.mkdir(parents=True, exist_ok=True)
 # 1. Copy icon and configs for SN_TOOL (Do NOT copy license.key so clients are unactivated!)
 sn_sync_files = [
     "icon.ico", "license_config.json", "custom_keys.json", "version.json", "server.py",
+    "downloader.py", "vocal_remover.py", "hongguo_service.py", "shortmax_service.py", "reelshort_service.py",
     "license_engine.py", "video_processor.py", "pipeline.py", "batch_engine.py",
     "tts_engine.py", "audio_processor.py", "update.py", "translator.py", "stt_engine.py"
 ]

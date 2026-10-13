@@ -1385,8 +1385,11 @@ def downloader_open_folder_endpoint():
         else:
             target_folder = "D:/SN_Dramas" if os.path.exists("D:/") else "C:/SN_Dramas"
 
-    p = Path(target_folder)
-    p.mkdir(parents=True, exist_ok=True)
+    try:
+        p = resolve_safe_save_location(target_folder)
+    except Exception:
+        p = Path(target_folder)
+        p.mkdir(parents=True, exist_ok=True)
 
     try:
         hongguo_service.standardize_folder(p)

@@ -416,7 +416,7 @@ def get_search_queries_for_title(raw_title: str) -> List[str]:
     def add_cand(c: str):
         c = c.strip()
         c = re.sub(r'^[^\w\u4e00-\u9fff]+|[^\w\u4e00-\u9fff]+$', '', c)
-        if c and len(c) >= 4 and c not in candidates:
+        if c and len(c) >= 2 and c not in candidates:
             candidates.append(c)
 
     bracketed = re.findall(r'[《【（「『\[](.*?)[》】）」』\]]', raw_title)
@@ -424,13 +424,30 @@ def get_search_queries_for_title(raw_title: str) -> List[str]:
 
     for base in base_titles:
         clean = base.split(' - ')[0].split(' (')[0].strip()
-        clean = re.sub(r'[\u1780-\u17ff]+', '', clean).strip()  # Strip Khmer noise
-        clean_no_season = re.sub(r'第[一二三四五六七八九十0-9]+[季部]', '', clean).strip()
+        # If title contains Khmer characters, look up original Chinese title from catalog DB
+        if re.search(r'[\u1780-\u17ff]', clean):
+            try:
+                import sqlite3
+                db_p = get_data_file("hongguo_catalog.db")
+                if db_p.exists():
+                    with sqlite3.connect(str(db_p)) as conn:
+                        q_sample = f"%{clean[:8]}%"
+                        row = conn.execute("SELECT title_cn, title FROM hongguo_dramas WHERE title LIKE ? OR title_kh LIKE ? LIMIT 1", (q_sample, q_sample)).fetchone()
+                        if row:
+                            ch_cand = row[0] or row[1]
+                            if ch_cand and not re.search(r'[\u1780-\u17ff]', ch_cand):
+                                clean = ch_cand
+            except Exception:
+                pass
+
+        clean_no_season = re.sub(r'[\u1780-\u17ff]+', '', clean).strip()
+        clean_no_season = re.sub(r'第[一二三四五六七八九十0-9]+[季部]', '', clean_no_season).strip()
         clean_no_season = re.sub(r'[\(（]?[全大]结局[\)）]?', '', clean_no_season).strip()
         clean_no_season = re.sub(r'[\(（]?全集[\)）]?', '', clean_no_season).strip()
         clean_no_season = re.sub(r'[\(（]?完结[\)）]?', '', clean_no_season).strip()
         clean_no_season = re.sub(r'[\(（]?第?[0-9一二三四五六七八九十]+集[\)）]?', '', clean_no_season).strip()
-        add_cand(clean_no_season)
+        if clean_no_season:
+            add_cand(clean_no_season)
 
         ch_chars = "".join(re.findall(r'[\u4e00-\u9fff]', clean_no_season))
         if ch_chars:
@@ -439,7 +456,10 @@ def get_search_queries_for_title(raw_title: str) -> List[str]:
             if len(ch_chars) >= 10:
                 add_cand(ch_chars[:8])
 
-    return candidates[:4]
+    if raw_title.strip() and raw_title.strip() not in candidates:
+        add_cand(raw_title.strip())
+
+    return candidates[:5]
 
 
 def parse_vod_play_url(play_url_raw: str, api_name: str = "VOD") -> List[Dict[str, Any]]:
@@ -506,7 +526,7 @@ def resolve_short_drama_stream_cluster(raw_title: str) -> List[Dict[str, Any]]:
         try:
             url = f"{base_url}?ac=detail&wd={urllib.parse.quote(q)}"
             req = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(req, timeout=1.8) as resp:
+            with urllib.request.urlopen(req, timeout=6.0) as resp:
                 data = json.loads(resp.read().decode('utf-8', errors='ignore'))
                 items = data.get('list', [])
                 if not items:
@@ -515,16 +535,26 @@ def resolve_short_drama_stream_cluster(raw_title: str) -> List[Dict[str, Any]]:
                 best_item = None
                 best_score = 0.0
 
-                # STRICT VERIFICATION: Every candidate MUST match raw_title with score >= 0.78
+                # Robust similarity matching (>= 0.55 threshold)
                 for it in items:
                     vn = str(it.get('vod_name', '')).strip()
                     score = compute_drama_title_similarity(raw_title, vn)
-                    if score >= 0.78 and score > best_score:
+                    if score >= 0.55 and score > best_score:
                         best_score = score
                         best_item = it
 
+                # Substring containment fallback if strict score was slightly lower
+                if not best_item and items:
+                    clean_raw = re.sub(r'[^\w\u4e00-\u9fff]', '', raw_title).lower()
+                    for it in items:
+                        vn = str(it.get('vod_name', '')).strip()
+                        clean_vn = re.sub(r'[^\w\u4e00-\u9fff]', '', vn).lower()
+                        if clean_raw and clean_vn and (clean_raw in clean_vn or clean_vn in clean_raw):
+                            best_item = it
+                            best_score = 0.65
+                            break
+
                 if not best_item:
-                    # REJECT: No item sufficiently matched requested drama title!
                     return []
 
                 play_url = best_item.get('vod_play_url', '')
@@ -2824,20 +2854,22 @@ class DramaDownloadManager:
                             if ai_c:
                                 keys = list(ai_c.keys())
                                 did = str(self.current_drama.get("id", "") if self.current_drama else ep.get("id", ""))
-                                idx = abs(hash(f"{did}_{ep_num}")) % len(keys)
-                                chosen_ai = ai_c[keys[idx]]
-                                if chosen_ai and chosen_ai.get("play_url"):
-                                    p_eps = parse_vod_play_url(chosen_ai["play_url"], "Failover Cluster")
-                                    if p_eps:
-                                        match_ep = p_eps[(ep_num - 1) % len(p_eps)]
-                                        fb_url = match_ep.get("stream_url", "")
-                                        if fb_url:
-                                            self.add_log(f"⚡ [Super Auto-Failover] Connecting high-speed cluster for EP {ep_num:02d}...")
-                                            ok_dl = download_m3u8_stream_turbo(fb_url, dest_file, timeout_sec=180, progress_callback=single_ep_hook)
-                                            if not ok_dl or not dest_file.exists() or dest_file.stat().st_size < 100000:
-                                                download_stream_turbo_chunked(fb_url, dest_file, timeout_sec=120)
-                                            if dest_file.exists() and dest_file.stat().st_size > 100000:
-                                                fb_success = True
+                                for attempt_offset in range(3):
+                                    idx = (abs(hash(f"{did}_{ep_num}")) + attempt_offset) % len(keys)
+                                    chosen_ai = ai_c[keys[idx]]
+                                    if chosen_ai and chosen_ai.get("play_url"):
+                                        p_eps = parse_vod_play_url(chosen_ai["play_url"], "Failover Cluster")
+                                        if p_eps:
+                                            match_ep = p_eps[(ep_num - 1) % len(p_eps)]
+                                            fb_url = match_ep.get("stream_url", "")
+                                            if fb_url:
+                                                self.add_log(f"⚡ [Super Auto-Failover] Connecting high-speed cluster for EP {ep_num:02d} (Attempt {attempt_offset+1})...")
+                                                ok_dl = download_m3u8_stream_turbo(fb_url, dest_file, timeout_sec=180, progress_callback=single_ep_hook)
+                                                if not ok_dl or not dest_file.exists() or dest_file.stat().st_size < 100000:
+                                                    download_stream_turbo_chunked(fb_url, dest_file, timeout_sec=120)
+                                                if dest_file.exists() and dest_file.stat().st_size > 100000:
+                                                    fb_success = True
+                                                    break
                         except Exception:
                             pass
 

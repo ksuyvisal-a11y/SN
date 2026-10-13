@@ -38,14 +38,15 @@ def get_hg_dir() -> Path:
             return cand
     # Common system locations
     for c in [
-        Path(r"C:\Users\TUF\AppData\Local\Programs\Hongguo Downloader"),
         Path(r"C:\Program Files\Hongguo Downloader"),
         Path(r"C:\Program Files (x86)\Hongguo Downloader"),
         Path(r"D:\Hongguo Downloader"),
     ]:
         if c.exists():
             return c
-    return Path(r"C:\Users\TUF\AppData\Local\Programs\Hongguo Downloader")
+    if loc_app:
+        return Path(loc_app) / "Programs" / "Hongguo Downloader"
+    return Path(r"C:\Program Files\Hongguo Downloader")
 
 
 HG_DIR = get_hg_dir()
