@@ -9505,13 +9505,15 @@ async function checkForAppUpdates(manual = false) {
         const btnUpdate = document.getElementById('btn-do-update');
         const progContainer = document.getElementById('update-progress-container');
 
-        const curVer = data.current_version || '1.0.2';
+        const curVer = data.current_version || '1.0.3';
         const latVer = data.latest_version || curVer;
 
         if (curEl) curEl.textContent = `v${curVer}`;
         if (latEl) latEl.textContent = `v${latVer}`;
         const settingsVer = document.getElementById('settings-version-tag');
         if (settingsVer && curVer) settingsVer.textContent = `v${curVer}`;
+        const splashVer = document.getElementById('splash-version-tag');
+        if (splashVer && curVer) splashVer.textContent = `v${curVer}`;
         if (notesEl) notesEl.textContent = data.release_notes || "Performance enhancements and bug fixes";
         if (progContainer) progContainer.style.display = 'none';
 
@@ -9599,6 +9601,16 @@ function initStudioSplashScreen() {
 
     // Immediately trigger license status verification in the background
     checkDeviceLicenseStatus().catch(err => console.error("Initial license check error:", err));
+
+    // Dynamically synchronize splash edition chip with real version
+    fetch('/api/update/check').then(r => r.json()).then(data => {
+        if (data && data.current_version) {
+            const tag = document.querySelector('.splash-edition-chip') || document.getElementById('splash-version-tag');
+            if (tag) tag.textContent = 'v' + data.current_version;
+            const settingsTag = document.getElementById('settings-version-tag');
+            if (settingsTag) settingsTag.textContent = 'v' + data.current_version;
+        }
+    }).catch(() => {});
 
     if (!splash || !bar) {
         return;
