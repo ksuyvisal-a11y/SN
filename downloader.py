@@ -2461,7 +2461,14 @@ class DramaDownloadManager:
                             if self.stop_requested:
                                 break
 
-                            # In Sequential Queue: Episodes remain Queued until decrypted & verified
+                            # Option 2: Active Batch Window (Mark ONLY the 5 episodes in this active batch as Downloading)
+                            with self._lock:
+                                for ep_it in selected_eps:
+                                    ep_n = ep_it.get("episode_number") or ep_it.get("episode_num") or 1
+                                    if ep_n in v_batch and ep_it.get("status") != "Completed":
+                                        ep_it["status"] = "Downloading"
+                                        ep_it["progress"] = max(1, ep_it.get("progress", 0))
+
                             self.add_log(f"📦 [VIP Batch {vb_idx + 1}/{len(vip_batches)}] Decrypting 5 episodes: EP {v_batch[0]:02d} - EP {v_batch[-1]:02d}...")
 
                             dl_res = hongguo_service.download_episodes_batch(
@@ -2992,6 +2999,12 @@ class DramaDownloadManager:
                         self.add_log(f"✔ [EP {ep_n:02d}/{total:02d}] 100% Completed ({sz_mb:.1f} MB, Full HD)")
 
             def on_batch_start(b_idx, total_b, batch_ep_nums):
+                with self._lock:
+                    for ep_it in selected_eps:
+                        ep_n = ep_it.get("episode_number") or ep_it.get("episode_num") or 1
+                        if ep_n in batch_ep_nums and ep_it.get("status") != "Completed":
+                            ep_it["status"] = "Downloading"
+                            ep_it["progress"] = max(10, ep_it.get("progress", 0))
                 self.add_log(f"⚡ [Batch {b_idx}/{total_b}] Slicing 5 episodes: EP {batch_ep_nums[0]:02d} - EP {batch_ep_nums[-1]:02d}...")
 
             def on_batch_complete(b_idx, total_b, batch_ep_nums):
@@ -3004,9 +3017,20 @@ class DramaDownloadManager:
             if (is_master_mode or (len(cluster_streams) <= 1 and effective_master_url)) and effective_master_url and not self.stop_requested:
                 self.add_log(f"🎬 Downloading MASTER FULL DRAMA STREAM (1080p Full HD) into '{full_movie_dest.name}'...")
 
+                # Option 2: Active Batch Window (Batch 1 shows master download; remaining batches stay Queued at 0%)
+                first_batch_eps = [ep for ep in selected_eps if ep.get("status") != "Completed"][:5]
+                with self._lock:
+                    for ep_it in first_batch_eps:
+                        ep_it["status"] = "Downloading"
+                        ep_it["progress"] = max(1, ep_it.get("progress", 0))
+
                 def master_live_hook(pct: int):
                     with self._lock:
                         self.stats["progress_percent"] = pct
+                        for ep_it in first_batch_eps:
+                            if ep_it.get("status") != "Completed":
+                                ep_it["status"] = "Downloading"
+                                ep_it["progress"] = max(1, pct)
 
                 dl_ok = download_stream_universal(effective_master_url, full_movie_dest, timeout_sec=600, progress_cb=master_live_hook)
 
@@ -3076,8 +3100,11 @@ class DramaDownloadManager:
                 b_end = batch_eps[-1].get("episode_number", b_idx * BATCH_SIZE + len(batch_eps))
                 self.add_log(f"📦 [Batch {b_idx + 1}/{total_b_cnt}] Downloading: EP {b_start:02d} - EP {b_end:02d}...")
 
-                # Real Sequential Queue: Do not pre-mark all batch episodes as Downloading!
-                # Each episode dynamically becomes 'Downloading' only when its worker thread executes!
+                # Option 2: Active Batch Window (Mark ONLY the 5 episodes in this active batch as Downloading)
+                with self._lock:
+                    for ep in pending_eps:
+                        ep["status"] = "Downloading"
+                        ep["progress"] = max(1, ep.get("progress", 0))
 
                 # Download this batch (max 2 concurrent threads to prevent PC freezing/lag)
                 max_w = min(2, len(pending_eps))
@@ -3133,9 +3160,19 @@ class DramaDownloadManager:
                     if effective_master_url:
                         self.add_log(f"⚡ Downloading Full Drama Series Master Stream for lossless episode extraction...")
 
+                        first_rec_batch = [ep for ep in selected_eps if ep.get("status") != "Completed"][:5]
+                        with self._lock:
+                            for ep_it in first_rec_batch:
+                                ep_it["status"] = "Downloading"
+                                ep_it["progress"] = max(1, ep_it.get("progress", 0))
+
                         def rec_live_hook(pct: int):
                             with self._lock:
                                 self.stats["progress_percent"] = pct
+                                for ep_it in first_rec_batch:
+                                    if ep_it.get("status") != "Completed":
+                                        ep_it["status"] = "Downloading"
+                                        ep_it["progress"] = max(1, pct)
 
                         ok_master = download_stream_universal(effective_master_url, full_movie_dest, timeout_sec=600, progress_cb=rec_live_hook)
                         if ok_master and full_movie_dest.exists() and full_movie_dest.stat().st_size > 1000000:
@@ -3176,6 +3213,13 @@ class DramaDownloadManager:
                             if self.stop_requested:
                                 break
                             batch_nums = missing_ep_nums[i:i + BATCH_SIZE]
+                            with self._lock:
+                                for ep in selected_eps:
+                                    ep_n = ep.get("episode_number") or 1
+                                    if ep_n in batch_nums and ep.get("status") != "Completed":
+                                        ep["status"] = "Downloading"
+                                        ep["progress"] = max(1, ep.get("progress", 0))
+
                             hongguo_service.download_episodes_batch(sid, batch_nums, drama_dest_dir, concurrency=2, quality="1080p")
                             hongguo_service.standardize_folder(drama_dest_dir)
                             for ep in selected_eps:
