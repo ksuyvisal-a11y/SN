@@ -10,7 +10,12 @@ import json
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Tuple, Callable
 import edge_tts
-from audio_processor import get_ffmpeg_path, get_silent_kwargs
+from audio_processor import (
+    get_ffmpeg_path,
+    get_silent_kwargs,
+    save_audio_safely,
+    load_audio_safely
+)
 
 TTS_ENGINE_VERSION = "7.3.1"
 
@@ -576,12 +581,6 @@ def trim_and_fit_voice_audio(audio_path: str, max_duration_sec: Optional[float] 
     Leaves the complete, natural Khmer speech intact with zero vocal distortion.
     """
     try:
-        from audio_processor import (
-            load_audio_safely,
-            save_audio_safely,
-            get_ffmpeg_path,
-            get_silent_kwargs
-        )
         from pydub.silence import detect_leading_silence
 
         seg = load_audio_safely(audio_path)
