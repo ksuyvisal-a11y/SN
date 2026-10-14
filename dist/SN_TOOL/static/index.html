@@ -232,6 +232,12 @@
                             </div>
                         </div>
 
+                        <!-- Live Interactive SUBTITLE Overlay Preview on Video Canvas -->
+                        <div class="monitor-subtitle-overlay" id="monitor-subtitle-overlay" style="display:none;" onclick="event.stopPropagation()">
+                            <div class="monitor-subtitle-content style-viral-yellow" id="monitor-subtitle-display">🎬 នេះជាអក្សររត់រឿង Subtitle គំរូនៅលើវីដេអូ...</div>
+                            <button type="button" class="subtitle-quick-remove-btn" onclick="toggleSubtitleTool(event, false)" title="Disable Subtitles">×</button>
+                        </div>
+
                         <!-- Floating YouTube-style Back Button in Fullscreen -->
                         <button type="button" class="fullscreen-back-btn" id="fullscreen-back-btn" onclick="exitFullscreenMode(event)" title="Exit Fullscreen / Back (Esc)">
                             <i class="fa-solid fa-arrow-left"></i> <span>Back</span>
@@ -425,19 +431,38 @@
                                         <div class="overlay-unified-divider"></div>
 
                                         <!-- Row 4: 🎬 Add Lower Third -->
-                                        <div class="overlay-row-bar lower-third-row-bar" id="card-upload-lower-third" onclick="toggleLowerThirdDropdown(event)" title="🎬 Add Lower Third Video & Animation">
-                                            <input type="file" id="input-overlay-lower-third-file" accept="video/mp4,video/webm,video/quicktime,video/x-matroska,.mov,.webm,.mp4" style="display:none;" onchange="handleLowerThirdFileSelect(event)">
+                                        <div class="overlay-row-bar lower-third-row-bar" id="card-upload-lower-third" onclick="triggerOverlayUpload('lower_third')" title="Upload Lower Third Video">
+                                            <input type="file" id="input-overlay-lower-third-file" accept="video/mp4,video/webm,video/quicktime,video/x-matroska,.mov,.webm,.mp4,video/*" style="display:none;" onchange="handleLowerThirdFileSelect(event)">
                                             <div class="overlay-col-icon lower-third-icon">
                                                 <i class="fa-solid fa-clapperboard"></i>
                                             </div>
                                             <div class="overlay-col-text">
                                                 <span class="overlay-col-title">🎬 Add Lower Third</span>
-                                                <span class="overlay-col-desc" id="lower-third-desc-label">Add lower third video or motion badge overlay</span>
+                                                <span class="overlay-col-desc" id="lower-third-desc-label">Upload Lower Third video (MP4/MOV/WebM) from computer</span>
                                             </div>
                                             <div class="overlay-col-status" id="status-overlay-lower-third">
                                                 <span class="overlay-status-pill empty" id="lower-third-status-pill">
-                                                    <i class="fa-solid fa-film"></i> <span id="lower-third-status-label">Click to Add Lower Third</span>
-                                                    <i class="fa-solid fa-chevron-down lower-third-dropdown-arrow" id="lower-third-dropdown-chevron"></i>
+                                                    <i class="fa-solid fa-cloud-arrow-up"></i> <span id="lower-third-status-label">Upload</span>
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Clean Divider Line connecting Row 4 and Row 5 -->
+                                        <div class="overlay-unified-divider"></div>
+
+                                        <!-- Row 5: 💬 Add Subtitles (Viral Khmer Subtitles) -->
+                                        <div class="overlay-row-bar subtitle-row-bar" id="card-upload-subtitle" onclick="toggleSubtitleDropdown(event)" title="Add Khmer Subtitles & Styles">
+                                            <div class="overlay-col-icon subtitle-icon">
+                                                <i class="fa-solid fa-closed-captioning"></i>
+                                            </div>
+                                            <div class="overlay-col-text">
+                                                <span class="overlay-col-title">💬 Add Subtitles</span>
+                                                <span class="overlay-col-desc" id="subtitle-desc-label">Burn auto-translated Khmer subtitles with TikTok/Viral styles</span>
+                                            </div>
+                                            <div class="overlay-col-status" id="status-overlay-subtitle">
+                                                <span class="overlay-status-pill empty" id="subtitle-status-pill">
+                                                    <i class="fa-solid fa-toggle-off"></i> <span id="subtitle-status-label">Off</span>
+                                                    <i class="fa-solid fa-chevron-down subtitle-dropdown-arrow" id="subtitle-dropdown-chevron"></i>
                                                 </span>
                                             </div>
                                         </div>
@@ -624,6 +649,9 @@
                                                         <button type="button" class="text-motion-pill-btn" id="btn-motion-scroll" onclick="setTextMotion('scroll_up', event)" title="Scroll Up">
                                                             <i class="fa-solid fa-arrow-up-long"></i> <span>Scroll Up ⬆️</span>
                                                         </button>
+                                                        <button type="button" class="text-motion-pill-btn" id="btn-motion-scroll-down" onclick="setTextMotion('scroll_down', event)" title="Scroll Down">
+                                                            <i class="fa-solid fa-arrow-down-long"></i> <span>Scroll Down ⬇️</span>
+                                                        </button>
                                                         <span class="text-scroll-options-box compact-speed-chips" id="text-scroll-options-box" style="display: none;">
                                                             <button type="button" class="text-speed-chip" id="speed-chip-slow" onclick="setTextScrollSpeed(35, event)">Slow</button>
                                                             <button type="button" class="text-speed-chip active" id="speed-chip-normal" onclick="setTextScrollSpeed(65, event)">Normal</button>
@@ -668,29 +696,22 @@
                                                     </button>
                                                 </div>
 
-                                                <!-- 1. Upload Lower Third Video -->
+                                                <!-- 1. Choose Lower Third Video from Computer -->
                                                 <div class="lower-third-card-section">
                                                     <div class="lower-third-section-title">
                                                         <i class="fa-solid fa-cloud-arrow-up"></i>
-                                                        <span>Upload Lower Third Video</span>
-                                                        <span class="lt-sub-hint">(MP4, WebM, MOV with alpha)</span>
+                                                        <span>Choose Lower Third Video from Computer</span>
+                                                        <span class="lt-sub-hint">(MP4, WebM, MOV with alpha/transparency)</span>
                                                     </div>
                                                     <div class="lt-upload-action-row">
                                                         <button type="button" class="lt-upload-btn" onclick="document.getElementById('input-overlay-lower-third-file').click()">
-                                                            <i class="fa-solid fa-video"></i>
-                                                            <span id="lt-upload-btn-text">Choose Lower Third Video</span>
+                                                            <i class="fa-solid fa-folder-open"></i>
+                                                            <span id="lt-upload-btn-text">Choose Video from Computer</span>
                                                         </button>
                                                         <div class="lt-file-preview-pill" id="lt-file-preview-pill" style="display:none;">
                                                             <i class="fa-solid fa-file-video"></i>
                                                             <span id="lt-filename-display">video.mp4</span>
                                                             <button type="button" class="lt-file-clear-btn" onclick="clearLowerThirdFile(event)" title="Remove">×</button>
-                                                        </div>
-                                                        <!-- Built-in Pro Animation Presets -->
-                                                        <div class="lt-sample-presets-group">
-                                                            <span class="lt-preset-label">Preset Badges:</span>
-                                                            <button type="button" class="lt-sample-preset-btn" onclick="applyLowerThirdSamplePreset('subscribe', event)">🔔 Follow & Subscribe</button>
-                                                            <button type="button" class="lt-sample-preset-btn" onclick="applyLowerThirdSamplePreset('drama_bar', event)">🎭 Drama Title Bar</button>
-                                                            <button type="button" class="lt-sample-preset-btn" onclick="applyLowerThirdSamplePreset('like_share', event)">👍 Like & Share</button>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -717,11 +738,11 @@
                                                     <div class="lt-param-card">
                                                         <div class="lt-param-header">
                                                             <span class="lt-param-title"><i class="fa-solid fa-up-right-and-down-left-from-center"></i> Size / Scale:</span>
-                                                            <span class="lt-param-badge" id="lt-scale-badge">65%</span>
+                                                            <span class="lt-param-badge" id="lt-scale-badge">100%</span>
                                                         </div>
                                                         <div class="lt-slider-track-wrap">
                                                             <button type="button" class="lt-stepper-btn" onclick="adjustOverlaySize('lower_third', -0.10, event)"><i class="fa-solid fa-minus"></i></button>
-                                                            <input type="range" id="input-lt-scale" min="20" max="150" value="65" class="blur-range-slider mini" oninput="onLowerThirdScaleChange(this.value, event)">
+                                                            <input type="range" id="input-lt-scale" min="20" max="150" value="100" class="blur-range-slider mini" oninput="onLowerThirdScaleChange(this.value, event)">
                                                             <button type="button" class="lt-stepper-btn" onclick="adjustOverlaySize('lower_third', 0.10, event)"><i class="fa-solid fa-plus"></i></button>
                                                         </div>
                                                     </div>
@@ -781,6 +802,115 @@
                                                                 <button type="button" class="lt-speed-btn active" id="btn-lt-speed-10" onclick="setLowerThirdSpeed(1.0, event)">1.0x</button>
                                                                 <button type="button" class="lt-speed-btn" id="btn-lt-speed-125" onclick="setLowerThirdSpeed(1.25, event)">1.25x</button>
                                                                 <button type="button" class="lt-speed-btn" id="btn-lt-speed-15" onclick="setLowerThirdSpeed(1.5, event)">1.5x</button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Custom Obsidian Dark Glass Subtitle Panel (Viral Khmer Subtitle Controls) -->
+                                            <div class="subtitle-custom-dropdown" id="subtitle-custom-dropdown" style="display:none;">
+                                                <div class="subtitle-dropdown-header">
+                                                    <div class="subtitle-header-left">
+                                                        <i class="fa-solid fa-closed-captioning" style="color:#38bdf8;"></i>
+                                                        <span>💬 KHMER SUBTITLE STYLING (អក្សររត់រឿង)</span>
+                                                    </div>
+                                                    <div class="subtitle-header-right">
+                                                        <label class="sub-toggle-switch-wrap" title="Enable/Disable Subtitles">
+                                                            <input type="checkbox" id="toggle-subtitle-enable" onchange="toggleSubtitleTool(event, this.checked)">
+                                                            <span class="brand-toggle-slider mini"></span>
+                                                            <span class="sub-toggle-label" id="subtitle-toggle-text">Enable</span>
+                                                        </label>
+                                                        <button type="button" class="subtitle-panel-close-btn" onclick="closeSubtitleDropdown(event)" title="Close Panel">
+                                                            <i class="fa-solid fa-xmark"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <!-- 1. Subtitle Animation Styles (បែបអក្សរលោតមក) -->
+                                                <div class="subtitle-card-section">
+                                                    <div class="subtitle-section-title">
+                                                        <i class="fa-solid fa-film"></i>
+                                                        <span>បែបអក្សរលោតមក (Subtitle Animations)</span>
+                                                        <span class="sub-hint">(CapCut / TikTok Viral Motion)</span>
+                                                    </div>
+                                                    <div class="sub-styles-grid">
+                                                        <button type="button" class="sub-style-card active" id="btn-sub-anim-pop" onclick="setSubtitleAnimation('pop', event)" title="លោត Pop / Zoom Bounce (CapCut Viral)">
+                                                            <div class="sub-style-preview anim-pill-pop"><i class="fa-solid fa-bolt"></i> លោត Pop</div>
+                                                            <div class="sub-style-info">
+                                                                <span class="sub-style-name">Pop-up Bounce</span>
+                                                                <span class="sub-style-tag">TikTok Viral</span>
+                                                            </div>
+                                                        </button>
+                                                        <button type="button" class="sub-style-card" id="btn-sub-anim-fade" onclick="setSubtitleAnimation('fade', event)" title="រលាយចូលស្រាលៗ (Smooth Fade In)">
+                                                            <div class="sub-style-preview anim-pill-fade"><i class="fa-solid fa-wand-magic-sparkles"></i> រលាយចូល</div>
+                                                            <div class="sub-style-info">
+                                                                <span class="sub-style-name">Smooth Fade</span>
+                                                                <span class="sub-style-tag">ស្រាល &amp; ទន់ភ្លន់</span>
+                                                            </div>
+                                                        </button>
+                                                        <button type="button" class="sub-style-card" id="btn-sub-anim-slide" onclick="setSubtitleAnimation('slide', event)" title="រំកិលរត់ឡើងពីក្រោម (Slide Up)">
+                                                            <div class="sub-style-preview anim-pill-slide"><i class="fa-solid fa-arrow-up-long"></i> រំកិលឡើង</div>
+                                                            <div class="sub-style-info">
+                                                                <span class="sub-style-name">Slide Up</span>
+                                                                <span class="sub-style-tag">រត់ឡើងពីក្រោម</span>
+                                                            </div>
+                                                        </button>
+                                                        <button type="button" class="sub-style-card" id="btn-sub-anim-static" onclick="setSubtitleAnimation('static', event)" title="ចេញចំៗគ្មានចលនា (Classic Static)">
+                                                            <div class="sub-style-preview anim-pill-static"><i class="fa-solid fa-font"></i> ស្ដង់ដារ</div>
+                                                            <div class="sub-style-info">
+                                                                <span class="sub-style-name">Classic Static</span>
+                                                                <span class="sub-style-tag">ចេញចំៗគ្មានចលនា</span>
+                                                            </div>
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <!-- 2. Font Size & Bottom Margin Controls (Side-by-Side) -->
+                                                <div class="lt-controls-grid">
+                                                    <!-- Font Size Slider -->
+                                                    <div class="lt-param-card">
+                                                        <div class="lt-param-header">
+                                                            <span class="lt-param-title"><i class="fa-solid fa-text-height"></i> Font Size:</span>
+                                                            <span class="lt-param-badge" id="sub-size-badge">44px</span>
+                                                        </div>
+                                                        <div class="lt-slider-track-wrap">
+                                                            <input type="range" id="input-sub-size" min="24" max="68" value="44" class="blur-range-slider mini" oninput="onSubtitleSizeChange(this.value, event)">
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Vertical Position / Margin-V Slider -->
+                                                    <div class="lt-param-card">
+                                                        <div class="lt-param-header">
+                                                            <span class="lt-param-title"><i class="fa-solid fa-arrows-up-down"></i> Bottom Margin (គម្លាតពីបាត):</span>
+                                                            <span class="lt-param-badge" id="sub-margin-badge">65px</span>
+                                                        </div>
+                                                        <div class="lt-slider-track-wrap">
+                                                            <input type="range" id="input-sub-margin" min="20" max="1400" value="65" class="blur-range-slider mini" oninput="onSubtitleMarginChange(this.value, event)">
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- 3. Position Quick Preset Chips & Custom File Upload -->
+                                                <div class="subtitle-card-section">
+                                                    <div class="sub-quick-actions-bar">
+                                                        <div class="sub-quick-presets">
+                                                            <span class="sub-preset-label"><i class="fa-solid fa-arrows-to-dot"></i> Quick Position:</span>
+                                                            <button type="button" class="blur-tray-pill-btn active" id="btn-sub-pos-bottom" onclick="setSubtitleMarginPreset(65, event)">Bottom (65px)</button>
+                                                            <button type="button" class="blur-tray-pill-btn" id="btn-sub-pos-above-lt" onclick="setSubtitleMarginPreset(280, event)">Above LT (280px)</button>
+                                                            <button type="button" class="blur-tray-pill-btn" id="btn-sub-pos-middle" onclick="setSubtitleMarginPreset(650, event)">Middle (650px)</button>
+                                                            <button type="button" class="blur-tray-pill-btn" id="btn-sub-pos-higher" onclick="setSubtitleMarginPreset(950, event)">Higher (950px)</button>
+                                                        </div>
+                                                        <div class="sub-custom-file-wrap">
+                                                            <input type="file" id="input-custom-subtitle-file" accept=".srt,.ass,.vtt" style="display:none;" onchange="handleCustomSubtitleFileSelect(event)">
+                                                            <button type="button" class="sub-upload-srt-btn" onclick="document.getElementById('input-custom-subtitle-file').click()" title="Upload custom .SRT / .ASS file from computer">
+                                                                <i class="fa-solid fa-file-arrow-up"></i>
+                                                                <span id="sub-upload-btn-text">Upload Custom SRT</span>
+                                                            </button>
+                                                            <div class="sub-file-pill" id="sub-file-preview-pill" style="display:none;">
+                                                                <i class="fa-solid fa-file-lines"></i>
+                                                                <span id="sub-filename-display">file.srt</span>
+                                                                <button type="button" class="sub-file-clear-btn" onclick="clearCustomSubtitleFile(event)">×</button>
                                                             </div>
                                                         </div>
                                                     </div>

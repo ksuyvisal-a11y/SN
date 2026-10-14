@@ -2101,22 +2101,23 @@ function adaptMonitorScreenToVideo() {
     const h = mainVideo.videoHeight;
     if (w && h && w > 0 && h > 0) {
         if (window.videoFitMode === 'fill') {
-            screenArea.style.aspectRatio = 'auto';
-            screenArea.style.flex = '1';
-            screenArea.style.height = '100%';
-            screenArea.style.width = '100%';
-            screenArea.style.maxHeight = '100%';
-            screenArea.style.maxWidth = '100%';
-            mainVideo.style.objectFit = 'cover';
+            if (screenArea.style.aspectRatio !== 'auto') screenArea.style.aspectRatio = 'auto';
+            if (screenArea.style.flex !== '1') screenArea.style.flex = '1';
+            if (screenArea.style.height !== '100%') screenArea.style.height = '100%';
+            if (screenArea.style.width !== '100%') screenArea.style.width = '100%';
+            if (screenArea.style.maxHeight !== '100%') screenArea.style.maxHeight = '100%';
+            if (screenArea.style.maxWidth !== '100%') screenArea.style.maxWidth = '100%';
+            if (mainVideo.style.objectFit !== 'cover') mainVideo.style.objectFit = 'cover';
         } else {
             // FIT Mode: STRICT GUARANTEE - Video is NEVER cut off in any screen size!
-            screenArea.style.aspectRatio = `${w} / ${h}`;
-            screenArea.style.flex = '0 1 auto';
-            screenArea.style.maxHeight = 'calc(100% - 10px)';
-            screenArea.style.maxWidth = '100%';
-            mainVideo.style.objectFit = 'contain';
+            const targetRatio = `${w} / ${h}`;
+            if (screenArea.style.aspectRatio !== targetRatio) screenArea.style.aspectRatio = targetRatio;
+            if (screenArea.style.flex !== '0 1 auto') screenArea.style.flex = '0 1 auto';
+            if (screenArea.style.maxHeight !== 'calc(100% - 10px)') screenArea.style.maxHeight = 'calc(100% - 10px)';
+            if (screenArea.style.maxWidth !== '100%') screenArea.style.maxWidth = '100%';
+            if (mainVideo.style.objectFit !== 'contain') mainVideo.style.objectFit = 'contain';
         }
-        mainVideo.style.background = 'transparent';
+        if (mainVideo.style.background !== 'transparent') mainVideo.style.background = 'transparent';
     }
 }
 
@@ -2909,11 +2910,13 @@ async function confirmAndExecuteExport() {
 }
 
 function startStudioExportJob() {
-    // 0. If dubbing task is currently running in background
-    if (activeDubbingTaskId) {
+    // 0. If dubbing task is currently genuinely running in background
+    if (activeDubbingTaskId && activeDubbingPollTimer) {
         showToast("Studio engine is dubbing video, please wait...");
         return;
     }
+    // Auto-clear stale task id if no active poll timer is running
+    activeDubbingTaskId = null;
 
     // 1. If user staged a single video, open Export Options Modal (Choice for user)
     if (stagedVideoFile) {
@@ -2956,6 +2959,8 @@ function startStudioExportJob() {
     openImportModal();
 }
 
+let _currentJobMaxProgressPct = 0;
+
 function updateExportProgressUI(pct, elapsedSec, etaSec, taskName) {
     const pctElem = document.getElementById('monitor-export-percent');
     const fillElem = document.getElementById('monitor-progress-fill');
@@ -2963,9 +2968,24 @@ function updateExportProgressUI(pct, elapsedSec, etaSec, taskName) {
     const etaElem = document.getElementById('monitor-eta-time');
     const finElem = document.getElementById('monitor-finish-time');
     const taskElem = document.getElementById('monitor-current-task');
+    const footerProg = document.getElementById('footer-studio-progress');
+    const footerText = document.querySelector('#footer-studio-main div:first-child');
+
+    // Monotonic guard: During an active dubbing run, progress should never jitter backwards
+    if (pct > 0 && pct < 100) {
+        _currentJobMaxProgressPct = Math.max(_currentJobMaxProgressPct, pct);
+        pct = _currentJobMaxProgressPct;
+    } else if (pct >= 100) {
+        pct = 100;
+        _currentJobMaxProgressPct = 0;
+    } else if (pct === 0) {
+        _currentJobMaxProgressPct = 0;
+    }
 
     if (pctElem) pctElem.textContent = `${pct}%`;
     if (fillElem) fillElem.style.width = `${pct}%`;
+    if (footerProg) footerProg.style.width = `${pct}%`;
+    if (footerText && taskName) footerText.textContent = `Status: ${taskName} (${pct}%)`;
 
     const elM = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
     const elS = String(elapsedSec % 60).padStart(2, '0');
@@ -2996,6 +3016,11 @@ function updateExportProgressUI(pct, elapsedSec, etaSec, taskName) {
 }
 
 function resetEngineMonitorToStandby() {
+    activeDubbingTaskId = null;
+    if (activeDubbingPollTimer) {
+        clearInterval(activeDubbingPollTimer);
+        activeDubbingPollTimer = null;
+    }
     if (exportJobTimer) {
         clearInterval(exportJobTimer);
         exportJobTimer = null;
@@ -5466,7 +5491,14 @@ let currentOverlayAssets = {
     lowerThirdEndTime: 0.0,
     lowerThirdLoop: true,
     lowerThirdSpeed: 1.0,
-    lowerThirdPosition: 'bottom-center'
+    lowerThirdPosition: 'bottom-center',
+    subtitleActive: false,
+    subtitleStyle: 'viral_yellow',
+    subtitleSize: 44,
+    subtitleMarginV: 65,
+    customSubtitleFile: null,
+    customSubtitlePath: null,
+    customSubtitleName: null
 };
 
 function triggerOverlayUpload(type) {
@@ -5478,7 +5510,14 @@ function triggerOverlayUpload(type) {
     } else if (type === 'text') {
         toggleTextOverlayTool();
     } else if (type === 'lower_third') {
-        toggleLowerThirdDropdown();
+        if (currentOverlayAssets.lowerThirdFile || currentOverlayAssets.lowerThirdUrl || currentOverlayAssets.serverLowerThirdPath) {
+            toggleLowerThirdDropdown();
+        } else {
+            const input = document.getElementById('input-overlay-lower-third-file');
+            if (input) input.click();
+        }
+    } else if (type === 'subtitle') {
+        toggleSubtitleDropdown();
     }
 }
 
@@ -5687,6 +5726,7 @@ function closeBlurMaskDropdown(e) {
     const chevron = document.getElementById('blur-dropdown-chevron');
     const textDropdown = document.getElementById('text-custom-dropdown');
     const ltDropdown = document.getElementById('lower-third-custom-dropdown');
+    const subDropdown = document.getElementById('subtitle-custom-dropdown');
     const stack = document.getElementById('staged-overlay-unified-panel');
 
     if (dropdown) {
@@ -5697,7 +5737,8 @@ function closeBlurMaskDropdown(e) {
 
     const isTextOpen = textDropdown && (textDropdown.classList.contains('show') || textDropdown.style.display === 'flex') && textDropdown.style.display !== 'none';
     const isLtOpen = ltDropdown && (ltDropdown.classList.contains('show') || ltDropdown.style.display === 'flex') && ltDropdown.style.display !== 'none';
-    if (!isTextOpen && !isLtOpen) {
+    const isSubOpen = subDropdown && (subDropdown.classList.contains('show') || subDropdown.style.display === 'flex') && subDropdown.style.display !== 'none';
+    if (!isTextOpen && !isLtOpen && !isSubOpen) {
         if (divider) divider.style.display = 'none';
         if (panel) panel.style.display = 'none';
         if (stack) stack.classList.remove('has-inline-open');
@@ -5937,13 +5978,31 @@ function setOverlayPosition(type, pos, event) {
     el.style.transform = '';
 
     if (pos === 'top-center') {
-        el.style.top = '24px';
-        el.style.left = '50%';
-        el.style.transform = 'translateX(-50%)';
+        if (type === 'lower_third') {
+            const elHeight = el.offsetHeight || 450;
+            el.style.top = `${-Math.round(elHeight * 0.42)}px`;
+            el.style.bottom = 'auto';
+            el.style.left = '0%';
+            el.style.transform = 'none';
+        } else {
+            el.style.top = '24px';
+            el.style.left = '50%';
+            el.style.transform = 'translateX(-50%)';
+        }
     } else if (pos === 'bottom-center') {
-        el.style.bottom = '24px';
-        el.style.left = '50%';
-        el.style.transform = 'translateX(-50%)';
+        if (type === 'lower_third') {
+            const pHeight = el.parentElement ? el.parentElement.offsetHeight : 640;
+            const elHeight = el.offsetHeight || 450;
+            const flushBottom = Math.round(pHeight - elHeight * 0.58);
+            el.style.top = `${flushBottom}px`;
+            el.style.bottom = 'auto';
+            el.style.left = '0%';
+            el.style.transform = 'none';
+        } else {
+            el.style.bottom = '24px';
+            el.style.left = '50%';
+            el.style.transform = 'translateX(-50%)';
+        }
     } else if (pos === 'top-right') {
         el.style.top = '14px';
         el.style.right = '14px';
@@ -5951,11 +6010,27 @@ function setOverlayPosition(type, pos, event) {
         el.style.top = '14px';
         el.style.left = '14px';
     } else if (pos === 'bottom-right') {
-        el.style.bottom = '14px';
-        el.style.right = '14px';
+        if (type === 'lower_third') {
+            const pHeight = el.parentElement ? el.parentElement.offsetHeight : 640;
+            const elHeight = el.offsetHeight || 450;
+            el.style.top = `${Math.round(pHeight - elHeight * 0.58)}px`;
+            el.style.bottom = 'auto';
+            el.style.right = '0px';
+        } else {
+            el.style.bottom = '14px';
+            el.style.right = '14px';
+        }
     } else if (pos === 'bottom-left') {
-        el.style.bottom = '14px';
-        el.style.left = '14px';
+        if (type === 'lower_third') {
+            const pHeight = el.parentElement ? el.parentElement.offsetHeight : 640;
+            const elHeight = el.offsetHeight || 450;
+            el.style.top = `${Math.round(pHeight - elHeight * 0.58)}px`;
+            el.style.bottom = 'auto';
+            el.style.left = '0px';
+        } else {
+            el.style.bottom = '14px';
+            el.style.left = '14px';
+        }
     }
 
     // Update active preset button styling
@@ -5965,6 +6040,15 @@ function setOverlayPosition(type, pos, event) {
             const btnKey = btn.textContent.trim().toLowerCase();
             const targetKey = pos === 'top-right' ? 'tr' : pos === 'top-left' ? 'tl' : pos === 'bottom-right' ? 'br' : pos === 'top-center' ? 'tc' : 'bc';
             btn.classList.toggle('active', btnKey === targetKey);
+        });
+    }
+    if (type === 'lower_third') {
+        ['bc', 'bl', 'br', 'tc'].forEach(k => {
+            const b = document.getElementById(`btn-lt-pos-${k}`);
+            if (b) {
+                const targetKey = pos === 'bottom-center' ? 'bc' : pos === 'bottom-left' ? 'bl' : pos === 'bottom-right' ? 'br' : 'tc';
+                b.classList.toggle('active', k === targetKey);
+            }
         });
     }
 
@@ -6051,7 +6135,7 @@ function adjustOverlaySize(type, delta, event) {
         const trayLabel = document.getElementById('blur-tray-size-val');
         if (trayLabel) trayLabel.textContent = `${Math.round(targetScale * 100)}%`;
     } else if (type === 'lower_third') {
-        const curScale = currentOverlayAssets.lowerThirdScale || 0.65;
+        const curScale = currentOverlayAssets.lowerThirdScale || 1.0;
         const targetScale = Math.max(0.20, Math.min(1.50, Number((curScale + delta).toFixed(2))));
         if (typeof onLowerThirdScaleChange === 'function') {
             onLowerThirdScaleChange(Math.round(targetScale * 100));
@@ -6162,6 +6246,7 @@ function closeTextOverlayDropdown(e) {
     const chevron = document.getElementById('text-dropdown-chevron');
     const blurDropdown = document.getElementById('blur-custom-dropdown');
     const ltDropdown = document.getElementById('lower-third-custom-dropdown');
+    const subDropdown = document.getElementById('subtitle-custom-dropdown');
     const stack = document.getElementById('staged-overlay-unified-panel');
 
     if (dropdown) {
@@ -6172,7 +6257,8 @@ function closeTextOverlayDropdown(e) {
 
     const isBlurOpen = blurDropdown && (blurDropdown.classList.contains('show') || blurDropdown.style.display === 'flex') && blurDropdown.style.display !== 'none';
     const isLtOpen = ltDropdown && (ltDropdown.classList.contains('show') || ltDropdown.style.display === 'flex') && ltDropdown.style.display !== 'none';
-    if (!isBlurOpen && !isLtOpen) {
+    const isSubOpen = subDropdown && (subDropdown.classList.contains('show') || subDropdown.style.display === 'flex') && subDropdown.style.display !== 'none';
+    if (!isBlurOpen && !isLtOpen && !isSubOpen) {
         if (divider) divider.style.display = 'none';
         if (panel) panel.style.display = 'none';
         if (stack) stack.classList.remove('has-inline-open');
@@ -6390,22 +6476,25 @@ function setTextMotion(motion, e) {
 
     const btnStatic = document.getElementById('btn-motion-static');
     const btnScroll = document.getElementById('btn-motion-scroll');
+    const btnScrollDown = document.getElementById('btn-motion-scroll-down');
     const badge = document.getElementById('text-motion-badge');
     const optionsBox = document.getElementById('text-scroll-options-box');
     const staticPresets = document.getElementById('text-static-presets-row');
     const scrollPresets = document.getElementById('text-scroll-presets-row');
 
-    if (motion === 'scroll_up') {
+    if (motion === 'scroll_up' || motion === 'scroll_down') {
         if (btnStatic) btnStatic.classList.remove('active');
-        if (btnScroll) btnScroll.classList.add('active');
-        if (badge) badge.textContent = '🚀 Scroll Up';
-        if (optionsBox) optionsBox.style.display = 'flex';
+        if (btnScroll) btnScroll.classList.toggle('active', motion === 'scroll_up');
+        if (btnScrollDown) btnScrollDown.classList.toggle('active', motion === 'scroll_down');
+        if (badge) badge.textContent = motion === 'scroll_up' ? '🚀 Scroll Up' : '🔻 Scroll Down';
+        if (optionsBox) optionsBox.style.display = 'inline-flex';
         if (staticPresets) staticPresets.style.display = 'none';
         if (scrollPresets) scrollPresets.style.display = 'flex';
-        showToast("Motion enabled: Scroll Up ⬆️");
+        showToast(motion === 'scroll_up' ? 'Motion enabled: Scroll Up ⬆️' : 'Motion enabled: Scroll Down ⬇️');
     } else {
         if (btnStatic) btnStatic.classList.add('active');
         if (btnScroll) btnScroll.classList.remove('active');
+        if (btnScrollDown) btnScrollDown.classList.remove('active');
         if (badge) badge.textContent = '📌 Static';
         if (optionsBox) optionsBox.style.display = 'none';
         if (staticPresets) staticPresets.style.display = 'flex';
@@ -6497,11 +6586,18 @@ function applyTextOverlayStyling() {
     }
 
     if (motion === 'scroll_up') {
+        monitorText.classList.remove('scrolling-down');
         monitorText.classList.add('scrolling-up');
-        const duration = speed <= 45 ? '9.5s' : (speed >= 90 ? '4s' : '6.5s');
-        monitorText.style.setProperty('--scroll-duration', duration);
+        const durationSec = speed <= 45 ? 9.5 : (speed >= 90 ? 4.0 : 6.5);
+        monitorText.style.setProperty('--scroll-duration', `${durationSec}s`);
+    } else if (motion === 'scroll_down') {
+        monitorText.classList.remove('scrolling-up');
+        monitorText.classList.add('scrolling-down');
+        const durationSec = speed <= 45 ? 9.5 : (speed >= 90 ? 4.0 : 6.5);
+        monitorText.style.setProperty('--scroll-duration', `${durationSec}s`);
     } else {
         monitorText.classList.remove('scrolling-up');
+        monitorText.classList.remove('scrolling-down');
     }
 
     const statusLabel = document.getElementById('text-status-label');
@@ -6509,6 +6605,8 @@ function applyTextOverlayStyling() {
         const previewVal = (rawText || 'Text').slice(0, 12);
         if (motion === 'scroll_up') {
             statusLabel.textContent = `⬆️ Scroll Up: ${previewVal}`;
+        } else if (motion === 'scroll_down') {
+            statusLabel.textContent = `⬇️ Scroll Down: ${previewVal}`;
         } else {
             statusLabel.textContent = `Text: ${previewVal}`;
         }
@@ -6518,6 +6616,8 @@ function applyTextOverlayStyling() {
     if (descLabel && currentOverlayAssets.textActive) {
         if (motion === 'scroll_up') {
             descLabel.textContent = `Scroll Up Text: "${rawText}" (${speed}px/s)`;
+        } else if (motion === 'scroll_down') {
+            descLabel.textContent = `Scroll Down Text: "${rawText}" (${speed}px/s)`;
         } else {
             descLabel.textContent = `Active Text: "${rawText}" (${size}px)`;
         }
@@ -6531,6 +6631,13 @@ function toggleLowerThirdTool(event, forceState) {
     if (event) {
         event.stopPropagation();
     }
+    // If no video or file loaded yet, prompt user to pick from computer directly!
+    if (!currentOverlayAssets.lowerThirdUrl && !currentOverlayAssets.serverLowerThirdPath) {
+        const input = document.getElementById('input-overlay-lower-third-file');
+        if (input) input.click();
+        return;
+    }
+
     if (typeof forceState === 'boolean') {
         currentOverlayAssets.lowerThirdActive = forceState;
     } else {
@@ -6539,19 +6646,11 @@ function toggleLowerThirdTool(event, forceState) {
 
     const monitorLt = document.getElementById('monitor-lower-third-overlay');
     const monitorVideo = document.getElementById('monitor-lower-third-video');
-    const statusPill = document.getElementById('lower-third-status-pill');
-    const statusLabel = document.getElementById('lower-third-status-label');
-    const descLabel = document.getElementById('lower-third-desc-label');
 
     if (currentOverlayAssets.lowerThirdActive) {
-        // If no video loaded yet, automatically load the default sample preset
-        if (!currentOverlayAssets.lowerThirdUrl && !currentOverlayAssets.serverLowerThirdPath) {
-            applyLowerThirdSamplePreset('subscribe');
-        }
-
         if (monitorLt) {
             monitorLt.style.display = 'flex';
-            const scalePct = Math.round((currentOverlayAssets.lowerThirdScale || 0.65) * 100);
+            const scalePct = Math.round((currentOverlayAssets.lowerThirdScale || 1.0) * 100);
             monitorLt.style.width = `${scalePct}%`;
             monitorLt.style.opacity = currentOverlayAssets.lowerThirdOpacity !== undefined ? currentOverlayAssets.lowerThirdOpacity : 1.0;
             setOverlayPosition('lower_third', currentOverlayAssets.lowerThirdPosition || 'bottom-center');
@@ -6566,45 +6665,16 @@ function toggleLowerThirdTool(event, forceState) {
             monitorVideo.play().catch(() => {});
         }
 
-        if (statusPill) {
-            statusPill.className = 'overlay-status-pill selected lower-third-active-pill';
-        }
-        if (statusLabel) {
-            statusLabel.textContent = 'Lower Third (Active)';
-        }
-        if (descLabel) {
-            descLabel.textContent = '🎬 Lower Third overlay active on video (Scale, Opacity, Speed adjustable)';
-        }
-
         showToast("Lower Third enabled on Video Preview!");
-        appendLiveTerminalLine("Lower Third overlay enabled on preview monitor (active)", "[Overlay Engine]", "success");
+        appendLiveTerminalLine("Lower Third overlay enabled on preview monitor", "[Overlay Engine]", "success");
     } else {
-        if (monitorLt) {
-            monitorLt.style.display = 'none';
-        }
-        if (monitorVideo) {
-            monitorVideo.pause();
-        }
-        if (statusPill) {
-            statusPill.className = 'overlay-status-pill empty';
-        }
-        if (statusLabel) {
-            statusLabel.textContent = 'Click to Add Lower Third';
-        }
-        if (descLabel) {
-            descLabel.textContent = 'Add lower third video or motion badge overlay';
-        }
+        if (monitorLt) monitorLt.style.display = 'none';
+        if (monitorVideo) monitorVideo.pause();
         closeLowerThirdDropdown();
-        showToast("Removed Lower Third overlay");
     }
 }
 
-function toggleLowerThirdDropdown(e) {
-    if (e) {
-        e.stopPropagation();
-        e.preventDefault();
-    }
-
+function openLowerThirdDropdown() {
     if (typeof closeBlurMaskDropdown === 'function') closeBlurMaskDropdown();
     if (typeof closeTextOverlayDropdown === 'function') closeTextOverlayDropdown();
     if (typeof closeTrackBgmDropdown === 'function') closeTrackBgmDropdown();
@@ -6616,20 +6686,29 @@ function toggleLowerThirdDropdown(e) {
     const stack = document.getElementById('staged-overlay-unified-panel');
     if (!dropdown || !panel) return;
 
+    if (divider) divider.style.display = 'block';
+    panel.style.display = 'flex';
+    if (stack) stack.classList.add('has-inline-open');
+
+    dropdown.style.display = 'flex';
+    dropdown.classList.add('show');
+    if (chevron) chevron.classList.add('open');
+}
+
+function toggleLowerThirdDropdown(e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+
+    const dropdown = document.getElementById('lower-third-custom-dropdown');
+    if (!dropdown) return;
+
     const isOpen = (dropdown.classList.contains('show') || dropdown.style.display === 'flex') && dropdown.style.display !== 'none';
     if (isOpen) {
         closeLowerThirdDropdown();
     } else {
-        if (!currentOverlayAssets.lowerThirdActive) {
-            toggleLowerThirdTool(null, true);
-        }
-        if (divider) divider.style.display = 'block';
-        panel.style.display = 'flex';
-        if (stack) stack.classList.add('has-inline-open');
-
-        dropdown.style.display = 'flex';
-        dropdown.classList.add('show');
-        if (chevron) chevron.classList.add('open');
+        openLowerThirdDropdown();
     }
 }
 
@@ -6644,6 +6723,7 @@ function closeLowerThirdDropdown(e) {
     const chevron = document.getElementById('lower-third-dropdown-chevron');
     const blurDropdown = document.getElementById('blur-custom-dropdown');
     const textDropdown = document.getElementById('text-custom-dropdown');
+    const subDropdown = document.getElementById('subtitle-custom-dropdown');
     const stack = document.getElementById('staged-overlay-unified-panel');
 
     if (dropdown) {
@@ -6654,7 +6734,8 @@ function closeLowerThirdDropdown(e) {
 
     const isBlurOpen = blurDropdown && (blurDropdown.classList.contains('show') || blurDropdown.style.display === 'flex') && blurDropdown.style.display !== 'none';
     const isTextOpen = textDropdown && (textDropdown.classList.contains('show') || textDropdown.style.display === 'flex') && textDropdown.style.display !== 'none';
-    if (!isBlurOpen && !isTextOpen) {
+    const isSubOpen = subDropdown && (subDropdown.classList.contains('show') || subDropdown.style.display === 'flex') && subDropdown.style.display !== 'none';
+    if (!isBlurOpen && !isTextOpen && !isSubOpen) {
         if (divider) divider.style.display = 'none';
         if (panel) panel.style.display = 'none';
         if (stack) stack.classList.remove('has-inline-open');
@@ -6668,34 +6749,73 @@ function handleLowerThirdFileSelect(event) {
     currentOverlayAssets.lowerThirdFile = file;
     currentOverlayAssets.lowerThirdSamplePath = null;
     currentOverlayAssets.serverLowerThirdPath = null;
+    currentOverlayAssets.lowerThirdScale = 1.0; // 100% full width directly!
+    currentOverlayAssets.lowerThirdPosition = 'bottom-center';
+    currentOverlayAssets.lowerThirdActive = true;
+
     if (currentOverlayAssets.lowerThirdUrl && currentOverlayAssets.lowerThirdUrl.startsWith('blob:')) {
         URL.revokeObjectURL(currentOverlayAssets.lowerThirdUrl);
     }
     currentOverlayAssets.lowerThirdUrl = URL.createObjectURL(file);
 
-    // Immediately upload to backend
-    try {
-        const fd = new FormData();
-        fd.append('lower_third_file', file);
-        fetch('/api/projects/upload-overlay-lower-third', { method: 'POST', body: fd })
-            .then(r => r.json())
-            .then(d => {
-                if (d.success && (d.lower_third_path || d.video_path)) {
-                    currentOverlayAssets.serverLowerThirdPath = d.lower_third_path || d.video_path;
-                    appendLiveTerminalLine(`Lower Third saved to studio engine: ${d.filename}`, "[Overlay Engine]", "info");
-                }
-            })
-            .catch(err => console.warn("Lower third upload background note:", err));
-    } catch (e) {
-        console.warn("Lower third upload trigger note:", e);
+    // Update scale slider & badge UI to 100%
+    const scaleSlider = document.getElementById('input-lt-scale');
+    const scaleBadge = document.getElementById('lt-scale-badge');
+    if (scaleSlider) scaleSlider.value = '100';
+    if (scaleBadge) scaleBadge.textContent = '100%';
+
+    // Position buttons: highlight BC Bottom-Center
+    ['bc', 'bl', 'br', 'tc'].forEach(k => {
+        const b = document.getElementById(`btn-lt-pos-${k}`);
+        if (b) b.classList.toggle('active', k === 'bc');
+    });
+
+    const monitorLt = document.getElementById('monitor-lower-third-overlay');
+    const monitorVideo = document.getElementById('monitor-lower-third-video');
+    if (monitorLt) {
+        monitorLt.style.display = 'flex';
+        monitorLt.style.width = '100%';
+        monitorLt.style.left = '0%';
+        monitorLt.style.bottom = '0px';
+        monitorLt.style.top = 'auto';
+        monitorLt.style.transform = 'none';
+        monitorLt.style.opacity = currentOverlayAssets.lowerThirdOpacity !== undefined ? currentOverlayAssets.lowerThirdOpacity : 1.0;
+        makeOverlayDraggable(monitorLt);
+        const ltHandle = document.getElementById('lower-third-resize-handle');
+        if (ltHandle) makeOverlayResizable(monitorLt, ltHandle, 'lower_third');
     }
 
-    const monitorVideo = document.getElementById('monitor-lower-third-video');
     if (monitorVideo) {
-        monitorVideo.src = currentOverlayAssets.lowerThirdUrl;
-        monitorVideo.playbackRate = currentOverlayAssets.lowerThirdSpeed || 1.0;
-        monitorVideo.loop = currentOverlayAssets.lowerThirdLoop !== false;
-        monitorVideo.play().catch(() => {});
+        try {
+            monitorVideo.src = currentOverlayAssets.lowerThirdUrl;
+            monitorVideo.playbackRate = currentOverlayAssets.lowerThirdSpeed || 1.0;
+            monitorVideo.loop = currentOverlayAssets.lowerThirdLoop !== false;
+            monitorVideo.play().catch(() => {});
+        } catch (_) {}
+    }
+
+    const card = document.getElementById('card-upload-lower-third');
+    if (card) card.classList.add('has-active-controls');
+
+    const descLabel = document.getElementById('lower-third-desc-label');
+    if (descLabel) descLabel.textContent = `Lower Third: ${file.name} (Scale 100%, Opacity, Speed adjustable)`;
+
+    // Show initial loading status pill while fast transcoding runs on server
+    const sizeKb = (file.size / 1024).toFixed(1);
+    const statusEl = document.getElementById('status-overlay-lower-third');
+    if (statusEl) {
+        statusEl.innerHTML = `
+            <div class="overlay-active-controls">
+                <span class="overlay-status-pill selected" title="${escapeHtml(file.name)}">
+                    <i class="fa-solid fa-spinner fa-spin" style="color:#f59e0b; margin-right:4px;"></i>
+                    <span class="overlay-file-name">${escapeHtml(file.name)}</span>
+                    <button type="button" class="overlay-file-remove-btn" onclick="clearLowerThirdFile(event)" title="Remove Lower Third">&times;</button>
+                </span>
+                <button type="button" class="lt-row-settings-btn" onclick="toggleLowerThirdDropdown(event)" title="Adjust Lower Third Settings (Size, Position, Speed)">
+                    <i class="fa-solid fa-sliders"></i>
+                </button>
+            </div>
+        `;
     }
 
     const pill = document.getElementById('lt-file-preview-pill');
@@ -6706,12 +6826,59 @@ function handleLowerThirdFileSelect(event) {
     const btnText = document.getElementById('lt-upload-btn-text');
     if (btnText) btnText.textContent = `Change Video (${file.name})`;
 
-    if (!currentOverlayAssets.lowerThirdActive) {
-        toggleLowerThirdTool(null, true);
+    // Upload to backend to generate transparent WebM preview and poster for qtrle MOV
+    try {
+        const fd = new FormData();
+        fd.append('lower_third_file', file);
+        fetch('/api/projects/upload-overlay-lower-third', { method: 'POST', body: fd })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) {
+                    currentOverlayAssets.serverLowerThirdPath = d.lower_third_path || d.video_path;
+                    currentOverlayAssets.lowerThirdPreviewUrl = d.preview_url || d.url;
+                    currentOverlayAssets.lowerThirdThumbUrl = d.thumb_url || '';
+                    currentOverlayAssets.lowerThirdOrigWidth = d.orig_width || 2000;
+                    currentOverlayAssets.lowerThirdOrigHeight = d.orig_height || 2500;
+
+                    const mVid = document.getElementById('monitor-lower-third-video');
+                    if (mVid) {
+                        if (d.thumb_url) mVid.poster = d.thumb_url;
+                        if (d.preview_url) {
+                            mVid.src = d.preview_url;
+                            mVid.playbackRate = currentOverlayAssets.lowerThirdSpeed || 1.0;
+                            mVid.loop = currentOverlayAssets.lowerThirdLoop !== false;
+                            mVid.load();
+                            mVid.play().catch(() => {});
+                        }
+                    }
+
+                    // Replace loading spinner with standard ready icon
+                    if (statusEl) {
+                        statusEl.innerHTML = `
+                            <div class="overlay-active-controls">
+                                <span class="overlay-status-pill selected" title="${escapeHtml(file.name)}">
+                                    <i class="fa-solid fa-file-video" style="color:#60a5fa; margin-right:4px;"></i>
+                                    <span class="overlay-file-name">${escapeHtml(file.name)}</span>
+                                    <button type="button" class="overlay-file-remove-btn" onclick="clearLowerThirdFile(event)" title="Remove Lower Third">&times;</button>
+                                </span>
+                                <button type="button" class="lt-row-settings-btn" onclick="toggleLowerThirdDropdown(event)" title="Adjust Lower Third Settings (Size, Position, Speed)">
+                                    <i class="fa-solid fa-sliders"></i>
+                                </button>
+                            </div>
+                        `;
+                    }
+                    appendLiveTerminalLine(`Lower Third engine ready: ${d.filename} (${sizeKb} KB)`, "[Overlay Engine]", "info");
+                }
+            })
+            .catch(err => console.warn("Lower third upload background note:", err));
+    } catch (e) {
+        console.warn("Lower third upload trigger note:", e);
     }
 
+    // Open lower third settings panel so user can adjust size, opacity, position, speed
+    openLowerThirdDropdown();
     showToast(`Lower Third applied: ${file.name}`);
-    appendLiveTerminalLine(`Lower third attached to preview: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`, "[Overlay Engine]", "success");
+    appendLiveTerminalLine(`Lower third attached to preview: ${file.name} (${sizeKb} KB)`, "[Overlay Engine]", "success");
 }
 
 function clearLowerThirdFile(event) {
@@ -6726,77 +6893,61 @@ function clearLowerThirdFile(event) {
     currentOverlayAssets.lowerThirdUrl = null;
     currentOverlayAssets.serverLowerThirdPath = null;
     currentOverlayAssets.lowerThirdSamplePath = null;
+    currentOverlayAssets.lowerThirdActive = false;
+    currentOverlayAssets.lowerThirdScale = 1.0;
+
+    const scaleSlider = document.getElementById('input-lt-scale');
+    const scaleBadge = document.getElementById('lt-scale-badge');
+    if (scaleSlider) scaleSlider.value = '100';
+    if (scaleBadge) scaleBadge.textContent = '100%';
 
     const input = document.getElementById('input-overlay-lower-third-file');
     if (input) input.value = '';
+
+    const monitorLt = document.getElementById('monitor-lower-third-overlay');
+    if (monitorLt) monitorLt.style.display = 'none';
 
     const monitorVideo = document.getElementById('monitor-lower-third-video');
     if (monitorVideo) {
         monitorVideo.pause();
         monitorVideo.removeAttribute('src');
+        monitorVideo.removeAttribute('poster');
         monitorVideo.load();
+    }
+
+    const card = document.getElementById('card-upload-lower-third');
+    if (card) card.classList.remove('has-active-controls');
+
+    const descLabel = document.getElementById('lower-third-desc-label');
+    if (descLabel) descLabel.textContent = 'Upload Lower Third video (MP4/MOV/WebM) from computer';
+
+    const statusEl = document.getElementById('status-overlay-lower-third');
+    if (statusEl) {
+        statusEl.innerHTML = `
+            <span class="overlay-status-pill empty" id="lower-third-status-pill">
+                <i class="fa-solid fa-cloud-arrow-up"></i> <span id="lower-third-status-label">Upload</span>
+            </span>
+        `;
     }
 
     const pill = document.getElementById('lt-file-preview-pill');
     if (pill) pill.style.display = 'none';
 
     const btnText = document.getElementById('lt-upload-btn-text');
-    if (btnText) btnText.textContent = 'Choose Lower Third Video';
+    if (btnText) btnText.textContent = 'Choose Video from Computer';
 
-    toggleLowerThirdTool(null, false);
+    closeLowerThirdDropdown();
     showToast("Removed Lower Third file");
 }
 
 function applyLowerThirdSamplePreset(presetKey, e) {
-    if (e) {
-        e.stopPropagation();
-        e.preventDefault();
-    }
-
-    let sampleFile = 'subscribe_badge.mp4';
-    let sampleTitle = '🔔 Follow & Subscribe';
-
-    if (presetKey === 'drama_bar') {
-        sampleFile = 'drama_title_bar.mp4';
-        sampleTitle = '🎭 Drama Title Bar';
-    } else if (presetKey === 'like_share') {
-        sampleFile = 'like_share_bar.mp4';
-        sampleTitle = '👍 Like & Share';
-    }
-
-    const relativePath = `static/assets/lower_thirds/${sampleFile}`;
-    currentOverlayAssets.lowerThirdSamplePath = relativePath;
-    currentOverlayAssets.serverLowerThirdPath = relativePath;
-    currentOverlayAssets.lowerThirdFile = null;
-    currentOverlayAssets.lowerThirdUrl = `/${relativePath}`;
-
-    const monitorVideo = document.getElementById('monitor-lower-third-video');
-    if (monitorVideo) {
-        monitorVideo.src = currentOverlayAssets.lowerThirdUrl;
-        monitorVideo.playbackRate = currentOverlayAssets.lowerThirdSpeed || 1.0;
-        monitorVideo.loop = currentOverlayAssets.lowerThirdLoop !== false;
-        monitorVideo.play().catch(() => {});
-    }
-
-    const pill = document.getElementById('lt-file-preview-pill');
-    const label = document.getElementById('lt-filename-display');
-    if (pill) pill.style.display = 'inline-flex';
-    if (label) label.textContent = sampleTitle;
-
-    const btnText = document.getElementById('lt-upload-btn-text');
-    if (btnText) btnText.textContent = `Change Video (${sampleTitle})`;
-
-    if (!currentOverlayAssets.lowerThirdActive) {
-        toggleLowerThirdTool(null, true);
-    }
-
-    showToast(`Selected Lower Third preset: ${sampleTitle}`);
-    appendLiveTerminalLine(`Loaded sample lower third: ${sampleTitle}`, "[Overlay Engine]", "info");
+    const input = document.getElementById('input-overlay-lower-third-file');
+    if (input) input.click();
 }
 
 function onLowerThirdScaleChange(val, e) {
     if (e) e.stopPropagation();
-    const scalePct = parseInt(val, 10) || 65;
+    const scalePct = parseInt(val, 10) || 100;
     const scale = scalePct / 100;
     currentOverlayAssets.lowerThirdScale = scale;
 
@@ -6809,6 +6960,13 @@ function onLowerThirdScaleChange(val, e) {
     const monitorLt = document.getElementById('monitor-lower-third-overlay');
     if (monitorLt) {
         monitorLt.style.width = `${scalePct}%`;
+        if (scalePct >= 95) {
+            monitorLt.style.left = '0%';
+            monitorLt.style.transform = 'none';
+        } else if (currentOverlayAssets.lowerThirdPosition === 'bottom-center' || currentOverlayAssets.lowerThirdPosition === 'top-center') {
+            monitorLt.style.left = '50%';
+            monitorLt.style.transform = 'translateX(-50%)';
+        }
     }
 }
 
@@ -6901,6 +7059,311 @@ function setLowerThirdSpeed(speed, e) {
         if (btn) btn.classList.toggle('active', sp === s);
     });
     showToast(`Lower Third Animation Speed: ${s}x`);
+}
+
+// ==========================================================================
+// SUBTITLE OVERLAY (Viral Khmer Captions & Subtitles) CONTROLS
+// ==========================================================================
+function openSubtitleDropdown() {
+    if (typeof closeBlurMaskDropdown === 'function') closeBlurMaskDropdown();
+    if (typeof closeTextOverlayDropdown === 'function') closeTextOverlayDropdown();
+    if (typeof closeLowerThirdDropdown === 'function') closeLowerThirdDropdown();
+    if (typeof closeTrackBgmDropdown === 'function') closeTrackBgmDropdown();
+
+    const panel = document.getElementById('overlay-inline-settings-panel');
+    const divider = document.getElementById('overlay-inline-panel-divider');
+    const dropdown = document.getElementById('subtitle-custom-dropdown');
+    const chevron = document.getElementById('subtitle-dropdown-chevron');
+    const stack = document.getElementById('staged-overlay-unified-panel');
+    if (!dropdown || !panel) return;
+
+    if (divider) divider.style.display = 'block';
+    panel.style.display = 'flex';
+    if (stack) stack.classList.add('has-inline-open');
+
+    dropdown.style.display = 'flex';
+    dropdown.classList.add('show');
+    if (chevron) chevron.classList.add('open');
+}
+
+function toggleSubtitleDropdown(e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    const dropdown = document.getElementById('subtitle-custom-dropdown');
+    if (!dropdown) return;
+    const isOpen = (dropdown.classList.contains('show') || dropdown.style.display === 'flex') && dropdown.style.display !== 'none';
+    if (isOpen) {
+        closeSubtitleDropdown();
+    } else {
+        openSubtitleDropdown();
+    }
+}
+
+function closeSubtitleDropdown(e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    const panel = document.getElementById('overlay-inline-settings-panel');
+    const divider = document.getElementById('overlay-inline-panel-divider');
+    const dropdown = document.getElementById('subtitle-custom-dropdown');
+    const chevron = document.getElementById('subtitle-dropdown-chevron');
+    const blurDropdown = document.getElementById('blur-custom-dropdown');
+    const textDropdown = document.getElementById('text-custom-dropdown');
+    const ltDropdown = document.getElementById('lower-third-custom-dropdown');
+    const stack = document.getElementById('staged-overlay-unified-panel');
+
+    if (dropdown) {
+        dropdown.style.display = 'none';
+        dropdown.classList.remove('show');
+    }
+    if (chevron) chevron.classList.remove('open');
+
+    const isBlurOpen = blurDropdown && (blurDropdown.classList.contains('show') || blurDropdown.style.display === 'flex') && blurDropdown.style.display !== 'none';
+    const isTextOpen = textDropdown && (textDropdown.classList.contains('show') || textDropdown.style.display === 'flex') && textDropdown.style.display !== 'none';
+    const isLtOpen = ltDropdown && (ltDropdown.classList.contains('show') || ltDropdown.style.display === 'flex') && ltDropdown.style.display !== 'none';
+    if (!isBlurOpen && !isTextOpen && !isLtOpen) {
+        if (divider) divider.style.display = 'none';
+        if (panel) panel.style.display = 'none';
+        if (stack) stack.classList.remove('has-inline-open');
+    }
+}
+
+function toggleSubtitleTool(event, forceState) {
+    if (event) {
+        event.stopPropagation();
+    }
+    if (typeof forceState === 'boolean') {
+        currentOverlayAssets.subtitleActive = forceState;
+    } else {
+        currentOverlayAssets.subtitleActive = !currentOverlayAssets.subtitleActive;
+    }
+
+    const toggle = document.getElementById('toggle-subtitle-enable');
+    if (toggle) toggle.checked = currentOverlayAssets.subtitleActive;
+
+    const toggleText = document.getElementById('subtitle-toggle-text');
+    if (toggleText) toggleText.textContent = currentOverlayAssets.subtitleActive ? 'Active' : 'Enable';
+
+    const pill = document.getElementById('subtitle-status-pill');
+    const label = document.getElementById('subtitle-status-label');
+    const card = document.getElementById('card-upload-subtitle');
+    const monitorSub = document.getElementById('monitor-subtitle-overlay');
+
+    if (currentOverlayAssets.subtitleActive) {
+        if (pill) {
+            pill.classList.remove('empty');
+            pill.classList.add('active');
+        }
+        if (label) label.textContent = 'Active';
+        if (card) card.classList.add('active');
+        if (monitorSub) {
+            monitorSub.style.display = 'block';
+            if (typeof makeOverlayDraggable === 'function') makeOverlayDraggable(monitorSub);
+        }
+        showToast("Khmer Subtitles enabled! 💬");
+        appendLiveTerminalLine("Khmer Subtitles overlay enabled (interactive preview active)", "[Subtitle Engine]", "success");
+    } else {
+        if (pill) {
+            pill.classList.remove('active');
+            pill.classList.add('empty');
+        }
+        if (label) label.textContent = 'Off';
+        if (card) card.classList.remove('active');
+        if (monitorSub) monitorSub.style.display = 'none';
+        showToast("Subtitles turned off");
+    }
+
+    applySubtitleStyling();
+}
+
+function setSubtitleAnimation(animType, e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    const validAnims = ['pop', 'fade', 'slide', 'static'];
+    if (!validAnims.includes(animType)) animType = 'pop';
+
+    currentOverlayAssets.subtitleAnimation = animType;
+
+    validAnims.forEach(a => {
+        const card = document.getElementById(`btn-sub-anim-${a}`);
+        if (card) card.classList.toggle('active', a === animType);
+    });
+
+    if (!currentOverlayAssets.subtitleActive) {
+        toggleSubtitleTool(null, true);
+    }
+    applySubtitleStyling();
+
+    const names = {
+        pop: 'Pop-up Bounce (TikTok Viral)',
+        fade: 'Smooth Fade In (រលាយចូល)',
+        slide: 'Slide Up (រំកិលឡើង)',
+        static: 'Classic Static (ស្ដង់ដារ)'
+    };
+    showToast(`បែបអក្សរលោតមក: ${names[animType] || animType}`);
+}
+
+function setSubtitleStyle(styleName, e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    setSubtitleAnimation('pop', e);
+}
+
+function onSubtitleSizeChange(val, e) {
+    if (e) e.stopPropagation();
+    const size = parseInt(val, 10) || 44;
+    currentOverlayAssets.subtitleSize = size;
+
+    const slider = document.getElementById('input-sub-size');
+    if (slider && parseInt(slider.value, 10) !== size) slider.value = size;
+
+    const badge = document.getElementById('sub-size-badge');
+    if (badge) badge.textContent = `${size}px`;
+
+    if (!currentOverlayAssets.subtitleActive) {
+        toggleSubtitleTool(null, true);
+    }
+    applySubtitleStyling();
+}
+
+function onSubtitleMarginChange(val, e) {
+    if (e) e.stopPropagation();
+    const margin = parseInt(val, 10) || 65;
+    currentOverlayAssets.subtitleMarginV = margin;
+    currentOverlayAssets.subtitleUserDragged = false;
+
+    const slider = document.getElementById('input-sub-margin');
+    if (slider && parseInt(slider.value, 10) !== margin) slider.value = margin;
+
+    const badge = document.getElementById('sub-margin-badge');
+    if (badge) badge.textContent = `${margin}px`;
+
+    const btnBottom = document.getElementById('btn-sub-pos-bottom');
+    const btnAboveLt = document.getElementById('btn-sub-pos-above-lt');
+    const btnMiddle = document.getElementById('btn-sub-pos-middle');
+    const btnHigher = document.getElementById('btn-sub-pos-higher');
+    if (btnBottom) btnBottom.classList.toggle('active', margin <= 150);
+    if (btnAboveLt) btnAboveLt.classList.toggle('active', margin > 150 && margin <= 450);
+    if (btnMiddle) btnMiddle.classList.toggle('active', margin > 450 && margin <= 800);
+    if (btnHigher) btnHigher.classList.toggle('active', margin > 800);
+
+    if (!currentOverlayAssets.subtitleActive) {
+        toggleSubtitleTool(null, true);
+    }
+    applySubtitleStyling();
+}
+
+function setSubtitleMarginPreset(margin, e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    onSubtitleMarginChange(margin);
+}
+
+async function handleCustomSubtitleFileSelect(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    currentOverlayAssets.customSubtitleFile = file;
+    currentOverlayAssets.customSubtitleName = file.name;
+
+    const pill = document.getElementById('sub-file-preview-pill');
+    const nameDisplay = document.getElementById('sub-filename-display');
+    const uploadBtnText = document.getElementById('sub-upload-btn-text');
+
+    if (pill) pill.style.display = 'inline-flex';
+    if (nameDisplay) nameDisplay.textContent = file.name;
+    if (uploadBtnText) uploadBtnText.textContent = 'Change SRT';
+
+    showToast(`Uploaded custom subtitle: ${file.name}`);
+
+    try {
+        const fd = new FormData();
+        fd.append('subtitle_file', file);
+        const r = await fetch('/api/projects/upload-overlay-subtitle', { method: 'POST', body: fd });
+        const d = await r.json();
+        if (d.success && d.subtitle_path) {
+            currentOverlayAssets.customSubtitlePath = d.subtitle_path;
+        }
+    } catch (err) {
+        console.warn("Subtitle upload note:", err);
+    }
+
+    if (!currentOverlayAssets.subtitleActive) {
+        toggleSubtitleTool(null, true);
+    }
+}
+
+function clearCustomSubtitleFile(e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    currentOverlayAssets.customSubtitleFile = null;
+    currentOverlayAssets.customSubtitlePath = null;
+    currentOverlayAssets.customSubtitleName = null;
+
+    const fileInput = document.getElementById('input-custom-subtitle-file');
+    if (fileInput) fileInput.value = '';
+
+    const pill = document.getElementById('sub-file-preview-pill');
+    const uploadBtnText = document.getElementById('sub-upload-btn-text');
+    if (pill) pill.style.display = 'none';
+    if (uploadBtnText) uploadBtnText.textContent = 'Upload Custom SRT';
+
+    showToast("Reverted to AI auto-subtitles");
+}
+
+function applySubtitleStyling() {
+    const monitorSub = document.getElementById('monitor-subtitle-overlay');
+    const displayEl = document.getElementById('monitor-subtitle-display');
+    if (!monitorSub || !displayEl) return;
+
+    const anim = currentOverlayAssets.subtitleAnimation || 'pop';
+    const size = currentOverlayAssets.subtitleSize || 44;
+    const margin = currentOverlayAssets.subtitleMarginV || 65;
+
+    // Reset and apply animation class to trigger animation replay
+    displayEl.className = 'monitor-subtitle-content style-viral-yellow';
+    void displayEl.offsetWidth; // Force DOM reflow to replay CSS animation
+    displayEl.classList.add(`anim-${anim}`);
+
+    const previewFs = Math.max(13, Math.round(size * 0.45));
+    monitorSub.style.setProperty('--sub-fontsize', `${previewFs}px`);
+
+    if (!currentOverlayAssets.subtitleUserDragged) {
+        const parent = monitorSub.parentElement;
+        const parentH = parent ? parent.offsetHeight : 540;
+        const previewBottomPx = Math.max(6, Math.round((margin / 1920.0) * parentH));
+        monitorSub.style.setProperty('--sub-bottom', `${previewBottomPx}px`);
+        monitorSub.style.bottom = `${previewBottomPx}px`;
+        monitorSub.style.top = 'auto';
+        monitorSub.style.left = '50%';
+        monitorSub.style.transform = 'translateX(-50%)';
+    }
+
+    const descLabel = document.getElementById('subtitle-desc-label');
+    if (descLabel) {
+        const animLabels = {
+            pop: 'Pop-up Bounce (CapCut Viral)',
+            fade: 'Smooth Fade In (រលាយចូល)',
+            slide: 'Slide Up (រំកិលឡើង)',
+            static: 'Classic Static (ស្ដង់ដារ)'
+        };
+        if (currentOverlayAssets.subtitleActive) {
+            descLabel.textContent = `Active Subtitles: ${animLabels[anim] || anim} (${size}px, ${margin}px margin)`;
+        } else {
+            descLabel.textContent = 'Burn auto-translated Khmer subtitles with TikTok/Viral animations';
+        }
+    }
 }
 
 function makeOverlayResizable(overlayEl, handleEl, type) {
@@ -7092,8 +7555,25 @@ function makeOverlayDraggable(el) {
         const elWidth = el.offsetWidth;
         const elHeight = el.offsetHeight;
 
+        const isLt = (el.id === 'monitor-lower-third-overlay');
+        const isSub = (el.id === 'monitor-subtitle-overlay');
+        let minTop = 0;
+        let maxTop = Math.max(0, parentRect.height - elHeight);
+
+        if (isLt) {
+            // Allows dragging until banner is completely flush with the top edge (0px)
+            // and completely flush with the bottom edge (parentRect.height)
+            minTop = -Math.round(elHeight * 0.46);
+            maxTop = Math.round(parentRect.height - elHeight * 0.54);
+            currentOverlayAssets.lowerThirdUserDragged = true;
+        } else if (isSub) {
+            minTop = 8;
+            maxTop = Math.max(8, parentRect.height - elHeight - 8);
+            currentOverlayAssets.subtitleUserDragged = true;
+        }
+
         let newLeft = Math.max(0, Math.min(parentRect.width - elWidth, origLeft + dx));
-        let newTop = Math.max(0, Math.min(parentRect.height - elHeight, origTop + dy));
+        let newTop = Math.max(minTop, Math.min(maxTop, origTop + dy));
 
         // Magnetic center snap (within 14px of parent center)
         const centerOffset = (newLeft + elWidth / 2) - (parentRect.width / 2);
@@ -7113,6 +7593,31 @@ function makeOverlayDraggable(el) {
             isDragging = false;
             el.classList.remove('dragging');
             el.classList.remove('snapped-center');
+
+            if (el.id === 'monitor-subtitle-overlay') {
+                currentOverlayAssets.subtitleUserDragged = true;
+                const parentRect = el.parentElement ? el.parentElement.getBoundingClientRect() : null;
+                const elRect = el.getBoundingClientRect();
+                if (parentRect && parentRect.height > 20) {
+                    const normBottom = Math.max(0.02, Math.min(0.98, (parentRect.bottom - elRect.bottom) / parentRect.height));
+                    const approxMarginV = Math.max(20, Math.min(1400, Math.round(normBottom * 1920)));
+                    currentOverlayAssets.subtitleMarginV = approxMarginV;
+
+                    const slider = document.getElementById('input-sub-margin');
+                    if (slider) slider.value = approxMarginV;
+                    const badge = document.getElementById('sub-margin-badge');
+                    if (badge) badge.textContent = `${approxMarginV}px`;
+
+                    const btnBottom = document.getElementById('btn-sub-pos-bottom');
+                    const btnAboveLt = document.getElementById('btn-sub-pos-above-lt');
+                    const btnMiddle = document.getElementById('btn-sub-pos-middle');
+                    const btnHigher = document.getElementById('btn-sub-pos-higher');
+                    if (btnBottom) btnBottom.classList.toggle('active', approxMarginV <= 150);
+                    if (btnAboveLt) btnAboveLt.classList.toggle('active', approxMarginV > 150 && approxMarginV <= 450);
+                    if (btnMiddle) btnMiddle.classList.toggle('active', approxMarginV > 450 && approxMarginV <= 800);
+                    if (btnHigher) btnHigher.classList.toggle('active', approxMarginV > 800);
+                }
+            }
         }
     };
 
@@ -7341,6 +7846,10 @@ async function getOverlayExportConfig() {
             else if (pos === 'top-right') { center_x = 0.80; norm_x = 0.65; norm_y = 0.06; }
         }
 
+        const motion = currentOverlayAssets.textMotion || 'static';
+        const speed = currentOverlayAssets.textSpeed || 65;
+        const durationSec = speed <= 45 ? 9.5 : (speed >= 90 ? 4.0 : 6.5);
+
         textCfg = {
             active: true,
             text: currentOverlayAssets.textValue || 'EPISODE 01',
@@ -7349,8 +7858,10 @@ async function getOverlayExportConfig() {
             color: currentOverlayAssets.textColor || '#ffffff',
             segments: currentOverlayAssets.textSegments || [],
             bg: currentOverlayAssets.textBg === true,
-            motion: currentOverlayAssets.textMotion || 'static',
-            speed: currentOverlayAssets.textSpeed || 65,
+            motion: motion,
+            speed: speed,
+            duration: durationSec,
+            scroll_duration: durationSec,
             position: currentOverlayAssets.textPosition || 'bottom-center',
             center_x: +center_x.toFixed(4),
             norm_x: +norm_x.toFixed(4),
@@ -7386,27 +7897,28 @@ async function getOverlayExportConfig() {
             sLtPath = currentOverlayAssets.lowerThirdSamplePath;
         }
 
-        let norm_x = 0.05, norm_y = 0.80, norm_w = 0.65, norm_h = 0.12;
+        let norm_x = 0.0, norm_y = 0.0, norm_w = 1.0, norm_h = 0.35;
         let isCentered = false;
         if (sRect && sRect.width > 20 && sRect.height > 20) {
             const ltRect = monitorLt.getBoundingClientRect();
             norm_x = Math.max(0, Math.min(0.98, (ltRect.left - sRect.left) / sRect.width));
-            norm_y = Math.max(0, Math.min(0.98, (ltRect.top - sRect.top) / sRect.height));
+            const rawNormY = (ltRect.top - sRect.top) / sRect.height;
+            norm_y = Math.max(-0.65, Math.min(1.20, rawNormY));
             norm_w = Math.max(0.08, Math.min(1.0, ltRect.width / sRect.width));
             norm_h = Math.max(0.02, Math.min(0.95, ltRect.height / sRect.height));
 
             const ltCenterX = (ltRect.left + ltRect.width / 2 - sRect.left) / sRect.width;
-            if (Math.abs(ltCenterX - 0.50) < 0.04 || currentOverlayAssets.lowerThirdPosition === 'bottom-center' || currentOverlayAssets.lowerThirdPosition === 'top-center') {
+            if (norm_w >= 0.95 || Math.abs(ltCenterX - 0.50) < 0.04 || currentOverlayAssets.lowerThirdPosition === 'bottom-center' || currentOverlayAssets.lowerThirdPosition === 'top-center') {
                 isCentered = true;
                 norm_x = Math.max(0, (1.0 - norm_w) / 2);
             }
         } else {
             const pos = currentOverlayAssets.lowerThirdPosition || 'bottom-center';
-            norm_w = currentOverlayAssets.lowerThirdScale || 0.65;
-            if (pos === 'bottom-center') { norm_x = (1.0 - norm_w) / 2; norm_y = 0.82; isCentered = true; }
-            else if (pos === 'top-center') { norm_x = (1.0 - norm_w) / 2; norm_y = 0.06; isCentered = true; }
-            else if (pos === 'bottom-left') { norm_x = 0.04; norm_y = 0.82; }
-            else if (pos === 'bottom-right') { norm_x = Math.max(0, 0.96 - norm_w); norm_y = 0.82; }
+            norm_w = currentOverlayAssets.lowerThirdScale || 1.0;
+            if (pos === 'bottom-center') { norm_x = (1.0 - norm_w) / 2; norm_y = 0.65; isCentered = true; }
+            else if (pos === 'top-center') { norm_x = (1.0 - norm_w) / 2; norm_y = -0.30; isCentered = true; }
+            else if (pos === 'bottom-left') { norm_x = 0.02; norm_y = 0.65; }
+            else if (pos === 'bottom-right') { norm_x = Math.max(0, 0.98 - norm_w); norm_y = 0.65; }
         }
 
         ltCfg = {
@@ -7417,7 +7929,8 @@ async function getOverlayExportConfig() {
             norm_w: +norm_w.toFixed(4),
             norm_h: +norm_h.toFixed(4),
             is_center: isCentered,
-            scale: currentOverlayAssets.lowerThirdScale || 0.65,
+            user_dragged: !!currentOverlayAssets.lowerThirdUserDragged,
+            scale: currentOverlayAssets.lowerThirdScale || 1.0,
             opacity: currentOverlayAssets.lowerThirdOpacity !== undefined ? currentOverlayAssets.lowerThirdOpacity : 1.0,
             start_time: currentOverlayAssets.lowerThirdStartTime || 0.0,
             end_time: currentOverlayAssets.lowerThirdEndTime || 0.0,
@@ -7427,11 +7940,51 @@ async function getOverlayExportConfig() {
         };
     }
 
+    // 5. Subtitle Overlay (Viral Khmer Subtitles)
+    let subNormY = null;
+    let subCenterX = 0.50;
+    let subMarginV = currentOverlayAssets.subtitleMarginV || 65;
+    let subUserDragged = !!currentOverlayAssets.subtitleUserDragged;
+
+    const monitorSub = document.getElementById('monitor-subtitle-overlay');
+    if (monitorSub && currentOverlayAssets.subtitleActive && sRect && sRect.height > 20) {
+        const subRect = monitorSub.getBoundingClientRect();
+        // Distance of subtitle bottom edge from top of actual video canvas, normalized 0.0 to 1.0
+        const rawNormBottomY = (subRect.bottom - sRect.top) / sRect.height;
+        subNormY = Math.max(0.05, Math.min(0.98, rawNormBottomY));
+
+        const rawCenterX = (subRect.left + subRect.width / 2 - sRect.left) / sRect.width;
+        if (Math.abs(rawCenterX - 0.50) < 0.04) {
+            subCenterX = 0.50;
+        } else {
+            subCenterX = Math.max(0.10, Math.min(0.90, rawCenterX));
+        }
+
+        // Keep margin_v in sync based on 1920 reference vertical height
+        subMarginV = Math.max(20, Math.round((1.0 - subNormY) * 1920));
+    } else {
+        subNormY = Math.max(0.05, Math.min(0.98, (1920 - subMarginV) / 1920.0));
+    }
+
+    const subCfg = {
+        active: !!currentOverlayAssets.subtitleActive,
+        style: currentOverlayAssets.subtitleStyle || 'viral_yellow',
+        animation: currentOverlayAssets.subtitleAnimation || 'pop',
+        size: currentOverlayAssets.subtitleSize || 44,
+        margin_v: subMarginV,
+        center_x: +subCenterX.toFixed(4),
+        norm_y: +subNormY.toFixed(4),
+        is_center: Math.abs(subCenterX - 0.50) < 0.005,
+        user_dragged: subUserDragged,
+        custom_file: currentOverlayAssets.customSubtitlePath || null
+    };
+
     return {
         logo: logoCfg,
         blur: blurCfg,
         text: textCfg,
-        lower_third: ltCfg
+        lower_third: ltCfg,
+        subtitle: subCfg
     };
 }
 
@@ -7448,7 +8001,7 @@ async function reRenderCurrentDubbedProjectWithOverlay() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                burn_subtitles: (currentStoryConfig.subtitle_mode === "burn"),
+                burn_subtitles: (currentOverlayAssets.subtitleActive || currentStoryConfig.subtitle_mode === "burn"),
                 aspect_ratio: currentDubbedProject.aspect_ratio || currentStoryConfig.aspect_ratio || "9:16",
                 overlay_config: overlayCfg
             })
@@ -8229,6 +8782,37 @@ let stagedVideoFile = null;
 let stagedBatchFiles = null;
 
 function setStagedVideo(file) {
+    if (activeDubbingPollTimer) {
+        clearInterval(activeDubbingPollTimer);
+        activeDubbingPollTimer = null;
+    }
+    activeDubbingTaskId = null;
+    currentDubbedProject = null;
+    stagedVideoSiblings = null;
+    stagedVideoFolderTitle = "";
+
+    // Clear previous banner if any
+    const banner = document.getElementById('dubbing-success-banner');
+    if (banner) banner.remove();
+
+    // Reset progress monitor back to 0% ready state
+    const pctElem = document.getElementById('monitor-export-percent');
+    if (pctElem) pctElem.textContent = '0%';
+    const fillElem = document.getElementById('monitor-progress-fill');
+    if (fillElem) fillElem.style.width = '0%';
+    const footerProg = document.getElementById('footer-studio-progress');
+    if (footerProg) footerProg.style.width = '0%';
+    const footerText = document.querySelector('#footer-studio-main div:first-child');
+    if (footerText) footerText.textContent = 'Status: Ready for export';
+    const elapElem = document.getElementById('monitor-elapsed-time');
+    if (elapElem) elapElem.textContent = '00:00:00';
+    const etaElem = document.getElementById('monitor-eta-time');
+    if (etaElem) etaElem.textContent = '--:--:--';
+    const finElem = document.getElementById('monitor-finish-time');
+    if (finElem) finElem.textContent = 'Standby';
+    const taskElem = document.getElementById('monitor-current-task');
+    if (taskElem) taskElem.textContent = 'Standby (Ready to export)';
+
     stagedVideoFile = file;
     stagedBatchFiles = null;
 
@@ -8369,6 +8953,37 @@ function discardStagedVideo(e) {
 }
 
 function setStagedBatchFiles(files, folderTitle = "") {
+    if (activeDubbingPollTimer) {
+        clearInterval(activeDubbingPollTimer);
+        activeDubbingPollTimer = null;
+    }
+    activeDubbingTaskId = null;
+    currentDubbedProject = null;
+    stagedVideoSiblings = null;
+    stagedVideoFolderTitle = "";
+
+    // Clear previous banner if any
+    const banner = document.getElementById('dubbing-success-banner');
+    if (banner) banner.remove();
+
+    // Reset progress monitor back to 0% ready state
+    const pctElem = document.getElementById('monitor-export-percent');
+    if (pctElem) pctElem.textContent = '0%';
+    const fillElem = document.getElementById('monitor-progress-fill');
+    if (fillElem) fillElem.style.width = '0%';
+    const footerProg = document.getElementById('footer-studio-progress');
+    if (footerProg) footerProg.style.width = '0%';
+    const footerText = document.querySelector('#footer-studio-main div:first-child');
+    if (footerText) footerText.textContent = 'Status: Ready for export';
+    const elapElem = document.getElementById('monitor-elapsed-time');
+    if (elapElem) elapElem.textContent = '00:00:00';
+    const etaElem = document.getElementById('monitor-eta-time');
+    if (etaElem) etaElem.textContent = '--:--:--';
+    const finElem = document.getElementById('monitor-finish-time');
+    if (finElem) finElem.textContent = 'Standby';
+    const taskElem = document.getElementById('monitor-current-task');
+    if (taskElem) taskElem.textContent = 'Standby (Ready to export)';
+
     stagedBatchFiles = files;
     stagedVideoFile = null;
 
@@ -8438,8 +9053,11 @@ function setStagedBatchFiles(files, folderTitle = "") {
 }
 
 function clearStagedFiles() {
+    activeDubbingTaskId = null;
     stagedVideoFile = null;
     stagedBatchFiles = null;
+    stagedVideoSiblings = null;
+    stagedVideoFolderTitle = "";
     const exportBtn = document.getElementById('btn-tab-export');
     if (exportBtn) exportBtn.classList.remove('export-ready-pulse');
 
@@ -8483,6 +9101,12 @@ function handleSelectedFiles(files, folderTitle = "") {
 
 async function startAutoDubbingPipeline(file, customTitle = null) {
     window._exportChimePlayedThisRun = false;
+    currentDubbedProject = null;
+    activeDubbingTaskId = null;
+    if (activeDubbingPollTimer) {
+        clearInterval(activeDubbingPollTimer);
+        activeDubbingPollTimer = null;
+    }
     const fileName = getMediaFileName(file);
     const fileSizeMB = file.size_mb !== undefined ? file.size_mb : (file.size ? (file.size / (1024*1024)).toFixed(1) : "?");
     const filePath = getMediaFilePath(file);
@@ -8514,11 +9138,11 @@ async function startAutoDubbingPipeline(file, customTitle = null) {
     const activeSourceLang = currentStoryConfig.source_lang || "auto";
     const activeVoiceOverride = (currentStoryConfig.khmer_voice === "sreymom") ? "sreymom" : "piseth";
     const activeAspectRatio = currentStoryConfig.aspect_ratio || "9:16";
-    const activeBurnSubs = (currentStoryConfig.subtitle_mode === "burn") ? "true" : "false";
+    const activeBurnSubs = (currentOverlayAssets.subtitleActive || currentStoryConfig.subtitle_mode === "burn") ? "true" : "false";
     const overlayConfig = await getOverlayExportConfig();
-    if (overlayConfig.logo.active || overlayConfig.blur.active || overlayConfig.text.active || (overlayConfig.lower_third && overlayConfig.lower_third.active)) {
+    if (overlayConfig.logo.active || overlayConfig.blur.active || overlayConfig.text.active || (overlayConfig.lower_third && overlayConfig.lower_third.active) || (overlayConfig.subtitle && overlayConfig.subtitle.active)) {
         appendLiveTerminalLine(
-            `Burn-in overlays enabled: ${overlayConfig.logo.active ? 'Logo Watermark ✓ ' : ''}${overlayConfig.blur.active ? 'Blur Mask ✓ ' : ''}${overlayConfig.text.active ? 'Text Title ✓ ' : ''}${overlayConfig.lower_third && overlayConfig.lower_third.active ? 'Lower Third ✓' : ''}`,
+            `Burn-in overlays enabled: ${overlayConfig.logo.active ? 'Logo Watermark ✓ ' : ''}${overlayConfig.blur.active ? 'Blur Mask ✓ ' : ''}${overlayConfig.text.active ? 'Text Title ✓ ' : ''}${overlayConfig.lower_third && overlayConfig.lower_third.active ? 'Lower Third ✓ ' : ''}${overlayConfig.subtitle && overlayConfig.subtitle.active ? 'Khmer Subtitles ✓' : ''}`,
             "[Overlay Engine]",
             "success"
         );
@@ -8641,6 +9265,7 @@ async function startAutoDubbingPipeline(file, customTitle = null) {
                 if (sData.status === "completed") {
                     clearInterval(activeDubbingPollTimer);
                     activeDubbingPollTimer = null;
+                    activeDubbingTaskId = null;
                     currentDubbedProject = sData.project;
                     clearStagedFiles();
 
@@ -8665,9 +9290,17 @@ async function startAutoDubbingPipeline(file, customTitle = null) {
                     appendLiveTerminalLine(`Master export MP4 generated: ${sData.project.output_video_file || 'Dubbed_Video.mp4'}`, "[Video 1/1]", "success");
                     appendLiveTerminalLine(`[Success 100%] Video dubbed successfully! Ready for playback.`, "[Video 1/1]", "success");
 
-                    // Load dubbed video into player
+                    // Load dubbed video into player cleanly without jitter
                     const mainVideo = document.getElementById('main-video');
                     if (mainVideo && sData.video_url) {
+                        if (playbackTimer) {
+                            clearInterval(playbackTimer);
+                            playbackTimer = null;
+                        }
+                        isPlaying = false;
+                        playheadSeconds = 0;
+                        mainVideo.pause();
+
                         mainVideo.src = sData.video_url;
                         mainVideo.style.display = 'block';
                         mainVideo.load();
@@ -8687,6 +9320,7 @@ async function startAutoDubbingPipeline(file, customTitle = null) {
                 } else if (sData.status === "failed") {
                     clearInterval(activeDubbingPollTimer);
                     activeDubbingPollTimer = null;
+                    activeDubbingTaskId = null;
                     showToast(`Error: ${sData.error || 'Dubbing failed'}`);
                     appendLiveTerminalLine(`Dubbing error: ${sData.error}`, "[Video 1/1]", "error");
                     resetEngineMonitorToStandby();
@@ -8697,6 +9331,11 @@ async function startAutoDubbingPipeline(file, customTitle = null) {
         }, 1000);
 
     } catch (e) {
+        activeDubbingTaskId = null;
+        if (activeDubbingPollTimer) {
+            clearInterval(activeDubbingPollTimer);
+            activeDubbingPollTimer = null;
+        }
         showToast("Failed to upload video");
         appendLiveTerminalLine(`Network upload failed: ${e.message}`, "[Error]", "error");
         resetEngineMonitorToStandby();
@@ -8706,6 +9345,12 @@ async function startAutoDubbingPipeline(file, customTitle = null) {
 async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
     if (!files || files.length === 0) return;
     window._exportChimePlayedThisRun = false;
+    currentDubbedProject = null;
+    activeDubbingTaskId = null;
+    if (activeDubbingPollTimer) {
+        clearInterval(activeDubbingPollTimer);
+        activeDubbingPollTimer = null;
+    }
     const totalBatchCount = files.length;
     const modeLabel = outputMode === 'full' ? 'One Full Merged Video' : (outputMode === 'both' ? 'Both Separate Episodes & Merged Full Movie' : 'Separate Episodes');
 
@@ -8821,11 +9466,11 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
         totalElapsedSeconds++;
     }, 1000);
 
-    // Extract overlay configuration (Logo watermark, Blur mask, Text title, Lower Third) to burn into ALL drama episodes
+    // Extract overlay configuration (Logo watermark, Blur mask, Text title, Lower Third, Subtitles) to burn into ALL drama episodes
     const batchOverlayConfig = await getOverlayExportConfig();
-    if (batchOverlayConfig.logo.active || batchOverlayConfig.blur.active || batchOverlayConfig.text.active || (batchOverlayConfig.lower_third && batchOverlayConfig.lower_third.active)) {
+    if (batchOverlayConfig.logo.active || batchOverlayConfig.blur.active || batchOverlayConfig.text.active || (batchOverlayConfig.lower_third && batchOverlayConfig.lower_third.active) || (batchOverlayConfig.subtitle && batchOverlayConfig.subtitle.active)) {
         appendLiveTerminalLine(
-            `Burn-in overlays for drama batch: ${batchOverlayConfig.logo.active ? 'Logo Watermark ✓ ' : ''}${batchOverlayConfig.blur.active ? 'Blur Mask ✓ ' : ''}${batchOverlayConfig.text.active ? 'Text Title ✓ ' : ''}${batchOverlayConfig.lower_third && batchOverlayConfig.lower_third.active ? 'Lower Third ✓ ' : ''}(will be burned into all ${totalBatchCount} episodes)`,
+            `Burn-in overlays for drama batch: ${batchOverlayConfig.logo.active ? 'Logo Watermark ✓ ' : ''}${batchOverlayConfig.blur.active ? 'Blur Mask ✓ ' : ''}${batchOverlayConfig.text.active ? 'Text Title ✓ ' : ''}${batchOverlayConfig.lower_third && batchOverlayConfig.lower_third.active ? 'Lower Third ✓ ' : ''}${batchOverlayConfig.subtitle && batchOverlayConfig.subtitle.active ? 'Khmer Subtitles ✓ ' : ''}(will be burned into all ${totalBatchCount} episodes)`,
             "[Overlay Engine]",
             "success"
         );
@@ -8853,7 +9498,7 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
         const activeSourceLang = currentStoryConfig.source_lang || "auto";
         const activeVoiceOverride = (currentStoryConfig.khmer_voice === "sreymom") ? "sreymom" : "piseth";
         const activeAspectRatio = currentStoryConfig.aspect_ratio || "9:16";
-        const activeBurnSubs = (currentStoryConfig.subtitle_mode === "burn") ? "true" : "false";
+        const activeBurnSubs = (currentOverlayAssets.subtitleActive || currentStoryConfig.subtitle_mode === "burn") ? "true" : "false";
 
         let taskId = null;
         try {
@@ -8964,9 +9609,17 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
                         completedProjects.push(sData.project);
                         currentDubbedProject = sData.project;
 
-                        // Preview newly finished episode in player
+                        // Preview newly finished episode in player cleanly without jitter
                         const mainVideo = document.getElementById('main-video');
                         if (mainVideo && sData.video_url) {
+                            if (playbackTimer) {
+                                clearInterval(playbackTimer);
+                                playbackTimer = null;
+                            }
+                            isPlaying = false;
+                            playheadSeconds = 0;
+                            mainVideo.pause();
+
                             mainVideo.src = sData.video_url;
                             mainVideo.style.display = 'block';
                             mainVideo.load();
@@ -9023,6 +9676,14 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
 
                 const mainVideo = document.getElementById('main-video');
                 if (mainVideo && mData.video_url) {
+                    if (playbackTimer) {
+                        clearInterval(playbackTimer);
+                        playbackTimer = null;
+                    }
+                    isPlaying = false;
+                    playheadSeconds = 0;
+                    mainVideo.pause();
+
                     mainVideo.src = mData.video_url;
                     mainVideo.style.display = 'block';
                     mainVideo.load();
@@ -9041,6 +9702,11 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
     }
 
     clearInterval(batchMasterTimer);
+    activeDubbingTaskId = null;
+    if (activeDubbingPollTimer) {
+        clearInterval(activeDubbingPollTimer);
+        activeDubbingPollTimer = null;
+    }
     clearStagedFiles();
     updateExportProgressUI(100, totalElapsedSeconds, 0, `100% Complete! All ${completedProjects.length}/${totalBatchCount} episodes dubbed successfully!`);
     showToast(`Drama series (${completedProjects.length} episodes) dubbed successfully!`);
@@ -9050,7 +9716,7 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
     appendLiveTerminalLine(`Zero vocal leakage. All dubbed videos saved in "data/exports/".`, "[Batch Complete]", "success");
     appendLiveTerminalLine(`========================================================================`, "[Batch Complete]", "success");
 
-    resetEngineMonitorToStandby();
+    // Progress stays steady at 100% Completed!
 
     // Auto open export folder in Windows Explorer
     openExportFolderDirect();

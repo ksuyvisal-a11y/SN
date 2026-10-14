@@ -66,6 +66,38 @@ def format_ass_filter_path(file_path: Union[str, Path]) -> str:
         return f"ass={esc}"
 
 
+def parse_srt_to_dialogues(srt_path: Union[str, Path]) -> List[Dict[str, Any]]:
+    """Parse .srt or .vtt subtitle file into standardized dialogue dictionaries."""
+    dialogues = []
+    try:
+        with open(srt_path, "r", encoding="utf-8-sig", errors="ignore") as f:
+            content = f.read()
+
+        def _ts_to_sec(ts: str) -> float:
+            ts = ts.strip().replace(",", ".")
+            parts = ts.split(":")
+            if len(parts) == 3:
+                return int(parts[0]) * 3600 + int(parts[1]) * 60 + float(parts[2])
+            elif len(parts) == 2:
+                return int(parts[0]) * 60 + float(parts[1])
+            return 0.0
+
+        pattern = re.compile(
+            r"(\d+)?\s*\r?\n?(\d{1,2}:\d{2}:\d{2}[,\.]\d{1,3})\s*-->\s*(\d{1,2}:\d{2}:\d{2}[,\.]\d{1,3})\r?\n(.*?)(?=\r?\n\r?\n|\Z)",
+            re.DOTALL
+        )
+        for match in pattern.finditer(content):
+            s_sec = _ts_to_sec(match.group(2))
+            e_sec = _ts_to_sec(match.group(3))
+            txt = match.group(4).strip()
+            clean_txt = re.sub(r"<[^>]+>", "", txt).strip()
+            if clean_txt:
+                dialogues.append({"start": s_sec, "end": e_sec, "text_km": clean_txt})
+    except Exception as e:
+        print(f"Error parsing subtitle file {srt_path}: {e}")
+    return dialogues
+
+
 def render_dubbed_video(
     original_video_path: str,
     mixed_audio_path: str,
@@ -86,16 +118,11 @@ def render_dubbed_video(
     t_dir = Path(temp_dir)
     t_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Prepare ASS/SRT Subtitles
-    ass_filter_cmd = None
-    if burn_subtitles and dialogues:
-        ass_content = generate_ass_subtitles(dialogues)
-        ass_file = t_dir / "subtitles_khmer.ass"
-        with open(ass_file, "w", encoding="utf-8") as f:
-            f.write(ass_content)
-        ass_filter_cmd = format_ass_filter_path(ass_file)
+    # 1. Parse Subtitle, Logo, Blur, Text, and Lower Third Configurations
+    sub_cfg = overlay_config.get("subtitle") if isinstance(overlay_config, dict) else None
+    sub_active = bool(burn_subtitles or (sub_cfg and sub_cfg.get("active")))
+    custom_sub_file = str(sub_cfg.get("custom_file") or "").strip() if sub_cfg else ""
 
-    # 2. Parse Logo, Blur, Text, and Lower Third Configurations
     logo_cfg = overlay_config.get("logo") if isinstance(overlay_config, dict) else None
     blur_cfg = overlay_config.get("blur") if isinstance(overlay_config, dict) else None
     text_cfg = overlay_config.get("text") if isinstance(overlay_config, dict) else None
@@ -110,15 +137,15 @@ def render_dubbed_video(
     lt_active = bool(lower_third_cfg and lower_third_cfg.get("active") and lower_third_cfg.get("path") and Path(str(lower_third_cfg.get("path"))).exists())
     lt_path = str(Path(str(lower_third_cfg.get("path"))).resolve()) if lt_active else None
 
-    # 3. Detect video orientation & dimensions
+    # 2. Detect video orientation & dimensions
     w, h = get_video_dimensions(original_video_path)
     w = w or 1920
     h = h or 1080
     is_already_vertical = (w < h)
 
-    # 4. Phase 1 Turbo Optimization: Lossless Stream Copy Mode (1-2 seconds per episode!)
+    # 3. Phase 1 Turbo Optimization: Lossless Stream Copy Mode (1-2 seconds per episode!)
     # Only if NO subtitles, NO watermark, NO logo, NO blur, NO text, NO lower third, and no 9:16 framing needed
-    can_use_stream_copy = (not ass_filter_cmd) and (not watermark_text) and (not logo_active) and (not blur_active) and (not text_active) and (not lt_active) and (is_already_vertical or aspect_ratio != "9:16")
+    can_use_stream_copy = (not sub_active) and (not watermark_text) and (not logo_active) and (not blur_active) and (not text_active) and (not lt_active) and (is_already_vertical or aspect_ratio != "9:16")
     if can_use_stream_copy:
         fast_cmd = [
             get_ffmpeg_path(),
@@ -254,22 +281,41 @@ def render_dubbed_video(
 
     # 8.5 Apply Lower Third Video Overlay
     if lt_active and lt_path and lt_input_idx is not None:
-        lt_norm_x = float(lower_third_cfg.get("norm_x", 0.05))
-        lt_norm_y = float(lower_third_cfg.get("norm_y", 0.80))
-        lt_norm_w = float(lower_third_cfg.get("norm_w", 0.65))
+        lt_orig_w, lt_orig_h = get_video_dimensions(lt_path)
+        lt_orig_w = lt_orig_w or 2000
+        lt_orig_h = lt_orig_h or 2500
+
+        lt_norm_x = float(lower_third_cfg.get("norm_x", 0.0))
+        lt_norm_y = float(lower_third_cfg.get("norm_y", 0.0))
+        lt_norm_w = float(lower_third_cfg.get("norm_w", 1.0))
         lt_opacity = max(0.05, min(1.0, float(lower_third_cfg.get("opacity", 1.0))))
         lt_speed = max(0.25, min(4.0, float(lower_third_cfg.get("speed", 1.0))))
         lt_start = max(0.0, float(lower_third_cfg.get("start_time", 0.0)))
         lt_end = float(lower_third_cfg.get("end_time", 0.0))
+        pos_type = str(lower_third_cfg.get("position", "bottom-center")).lower()
 
         lt_w = max(48, min(target_w, int(target_w * lt_norm_w)))
         lt_w = (lt_w // 2) * 2
-        lt_x = max(0, min(target_w - lt_w, int(target_w * lt_norm_x)))
-        lt_y = max(0, min(target_h - 48, int(target_h * lt_norm_y)))
+        lt_h = int(round(lt_w * (lt_orig_h / float(lt_orig_w))))
+        lt_h = (lt_h // 2) * 2
 
-        is_lt_center = bool(lower_third_cfg.get("is_center")) or (abs((lt_x + lt_w / 2.0) - target_w / 2.0) < (target_w * 0.04))
-        if is_lt_center:
+        is_lt_center = bool(lower_third_cfg.get("is_center")) or ("center" in pos_type) or (lt_norm_w >= 0.95)
+        if is_lt_center or lt_norm_w >= 0.95:
             lt_x = max(0, (target_w - lt_w) // 2)
+        else:
+            lt_x = max(0, min(target_w - lt_w, int(target_w * lt_norm_x)))
+
+        # Y position calculation:
+        user_dragged = bool(lower_third_cfg.get("user_dragged"))
+        if user_dragged or ("norm_y" in lower_third_cfg and abs(lt_norm_y) > 0.001):
+            lt_y = int(round(target_h * lt_norm_y))
+        elif "top" in pos_type:
+            lt_y = -int(round(lt_h * 0.42))
+        else:
+            lt_y = max(0, target_h - lt_h)
+
+        # Safety bound clamp: allow full top flush (negative offset) and full bottom flush
+        lt_y = max(-int(lt_h * 0.85), min(target_h - int(lt_h * 0.15), lt_y))
 
         # Build enable condition
         if lt_end > lt_start and lt_end > 0.05:
@@ -290,9 +336,59 @@ def render_dubbed_video(
         current_v = "[v_after_lt]"
 
     # 9. Apply ASS Subtitles Burning
-    if ass_filter_cmd:
-        filter_parts.append(f"{current_v}{ass_filter_cmd}[v_after_subs]")
-        current_v = "[v_after_subs]"
+    if sub_active:
+        ass_filter_cmd = None
+        sub_style = str(sub_cfg.get("style", "viral_yellow")) if sub_cfg else "viral_yellow"
+        sub_anim = str(sub_cfg.get("animation", "pop")).lower() if sub_cfg else "pop"
+        sub_size = int(sub_cfg.get("size", 48)) if sub_cfg else 48
+        sub_margin_v = int(sub_cfg.get("margin_v", 65)) if sub_cfg else 65
+
+        # Calculate exact pixel coordinates (pos_x, pos_y) matching user positioning on preview
+        sub_center_x = float(sub_cfg.get("center_x", 0.50)) if sub_cfg else 0.50
+        sub_norm_y = sub_cfg.get("norm_y") if sub_cfg else None
+
+        if sub_norm_y is not None:
+            try:
+                sub_pos_y = int(round(target_h * float(sub_norm_y)))
+            except (ValueError, TypeError):
+                sub_pos_y = target_h - sub_margin_v
+        else:
+            sub_pos_y = target_h - sub_margin_v
+
+        # Ensure pos_y is safely bounded within the visible video canvas
+        sub_pos_y = max(int(target_h * 0.06), min(int(target_h * 0.98), sub_pos_y))
+        sub_pos_x = int(round(target_w * sub_center_x))
+
+        target_dialogues = dialogues or []
+        if custom_sub_file and Path(custom_sub_file).exists():
+            c_ext = Path(custom_sub_file).suffix.lower()
+            if c_ext in (".srt", ".vtt"):
+                parsed_d = parse_srt_to_dialogues(custom_sub_file)
+                if parsed_d:
+                    target_dialogues = parsed_d
+            elif c_ext == ".ass":
+                ass_filter_cmd = format_ass_filter_path(Path(custom_sub_file))
+
+        if not ass_filter_cmd and target_dialogues:
+            ass_content = generate_ass_subtitles(
+                target_dialogues, 
+                style=sub_style, 
+                fontsize=sub_size, 
+                margin_v=sub_margin_v,
+                play_res_x=target_w,
+                play_res_y=target_h,
+                pos_x=sub_pos_x,
+                pos_y=sub_pos_y,
+                animation=sub_anim
+            )
+            ass_file = t_dir / "subtitles_khmer.ass"
+            with open(ass_file, "w", encoding="utf-8") as f:
+                f.write(ass_content)
+            ass_filter_cmd = format_ass_filter_path(ass_file)
+
+        if ass_filter_cmd:
+            filter_parts.append(f"{current_v}{ass_filter_cmd}[v_after_subs]")
+            current_v = "[v_after_subs]"
 
     # 10. Apply Watermark Text
     if watermark_text and watermark_text.strip():
@@ -352,6 +448,9 @@ def render_dubbed_video(
                 clean_t = t_raw.replace("{", "").replace("}", "")
                 ass_styled_text = clean_t
 
+            # Ensure newline breaks are preserved in ASS format (\N)
+            ass_styled_text = ass_styled_text.replace("\r\n", "\\N").replace("\n", "\\N")
+
             ass_file = t_dir / "title_overlay.ass"
             border_style = 3 if t_bg else 1
             back_color = "&HA0000000" if t_bg else "&H80000000"
@@ -369,23 +468,49 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: TitleStyle,Kantumruy Pro,{ass_fontsize},{style_primary},&H000000FF,&H00000000,{back_color},-1,0,0,0,100,100,0,0,{border_style},{outline_w},{shadow_val},8,0,0,0,1
+Style: TitleStyle,Kantumruy Pro,{ass_fontsize},{style_primary},&H000000FF,&H00000000,{back_color},-1,0,0,0,100,100,0,0,{border_style},{outline_w},{shadow_val},8,30,30,0,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
             ass_events = []
-            if t_motion == "scroll_up":
-                cycle_duration = max(3.0, (target_h + 100.0) / float(t_speed))
-                total_cycles = int(7200 / cycle_duration) + 1
-                for c_idx in range(min(total_cycles, 600)):
+            if t_motion in ("scroll_up", "scroll_down"):
+                # Retrieve explicit cycle duration from frontend or map based on speed
+                explicit_dur = text_cfg.get("scroll_duration") or text_cfg.get("duration")
+                if explicit_dur:
+                    try:
+                        cycle_duration = float(explicit_dur)
+                    except Exception:
+                        cycle_duration = 6.5
+                else:
+                    cycle_duration = 9.5 if t_speed <= 45 else (4.0 if t_speed >= 90 else 6.5)
+
+                cycle_duration = max(2.0, min(30.0, cycle_duration))
+                # Total cycles covering up to 4 hours of video
+                total_cycles = min(2500, int(14400 / cycle_duration) + 1)
+
+                # Vertical bounds: start completely off-screen and end completely off-screen so text never gets cut off
+                y_bottom = target_h + int(ass_fontsize * 1.5)
+                y_top = -int(ass_fontsize * 2.5)
+
+                if t_motion == "scroll_up":
+                    move_y_start, move_y_end = y_bottom, y_top
+                else:  # scroll_down
+                    move_y_start, move_y_end = y_top, y_bottom
+
+                fade_ms = min(400, int(cycle_duration * 1000 * 0.06))
+
+                for c_idx in range(total_cycles):
                     c_start = c_idx * cycle_duration
                     c_end = (c_idx + 1) * cycle_duration
                     s_str = f"{int(c_start//3600)}:{int((c_start%3600)//60):02d}:{c_start%60:05.2f}"
                     e_str = f"{int(c_end//3600)}:{int((c_end%3600)//60):02d}:{c_end%60:05.2f}"
-                    ass_events.append(f"Dialogue: 0,{s_str},{e_str},TitleStyle,,0,0,0,Scroll up;{target_h};0;{t_speed};0,{ass_styled_text}")
+                    # \an8 anchor keeps horizontal position pos_x centered/exact while \move travels smoothly without stutter or premature cutoff
+                    ass_events.append(
+                        f"Dialogue: 0,{s_str},{e_str},TitleStyle,,0,0,0,,{{\\an8\\move({pos_x},{move_y_start},{pos_x},{move_y_end})\\fad({fade_ms},{fade_ms})}}{ass_styled_text}"
+                    )
             else:
-                # \\an8 (top-center anchor) guarantees exact horizontal centering at pos_x and vertical placement at pos_y
+                # \an8 (top-center anchor) guarantees exact horizontal centering at pos_x and vertical placement at pos_y
                 ass_events.append(f"Dialogue: 0,0:00:00.00,9:59:59.00,TitleStyle,,0,0,0,,{{\\an8\\pos({pos_x},{pos_y})}}{ass_styled_text}")
 
             with open(ass_file, "w", encoding="utf-8") as f:

@@ -2534,14 +2534,103 @@ def upload_overlay_lower_third_endpoint():
     upload_dir = Path("data/uploads")
     upload_dir.mkdir(parents=True, exist_ok=True)
     ext = Path(file.filename).suffix or ".mp4"
-    save_name = f"active_overlay_lt_{int(time.time())}{ext}"
+    timestamp = int(time.time())
+    save_name = f"active_overlay_lt_{timestamp}{ext}"
     dest = upload_dir / save_name
     file.save(str(dest))
+
+    from video_processor import get_video_dimensions
+    from audio_processor import get_ffmpeg_path, get_silent_kwargs
+    vw, vh = get_video_dimensions(str(dest))
+    vw = vw or 2000
+    vh = vh or 2500
+
+    # Extract clean poster image at ss=1.0 (where banner is guaranteed to be fully animated and visible)
+    thumb_name = f"lt_thumb_{timestamp}.png"
+    thumb_dest = upload_dir / thumb_name
+    try:
+        thumb_cmd = [
+            get_ffmpeg_path(),
+            "-nostdin",
+            "-y",
+            "-ss", "00:00:01",
+            "-i", str(dest),
+            "-vframes", "1",
+            str(thumb_dest)
+        ]
+        subprocess.run(thumb_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=15, **get_silent_kwargs())
+        if not thumb_dest.exists() or thumb_dest.stat().st_size < 1000:
+            thumb_cmd_fallback = [
+                get_ffmpeg_path(),
+                "-nostdin",
+                "-y",
+                "-i", str(dest),
+                "-vframes", "1",
+                str(thumb_dest)
+            ]
+            subprocess.run(thumb_cmd_fallback, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10, **get_silent_kwargs())
+    except Exception as te:
+        print(f"[Lower Third Thumb Warning] {te}")
+
+    # Generate lightweight transparent WebM proxy for browser playback (vital for .mov with qtrle/prores)
+    preview_name = f"lt_preview_{timestamp}.webm"
+    preview_dest = upload_dir / preview_name
+    preview_url = f"/media/{dest.as_posix()}"
+    try:
+        webm_cmd = [
+            get_ffmpeg_path(),
+            "-nostdin",
+            "-y",
+            "-i", str(dest),
+            "-vf", "scale=480:-2",
+            "-c:v", "libvpx-vp9",
+            "-pix_fmt", "yuva420p",
+            "-deadline", "realtime",
+            "-cpu-used", "8",
+            "-b:v", "800k",
+            "-auto-alt-ref", "0",
+            "-c:a", "libopus",
+            str(preview_dest)
+        ]
+        proc = subprocess.run(webm_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=25, **get_silent_kwargs())
+        if proc.returncode == 0 and preview_dest.exists() and preview_dest.stat().st_size > 1000:
+            preview_url = f"/media/{preview_dest.as_posix()}"
+    except Exception as we:
+        print(f"[Lower Third WebM Preview Warning] {we}")
+
+    thumb_url = f"/media/{thumb_dest.as_posix()}" if thumb_dest.exists() else ""
+
     return jsonify({
         "success": True,
         "video_path": str(dest.resolve()),
         "lower_third_path": str(dest.resolve()),
-        "url": f"/media/{dest.as_posix()}",
+        "url": preview_url,
+        "preview_url": preview_url,
+        "thumb_url": thumb_url,
+        "orig_width": vw,
+        "orig_height": vh,
+        "filename": file.filename
+    })
+
+
+@app.route("/api/projects/upload-overlay-subtitle", methods=["POST"])
+def upload_overlay_subtitle_endpoint():
+    """Upload custom Subtitle file (.srt, .ass, .vtt) for overlay rendering."""
+    if "subtitle_file" not in request.files:
+        return jsonify({"success": False, "error": "No subtitle file provided"}), 400
+    file = request.files["subtitle_file"]
+    if not file.filename:
+        return jsonify({"success": False, "error": "Empty filename"}), 400
+    upload_dir = Path("data/uploads")
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    ext = Path(file.filename).suffix.lower() or ".srt"
+    timestamp = int(time.time())
+    save_name = f"active_overlay_sub_{timestamp}{ext}"
+    dest = upload_dir / save_name
+    file.save(str(dest))
+    return jsonify({
+        "success": True,
+        "subtitle_path": str(dest.resolve()),
         "filename": file.filename
     })
 
