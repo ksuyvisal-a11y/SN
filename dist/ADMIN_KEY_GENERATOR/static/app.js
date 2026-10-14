@@ -245,8 +245,8 @@ setInterval(installPywebviewDragInterceptor, 500);
 // ====================================================================
 document.addEventListener('contextmenu', function(e) {
     const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
-    // Allow context menu ONLY inside actual text fields for copy/paste
-    if (tag === 'input' || tag === 'textarea' || (e.target && e.target.isContentEditable)) {
+    // Allow context menu inside text fields and Studio Activity Console for copy/paste
+    if (tag === 'input' || tag === 'textarea' || (e.target && e.target.isContentEditable) || (e.target && e.target.closest && e.target.closest('#studio-live-terminal-stream, .studio-live-terminal-stream, .selectable-text'))) {
         return true;
     }
     // Block Edge/Chrome default browser menu ("Inspect", "Reload", "Print", "Back")
@@ -2304,6 +2304,45 @@ function clearLiveTerminal() {
                 <span class="term-msg">Log cleared. System ready. Import video and click <strong style="color:#facc15;">Export</strong> to run dubbing.</span>
             </div>
         `;
+    }
+}
+
+async function copyLiveTerminalLogs() {
+    const stream = document.getElementById('studio-live-terminal-stream');
+    if (!stream) return;
+
+    const rows = stream.querySelectorAll('.term-stream-row');
+    const lines = [];
+    rows.forEach(r => {
+        const text = r.innerText || r.textContent || "";
+        if (text.trim()) {
+            lines.push(text.trim());
+        }
+    });
+
+    const fullLog = lines.join('\n');
+    if (!fullLog) {
+        showToast("Console is currently empty");
+        return;
+    }
+
+    try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(fullLog);
+        } else {
+            const ta = document.createElement('textarea');
+            ta.value = fullLog;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            ta.remove();
+        }
+        showToast("Copied all Console logs to clipboard! ✓");
+    } catch (err) {
+        console.warn("Clipboard copy note:", err);
+        showToast("Copied! (You can also highlight text directly)");
     }
 }
 
@@ -10481,8 +10520,11 @@ if (document.readyState === 'loading') {
 // 🛡️ ANTI-INSPECT & DEVTOOLS BLOCKER (Client-Side Protection)
 // ==========================================================================
 document.addEventListener('contextmenu', function(e) {
-    const tag = (e.target.tagName || '').toLowerCase();
-    if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) {
+    const tag = (e.target && e.target.tagName ? e.target.tagName : '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || (e.target && e.target.isContentEditable)) {
+        return true;
+    }
+    if (e.target && e.target.closest && e.target.closest('#studio-live-terminal-stream, .studio-live-terminal-stream, .selectable-text')) {
         return true;
     }
     e.preventDefault();
