@@ -4383,7 +4383,7 @@ async function downloadAllQueueEpisodes() {
                             const text = document.getElementById(`dl-q-text-${epNum}`);
                             const row = document.getElementById(`dl-q-row-${epNum}`);
                             const prog = ep.progress || 0;
-                            const status = ep.status || (prog === 100 ? 'Completed' : (prog > 0 ? 'Downloading' : 'Ready'));
+                            const status = ep.status || (prog === 100 ? 'Completed' : (prog > 0 ? 'Downloading' : 'Queued'));
 
                             if (fill) {
                                 if (status === 'Completed' || prog === 100) {
@@ -4400,7 +4400,7 @@ async function downloadAllQueueEpisodes() {
                                 }
                             }
                             if (cardFill) {
-                                cardFill.style.width = (status === 'Completed' || prog === 100) ? '100%' : `${prog}%`;
+                                cardFill.style.width = (status === 'Completed' || prog === 100) ? '100%' : (status === 'Downloading' ? `${prog}%` : '0%');
                             }
                             if (card) {
                                 if (status === 'Completed' || prog === 100) {
@@ -4943,6 +4943,33 @@ async function startBatchDownload() {
     showToast(`Downloading all (${selected.length} episodes)...`);
     appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Starting batch queue for ${selected.length} episodes...`);
 
+    // Option 1: Immediately set all non-completed episodes to Queued & 0% in UI
+    dlEpisodesList.forEach(e => {
+        if (e.status !== 'Completed') {
+            e.status = 'Queued';
+            e.progress = 0;
+            const epNum = e.episode_num || e.episode_number;
+            const fill = document.getElementById(`dl-q-fill-${epNum}`);
+            const cardFill = document.getElementById(`dl-card-fill-${epNum}`);
+            const text = document.getElementById(`dl-q-text-${epNum}`);
+            const row = document.getElementById(`dl-q-row-${epNum}`);
+            if (fill) fill.style.width = '0%';
+            if (cardFill) cardFill.style.width = '0%';
+            if (text) {
+                text.textContent = '0%';
+                text.style.color = '#94a3b8';
+            }
+            if (row) {
+                const pill = row.querySelector('.dl-q2-status-pill');
+                if (pill) {
+                    pill.textContent = 'Queued';
+                    pill.className = 'dl-q2-status-pill queued';
+                    pill.style.color = '#94a3b8';
+                }
+            }
+        }
+    });
+
     const path = document.getElementById('dl-save-path-input').value.trim() || 'D:/SN_Dramas';
     const posterElem = document.getElementById('dl-save-poster-check');
     const savePoster = posterElem ? posterElem.checked : true;
@@ -4975,7 +5002,7 @@ async function startBatchDownload() {
                             const text = document.getElementById(`dl-q-text-${epNum}`);
                             const row = document.getElementById(`dl-q-row-${epNum}`);
                             const prog = ep.progress || 0;
-                            const status = ep.status || (prog === 100 ? 'Completed' : (prog > 0 ? 'Downloading' : 'Ready'));
+                            const status = ep.status || (prog === 100 ? 'Completed' : (prog > 0 ? 'Downloading' : 'Queued'));
 
                             if (fill) {
                                 if (status === 'Completed' || prog === 100) {
@@ -4992,7 +5019,7 @@ async function startBatchDownload() {
                                 }
                             }
                             if (cardFill) {
-                                cardFill.style.width = (status === 'Completed' || prog === 100) ? '100%' : `${prog}%`;
+                                cardFill.style.width = (status === 'Completed' || prog === 100) ? '100%' : (status === 'Downloading' ? `${prog}%` : '0%');
                             }
                             if (card && (status === 'Completed' || prog === 100)) {
                                 card.classList.add('completed');

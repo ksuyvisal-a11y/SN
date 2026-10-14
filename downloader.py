@@ -1139,13 +1139,13 @@ def download_m3u8_stream_turbo(stream_url: str, dest_file: Path, timeout_sec: in
                     frag_index = d.get('fragment_index')
                     frag_count = d.get('fragment_count')
                     if frag_index is not None and frag_count and frag_count > 0:
-                        pct = int(min(99, max(3, (frag_index / frag_count) * 100)))
+                        pct = int(min(99, max(1, (frag_index / frag_count) * 100)))
                         progress_callback(pct)
                     else:
                         tot = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
                         down = d.get('downloaded_bytes', 0)
                         if tot > 0:
-                            pct = int(min(99, max(3, (down / tot) * 100)))
+                            pct = int(min(99, max(1, (down / tot) * 100)))
                             progress_callback(pct)
                 elif st == 'finished':
                     progress_callback(100)
@@ -1351,13 +1351,13 @@ def download_stream_universal(stream_url: str, dest_file: Path, timeout_sec: int
                     frag_index = d.get('fragment_index')
                     frag_count = d.get('fragment_count')
                     if frag_index is not None and frag_count and frag_count > 0:
-                        pct = int(min(99, max(3, (frag_index / frag_count) * 100)))
+                        pct = int(min(99, max(1, (frag_index / frag_count) * 100)))
                         progress_cb(pct)
                     else:
                         tot = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
                         down = d.get('downloaded_bytes', 0)
                         if tot > 0:
-                            pct = int(min(99, max(3, (down / tot) * 100)))
+                            pct = int(min(99, max(1, (down / tot) * 100)))
                             progress_cb(pct)
                 elif st == 'finished' and progress_cb:
                     progress_cb(100)
@@ -1522,7 +1522,8 @@ def slice_full_movie_into_episodes(
     batch_size: int = 5,
     on_batch_start=None,
     on_batch_complete=None,
-    stop_checker=None
+    stop_checker=None,
+    on_episode_start=None
 ) -> List[Path]:
     """
     Slice a full drama movie file into individual EP_01.mp4, EP_02.mp4... files
@@ -1564,6 +1565,12 @@ def slice_full_movie_into_episodes(
         for ep_num in batch:
             if stop_checker and stop_checker():
                 break
+
+            if on_episode_start:
+                try:
+                    on_episode_start(ep_num)
+                except Exception:
+                    pass
 
             ep_dest = drama_dest_dir / f"EP_{ep_num:02d}.mp4"
             if ep_dest.exists() and ep_dest.stat().st_size > 500000:
@@ -2272,13 +2279,19 @@ class DramaDownloadManager:
             if not selected_eps and self.episodes:
                 selected_eps = list(self.episodes)
 
-        # Mark all selected episodes: already completed remain Completed, others set to Queued (0%)
+        # Mark all episodes: already completed remain Completed, others set to Queued (0%)
         already_done = 0
-        for ep in selected_eps:
-            ep["is_selected"] = True
+        for ep in self.episodes:
             if ep.get("status") == "Completed" or (ep.get("progress") == 100):
                 ep["status"] = "Completed"
                 ep["progress"] = 100
+            else:
+                ep["status"] = "Queued"
+                ep["progress"] = 0
+
+        for ep in selected_eps:
+            ep["is_selected"] = True
+            if ep.get("status") == "Completed" or (ep.get("progress") == 100):
                 already_done += 1
             else:
                 ep["status"] = "Queued"
@@ -2448,14 +2461,7 @@ class DramaDownloadManager:
                             if self.stop_requested:
                                 break
 
-                            # Mark ONLY this 5-episode batch as Downloading; all other episodes remain Queued (0%)
-                            with self._lock:
-                                for ep_it in selected_eps:
-                                    ep_n = ep_it.get("episode_number") or ep_it.get("episode_num") or 1
-                                    if ep_n in v_batch and ep_it.get("status") != "Completed":
-                                        ep_it["status"] = "Downloading"
-                                        ep_it["progress"] = max(5, ep_it.get("progress", 0))
-
+                            # In Sequential Queue: Episodes remain Queued until decrypted & verified
                             self.add_log(f"📦 [VIP Batch {vb_idx + 1}/{len(vip_batches)}] Decrypting 5 episodes: EP {v_batch[0]:02d} - EP {v_batch[-1]:02d}...")
 
                             dl_res = hongguo_service.download_episodes_batch(
@@ -2549,7 +2555,7 @@ class DramaDownloadManager:
 
                 with self._lock:
                     ep["status"] = "Downloading"
-                    ep["progress"] = max(3, ep.get("progress", 0))
+                    ep["progress"] = 0
                     self.add_log(f"⚡ Downloading EP {ep_num:02d}/{total_cnt:02d} (1080p Full HD Turbo)...")
 
                 # 2. Source A: Multi-source VOD Cluster with Turbo 16-fragment concurrency
@@ -2614,7 +2620,7 @@ class DramaDownloadManager:
                 def single_ep_hook(pct: int):
                     with self._lock:
                         ep["status"] = "Downloading"
-                        ep["progress"] = max(3, pct)
+                        ep["progress"] = max(1, min(99, int(pct)))
 
                 for attempt_url in cand_urls:
                     if self.stop_requested:
@@ -2693,13 +2699,13 @@ class DramaDownloadManager:
                                 frag_index = d.get('fragment_index')
                                 frag_count = d.get('fragment_count')
                                 if frag_index is not None and frag_count and frag_count > 0:
-                                    pct = int(min(99, max(3, (frag_index / frag_count) * 100)))
+                                    pct = int(min(99, max(1, (frag_index / frag_count) * 100)))
                                     single_ep_hook(pct)
                                 else:
                                     tot = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
                                     down = d.get('downloaded_bytes', 0)
                                     if tot > 0:
-                                        pct = int(min(99, max(3, (down / tot) * 100)))
+                                        pct = int(min(99, max(1, (down / tot) * 100)))
                                         single_ep_hook(pct)
                             elif st == 'finished':
                                 single_ep_hook(100)
@@ -2965,13 +2971,27 @@ class DramaDownloadManager:
                         self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total) * 100) if total > 0 else 100
                         self.add_log(f"✔ [EP {ep_n:02d}/{total:02d}] 100% Completed ({sz_mb:.1f} MB, Full HD)")
 
-            def on_batch_start(b_idx, total_b, batch_ep_nums):
+            def on_ep_slice_start(ep_n):
                 with self._lock:
-                    for ep_it in selected_eps:
-                        ep_n = ep_it.get("episode_number") or ep_it.get("episode_num") or 1
-                        if ep_n in batch_ep_nums and ep_it.get("status") != "Completed":
-                            ep_it["status"] = "Downloading"
-                            ep_it["progress"] = max(10, ep_it.get("progress", 0))
+                    target_ep = next((e for e in selected_eps if (e.get("episode_number") or e.get("episode_num")) == ep_n), None)
+                    if target_ep and target_ep.get("status") != "Completed":
+                        target_ep["status"] = "Downloading"
+                        target_ep["progress"] = 50
+
+            def on_slice_ep(ep_n, ep_f, sz_mb):
+                with self._lock:
+                    target_ep = next((e for e in selected_eps if (e.get("episode_number") or e.get("episode_num")) == ep_n), None)
+                    if target_ep and target_ep.get("status") != "Completed":
+                        target_ep["status"] = "Completed"
+                        target_ep["progress"] = 100
+                        target_ep["filepath"] = str(ep_f.resolve()).replace("\\", "/")
+                        target_ep["video_url"] = f"/media/{target_ep['filepath']}"
+                        target_ep["size_mb"] = f"{sz_mb:.1f}"
+                        self.stats["completed"] += 1
+                        self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total) * 100) if total > 0 else 100
+                        self.add_log(f"✔ [EP {ep_n:02d}/{total:02d}] 100% Completed ({sz_mb:.1f} MB, Full HD)")
+
+            def on_batch_start(b_idx, total_b, batch_ep_nums):
                 self.add_log(f"⚡ [Batch {b_idx}/{total_b}] Slicing 5 episodes: EP {batch_ep_nums[0]:02d} - EP {batch_ep_nums[-1]:02d}...")
 
             def on_batch_complete(b_idx, total_b, batch_ep_nums):
@@ -2984,20 +3004,9 @@ class DramaDownloadManager:
             if (is_master_mode or (len(cluster_streams) <= 1 and effective_master_url)) and effective_master_url and not self.stop_requested:
                 self.add_log(f"🎬 Downloading MASTER FULL DRAMA STREAM (1080p Full HD) into '{full_movie_dest.name}'...")
 
-                # Only mark the first batch of 5 episodes as Downloading; all remaining episodes stay Queued (0%)
-                first_batch_eps = [ep for ep in selected_eps if ep.get("status") != "Completed"][:5]
-                with self._lock:
-                    for ep_it in first_batch_eps:
-                        ep_it["status"] = "Downloading"
-                        ep_it["progress"] = max(3, ep_it.get("progress", 0))
-
                 def master_live_hook(pct: int):
                     with self._lock:
                         self.stats["progress_percent"] = pct
-                        for ep_it in first_batch_eps:
-                            if ep_it.get("status") != "Completed":
-                                ep_it["status"] = "Downloading"
-                                ep_it["progress"] = max(3, pct)
 
                 dl_ok = download_stream_universal(effective_master_url, full_movie_dest, timeout_sec=600, progress_cb=master_live_hook)
 
@@ -3009,7 +3018,7 @@ class DramaDownloadManager:
                     self.add_log(f"🎉 Master Full Drama Movie downloaded successfully: {full_movie_name} ({fm_sz:.1f} MB, 1080p)")
 
                     # Slicing full movie into individual EP_01.mp4, EP_02.mp4... in strict sequential 5-episode batches
-                    self.add_log(f"⚡ Slicing into {len(selected_eps)} individual episode MP4 files (5 episodes per batch, Lossless FFmpeg)...")
+                    self.add_log(f"⚡ Slicing into {len(selected_eps)} individual episode MP4 files (Lossless FFmpeg)...")
                     slice_full_movie_into_episodes(
                         full_movie_dest,
                         drama_dest_dir,
@@ -3018,7 +3027,8 @@ class DramaDownloadManager:
                         batch_size=5,
                         on_batch_start=on_batch_start,
                         on_batch_complete=on_batch_complete,
-                        stop_checker=lambda: self.stop_requested
+                        stop_checker=lambda: self.stop_requested,
+                        on_episode_start=on_ep_slice_start
                     )
 
                     for idx, ep_it in enumerate(selected_eps):
@@ -3064,13 +3074,10 @@ class DramaDownloadManager:
 
                 b_start = batch_eps[0].get("episode_number", b_idx * BATCH_SIZE + 1)
                 b_end = batch_eps[-1].get("episode_number", b_idx * BATCH_SIZE + len(batch_eps))
-                self.add_log(f"📦 [Batch {b_idx + 1}/{total_b_cnt}] Downloading 5 episodes: EP {b_start:02d} - EP {b_end:02d}...")
+                self.add_log(f"📦 [Batch {b_idx + 1}/{total_b_cnt}] Downloading: EP {b_start:02d} - EP {b_end:02d}...")
 
-                # Mark ONLY this batch as Downloading (remaining batches stay Queued at 0%)
-                with self._lock:
-                    for ep in pending_eps:
-                        ep["status"] = "Downloading"
-                        ep["progress"] = max(3, ep.get("progress", 0))
+                # Real Sequential Queue: Do not pre-mark all batch episodes as Downloading!
+                # Each episode dynamically becomes 'Downloading' only when its worker thread executes!
 
                 # Download this batch (max 2 concurrent threads to prevent PC freezing/lag)
                 max_w = min(2, len(pending_eps))
@@ -3125,19 +3132,10 @@ class DramaDownloadManager:
 
                     if effective_master_url:
                         self.add_log(f"⚡ Downloading Full Drama Series Master Stream for lossless episode extraction...")
-                        rec_pending = [ep for ep in selected_eps if ep.get("status") != "Completed"][:5]
-                        with self._lock:
-                            for ep_it in rec_pending:
-                                ep_it["status"] = "Downloading"
-                                ep_it["progress"] = max(3, ep_it.get("progress", 0))
 
                         def rec_live_hook(pct: int):
                             with self._lock:
                                 self.stats["progress_percent"] = pct
-                                for ep_it in rec_pending:
-                                    if ep_it.get("status") != "Completed":
-                                        ep_it["status"] = "Downloading"
-                                        ep_it["progress"] = max(3, pct)
 
                         ok_master = download_stream_universal(effective_master_url, full_movie_dest, timeout_sec=600, progress_cb=rec_live_hook)
                         if ok_master and full_movie_dest.exists() and full_movie_dest.stat().st_size > 1000000:
@@ -3149,7 +3147,8 @@ class DramaDownloadManager:
                                 batch_size=5,
                                 on_batch_start=on_batch_start,
                                 on_batch_complete=on_batch_complete,
-                                stop_checker=lambda: self.stop_requested
+                                stop_checker=lambda: self.stop_requested,
+                                on_episode_start=on_ep_slice_start
                             )
                             for ep in failed_eps:
                                 ep_n = ep.get("episode_number", 1)
@@ -3177,13 +3176,6 @@ class DramaDownloadManager:
                             if self.stop_requested:
                                 break
                             batch_nums = missing_ep_nums[i:i + BATCH_SIZE]
-                            with self._lock:
-                                for ep in selected_eps:
-                                    ep_n = ep.get("episode_number") or 1
-                                    if ep_n in batch_nums and ep.get("status") != "Completed":
-                                        ep["status"] = "Downloading"
-                                        ep["progress"] = 10
-
                             hongguo_service.download_episodes_batch(sid, batch_nums, drama_dest_dir, concurrency=2, quality="1080p")
                             hongguo_service.standardize_folder(drama_dest_dir)
                             for ep in selected_eps:
