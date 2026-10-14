@@ -5695,6 +5695,66 @@ select, option, optgroup {
     color: #fff;
 }
 
+/* Footer Update 3D Logo Button (Custom Gold Emblem) */
+.footer-update-logo-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    outline: none;
+    position: relative;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    vertical-align: middle;
+}
+
+.footer-update-logo-img {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 3px rgba(250, 204, 21, 0.45));
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), filter 0.25s ease;
+    user-select: none;
+    pointer-events: none;
+    display: block;
+}
+
+.footer-update-logo-btn:hover {
+    background: rgba(250, 204, 21, 0.12);
+    box-shadow: 0 0 12px rgba(250, 204, 21, 0.35);
+}
+
+.footer-update-logo-btn:hover .footer-update-logo-img {
+    transform: scale(1.18);
+    filter: drop-shadow(0 0 7px rgba(250, 204, 21, 0.95)) drop-shadow(0 0 12px rgba(234, 179, 8, 0.6));
+}
+
+.footer-update-logo-btn:active .footer-update-logo-img {
+    transform: scale(0.92);
+}
+
+.footer-update-logo-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.footer-update-logo-btn.is-checking .footer-update-logo-img {
+    animation: updateLogoSpinPulse 1.2s infinite ease-in-out;
+    filter: drop-shadow(0 0 10px rgba(250, 204, 21, 1));
+}
+
+@keyframes updateLogoSpinPulse {
+    0% { transform: scale(1) rotate(0deg); opacity: 0.85; }
+    50% { transform: scale(1.22) rotate(180deg); opacity: 1; }
+    100% { transform: scale(1) rotate(360deg); opacity: 0.85; }
+}
+
 /* ==========================================================================
    VIEW 2: DOWNLOADER STUDIO (Exact 3-Column Layout from Reference Image)
    ========================================================================== */

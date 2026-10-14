@@ -9586,12 +9586,16 @@ document.addEventListener('DOMContentLoaded', () => {
 let _latestUpdateInfo = null;
 
 async function checkForAppUpdates(manual = false) {
-    const footerBtns = document.querySelectorAll('.footer-check-update-btn');
+    const footerBtns = document.querySelectorAll('.footer-check-update-btn, .footer-update-logo-btn');
     const origHtmls = [];
     footerBtns.forEach((btn, idx) => {
-        origHtmls[idx] = btn.innerHTML;
         btn.disabled = true;
-        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="font-size:0.65rem;"></i> <span>Checking...</span>`;
+        if (btn.classList.contains('footer-update-logo-btn')) {
+            btn.classList.add('is-checking');
+        } else {
+            origHtmls[idx] = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="font-size:0.65rem;"></i> <span>Checking...</span>`;
+        }
     });
 
     try {
@@ -9647,7 +9651,11 @@ async function checkForAppUpdates(manual = false) {
     } finally {
         footerBtns.forEach((btn, idx) => {
             btn.disabled = false;
-            btn.innerHTML = origHtmls[idx] || `<i class="fa-solid fa-cloud-arrow-down"></i> <span>Check Updates</span>`;
+            if (btn.classList.contains('footer-update-logo-btn')) {
+                btn.classList.remove('is-checking');
+            } else if (origHtmls[idx]) {
+                btn.innerHTML = origHtmls[idx];
+            }
         });
     }
 }
