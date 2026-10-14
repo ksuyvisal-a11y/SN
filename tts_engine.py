@@ -12,6 +12,8 @@ from typing import Optional, Dict, Any, List, Tuple, Callable
 import edge_tts
 from audio_processor import get_ffmpeg_path, get_silent_kwargs
 
+TTS_ENGINE_VERSION = "7.3.1"
+
 # Upgrade Edge-TTS default 48kbps stream to 96kbps high-fidelity audio stream
 def _patch_edge_tts_high_fidelity():
     try:
@@ -32,7 +34,7 @@ def _patch_edge_tts_high_fidelity():
 
 _patch_edge_tts_high_fidelity()
 
-# Supported Khmer Voices
+# Supported Khmer Voices (Upgraded to v7.3.1 Neural Engine)
 VOICES = {
     "piseth": {
         "id": "km-KH-PisethNeural",
@@ -41,7 +43,8 @@ VOICES = {
         "role": "តួប្រុស / អ្នកសម្រាយរឿង (Male Lead / Recap Narrator)",
         "description": "សំឡេងប្រុសមាំ ច្បាស់ ល្អឥតខ្ចោះសម្រាប់តួប្រុស ឬអ្នករៀបរាប់សម្រាយសាច់រឿង",
         "avatar": "👨‍💼",
-        "tag": "Male Neural"
+        "tag": "Male Neural v7.3.1",
+        "version": "7.3.1"
     },
     "sreymom": {
         "id": "km-KH-SreymomNeural",
@@ -50,7 +53,8 @@ VOICES = {
         "role": "តួស្រី / មនោសញ្ចេតនា (Female Lead / Emotional)",
         "description": "សំឡេងស្រីស្រទន់ ពីរោះ រស់រវើក ល្អឥតខ្ចោះសម្រាប់តួស្រី និងឈុតមនោសញ្ចេតនា",
         "avatar": "👩‍💼",
-        "tag": "Female Neural"
+        "tag": "Female Neural v7.3.1",
+        "version": "7.3.1"
     }
 }
 
