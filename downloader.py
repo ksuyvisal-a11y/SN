@@ -35,7 +35,17 @@ import hongguo_service
 import shortmax_service
 import reelshort_service
 
+_last_sound_time = 0.0
+_sound_lock = threading.Lock()
+
 def play_windows_completion_sound():
+    global _last_sound_time
+    now = time.time()
+    with _sound_lock:
+        if now - _last_sound_time < 5.0:
+            return
+        _last_sound_time = now
+
     def _play():
         try:
             if sys.platform == "win32":

@@ -4364,6 +4364,7 @@ async function downloadAllQueueEpisodes() {
         const data = await res.json();
 
         // Start active polling
+        let batchDownloadChimePlayed = false;
         if (dlPollTimer) clearInterval(dlPollTimer);
         dlPollTimer = setInterval(async () => {
             try {
@@ -4447,6 +4448,10 @@ async function downloadAllQueueEpisodes() {
                     if (!sData.is_downloading) {
                         clearInterval(dlPollTimer);
                         dlPollTimer = null;
+                        if (!batchDownloadChimePlayed) {
+                            batchDownloadChimePlayed = true;
+                            playWindowsCompletionSound();
+                        }
                         if (btnAll) {
                             btnAll.disabled = false;
                             btnAll.innerHTML = `<i class="fa-solid fa-circle-check" style="color:#4ade80;"></i> <span>Downloaded all episodes ${total}/${total} & Full Movie 100%</span>`;
@@ -4645,7 +4650,7 @@ async function downloadCurrentQueueEpisode() {
                             pill.style.color = '#10b981';
                         }
                     }
-                    showToast(`EP ${epNum} completed! Opening folder...`);
+                    showToast(`EP ${epNum} ready! Opening folder...`);
                     setTimeout(() => {
                         openCurrentDramaFolder();
                     }, 500);
@@ -4986,6 +4991,7 @@ async function startBatchDownload() {
         });
 
         // Start Polling
+        let queueBatchChimePlayed = false;
         if (dlPollTimer) clearInterval(dlPollTimer);
         dlPollTimer = setInterval(async () => {
             try {
@@ -5063,6 +5069,10 @@ async function startBatchDownload() {
                     if (!sData.is_downloading) {
                         clearInterval(dlPollTimer);
                         dlPollTimer = null;
+                        if (!queueBatchChimePlayed) {
+                            queueBatchChimePlayed = true;
+                            playWindowsCompletionSound();
+                        }
                         showToast(`🎉 Downloaded all (${selected.length} episodes) 100% complete! Opening folder...`);
                         appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Batch download finished: ${selected.length} episodes ready in ${path}`);
                         setTimeout(() => {
@@ -9454,8 +9464,8 @@ function playSynthesizedWindowsNotifyChime() {
 
 function playWindowsCompletionSound() {
     const now = Date.now();
-    // Debounce to prevent overlapping triggers within 1.0s
-    if (now - _lastWindowsChimeTimestamp < 1000) {
+    // Debounce to prevent overlapping triggers within 4.0s
+    if (now - _lastWindowsChimeTimestamp < 4000) {
         return;
     }
     _lastWindowsChimeTimestamp = now;
@@ -9512,15 +9522,19 @@ function showToast(msg) {
     const str = String(msg);
     const lower = str.toLowerCase();
 
-    // Trigger authentic Windows completion chime on any finished operation
-    const isCompletedAction = (
-        lower.includes("100%") ||
-        lower.includes("completed") ||
-        lower.includes("successfully") ||
-        lower.includes("finished") ||
+    // NEVER trigger completion chime for individual episodes (only when entire task or all episodes are 100% finished!)
+    const isSingleEpisode = lower.includes("ep ") || lower.includes("ep_") || lower.includes("ep/") || lower.includes("episode ");
+
+    // Trigger authentic Windows completion chime ONLY when the ENTIRE batch / process is 100% finished
+    const isCompletedAction = !isSingleEpisode && (
         lower.includes("downloaded all") ||
-        lower.includes("merged") ||
-        (lower.includes("saved") && lower.includes("mb"))
+        lower.includes("all episodes") ||
+        (lower.includes("all ") && (lower.includes("100%") || lower.includes("completed") || lower.includes("finished"))) ||
+        lower.includes("100% complete") ||
+        lower.includes("all dubbed") ||
+        lower.includes("series dubbed") ||
+        lower.includes("merged successfully") ||
+        (lower.includes("saved") && lower.includes("mb") && !lower.includes("episode"))
     ) && !lower.includes("engine ready") && !lower.includes("console ready") && !lower.includes("modal");
 
     if (isCompletedAction) {

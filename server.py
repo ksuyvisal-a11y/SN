@@ -188,12 +188,22 @@ def add_cors_headers(response):
     return response
 
 
+_last_sound_time = 0.0
+_sound_lock = threading.Lock()
+
 def play_windows_completion_sound():
     """
     Plays the authentic Windows System Notification Sound directly on Windows OS.
     Runs asynchronously in a daemon thread so it never blocks HTTP request handling.
-    Built-in, permanent notification sound.
+    Built-in, permanent notification sound with 5.0s debounce.
     """
+    global _last_sound_time
+    now = time.time()
+    with _sound_lock:
+        if now - _last_sound_time < 5.0:
+            return
+        _last_sound_time = now
+
     def _play():
         try:
             if sys.platform == "win32":
@@ -2695,7 +2705,6 @@ def auto_dub_video_endpoint():
                 video_auto_tasks[t_id]["project"] = res_proj
                 if res_proj and res_proj.get("dialogues"):
                     video_auto_tasks[t_id]["dialogues"] = res_proj.get("dialogues")
-                play_windows_completion_sound()
         except Exception as e:
             print(f"Auto dubbing worker error: {e}")
             if t_id in video_auto_tasks:
