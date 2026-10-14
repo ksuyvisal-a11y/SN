@@ -671,23 +671,26 @@ function toggleBrowseMenu(e) {
     if (e && e.stopPropagation) e.stopPropagation();
     const menu = document.getElementById('browse-menu-popup');
     const btn = document.getElementById('btn-browse-unified');
+    const wrapper = document.getElementById('browse-dropdown-wrapper');
     if (!menu) return;
     const isActive = menu.classList.contains('active');
     if (isActive) {
-        menu.classList.remove('active');
-        if (btn) btn.classList.remove('active');
+        closeBrowseMenu();
     } else {
         closePowerMenu();
         menu.classList.add('active');
         if (btn) btn.classList.add('active');
+        if (wrapper) wrapper.classList.add('active');
     }
 }
 
 function closeBrowseMenu() {
     const menu = document.getElementById('browse-menu-popup');
     const btn = document.getElementById('btn-browse-unified');
+    const wrapper = document.getElementById('browse-dropdown-wrapper');
     if (menu) menu.classList.remove('active');
     if (btn) btn.classList.remove('active');
+    if (wrapper) wrapper.classList.remove('active');
 }
 
 function handleBrowseOption(type, e) {

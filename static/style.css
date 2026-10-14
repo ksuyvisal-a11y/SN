@@ -1438,7 +1438,7 @@ textarea {
     height: 108px;
     object-fit: contain;
     border-radius: 0 !important;
-    filter: drop-shadow(0 10px 24px rgba(250, 204, 21, 0.35)) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.7));
+    filter: drop-shadow(0 12px 28px rgba(130, 165, 205, 0.3)) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.75));
     user-select: none;
     pointer-events: none;
     border: none !important;
@@ -1446,7 +1446,7 @@ textarea {
     box-shadow: none !important;
     transform: none !important;
     cursor: default;
-    transition: filter 0.25s ease;
+    transition: filter 0.3s ease;
 }
 
 .minimal-import-canvas:hover .minimal-import-icon-box {
@@ -1458,7 +1458,7 @@ textarea {
 
 .minimal-import-canvas:hover .minimal-import-logo {
     transform: none !important;
-    filter: drop-shadow(0 14px 28px rgba(250, 204, 21, 0.48)) drop-shadow(0 6px 14px rgba(0, 0, 0, 0.8));
+    filter: drop-shadow(0 16px 36px rgba(160, 195, 240, 0.45)) drop-shadow(0 6px 16px rgba(0, 0, 0, 0.85));
 }
 
 .minimal-import-heading {
@@ -1560,17 +1560,17 @@ textarea {
 
 .apple-browse-menu-popup {
     position: absolute;
-    top: calc(100% + 10px);
+    top: calc(100% + 5px);
     left: 50%;
-    transform: translateX(-50%) translateY(-6px);
-    width: 320px;
-    background: rgba(14, 18, 27, 0.94);
+    transform: translateX(-50%) translateY(-4px);
+    width: 300px;
+    background: rgba(14, 18, 27, 0.96);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 16px;
-    padding: 6px;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85), 0 0 25px rgba(250, 204, 21, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    border-radius: 14px;
+    padding: 5px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85), 0 0 20px rgba(250, 204, 21, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.15);
     display: none;
     flex-direction: column;
     gap: 2px;
@@ -1590,9 +1590,9 @@ textarea {
 .browse-menu-item {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 10px 14px;
-    border-radius: 12px;
+    gap: 10px;
+    padding: 7px 12px;
+    border-radius: 10px;
     cursor: pointer;
     user-select: none;
     transition: all 0.16s ease;
@@ -1607,13 +1607,13 @@ textarea {
 }
 
 .browse-item-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1rem;
+    font-size: 0.9rem;
     flex-shrink: 0;
 }
 
@@ -12157,6 +12157,55 @@ body.license-locked #tab-content-power {
     .staged-overlay-stack {
         margin-top: 6px;
     }
+    /* Compact Minimal Import Canvas & Browse Dropdown for Compact Windows */
+    .minimal-import-canvas {
+        padding: 10px 14px;
+        justify-content: flex-start;
+    }
+    .minimal-import-icon-box {
+        width: 64px;
+        height: 64px;
+        margin-bottom: 6px;
+    }
+    .minimal-import-logo {
+        width: 60px;
+        height: 60px;
+    }
+    .minimal-import-heading {
+        font-size: 1rem;
+        margin-bottom: 2px;
+    }
+    .minimal-import-sub {
+        font-size: 0.74rem;
+        margin-bottom: 8px;
+    }
+    .apple-unified-browse-btn {
+        padding: 7px 18px;
+        font-size: 0.82rem;
+    }
+    .apple-browse-dropdown-wrapper {
+        margin-top: 0;
+    }
+    .apple-browse-menu-popup {
+        width: 295px;
+        padding: 4px;
+        top: calc(100% + 4px);
+    }
+    .browse-menu-item {
+        padding: 6px 10px;
+        gap: 8px;
+    }
+    .browse-item-icon {
+        width: 28px;
+        height: 28px;
+        font-size: 0.85rem;
+    }
+    .browse-item-title {
+        font-size: 0.79rem;
+    }
+    .browse-item-desc {
+        font-size: 0.66rem;
+    }
 }
 
 @media (max-height: 720px) {
@@ -12167,6 +12216,51 @@ body.license-locked #tab-content-power {
     }
     .staged-workspace-frame {
         min-height: 150px;
+    }
+    .minimal-import-canvas {
+        padding: 8px 12px;
+        justify-content: flex-start;
+    }
+    .minimal-import-icon-box {
+        width: 52px;
+        height: 52px;
+        margin-bottom: 4px;
+    }
+    .minimal-import-logo {
+        width: 48px;
+        height: 48px;
+    }
+    .minimal-import-heading {
+        font-size: 0.92rem;
+        margin-bottom: 2px;
+    }
+    .minimal-import-sub {
+        font-size: 0.70rem;
+        margin-bottom: 6px;
+    }
+    .apple-unified-browse-btn {
+        padding: 6px 16px;
+        font-size: 0.78rem;
+    }
+    .apple-browse-menu-popup {
+        width: 290px;
+        padding: 4px;
+        top: calc(100% + 4px);
+    }
+    .browse-menu-item {
+        padding: 5px 10px;
+        gap: 8px;
+    }
+    .browse-item-icon {
+        width: 26px;
+        height: 26px;
+        font-size: 0.80rem;
+    }
+    .browse-item-title {
+        font-size: 0.77rem;
+    }
+    .browse-item-desc {
+        font-size: 0.65rem;
     }
 }
 
