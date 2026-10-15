@@ -10898,8 +10898,22 @@ async function checkForAppUpdates(manual = false) {
                 btnUpdate.innerHTML = `<i class="fa-solid fa-bolt"></i> Update to v${latVer}`;
                 btnUpdate.style.display = 'inline-flex';
             }
+            const updateModal = document.getElementById('modal-update');
+            if (updateModal) {
+                updateModal.style.removeProperty('display');
+                updateModal.style.display = 'flex';
+            }
             openModal('modal-update');
             if (manual) showToast(`New version available: v${latVer}`);
+
+            if (manual) {
+                setTimeout(() => {
+                    const doUpdate = confirm(`🚀 រកឃើញកំណែថ្មី Version ${latVer}!\n\n${data.title || ''}\n\nតើអ្នកចង់ធ្វើការ Update ឡើងទៅ Version ${latVer} ឥឡូវនេះដែរឬទេ?`);
+                    if (doUpdate) {
+                        executeAppUpdate();
+                    }
+                }, 300);
+            }
         } else {
             if (manual) {
                 if (btnUpdate) {

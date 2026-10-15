@@ -7393,8 +7393,9 @@ select, option, optgroup {
 }
 
 .modal-backdrop-overlay.active {
-    opacity: 1;
-    pointer-events: auto;
+    display: flex !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
 }
 
 .modal-content-card {

@@ -191,45 +191,41 @@ def apply_zip_download_update(download_url: str, app_dir: Path) -> Dict[str, Any
                     break
                 out_f.write(chunk)
 
-        # Create detached batch script to launch installer or extract zip and restart
-        bat_file = app_dir / "apply_update.bat"
+        # Create detached PowerShell updater script to safely extract and restart
+        ps1_file = app_dir / "apply_update.ps1"
         exe_file = app_dir / "SN_TOOL.exe"
         run_bat = app_dir / "START_SN_TOOL.bat"
-        restart_cmd = f'start "" "{exe_file}"' if exe_file.exists() else f'start "" "{run_bat}"'
 
         if is_exe:
-            bat_content = f"""@echo off
-chcp 65001 >nul
-echo [SN TOOL UPDATER] Launching Setup Update...
-timeout /t 2 /nobreak >nul
-start "" "{dest_file}"
-del "%~f0" & exit
+            ps1_content = f"""
+Start-Sleep -Seconds 2
+Start-Process "{dest_file}"
+Remove-Item -Force $MyInvocation.MyCommand.Path -ErrorAction SilentlyContinue
 """
         else:
-            bat_content = f"""@echo off
-chcp 65001 >nul
-echo [SN TOOL UPDATER] Applying updates...
-timeout /t 2 /nobreak >nul
-tar -xf "{dest_file}" -C "{app_dir}" 2>nul || powershell -command "Expand-Archive -Path '{dest_file}' -DestinationPath '{app_dir}' -Force"
-del /f /q "{dest_file}" 2>nul
-echo [SN TOOL UPDATER] Update finished! Relaunching SN TOOL...
-{restart_cmd}
-del "%~f0" & exit
+            restart_target = f'"{exe_file}"' if exe_file.exists() else f'"{run_bat}"'
+            ps1_content = f"""
+Start-Sleep -Seconds 2
+Get-Process -Name "SN_TOOL" -ErrorAction SilentlyContinue | Wait-Process -Timeout 10 -ErrorAction SilentlyContinue
+Expand-Archive -Path "{dest_file}" -DestinationPath "{app_dir}" -Force
+Remove-Item -Force "{dest_file}" -ErrorAction SilentlyContinue
+Start-Process {restart_target}
+Remove-Item -Force $MyInvocation.MyCommand.Path -ErrorAction SilentlyContinue
 """
-        with open(bat_file, "w", encoding="utf-8") as f:
-            f.write(bat_content)
+        with open(ps1_file, "w", encoding="utf-8") as f:
+            f.write(ps1_content)
 
-        # Launch detached batch script
+        # Launch detached PowerShell updater
         if sys.platform == "win32":
             subprocess.Popen(
-                ["cmd.exe", "/c", str(bat_file)],
+                ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(ps1_file)],
                 cwd=str(app_dir),
                 creationflags=0x00000008 | 0x08000000
             )
 
         return {
             "success": True,
-            "message": "ការទាញយកជោគជ័យ! កម្មវិធីនឹង Update ឡើង Version ថ្មីក្នុងរយៈពេល 2 វិនាទី..."
+            "message": "ការទាញយកជោគជ័យ! កម្មវិធីនឹង Restart ឡើង Version ថ្មីក្នុងរយៈពេល 2 វិនាទី..."
         }
     except Exception as e:
         return {"success": False, "error": str(e)}
