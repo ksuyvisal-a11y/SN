@@ -1655,6 +1655,7 @@ def slice_full_movie_into_episodes(
 
         if on_batch_complete:
             on_batch_complete(b_idx + 1, len(batches), batch)
+        time.sleep(0.5)
 
     clean_stray_download_artifacts(drama_dest_dir)
     return created_files
@@ -2559,6 +2560,27 @@ class DramaDownloadManager:
                                             self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total) * 100) if total > 0 else 100
                                             self.add_log(f"✔ [EP {ep_n:02d}/{total:02d}] 100% Completed ({sz_mb:.1f} MB, Full HD)")
 
+            if all(ep.get("status") == "Completed" for ep in selected_eps):
+                if auto_merge_full and not self.stop_requested:
+                    try:
+                        full_movie_name = f"{safe_drama_title}_Full_Drama_1080p.mp4"
+                        full_movie_dest = drama_dest_dir / full_movie_name
+                        if not (full_movie_dest.exists() and full_movie_dest.stat().st_size > 5000000):
+                            self.add_log("🎬 Assembling FULL DRAMA MOVIE (100%)...")
+                            merge_drama_episodes_to_full_movie(drama_dest_dir, full_movie_dest)
+                    except Exception:
+                        pass
+                try:
+                    hongguo_service.standardize_folder(drama_dest_dir)
+                    clean_stray_download_artifacts(drama_dest_dir)
+                except Exception:
+                    pass
+                self.is_downloading = False
+                self.stop_requested = False
+                self.stats["progress_percent"] = 100
+                self.add_log(f"🎉 ជោគជ័យ ១០០%! បានទាញយកចប់សព្វគ្រប់ {total}/{total} ភាគ ដោយគ្មាន Error ឡើយ!")
+                return
+
             if sid:
                 hongguo_vids = resolve_hongguo_series_vids(sid)
                 if hongguo_vids:
@@ -3052,80 +3074,10 @@ class DramaDownloadManager:
             def on_batch_complete(b_idx, total_b, batch_ep_nums):
                 self.add_log(f"✔ [Batch {b_idx}/{total_b}] EP {batch_ep_nums[0]:02d} - EP {batch_ep_nums[-1]:02d} completed (100%)! Moving to next 5 episodes...")
 
-            # STRATEGY 1: Master Full Drama Download & Instant Episode Slicing (100% Success Guarantee in Batches of 5)
+            # Multi-Worker Parallel Downloads in Strict 5-Episode Batches
             full_movie_name = f"{safe_drama_title}_Full_Drama_1080p.mp4"
             full_movie_dest = drama_dest_dir / full_movie_name
 
-            if (is_master_mode or (len(cluster_streams) <= 1 and effective_master_url)) and effective_master_url and not self.stop_requested:
-                self.add_log(f"🎬 Downloading MASTER FULL DRAMA STREAM (1080p Full HD) into '{full_movie_dest.name}'...")
-
-                # Option 2: Active Batch Window (Batch 1 shows master download; remaining batches stay Queued at 0%)
-                first_batch_eps = [ep for ep in selected_eps if ep.get("status") != "Completed"][:5]
-                with self._lock:
-                    for ep_it in first_batch_eps:
-                        ep_it["status"] = "Downloading"
-                        ep_it["progress"] = max(1, ep_it.get("progress", 0))
-
-                def master_live_hook(pct: int):
-                    with self._lock:
-                        self.stats["progress_percent"] = pct
-                        for ep_it in first_batch_eps:
-                            if ep_it.get("status") != "Completed":
-                                ep_it["status"] = "Downloading"
-                                ep_it["progress"] = max(1, pct)
-
-                dl_ok = download_stream_universal(effective_master_url, full_movie_dest, timeout_sec=600, progress_cb=master_live_hook)
-
-                if full_movie_dest.exists() and full_movie_dest.stat().st_size > 1000000:
-                    fm_sz = full_movie_dest.stat().st_size / (1024 * 1024)
-                    self.stats["full_movie_file"] = str(full_movie_dest.resolve()).replace("\\", "/")
-                    self.stats["full_movie_name"] = full_movie_name
-                    self.stats["full_movie_size_mb"] = f"{fm_sz:.1f}"
-                    self.add_log(f"🎉 Master Full Drama Movie downloaded successfully: {full_movie_name} ({fm_sz:.1f} MB, 1080p)")
-
-                    # Slicing full movie into individual EP_01.mp4, EP_02.mp4... in strict sequential 5-episode batches
-                    self.add_log(f"⚡ Slicing into {len(selected_eps)} individual episode MP4 files (Lossless FFmpeg)...")
-                    slice_full_movie_into_episodes(
-                        full_movie_dest,
-                        drama_dest_dir,
-                        len(selected_eps),
-                        on_episode_ready=on_slice_ep,
-                        batch_size=5,
-                        on_batch_start=on_batch_start,
-                        on_batch_complete=on_batch_complete,
-                        stop_checker=lambda: self.stop_requested,
-                        on_episode_start=on_ep_slice_start
-                    )
-
-                    for idx, ep_it in enumerate(selected_eps):
-                        ep_n = ep_it.get("episode_number", idx + 1)
-                        ep_f = drama_dest_dir / f"EP_{ep_n:02d}.mp4"
-                        target_f = ep_f if (ep_f.exists() and ep_f.stat().st_size > 100000) else full_movie_dest
-                        sz_mb = target_f.stat().st_size / (1024 * 1024)
-                        if ep_it.get("status") != "Completed":
-                            ep_it["status"] = "Completed"
-                            ep_it["progress"] = 100
-                            ep_it["filepath"] = str(target_f.resolve()).replace("\\", "/")
-                            ep_it["video_url"] = f"/media/{ep_it['filepath']}"
-                            ep_it["size_mb"] = f"{sz_mb:.1f}"
-                            self.stats["completed"] += 1
-                            self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total) * 100) if total > 0 else 100
-
-                    # If not auto_merge_full, remove temporary full master movie so only EP_XX.mp4 remain
-                    if not auto_merge_full and full_movie_dest.exists():
-                        try:
-                            full_movie_dest.unlink()
-                        except Exception:
-                            pass
-
-                    self.is_downloading = False
-                    self.stop_requested = False
-                    self.stats["progress_percent"] = 100
-                    play_windows_completion_sound()
-                    self.add_log(f"🎉 ជោគជ័យ ១០០%! បានទាញយកចប់សព្វគ្រប់ {len(selected_eps)} ភាគ ដោយគ្មាន Error ឡើយ!")
-                    return
-
-            # STRATEGY 2: Multi-Worker Parallel Downloads in Strict 5-Episode Batches
             BATCH_SIZE = 5
             ep_batches = [selected_eps[i:i + BATCH_SIZE] for i in range(0, len(selected_eps), BATCH_SIZE)]
             total_b_cnt = len(ep_batches)
@@ -3157,7 +3109,7 @@ class DramaDownloadManager:
                             break
 
                 self.add_log(f"✔ [Batch {b_idx + 1}/{total_b_cnt}] EP {b_start:02d} - EP {b_end:02d} finished! Moving to next 5 episodes...")
-                time.sleep(0.3)
+                time.sleep(0.5)
 
             # Slicing / Full Movie Fallback for any failed episodes (Zero Failures Guarantee in Batches of 5)
             failed_eps = [ep for ep in selected_eps if ep.get("status") != "Completed"]

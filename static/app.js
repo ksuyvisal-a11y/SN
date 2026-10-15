@@ -5012,12 +5012,7 @@ async function downloadAllQueueEpisodes() {
                             movieMsg = ` 🎬 Full Movie: ${sData.stats.full_movie_name}`;
                         }
                         showToast(`🎉 Downloaded all episodes ${total}/${total} 100% complete!${movieMsg}`);
-                        appendDownloaderLog(`[${new Date().toLocaleTimeString()}] All ${total} episodes completed 100%!${movieMsg} Opening folder...`);
-
-                        // Auto-open download folder in Windows File Explorer
-                        setTimeout(() => {
-                            openCurrentDramaFolder(sData.last_download_dir);
-                        }, 500);
+                        appendDownloaderLog(`[${new Date().toLocaleTimeString()}] All ${total} episodes completed 100%!${movieMsg}`);
 
                         const qVideo = document.getElementById('dl-q-video-elem');
                         if (qVideo) {
@@ -5191,10 +5186,7 @@ async function downloadCurrentQueueEpisode() {
                             pill.style.color = '#10b981';
                         }
                     }
-                    showToast(`EP ${epNum} ready! Opening folder...`);
-                    setTimeout(() => {
-                        openCurrentDramaFolder();
-                    }, 500);
+                    showToast(`EP ${epNum} ready!`);
                 }
             }, 300);
         }
@@ -5616,11 +5608,8 @@ async function startBatchDownload() {
                             queueBatchChimePlayed = true;
                             playWindowsCompletionSound();
                         }
-                        showToast(`🎉 Downloaded all (${selected.length} episodes) 100% complete! Opening folder...`);
+                        showToast(`🎉 Downloaded all (${selected.length} episodes) 100% complete!`);
                         appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Batch download finished: ${selected.length} episodes ready in ${path}`);
-                        setTimeout(() => {
-                            openCurrentDramaFolder(sData.last_download_dir);
-                        }, 500);
                     }
                 }
             } catch (e) {}
