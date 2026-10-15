@@ -1665,39 +1665,39 @@
         </div>
 
         <!-- MODAL: SOFTWARE UPDATE (GitHub 1-Click Updater) -->
-        <div class="modal-backdrop-overlay" id="modal-update">
-            <div class="modal-content-card" style="max-width:440px; border:1px solid rgba(250,204,21,0.3); box-shadow: 0 20px 40px rgba(0,0,0,0.8), 0 0 30px rgba(234,179,8,0.15); background:#0c0a09; border-radius:14px; overflow:hidden;">
-                <div class="modal-top-header" style="background: linear-gradient(135deg, rgba(234,179,8,0.15), rgba(0,0,0,0.5)); border-bottom:1px solid rgba(250,204,21,0.2); padding:14px 18px;">
+        <div class="modal-backdrop-overlay" id="modal-update" style="z-index:999999;">
+            <div class="modal-content-card" style="max-width:460px; border:1px solid rgba(250,204,21,0.35); box-shadow: 0 25px 50px rgba(0,0,0,0.85), 0 0 35px rgba(234,179,8,0.2); background:#0c0a09; border-radius:14px; overflow:hidden;">
+                <div class="modal-top-header" style="background: linear-gradient(135deg, rgba(234,179,8,0.18), rgba(0,0,0,0.6)); border-bottom:1px solid rgba(250,204,21,0.25); padding:14px 18px;">
                     <div class="modal-title" style="display:flex; align-items:center; gap:10px;">
-                        <img src="check_update_logo.png?v=1.0" style="width:28px; height:28px; object-fit:contain; filter:drop-shadow(0 0 6px rgba(250,204,21,0.5));" alt="SN Tool Update Logo">
-                        <span style="color:#facc15; font-weight:700; font-size:0.95rem;">SN TOOL UPDATE</span>
+                        <img src="check_update_logo.png?v=1.0" style="width:28px; height:28px; object-fit:contain; filter:drop-shadow(0 0 6px rgba(250,204,21,0.6));" alt="SN Tool Update Logo">
+                        <span style="color:#facc15; font-weight:800; font-size:1rem; letter-spacing:0.5px;">SN TOOL - STUDIO UPDATE</span>
                     </div>
                     <button class="modal-close-icon-btn" onclick="closeModal('modal-update')">✕</button>
                 </div>
                 <div class="modal-inner-body" style="padding:18px; display:flex; flex-direction:column; gap:12px;">
                     <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.03); padding:10px 14px; border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
-                        <div style="font-size:0.8rem; color:#94a3b8;">Current Version:</div>
-                        <div id="update-curr-ver" style="font-size:0.82rem; font-weight:700; color:#e2e8f0;">v1.0.4</div>
+                        <div style="font-size:0.8rem; color:#94a3b8;">Current Version (កំណែបច្ចុប្បន្ន):</div>
+                        <div id="update-curr-ver" style="font-size:0.85rem; font-weight:700; color:#e2e8f0;">v1.0.5</div>
                     </div>
                     <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(250,204,21,0.08); padding:10px 14px; border-radius:8px; border:1px solid rgba(250,204,21,0.25);">
-                        <div style="font-size:0.8rem; color:#facc15; font-weight:600;">Latest Version Available:</div>
-                        <div id="update-latest-ver" style="font-size:0.88rem; font-weight:800; color:#4ade80;">v1.0.4</div>
+                        <div style="font-size:0.8rem; color:#facc15; font-weight:600;">Latest Version (កំណែថ្មី):</div>
+                        <div id="update-latest-ver" style="font-size:0.92rem; font-weight:800; color:#4ade80;">v1.0.5</div>
                     </div>
                     <div>
-                        <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">What&#39;s New / Release Notes:</div>
-                        <div id="update-release-notes" style="background:#050403; border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:10px 12px; font-size:0.76rem; color:#cbd5e1; line-height:1.5; max-height:140px; overflow-y:auto; white-space:pre-line;">
-                            - Feature enhancements and performance optimizations
+                        <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">What&#39;s New / Release Notes (ចំណុចកែលម្អ):</div>
+                        <div id="update-release-notes" style="background:#050403; border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:10px 12px; font-size:0.76rem; color:#cbd5e1; line-height:1.55; max-height:140px; overflow-y:auto; white-space:pre-line;">
+                            - Performance optimizations and bug fixes
                         </div>
                     </div>
                     <div id="update-progress-container" style="display:none; flex-direction:column; gap:6px;">
-                        <div id="update-status-msg" style="font-size:0.75rem; color:#facc15; text-align:center;">Downloading new version...</div>
-                        <div style="width:100%; height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden;">
+                        <div id="update-status-msg" style="font-size:0.78rem; color:#facc15; text-align:center; font-weight:600;">កំពុងទាញយកកញ្ចប់ Update...</div>
+                        <div style="width:100%; height:8px; background:rgba(255,255,255,0.1); border-radius:4px; overflow:hidden;">
                             <div id="update-progress-bar" style="width:40%; height:100%; background:linear-gradient(90deg, #facc15, #22c55e); transition:width 0.3s;"></div>
                         </div>
                     </div>
-                    <div style="display:flex; gap:10px; margin-top:6px;">
-                        <button type="button" class="ai-footer-cancel-btn" style="flex:1;" onclick="closeModal('modal-update')">Close</button>
-                        <button type="button" id="btn-do-update" class="dl-big-btn-yellow" style="flex:2; margin:0;" onclick="executeAppUpdate()">
+                    <div style="display:flex; gap:10px; margin-top:8px;">
+                        <button type="button" class="ai-footer-cancel-btn" style="flex:1; padding:9px 12px;" onclick="closeModal('modal-update')">Close / ពេលក្រោយ</button>
+                        <button type="button" id="btn-do-update" class="dl-big-btn-yellow" style="flex:2; margin:0; padding:9px 12px;" onclick="executeAppUpdate()">
                             <i class="fa-solid fa-bolt"></i> Update Now
                         </button>
                     </div>

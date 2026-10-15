@@ -10880,7 +10880,7 @@ async function checkForAppUpdates(manual = false) {
         const btnUpdate = document.getElementById('btn-do-update');
         const progContainer = document.getElementById('update-progress-container');
 
-        const curVer = data.current_version || '1.0.4';
+        const curVer = data.current_version || '1.0.5';
         const latVer = data.latest_version || curVer;
 
         if (curEl) curEl.textContent = `v${curVer}`;
@@ -10905,15 +10905,6 @@ async function checkForAppUpdates(manual = false) {
             }
             openModal('modal-update');
             if (manual) showToast(`New version available: v${latVer}`);
-
-            if (manual) {
-                setTimeout(() => {
-                    const doUpdate = confirm(`🚀 រកឃើញកំណែថ្មី Version ${latVer}!\n\n${data.title || ''}\n\nតើអ្នកចង់ធ្វើការ Update ឡើងទៅ Version ${latVer} ឥឡូវនេះដែរឬទេ?`);
-                    if (doUpdate) {
-                        executeAppUpdate();
-                    }
-                }, 300);
-            }
         } else {
             if (manual) {
                 if (btnUpdate) {
