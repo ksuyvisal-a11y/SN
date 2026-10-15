@@ -101,7 +101,12 @@ def resolve_safe_save_location(save_location: Optional[str] = None) -> Path:
     """
     candidates = []
     if save_location and str(save_location).strip():
-        candidates.append(Path(str(save_location).strip()))
+        loc_str = str(save_location).strip().replace("\\", "/")
+        # If path specifies Drive D: but Drive D: does NOT exist on customer PC, skip it immediately!
+        if loc_str.upper().startswith("D:") and not os.path.exists("D:/"):
+            pass
+        else:
+            candidates.append(Path(loc_str))
 
     if os.path.exists("D:/"):
         candidates.append(Path("D:/SN_Dramas"))

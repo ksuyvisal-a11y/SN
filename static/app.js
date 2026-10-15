@@ -4761,10 +4761,19 @@ function queueToggleMute() {
     }
 }
 
-let dlUserSaveLocation = 'D:/SN_Dramas';
+let dlUserSaveLocation = '';
+
+function getEffectiveSaveLocation() {
+    const inputVal = document.getElementById('dl-save-path-input')?.value.trim();
+    if (inputVal) return inputVal;
+    if (dlUserSaveLocation && dlUserSaveLocation.trim()) return dlUserSaveLocation.trim();
+    const stored = localStorage.getItem('sn_save_location');
+    if (stored && stored.trim()) return stored.trim();
+    return (typeof driveCustomPaths !== 'undefined' && driveCustomPaths["C"]) ? driveCustomPaths["C"] : "C:/SN_Dramas";
+}
 
 function getComputedDramaFolder() {
-    let base = dlUserSaveLocation || 'D:/SN_Dramas';
+    let base = getEffectiveSaveLocation();
     base = base.replace(/\\/g, '/').replace(/\/+$/, '');
     let folderName = 'Drama_Series';
     if (dlCurrentDrama) {
@@ -4870,7 +4879,7 @@ async function downloadAllQueueEpisodes() {
         }
     });
 
-    const path = dlUserSaveLocation || document.getElementById('dl-save-path-input')?.value.trim() || 'D:/SN_Dramas';
+    const path = getEffectiveSaveLocation();
     const computedDir = getComputedDramaFolder().replace(/\//g, '\\');
     showToast(`⚡ Downloading 5 episodes in parallel (${total} total) to ${computedDir}...`);
     appendDownloaderLog(`[${new Date().toLocaleTimeString()}] ⚡ Downloading in parallel (Batch 5 Episodes): EP 1 to EP ${total} for '${title}' into '${computedDir}'...`);
@@ -5093,7 +5102,7 @@ async function downloadCurrentDramaPoster() {
         return;
     }
     const rawTitle = (dlCurrentDrama.title_cn || dlCurrentDrama.title || 'Drama').replace(/[《》]/g, '').trim();
-    const savePath = dlUserSaveLocation || document.getElementById('dl-save-path-input')?.value.trim() || 'D:/SN_Dramas';
+    const savePath = getEffectiveSaveLocation();
     showToast(`🖼️ Downloading HD Poster: ${rawTitle}...`);
     appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Downloading Poster HD for '${rawTitle}'...`);
 
@@ -5141,7 +5150,7 @@ async function downloadCurrentQueueEpisode() {
     showToast(`Downloading EP ${epNum}...`);
     appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Downloading EP ${epNum} of '${dlCurrentDrama.title}'...`);
 
-    const path = dlUserSaveLocation || document.getElementById('dl-save-path-input')?.value.trim() || 'D:/SN_Dramas';
+    const path = getEffectiveSaveLocation();
     const epObj = dlEpisodesList.find(e => (e.episode_num || e.episode_number || e.id) == epNum);
     const targetId = epObj ? epObj.id : `ep_${epNum}`;
 
@@ -5236,10 +5245,12 @@ async function initSaveLocationPaths() {
     } catch (e) {
         input.value = backendDefault || "C:/SN_Dramas";
     }
+    dlUserSaveLocation = input.value;
     input.setAttribute('title', input.value);
     input.addEventListener('input', () => {
         const val = input.value.trim();
         if (val) {
+            dlUserSaveLocation = val;
             localStorage.setItem('sn_save_location', val);
             input.setAttribute('title', val);
         }
@@ -5261,6 +5272,7 @@ function selectDrive(driveLetter) {
         input.value = targetPath;
         input.setAttribute('title', targetPath);
     }
+    dlUserSaveLocation = targetPath;
     localStorage.setItem('sn_save_location', targetPath);
     localStorage.setItem('sn_active_drive', letter);
     updateDriveButtonHighlight();
@@ -5510,7 +5522,7 @@ async function startBatchDownload() {
         }
     });
 
-    const path = document.getElementById('dl-save-path-input').value.trim() || 'D:/SN_Dramas';
+    const path = getEffectiveSaveLocation();
     const posterElem = document.getElementById('dl-save-poster-check');
     const savePoster = posterElem ? posterElem.checked : true;
 

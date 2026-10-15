@@ -88,6 +88,60 @@ os.makedirs(str(APP_DIR / "cache" / "audio_cache"), exist_ok=True)
 os.makedirs(str(APP_DIR / "data" / "projects"), exist_ok=True)
 os.makedirs(str(APP_DIR / "data" / "uploads"), exist_ok=True)
 
+# =========================================================================
+# 🚀 DYNAMIC RUNTIME HOT-RELOAD & DISK IMPORTER PRIORITY:
+# Ensures that updated .py / .pyc files on disk (from in-app updates or sync)
+# are ALWAYS prioritized over PyInstaller's frozen PYZ archive!
+# =========================================================================
+if getattr(sys, 'frozen', False):
+    import importlib.machinery
+    import importlib.util
+    
+    app_dir_str = str(APP_DIR)
+    internal_dir_str = str(APP_DIR / "_internal")
+    
+    for p_dir in [app_dir_str, internal_dir_str]:
+        if p_dir not in sys.path:
+            sys.path.insert(0, p_dir)
+
+    class DiskPriorityFinder:
+        _intercepted = {
+            "server", "downloader", "translator", "pipeline", "stt_engine",
+            "tts_engine", "audio_processor", "video_processor", "hongguo_service",
+            "hongguo_db", "shortmax_service", "reelshort_service", "vocal_remover",
+            "license_engine", "update", "batch_engine", "series_memory",
+            "recap_engine", "subtitle_styler", "translate_video"
+        }
+
+        @classmethod
+        def find_spec(cls, fullname, path=None, target=None):
+            top_pkg = fullname.split(".")[0] if "." in fullname else fullname
+            if top_pkg in cls._intercepted:
+                # Search disk locations (APP_DIR first, then _internal)
+                for search_dir in [APP_DIR, APP_DIR / "_internal"]:
+                    rel_parts = fullname.split(".")
+                    # 1. Look for .py file
+                    cand_py = search_dir.joinpath(*rel_parts).with_suffix(".py")
+                    if cand_py.exists():
+                        return importlib.util.spec_from_file_location(fullname, str(cand_py))
+                    # 2. Look for .pyc file
+                    cand_pyc = search_dir.joinpath(*rel_parts).with_suffix(".pyc")
+                    if cand_pyc.exists():
+                        return importlib.util.spec_from_file_location(fullname, str(cand_pyc))
+            return None
+
+    sys.meta_path.insert(0, DiskPriorityFinder)
+
+    # Self-healing binary backup against Windows Defender false-positive quarantine
+    try:
+        current_exe = Path(sys.executable)
+        bak_exe = current_exe.with_suffix(".exe.bak")
+        if current_exe.exists() and (not bak_exe.exists() or current_exe.stat().st_mtime > bak_exe.stat().st_mtime):
+            import shutil
+            shutil.copy2(current_exe, bak_exe)
+    except Exception:
+        pass
+
 import subprocess
 from audio_processor import patch_silent_subprocess, get_silent_kwargs
 

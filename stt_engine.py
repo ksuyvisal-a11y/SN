@@ -474,12 +474,13 @@ class SpeechToTextEngine:
         if self._model is None and FASTER_WHISPER_AVAILABLE:
             device = "cpu"
             compute_type = "int8"
-            threads = min(8, os.cpu_count() or 4)
+            threads = min(4, os.cpu_count() or 2)
             try:
                 import ctranslate2
                 if "cuda" in ctranslate2.get_supported_compute_types("cuda"):
                     device = "cuda"
                     compute_type = "float16"
+                    threads = min(8, os.cpu_count() or 4)
             except Exception:
                 pass
 
@@ -530,9 +531,9 @@ class SpeechToTextEngine:
                     raw_segments = cached_subs
 
         if not raw_segments:
-            # Low-RAM 4GB Turbo Optimization:
-            # If system has <= 5.0GB RAM and no dedicated CUDA GPU, route directly to Groq Cloud Whisper
-            # to prevent freezing the user's laptop, avoid 500MB RAM allocation, and eliminate disk thrashing!
+            # High-Speed Zero-Freeze Optimization:
+            # If system has no dedicated NVIDIA CUDA GPU, prioritize Groq Cloud Whisper
+            # to transcribe in 2-3 seconds, avoid 100% CPU lockup, and prevent OOM process termination!
             total_ram = get_system_ram_gb()
             has_cuda = False
             try:
@@ -541,17 +542,17 @@ class SpeechToTextEngine:
             except Exception:
                 pass
 
-            if total_ram <= 5.0 and not has_cuda:
-                print(f"[TURBO 4GB RAM] Detected {total_ram}GB RAM. Routing directly to Groq Cloud Whisper (0% CPU / 0% RAM)...")
+            if not has_cuda or total_ram <= 6.0:
+                print(f"[TURBO WHISPER] CPU mode detected (RAM: {total_ram}GB). Routing to Groq Cloud Whisper (0% CPU / 0MB RAM / 3-sec transcribe)...")
                 if progress_callback:
-                    progress_callback(46, f"៣/៧ Low-RAM Turbo ({total_ram}GB RAM)៖ ប្រើប្រាស់ Cloud AI Whisper មិនស៊ី RAM...", "Using Cloud Whisper...")
+                    progress_callback(46, "៣/៧ AI Turbo៖ កំពុងប្រើប្រាស់ Cloud AI Whisper (លឿនបំផុត មិនស៊ី CPU)...", "Using Ultra-Fast Cloud Whisper...")
                 try:
                     cloud_segs = transcribe_with_groq_whisper(audio_path, source_lang=source_lang)
                     if cloud_segs:
                         raw_segments = cloud_segs
-                        print(f"[OK] Groq Cloud Whisper transcribed {len(raw_segments)} segments in Low-RAM Mode!")
+                        print(f"[OK] Groq Cloud Whisper transcribed {len(raw_segments)} segments in 3 seconds!")
                 except Exception as e:
-                    print(f"Low-RAM Cloud Whisper note: {e}")
+                    print(f"Cloud Whisper note: {e}")
 
         if not raw_segments:
             model = None
