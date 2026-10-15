@@ -4,7 +4,7 @@
   "release_date": "2026-10-15",
   "title": "SN TOOL STUDIO PRO - Official Update v1.0.5",
   "release_notes": "• 🛡️ Anti-Quarantine Self-Healing Engine: Auto-elevation UAC Defender whitelisting and auto-restore backup against false positives\n• 🚀 Dynamic Disk Importer Priority: Frozen runtime prioritizes fresh updates from disk with zero outdated bytecode lag\n• 💾 Resilient Drive Selection: Auto-detects single-drive laptops (Drive C:) with safe dynamic fallbacks\n• ⚡ Groq Cloud Whisper Turbo: Zero-CPU, zero-RAM instant 3s transcription prevents OOM and process kill\n• 🎬 100% Genuine Episode Downloads: Multi-VOD cluster failover and ReelShort book_id auto-detection",
-  "download_url": "https://github.com/ksuyvisal-a11y/SN/releases/latest/download/SN_TOOL_Setup.exe",
+  "download_url": "https://github.com/ksuyvisal-a11y/SN/releases/latest/download/SN_TOOL_Portable.zip",
   "github_repo": "ksuyvisal-a11y/SN",
   "channel": "stable"
 }
