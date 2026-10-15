@@ -10312,12 +10312,23 @@ async function openExportFolderDirect(targetPath) {
 
 function openModal(id) {
     const modal = document.getElementById(id);
-    if (modal) modal.classList.add('active');
+    if (modal) {
+        modal.style.display = 'flex';
+        void modal.offsetWidth;
+        modal.classList.add('active');
+    }
 }
 
 function closeModal(id) {
     const modal = document.getElementById(id);
-    if (modal) modal.classList.remove('active');
+    if (modal) {
+        modal.classList.remove('active');
+        setTimeout(() => {
+            if (!modal.classList.contains('active')) {
+                modal.style.display = '';
+            }
+        }, 220);
+    }
 }
 
 // ==========================================================================
@@ -10797,11 +10808,43 @@ async function checkForAppUpdates(manual = false) {
 
     try {
         if (manual) showToast("Checking for updates...");
-        const res = await fetch('/api/update/check');
-        const data = await res.json();
-        
+        let data = null;
+        try {
+            const res = await fetch('/api/update/check');
+            if (res.ok) {
+                data = await res.json();
+            }
+        } catch (localErr) {
+            console.warn("Local update API offline or unreachable, querying GitHub directly...", localErr);
+        }
+
+        // Direct public fallback to GitHub if local server is unreachable
         if (!data || !data.success) {
-            if (manual) showToast(data.error || "Unable to connect to update server");
+            try {
+                const ghRes = await fetch('https://raw.githubusercontent.com/ksuyvisal-a11y/SN/main/version.json?t=' + Date.now());
+                if (ghRes.ok) {
+                    const ghData = await ghRes.json();
+                    const curTag = document.getElementById('splash-version-tag')?.textContent?.replace('v', '').trim() || '1.0.4';
+                    const latVer = (ghData.version || '1.0.4').trim();
+                    data = {
+                        success: true,
+                        has_update: latVer !== curTag,
+                        current_version: curTag,
+                        latest_version: latVer,
+                        title: ghData.title || `SN TOOL v${latVer}`,
+                        release_notes: ghData.release_notes || "Performance enhancements and bug fixes",
+                        download_url: ghData.download_url || ""
+                    };
+                }
+            } catch (ghErr) {
+                console.error("Direct GitHub check failed:", ghErr);
+            }
+        }
+
+        if (!data || !data.success) {
+            if (manual) {
+                alert("Unable to connect to update server. Please verify your internet connection.");
+            }
             return;
         }
 
