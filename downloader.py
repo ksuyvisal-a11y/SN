@@ -721,7 +721,11 @@ def get_drama_episodes(drama: Any, drama_obj: Optional[Dict[str, Any]] = None) -
     total_expected = int(drama.get("total_episodes") or 0)
 
     # 1. Special handler for ShortMax (ShortTV) dramas
-    is_shortmax = drama.get("platform_id") == "shortmax" or drama_id.startswith("shortmax_") or drama_id.startswith("sm_")
+    is_shortmax = (
+        drama.get("platform_id") in ("shortmax", "shorttv") or 
+        drama_id.startswith("shortmax_") or drama_id.startswith("sm_") or 
+        bool(drama.get("shortmax_id")) or bool(drama.get("shorttv_id"))
+    )
     if is_shortmax:
         try:
             sm_eps = shortmax_service.resolve_shortmax_episodes(drama)
@@ -751,7 +755,14 @@ def get_drama_episodes(drama: Any, drama_obj: Optional[Dict[str, Any]] = None) -
             print(f"[ShortMax Resolver] Error: {sm_e}")
 
     # 1.5 Special handler for ReelShort dramas
-    is_reelshort = drama.get("platform_id") == "reelshort" or drama_id.startswith("reelshort_") or drama_id.startswith("rs_")
+    is_reelshort = (
+        drama.get("platform_id") == "reelshort" or 
+        drama_id.startswith("reelshort_") or drama_id.startswith("rs_") or 
+        bool(drama.get("book_id")) or 
+        (bool(drama.get("chapter_count")) and bool(drama.get("slug"))) or
+        drama.get("source") == "reelshort" or
+        bool(reelshort_service.get_reelshort_drama_by_id(drama.get("book_id") or drama_id))
+    )
     if is_reelshort:
         try:
             rs_eps = reelshort_service.resolve_reelshort_episodes(drama)
@@ -2317,23 +2328,52 @@ class DramaDownloadManager:
             if not selected_eps and self.episodes:
                 selected_eps = list(self.episodes)
 
-        # Mark all episodes: already completed remain Completed, others set to Queued (0%)
+        safe_drama_title = "Drama_Series"
+        if self.current_drama:
+            raw_title = self.current_drama.get("title_cn") or self.current_drama.get("title", "Drama")
+            clean_t = re.sub(r'[\\/*?:"<>|\r\n\t《》]', "_", raw_title).strip(". ").strip()
+            safe_drama_title = clean_t or "Hongguo_Drama"
+
+        # Check if target_root is already the drama folder (e.g. D:/SN_Dramas/东北话事人)
+        # to prevent creating duplicate nested folders like D:/SN_Dramas/东北话事人/东北话事人
+        target_name_lower = target_root.name.lower()
+        safe_title_lower = safe_drama_title.lower()
+        if target_name_lower == safe_title_lower or (target_name_lower and target_name_lower in safe_title_lower) or (safe_title_lower and safe_title_lower in target_name_lower):
+            drama_dest_dir = target_root
+        else:
+            drama_dest_dir = target_root / safe_drama_title
+        drama_dest_dir.mkdir(parents=True, exist_ok=True)
+        self.last_download_dir = str(drama_dest_dir).replace("\\", "/")
+
+        # Mark all episodes: verify against authentic file on disk (> 1 MB)
         already_done = 0
         for ep in self.episodes:
-            if ep.get("status") == "Completed" or (ep.get("progress") == 100):
+            ep_n = ep.get("episode_number") or ep.get("episode_num") or 1
+            f_cand = drama_dest_dir / f"EP_{ep_n:02d}.mp4"
+            if f_cand.exists() and f_cand.stat().st_size > 1000000:
                 ep["status"] = "Completed"
                 ep["progress"] = 100
+                ep["filepath"] = str(f_cand.resolve()).replace("\\", "/")
+                ep["video_url"] = f"/media/{ep['filepath']}"
             else:
                 ep["status"] = "Queued"
                 ep["progress"] = 0
+                ep["filepath"] = ""
 
         for ep in selected_eps:
             ep["is_selected"] = True
-            if ep.get("status") == "Completed" or (ep.get("progress") == 100):
+            ep_n = ep.get("episode_number") or ep.get("episode_num") or 1
+            f_cand = drama_dest_dir / f"EP_{ep_n:02d}.mp4"
+            if f_cand.exists() and f_cand.stat().st_size > 1000000:
                 already_done += 1
+                ep["status"] = "Completed"
+                ep["progress"] = 100
+                ep["filepath"] = str(f_cand.resolve()).replace("\\", "/")
+                ep["video_url"] = f"/media/{ep['filepath']}"
             else:
                 ep["status"] = "Queued"
                 ep["progress"] = 0
+                ep["filepath"] = ""
 
         self.stats["total"] = len(selected_eps)
         self.stats["selected"] = len(selected_eps)
@@ -2342,16 +2382,6 @@ class DramaDownloadManager:
         self.stats["locked"] = 0
         self.stats["progress_percent"] = int((already_done / len(selected_eps)) * 100) if selected_eps else 0
 
-        safe_drama_title = "Drama_Series"
-        if self.current_drama:
-            raw_title = self.current_drama.get("title_cn") or self.current_drama.get("title", "Drama")
-            clean_t = re.sub(r'[\\/*?:"<>|\r\n\t《》]', "_", raw_title).strip(". ").strip()
-            safe_drama_title = clean_t or "Hongguo_Drama"
-
-        drama_dest_dir = target_root / safe_drama_title
-        drama_dest_dir.mkdir(parents=True, exist_ok=True)
-        self.last_download_dir = str(drama_dest_dir).replace("\\", "/")
-
         self.add_log(f"⚡ ចាប់ផ្ដើមទាញយកជាកញ្ចប់ម្ដង ៥ ភាគ (Batch 5 Episodes) សម្រាប់ {len(selected_eps)} ភាគ — រលូន មិនគាំងកុំព្យូទ័រ...")
 
         def _run_worker():
@@ -2359,6 +2389,29 @@ class DramaDownloadManager:
             poster_dest = drama_dest_dir / f"{safe_drama_title}_Poster.jpg"
             full_movie_name = f"{safe_drama_title}_Full_Drama_1080p.mp4"
             full_movie_dest = drama_dest_dir / full_movie_name
+
+            # Detect drama platform accurately for worker execution
+            is_reelshort = False
+            is_shortmax = False
+            if self.current_drama:
+                d_pid = str(self.current_drama.get("platform_id") or "").lower()
+                d_id = str(self.current_drama.get("id") or "").lower()
+                is_reelshort = (
+                    d_pid == "reelshort" or 
+                    d_id.startswith("reelshort_") or 
+                    d_id.startswith("rs_") or 
+                    bool(self.current_drama.get("book_id")) or 
+                    (bool(self.current_drama.get("chapter_count")) and bool(self.current_drama.get("slug"))) or
+                    self.current_drama.get("source") == "reelshort" or
+                    bool(reelshort_service.get_reelshort_drama_by_id(self.current_drama.get("book_id") or d_id))
+                )
+                is_shortmax = (
+                    d_pid in ("shortmax", "shorttv") or 
+                    d_id.startswith("shortmax_") or 
+                    d_id.startswith("sm_") or 
+                    bool(self.current_drama.get("shortmax_id")) or 
+                    bool(self.current_drama.get("shorttv_id"))
+                )
 
             # 0. Sanitize destination folder first to remove any leftover fragments or messy files
             clean_stray_download_artifacts(drama_dest_dir)
@@ -2519,6 +2572,7 @@ class DramaDownloadManager:
                             )
                             hongguo_service.standardize_folder(drama_dest_dir)
 
+                            batch_saved = 0
                             for ep_it in selected_eps:
                                 ep_n = ep_it.get("episode_number") or ep_it.get("episode_num") or 1
                                 if ep_n in v_batch and ep_it.get("status") != "Completed":
@@ -2535,6 +2589,10 @@ class DramaDownloadManager:
                                                 self.stats["completed"] += 1
                                                 self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total) * 100) if total > 0 else 100
                                                 self.add_log(f"✔ [EP {ep_n:02d}/{total:02d}] 100% Completed ({sz_mb:.1f} MB, Full HD)")
+                                                batch_saved += 1
+                            if batch_saved == 0 and vb_idx == 0:
+                                self.add_log("⚡ Notice: VIP decryption offline key not available for this series. Switching seamlessly to High-Speed VOD Turbo engine...")
+                                break
                             time.sleep(0.3)
 
                     except Exception as ex:
@@ -3021,7 +3079,7 @@ class DramaDownloadManager:
             # switch to Master Full Drama Stream Mode to guarantee 100% full series download & slicing!
             if effective_master_url and (
                 has_partial_preview or 
-                available_stream_count <= 1 or 
+                (available_stream_count <= 1 and total_needed > 1) or 
                 all_share_same_stream or 
                 any_is_master_full or 
                 cluster_is_single_full
@@ -3105,6 +3163,10 @@ class DramaDownloadManager:
                 with ThreadPoolExecutor(max_workers=max_w) as pool:
                     futs = [pool.submit(download_single_ep, idx, ep, total) for idx, ep in enumerate(pending_eps)]
                     for f in as_completed(futs):
+                        try:
+                            f.result()
+                        except Exception as fut_err:
+                            self.add_log(f"Notice: Batch worker error: {fut_err}")
                         if self.stop_requested:
                             break
 
