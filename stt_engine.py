@@ -3,6 +3,7 @@ Multilingual AI Speech-to-Text (STT) Transcriber for Chinese, Korean, English, a
 Optimized for Asian TV Dramas with Advanced Acoustic Speaker Diarization and Millisecond Lip-Sync Precision
 Strictly Two Authentic Voices: ពិសិដ្ឋ (Piseth - Male Lead) and ស្រីមុំ (Sreymom - Female Lead)
 """
+import sys
 import os
 import re
 import io
@@ -13,6 +14,17 @@ import urllib.request
 import urllib.error
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
+
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 try:
     import numpy as np
@@ -39,6 +51,41 @@ except ImportError:
     FASTER_WHISPER_AVAILABLE = False
 
 
+def get_all_groq_keys() -> List[str]:
+    """Retrieve full active pool of Groq API keys across configs and built-ins."""
+    keys: List[str] = []
+    # 1. Check ai_provider_config.json
+    for cand in [
+        Path("data/ai_provider_config.json"),
+        Path(__file__).resolve().parent / "data" / "ai_provider_config.json",
+        Path.cwd() / "data" / "ai_provider_config.json"
+    ]:
+        if cand.exists():
+            try:
+                with open(cand, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                    k_list = cfg.get("groq_keys") or []
+                    for k in k_list:
+                        if k and str(k).startswith("gsk_") and k not in keys:
+                            keys.append(str(k).strip())
+                    g_single = cfg.get("groq_api_key")
+                    if g_single and str(g_single).startswith("gsk_") and g_single not in keys:
+                        keys.append(str(g_single).strip())
+            except Exception:
+                pass
+            if keys:
+                break
+    # 2. Add BUILTIN_GROQ_KEYS
+    try:
+        from translator import BUILTIN_GROQ_KEYS
+        for k in BUILTIN_GROQ_KEYS:
+            if k and k not in keys:
+                keys.append(k)
+    except Exception:
+        pass
+    return keys
+
+
 def transcribe_with_groq_whisper(audio_path: str, source_lang: str = "auto") -> List[Dict[str, Any]]:
     """
     Ultra-reliable, lightning-fast Groq Cloud Whisper AI engine (whisper-large-v3-turbo).
@@ -47,12 +94,8 @@ def transcribe_with_groq_whisper(audio_path: str, source_lang: str = "auto") -> 
     if not os.path.exists(audio_path):
         return []
 
-    try:
-        from translator import BUILTIN_GROQ_KEYS
-    except Exception:
-        BUILTIN_GROQ_KEYS = []
-
-    if not BUILTIN_GROQ_KEYS:
+    available_keys = get_all_groq_keys()
+    if not available_keys:
         return []
 
     proc_path = audio_path
@@ -123,7 +166,7 @@ def transcribe_with_groq_whisper(audio_path: str, source_lang: str = "auto") -> 
     body.write(f'--{boundary}--\r\n'.encode('utf-8'))
     payload = body.getvalue()
 
-    for key in BUILTIN_GROQ_KEYS[:6]:
+    for key in available_keys[:15]:
         req = urllib.request.Request(
             'https://api.groq.com/openai/v1/audio/transcriptions',
             data=payload,
@@ -393,6 +436,35 @@ def extract_embedded_or_sidecar_subtitles(media_path: str) -> Optional[List[Dict
     return None
 
 
+def get_local_whisper_model_path(model_size: str = "base") -> Optional[str]:
+    """Find bundled local offline Whisper model directory across dev, frozen PyInstaller, and _internal."""
+    candidates = []
+    base = Path(__file__).resolve().parent
+    candidates.append(base / "models" / f"whisper-{model_size}")
+    candidates.append(base / "models" / "whisper-base")
+    candidates.append(base.parent / "models" / f"whisper-{model_size}")
+    candidates.append(base.parent / "models" / "whisper-base")
+    candidates.append(Path.cwd() / "models" / f"whisper-{model_size}")
+    candidates.append(Path.cwd() / "models" / "whisper-base")
+
+    import sys
+    if getattr(sys, 'frozen', False):
+        app_dir = Path(os.path.dirname(sys.executable))
+        candidates.append(app_dir / "models" / f"whisper-{model_size}")
+        candidates.append(app_dir / "models" / "whisper-base")
+        candidates.append(app_dir / "_internal" / "models" / f"whisper-{model_size}")
+        candidates.append(app_dir / "_internal" / "models" / "whisper-base")
+        if hasattr(sys, '_MEIPASS'):
+            meipass = Path(sys._MEIPASS)
+            candidates.append(meipass / "models" / f"whisper-{model_size}")
+            candidates.append(meipass / "models" / "whisper-base")
+
+    for c in candidates:
+        if c.exists() and (c / "model.bin").exists():
+            return str(c)
+    return None
+
+
 class SpeechToTextEngine:
     def __init__(self, model_size: str = "base"):
         self.model_size = model_size
@@ -416,12 +488,16 @@ class SpeechToTextEngine:
             if device == "cpu" and target_model in ("medium", "large", "large-v3"):
                 target_model = "base"
 
+            local_path = get_local_whisper_model_path(self.model_size)
+            model_to_load = local_path or target_model
+
             try:
-                self._model = WhisperModel(target_model, device=device, compute_type=compute_type, cpu_threads=threads)
+                self._model = WhisperModel(model_to_load, device=device, compute_type=compute_type, cpu_threads=threads)
             except Exception as e:
-                print(f"Faster-whisper model load note ({target_model}): {e}")
+                print(f"Faster-whisper model load note ({model_to_load}): {e}")
+                fallback_local = get_local_whisper_model_path("base")
                 try:
-                    self._model = WhisperModel("base", device="cpu", compute_type="int8", cpu_threads=threads)
+                    self._model = WhisperModel(fallback_local or "base", device="cpu", compute_type="int8", cpu_threads=threads)
                 except Exception:
                     try:
                         self._model = WhisperModel("tiny", device="cpu", compute_type="int8", cpu_threads=threads)

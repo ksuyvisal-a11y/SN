@@ -1,6 +1,7 @@
 """
 Video Processing Engine: Video Rendering, Audio Replacement, Subtitle Burning, Aspect Ratio (9:16/16:9), and Watermarking
 """
+import sys
 import os
 import re
 import time
@@ -9,6 +10,17 @@ import tempfile
 import subprocess
 from pathlib import Path
 from typing import Optional, List, Dict, Any, Union
+
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 from audio_processor import get_ffmpeg_path, get_silent_kwargs, get_media_duration
 from translator import format_srt_content
 from subtitle_styler import generate_ass_subtitles
@@ -60,10 +72,11 @@ def format_ass_filter_path(file_path: Union[str, Path]) -> str:
     p = Path(file_path).resolve()
     try:
         rel = p.relative_to(Path.cwd().resolve()).as_posix()
-        return f"ass='{rel}'"
+        esc = rel.replace(":", r"\:").replace("'", r"\'")
+        return f"ass='{esc}'"
     except Exception:
-        esc = p.as_posix().replace(":", r"\:")
-        return f"ass={esc}"
+        esc = p.as_posix().replace(":", r"\:").replace("'", r"\'")
+        return f"ass='{esc}'"
 
 
 def parse_srt_to_dialogues(srt_path: Union[str, Path]) -> List[Dict[str, Any]]:

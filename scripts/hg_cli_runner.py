@@ -17,29 +17,38 @@ sys.stderr.reconfigure(encoding='utf-8')
 def get_hg_dir() -> Path:
     if os.environ.get("HONGGUO_DIR"):
         p = Path(os.environ["HONGGUO_DIR"])
-        if p.exists():
+        if p.exists() and (p / "app").exists():
             return p
-    cand_proj = Path(__file__).resolve().parent.parent / "tools" / "Hongguo Downloader"
-    if cand_proj.exists():
-        return cand_proj
+
+    candidates = [
+        Path(__file__).resolve().parent.parent / "tools" / "Hongguo Downloader",
+        Path(__file__).resolve().parent.parent.parent / "tools" / "Hongguo Downloader",
+        Path.cwd() / "tools" / "Hongguo Downloader",
+    ]
+
     loc_app = os.environ.get("LOCALAPPDATA")
     if loc_app:
-        cand = Path(loc_app) / "Programs" / "Hongguo Downloader"
-        if cand.exists():
-            return cand
+        candidates.append(Path(loc_app) / "Programs" / "Hongguo Downloader")
     user_prof = os.environ.get("USERPROFILE")
     if user_prof:
-        cand = Path(user_prof) / "AppData" / "Local" / "Programs" / "Hongguo Downloader"
-        if cand.exists():
-            return cand
-    for c in [
-        Path(r"C:\Users\TUF\AppData\Local\Programs\Hongguo Downloader"),
+        candidates.append(Path(user_prof) / "AppData" / "Local" / "Programs" / "Hongguo Downloader")
+
+    candidates.extend([
         Path(r"C:\Program Files\Hongguo Downloader"),
+        Path(r"C:\Program Files (x86)\Hongguo Downloader"),
         Path(r"D:\Hongguo Downloader"),
-    ]:
+        Path(r"C:\Hongguo Downloader"),
+    ])
+
+    for c in candidates:
+        if c.exists() and (c / "app").exists():
+            return c
+
+    for c in candidates:
         if c.exists():
             return c
-    return Path(r"C:\Users\TUF\AppData\Local\Programs\Hongguo Downloader")
+
+    return candidates[0]
 
 HG_DIR = get_hg_dir()
 JAVA_EXE = HG_DIR / "jre" / "bin" / "java.exe"

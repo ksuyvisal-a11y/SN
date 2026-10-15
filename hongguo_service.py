@@ -183,6 +183,7 @@ def fetch_series_episodes(series_id: str) -> Optional[Dict[str, Any]]:
         clean_sid
     ]
     env = dict(os.environ)
+    env["HONGGUO_DIR"] = str(get_hg_dir())
     env["PYTHONIOENCODING"] = "utf-8"
     env["PYTHONUTF8"] = "1"
 
@@ -266,6 +267,7 @@ def download_episodes_batch(
     ]
 
     env = dict(os.environ)
+    env["HONGGUO_DIR"] = str(get_hg_dir())
     env["PYTHONIOENCODING"] = "utf-8"
     env["PYTHONUTF8"] = "1"
 

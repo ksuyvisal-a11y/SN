@@ -2,6 +2,7 @@
 Automated Batch & Folder Auto-Dubbing Engine
 Processes entire folders of drama episodes end-to-end with zero manual typing.
 """
+import sys
 import os
 import re
 import shutil
@@ -10,6 +11,17 @@ import threading
 import uuid
 from pathlib import Path
 from typing import List, Dict, Any, Optional
+
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 from pipeline import ProjectManager
 from audio_processor import extract_audio_from_video, get_media_duration
@@ -141,8 +153,19 @@ class BatchDubbingManager:
         asyncio.set_event_loop(loop)
 
         try:
-            # Run up to 4 concurrent episode workers for ultra-fast series completion
-            max_workers = min(4, max(2, (os.cpu_count() or 4)))
+            # Adapt concurrency based on available physical RAM to guarantee stability without OOM freezes
+            try:
+                from stt_engine import get_system_ram_gb
+                total_ram = get_system_ram_gb()
+            except Exception:
+                total_ram = 8.0
+
+            if total_ram >= 24.0:
+                max_workers = 3
+            elif total_ram >= 12.0:
+                max_workers = 2
+            else:
+                max_workers = 1  # 8GB or budget PCs: run 1 episode at a time to prevent CPU freezing and crashes
 
             async def _worker_loop():
                 while True:

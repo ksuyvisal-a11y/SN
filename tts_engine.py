@@ -1,6 +1,7 @@
 """
 Khmer Neural TTS Engine for Piseth and Sreymom voices using Edge-TTS
 """
+import sys
 import os
 import re
 import asyncio
@@ -9,6 +10,18 @@ import subprocess
 import json
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Tuple, Callable
+
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 import edge_tts
 from audio_processor import (
     get_ffmpeg_path,

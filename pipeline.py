@@ -10,6 +10,17 @@ import gc
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 if getattr(sys, 'frozen', False):
     APP_DIR = Path(os.path.dirname(sys.executable))
 else:
