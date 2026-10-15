@@ -32,6 +32,7 @@ a = Analysis(
         (str(ROOT_DIR / 'data' / 'ai_provider_config.json'), 'data'),
         (str(ROOT_DIR / 'data' / 'license_keys_online.json'), 'data'),
         (str(ROOT_DIR / 'data' / 'revoked_keys.json'), 'data'),
+        (str(ROOT_DIR / 'tools' / 'Hongguo Downloader'), 'tools/Hongguo Downloader'),
         (ffmpeg_binaries_dir, 'imageio_ffmpeg/binaries'),
         (faster_whisper_assets, 'faster_whisper/assets'),
         (faster_whisper_dir, 'faster_whisper'),

@@ -20,33 +20,44 @@ def get_hg_dir() -> Path:
         p = Path(os.environ["HONGGUO_DIR"])
         if p.exists():
             return p
-    # Bundled tool path in project
-    cand_proj = Path(__file__).resolve().parent / "tools" / "Hongguo Downloader"
-    if cand_proj.exists():
-        return cand_proj
-    # Current user's LocalAppData
+
+    candidates = []
+
+    # 1. Bundled in current module or workspace directory
+    base = Path(__file__).resolve().parent
+    candidates.append(base / "tools" / "Hongguo Downloader")
+    candidates.append(base.parent / "tools" / "Hongguo Downloader")
+    candidates.append(Path.cwd() / "tools" / "Hongguo Downloader")
+
+    # 2. Frozen PyInstaller environments
+    if getattr(sys, 'frozen', False):
+        app_dir = Path(os.path.dirname(sys.executable))
+        candidates.append(app_dir / "tools" / "Hongguo Downloader")
+        candidates.append(app_dir / "_internal" / "tools" / "Hongguo Downloader")
+        if hasattr(sys, '_MEIPASS'):
+            candidates.append(Path(sys._MEIPASS) / "tools" / "Hongguo Downloader")
+
+    # 3. User appdata & local profile
     loc_app = os.environ.get("LOCALAPPDATA")
     if loc_app:
-        cand = Path(loc_app) / "Programs" / "Hongguo Downloader"
-        if cand.exists():
-            return cand
-    # UserProfile fallback
+        candidates.append(Path(loc_app) / "Programs" / "Hongguo Downloader")
     user_prof = os.environ.get("USERPROFILE")
     if user_prof:
-        cand = Path(user_prof) / "AppData" / "Local" / "Programs" / "Hongguo Downloader"
-        if cand.exists():
-            return cand
-    # Common system locations
-    for c in [
+        candidates.append(Path(user_prof) / "AppData" / "Local" / "Programs" / "Hongguo Downloader")
+
+    # 4. Standard system locations
+    candidates.extend([
         Path(r"C:\Program Files\Hongguo Downloader"),
         Path(r"C:\Program Files (x86)\Hongguo Downloader"),
         Path(r"D:\Hongguo Downloader"),
-    ]:
-        if c.exists():
+        Path(r"C:\Hongguo Downloader")
+    ])
+
+    for c in candidates:
+        if c.exists() and (c / "app").exists():
             return c
-    if loc_app:
-        return Path(loc_app) / "Programs" / "Hongguo Downloader"
-    return Path(r"C:\Program Files\Hongguo Downloader")
+
+    return candidates[0]
 
 
 HG_DIR = get_hg_dir()
@@ -55,7 +66,28 @@ SIGN_DIR = HG_DIR / "app" / "sign"
 APP_DIR = HG_DIR / "app"
 PY_EXE = HG_DIR / "python" / "python.exe"
 
-RUNNER_SCRIPT = Path(__file__).parent / "scripts" / "hg_cli_runner.py"
+
+def resolve_runner_script() -> Path:
+    """Locate hg_cli_runner.py across development, packaged, and runtime locations."""
+    candidates = [
+        Path(__file__).parent / "scripts" / "hg_cli_runner.py",
+        Path(__file__).parent.parent / "scripts" / "hg_cli_runner.py",
+        Path.cwd() / "scripts" / "hg_cli_runner.py"
+    ]
+    if getattr(sys, 'frozen', False):
+        app_dir = Path(os.path.dirname(sys.executable))
+        candidates.append(app_dir / "scripts" / "hg_cli_runner.py")
+        candidates.append(app_dir / "_internal" / "scripts" / "hg_cli_runner.py")
+        if hasattr(sys, '_MEIPASS'):
+            candidates.append(Path(sys._MEIPASS) / "scripts" / "hg_cli_runner.py")
+
+    for c in candidates:
+        if c.exists():
+            return c
+    return Path(__file__).parent / "scripts" / "hg_cli_runner.py"
+
+
+RUNNER_SCRIPT = resolve_runner_script()
 
 
 def is_installed() -> bool:

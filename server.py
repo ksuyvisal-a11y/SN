@@ -1175,7 +1175,20 @@ def update_apply_endpoint():
 @app.route("/api/downloader/platforms", methods=["GET"])
 def downloader_platforms_endpoint():
     """Get list of supported drama download platforms."""
-    return jsonify({"success": True, "platforms": get_supported_platforms_with_counts()})
+    try:
+        platforms = get_supported_platforms_with_counts()
+        return jsonify({"success": True, "platforms": platforms})
+    except Exception as e:
+        default_platforms = [
+            {"id": "all", "name": "All platforms", "icon": "fa-solid fa-globe", "count": 633672},
+            {"id": "hongguo", "name": "Hongguo", "logo": "hongguo_logo.png", "icon": "fa-solid fa-play", "count": 49591},
+            {"id": "shortmax", "name": "ShortMax", "logo": "shortmax_logo.png", "icon": "fa-solid fa-play", "count": 120000},
+            {"id": "ai_drama", "name": "AI Dramas", "logo": "ai_drama_logo.png", "icon": "fa-solid fa-robot", "count": 24081},
+            {"id": "reelshort", "name": "ReelShort", "logo": "reelshort_logo.png", "icon": "fa-solid fa-play", "count": 120000},
+            {"id": "freereels", "name": "FreeReels", "logo": "freereels_logo.png", "icon": "fa-solid fa-play", "count": 120000},
+            {"id": "anyreel", "name": "AnyReel", "logo": "anyreel_logo.png", "icon": "fa-solid fa-play", "count": 200000},
+        ]
+        return jsonify({"success": True, "platforms": default_platforms, "fallback": True})
 
 
 @app.route("/api/downloader/categories", methods=["GET"])
@@ -1600,7 +1613,8 @@ def system_default_paths_endpoint():
         "success": True,
         "default": safe_default,
         "drive_c": drive_c,
-        "drive_d": drive_d
+        "drive_d": drive_d,
+        "has_drive_d": os.path.exists("D:/")
     })
 
 

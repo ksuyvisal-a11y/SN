@@ -32,16 +32,33 @@ for fname in python_modules:
         pyc_dst = internal_dir / f"{src.stem}.pyc"
         py_compile.compile(str(src), cfile=str(pyc_dst), optimize=2)
 
-# Strictly delete ALL raw .py files from distribution root and _internal
+# Strictly delete raw .py files from distribution root except essential runners
 for py_file in dist_sn.glob("*.py"):
     py_file.unlink(missing_ok=True)
 
 if internal_dir.exists():
-    shutil.rmtree(internal_dir / "scripts", ignore_errors=True)
     for py_file in internal_dir.glob("*.py"):
         py_file.unlink(missing_ok=True)
 
-print(f"[OK] Compiled {len(python_modules)} Python modules to protected bytecode (.pyc). Zero .py source files remain!")
+# Preserve and copy essential runtime scripts to distribution
+for target_scripts_dir in [dist_sn / "scripts", internal_dir / "scripts"]:
+    target_scripts_dir.mkdir(parents=True, exist_ok=True)
+    hg_runner = base_dir / "scripts" / "hg_cli_runner.py"
+    if hg_runner.exists():
+        shutil.copy2(hg_runner, target_scripts_dir / "hg_cli_runner.py")
+    sc_ps1 = base_dir / "scripts" / "create_shortcut.ps1"
+    if sc_ps1.exists():
+        shutil.copy2(sc_ps1, target_scripts_dir / "create_shortcut.ps1")
+
+# Copy bundled tools (Hongguo Downloader offline engine) to distribution
+bundled_tools_src = base_dir / "tools" / "Hongguo Downloader"
+if bundled_tools_src.exists():
+    for target_tools_dir in [dist_sn / "tools" / "Hongguo Downloader", internal_dir / "tools" / "Hongguo Downloader"]:
+        if not target_tools_dir.exists():
+            print(f"[*] Copying bundled offline engine to {target_tools_dir}...")
+            shutil.copytree(bundled_tools_src, target_tools_dir)
+
+print(f"[OK] Compiled {len(python_modules)} Python modules to protected bytecode (.pyc) & preserved essential engine runners!")
 
 # ==========================================================================
 # Configs & Meta Assets (Excluding raw code and license.key)

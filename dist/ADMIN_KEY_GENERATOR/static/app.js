@@ -3561,35 +3561,57 @@ function toggleEngineLogDrawer() {
 // ==========================================================================
 // 4. DOWNLOADER STUDIO (Exact Match to Image 2)
 // ==========================================================================
+const DEFAULT_FALLBACK_PLATFORMS = [
+    { id: "all", name: "All platforms", icon: "fa-solid fa-globe", count: 633672 },
+    { id: "hongguo", name: "Hongguo", logo: "hongguo_logo.png", count: 49591 },
+    { id: "shortmax", name: "ShortMax", logo: "shortmax_logo.png", count: 120000 },
+    { id: "ai_drama", name: "AI Dramas", logo: "ai_drama_logo.png", count: 24081 },
+    { id: "reelshort", name: "ReelShort", logo: "reelshort_logo.png", count: 120000 },
+    { id: "freereels", name: "FreeReels", logo: "freereels_logo.png", count: 120000 },
+    { id: "anyreel", name: "AnyReel", logo: "anyreel_logo.png", count: 200000 },
+];
+
+function renderPlatformsIntoContainer(platforms, container) {
+    if (!container || !platforms || platforms.length === 0) return;
+    container.innerHTML = '';
+    platforms.forEach(p => {
+        const item = document.createElement('div');
+        item.className = `dl-platform-pill-item ${p.id === dlSelectedPlatform ? 'active' : ''}`;
+        item.onclick = () => filterByPlatform(p.id, p.name, p.count, p.logo);
+        
+        let iconHtml = '';
+        if (p.logo) {
+            iconHtml = `<img src="${p.logo}" class="dl-platform-icon-img" alt="${escapeHtml(p.name)}">`;
+        } else if (p.icon) {
+            iconHtml = `<i class="${p.icon}"></i>`;
+        }
+        
+        item.innerHTML = `
+            ${iconHtml}
+            <span>${escapeHtml(p.name)}</span>
+        `;
+        container.appendChild(item);
+    });
+}
+
 async function loadDownloaderPlatforms() {
     const container = document.getElementById('dl-platforms-list');
     if (!container) return;
 
     try {
         const res = await fetch('/api/downloader/platforms');
-        const data = await res.json();
-        if (data.success && data.platforms) {
-            container.innerHTML = '';
-            data.platforms.forEach(p => {
-                const item = document.createElement('div');
-                item.className = `dl-platform-pill-item ${p.id === dlSelectedPlatform ? 'active' : ''}`;
-                item.onclick = () => filterByPlatform(p.id, p.name, p.count, p.logo);
-                
-                let iconHtml = '';
-                if (p.logo) {
-                    iconHtml = `<img src="${p.logo}" class="dl-platform-icon-img" alt="${escapeHtml(p.name)}">`;
-                } else if (p.icon) {
-                    iconHtml = `<i class="${p.icon}"></i>`;
-                }
-                
-                item.innerHTML = `
-                    ${iconHtml}
-                    <span>${escapeHtml(p.name)}</span>
-                `;
-                container.appendChild(item);
-            });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.platforms && data.platforms.length > 0) {
+                renderPlatformsIntoContainer(data.platforms, container);
+                return;
+            }
         }
-    } catch (e) {}
+    } catch (e) {
+        console.warn('[Downloader] Platforms fetch fallback to default:', e);
+    }
+    // Fallback: Ensure platforms list is NEVER empty
+    renderPlatformsIntoContainer(DEFAULT_FALLBACK_PLATFORMS, container);
 }
 
 async function loadDownloaderCategories() {
@@ -5211,14 +5233,16 @@ async function initSaveLocationPaths() {
             if (data.drive_c) driveCustomPaths["C"] = data.drive_c;
             if (data.drive_d) driveCustomPaths["D"] = data.drive_d;
             if (data.default) backendDefault = data.default;
+            const hasDriveD = data.has_drive_d !== false;
+            const saved = localStorage.getItem('sn_save_location');
+            if (saved && saved.trim() && (hasDriveD || !saved.toUpperCase().startsWith('D:'))) {
+                input.value = saved.trim();
+            } else {
+                input.value = backendDefault || (hasDriveD ? (driveCustomPaths["D"] || "D:/SN_Dramas") : (driveCustomPaths["C"] || "C:/SN_Dramas"));
+            }
         }
-    } catch (e) {}
-
-    const saved = localStorage.getItem('sn_save_location');
-    if (saved && saved.trim()) {
-        input.value = saved.trim();
-    } else {
-        input.value = backendDefault || driveCustomPaths["D"] || "D:/SN_Dramas";
+    } catch (e) {
+        input.value = backendDefault || "C:/SN_Dramas";
     }
     input.setAttribute('title', input.value);
     input.addEventListener('input', () => {

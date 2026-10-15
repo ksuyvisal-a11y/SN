@@ -16,6 +16,8 @@ data/uploads/
 data/projects/
 data/exports/
 scratch/
+tools/
+dist/**/tools/
 dist/**/cache/
 dist/**/data/
 dist/**/license.key
