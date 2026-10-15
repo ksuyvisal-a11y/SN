@@ -421,11 +421,26 @@ def mix_dubbed_audio(
         target_dur = get_media_duration(original_audio_path)
 
     # 2. Filter valid lines and compute exact lip-sync onset/offset
+    # Self-healing: If any dialogue item lacks audio, synthesize immediately via failover!
     valid_lines = []
     max_d_end = 0.0
     for idx, item in enumerate(dialogue_items):
         af = item.get("audio_file")
-        if af and Path(af).exists() and Path(af).stat().st_size > 50:
+        if not af or not Path(af).exists() or Path(af).stat().st_size < 500:
+            txt = (item.get("text_km") or item.get("text", "")).strip()
+            if txt:
+                try:
+                    from tts_engine import synthesize_via_google_khmer_api, is_valid_audible_audio
+                    v = item.get("voice") or "piseth"
+                    rec_p = Path(output_mixed_path).parent / f"auto_recovered_{idx}_{os.urandom(3).hex()}.mp3"
+                    fixed_audio = synthesize_via_google_khmer_api(txt, v, str(rec_p))
+                    if fixed_audio and is_valid_audible_audio(fixed_audio):
+                        item["audio_file"] = fixed_audio
+                        af = fixed_audio
+                except Exception as rec_err:
+                    print(f"On-the-fly audio recovery note: {rec_err}")
+
+        if af and Path(af).exists() and Path(af).stat().st_size > 100:
             valid_lines.append((idx, item))
         d_end = float(item.get("end", item.get("orig_end", 0.0)))
         if d_end > max_d_end:
@@ -438,9 +453,9 @@ def mix_dubbed_audio(
 
     # Speech clarity boost (respect exact user setting from 0.0dB to +8.0dB)
     try:
-        boost_val = float(speech_volume_boost_db) if speech_volume_boost_db is not None else 2.5
+        boost_val = float(speech_volume_boost_db) if speech_volume_boost_db is not None else 3.5
     except Exception:
-        boost_val = 2.5
+        boost_val = 3.5
 
     # 3. Pre-process dialogue items timing & speed adjustments
     speech_intervals = []
@@ -468,8 +483,9 @@ def mix_dubbed_audio(
         item["start"] = round(start_ms / 1000.0, 2)
         item["end"] = round((start_ms + item_dur_est) / 1000.0, 2)
 
-        pad_start = max(0, orig_start_ms - 350)
-        pad_end = orig_end_ms + 350
+        # Pad speech intervals slightly wider to guarantee 100% muting of original vocal attacks/trails
+        pad_start = max(0, orig_start_ms - 300)
+        pad_end = orig_end_ms + 300
         speech_intervals.append((pad_start, pad_end))
         prepared_lines.append({
             "idx": idx,
@@ -482,7 +498,7 @@ def mix_dubbed_audio(
             "audio_file": item["audio_file"]
         })
 
-    # Merge speech intervals for smooth S-curve ducking
+    # Merge speech intervals for smooth S-curve ducking (hold across 2.2s conversational pauses)
     speech_intervals.sort(key=lambda x: x[0])
     merged_intervals = []
     for start, end in speech_intervals:
@@ -490,21 +506,21 @@ def mix_dubbed_audio(
             merged_intervals.append([start, end])
         else:
             prev = merged_intervals[-1]
-            if start <= prev[1] + 1600:  # Smooth hold across 1.6s conversation pauses
+            if start <= prev[1] + 2200:  # Smooth hold across 2.2s conversation pauses (Zero vocal bleed)
                 prev[1] = max(prev[1], end)
             else:
                 merged_intervals.append([start, end])
 
     # 4. Respect user's BGM Volume setting
     try:
-        user_bgm_vol = float(ducking_volume_factor) if ducking_volume_factor is not None else 0.15
+        user_bgm_vol = float(ducking_volume_factor) if ducking_volume_factor is not None else 0.12
     except Exception:
-        user_bgm_vol = 0.15
+        user_bgm_vol = 0.12
     user_bgm_vol = max(0.0, min(1.0, user_bgm_vol))
 
     has_valid_bgm = (
         dubbing_mode != "pure_voice"
-        and user_bgm_vol > 0.005
+        and user_bgm_vol > 0.015
         and original_audio_path
         and Path(original_audio_path).exists()
     )

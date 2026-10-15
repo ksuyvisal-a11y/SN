@@ -739,16 +739,29 @@ class ProjectManager:
         self.save_project(project)
         gc.collect()
 
-        # Verify that synthesized voices produced audible, non-silent audio files
+        # Verify and recover any synthesized voices to ensure 100% audible, non-silent speech
+        from tts_engine import is_valid_audible_audio, synthesize_via_google_khmer_api
+        recovered_count = 0
+        for idx, d in enumerate(synthesized):
+            af = d.get("audio_file")
+            if not is_valid_audible_audio(af):
+                txt = (d.get("text_km") or d.get("text", "")).strip()
+                v = d.get("voice") or v_override or "piseth"
+                fix_out = voice_out_dir / f"line_recovered_{idx:04d}_{os.urandom(3).hex()}.mp3"
+                new_af = synthesize_via_google_khmer_api(txt, v, str(fix_out))
+                if new_af and is_valid_audible_audio(new_af):
+                    d["audio_file"] = new_af
+                    recovered_count += 1
+
         valid_voices = [
             d for d in synthesized
-            if d.get("audio_file") and Path(d["audio_file"]).exists() and Path(d["audio_file"]).stat().st_size > 1500
+            if is_valid_audible_audio(d.get("audio_file"))
         ]
-        print(f"[OK] TTS Voice Synthesis: {len(valid_voices)} / {len(synthesized)} lines have audible speech audio.")
+        print(f"[OK] TTS Voice Synthesis: {len(valid_voices)} / {len(synthesized)} lines verified with audible speech (recovered {recovered_count}).")
         if len(synthesized) > 0 and len(valid_voices) == 0:
             raise RuntimeError(
-                "Khmer Voice Synthesis (Edge-TTS) failed to generate audible speech for any dialogue lines. "
-                "Edge-TTS មិនអាចទាញយកសំឡេងខ្មែរពីម៉ាស៊ីនបម្រើបានឡើយ។ សូមពិនិត្យមើលការភ្ជាប់អ៊ីនធឺណិត (Internet Connection) នៅលើកុំព្យូទ័ររបស់អ្នក។"
+                "Khmer Voice Synthesis failed to generate audible speech for any dialogue lines. "
+                "ប្រព័ន្ធសំឡេង AI មិនអាចបង្កើតសំឡេងខ្មែរបានឡើយ។ សូមពិនិត្យមើលការភ្ជាប់អ៊ីនធឺណិត (Internet Connection) នៅលើកុំព្យូទ័ររបស់អ្នក។"
             )
 
         # 6. Audio Ducking & Clean BGM Mixing (Zero Vocal Leakage)

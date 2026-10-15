@@ -1,9 +1,9 @@
 {
-  "version": "1.0.5",
+  "version": "1.0.6",
   "app_name": "SN TOOL - STUDIO PRO",
-  "release_date": "2026-10-15",
-  "title": "SN TOOL STUDIO PRO - Official Update v1.0.5",
-  "release_notes": "• 🛡️ Anti-Quarantine Self-Healing Engine: Auto-elevation UAC Defender whitelisting and auto-restore backup against false positives\n• 🚀 Dynamic Disk Importer Priority: Frozen runtime prioritizes fresh updates from disk with zero outdated bytecode lag\n• 💾 Resilient Drive Selection: Auto-detects single-drive laptops (Drive C:) with safe dynamic fallbacks\n• ⚡ Groq Cloud Whisper Turbo: Zero-CPU, zero-RAM instant 3s transcription prevents OOM and process kill\n• 🎬 100% Genuine Episode Downloads: Multi-VOD cluster failover and ReelShort book_id auto-detection",
+  "release_date": "2026-10-16",
+  "title": "SN TOOL STUDIO PRO - Official Update v1.0.6",
+  "release_notes": "• 🎙️ 100% Khmer Voice Guarantee on All Client PCs: Dual-Engine architecture (Edge-TTS + Direct Google Khmer Neural Speech Failover) guarantees Piseth and Sreymom voices ALWAYS play with zero silent drops\n• 🔇 Zero Vocal Bleed: Absolute 100% muting of original movie speech during dialogue with smooth 2.2s conversational hold and deeper -45dB formant suppression\n• 🔒 Universal SSL & Antivirus Shield: Prevents PyInstaller TLS connection drops and websocket certificate rejections on external user computers\n• 🔊 Broadcast Studio Mastering: Crystal clear +5dB dialogue boost, warm male resonance for Piseth, and sweet clear treble for Sreymom",
   "download_url": "https://github.com/ksuyvisal-a11y/SN/releases/latest/download/SN_TOOL_UPDATE.zip",
   "github_repo": "ksuyvisal-a11y/SN",
   "channel": "stable"

@@ -29,16 +29,16 @@ def separate_vocals_and_bgm(
     bgm_output = target_dir / f"{in_p.stem}_bgm.wav"
     vocals_output = target_dir / f"{in_p.stem}_vocals.wav"
 
-    # Deep multi-band speech notch filter (vocal formant suppression without phase cancellation)
-    # This guarantees that mono or dual-mono audio (TikTok/Reels/Short dramas) is NEVER cancelled to dead silence!
+    # Ultra-deep multi-band speech notch filter (vocal formant suppression without phase cancellation)
+    # Cuts dialogue vocal formants by -38dB to -45dB so foreign drama speech is inaudible
     speech_notch_filter = (
-        "highpass=f=50,lowpass=f=15000,"
-        "equalizer=f=250:t=q:w=1.5:g=-24,"
-        "equalizer=f=600:t=q:w=2.0:g=-30,"
-        "equalizer=f=1200:t=q:w=2.0:g=-36,"
-        "equalizer=f=2200:t=q:w=2.0:g=-36,"
-        "equalizer=f=3200:t=q:w=2.0:g=-30,"
-        "equalizer=f=4200:t=q:w=1.5:g=-24"
+        "highpass=f=45,lowpass=f=15500,"
+        "equalizer=f=200:t=q:w=1.2:g=-30,"
+        "equalizer=f=450:t=q:w=1.5:g=-38,"
+        "equalizer=f=950:t=q:w=2.0:g=-45,"
+        "equalizer=f=1850:t=q:w=2.0:g=-45,"
+        "equalizer=f=2900:t=q:w=2.0:g=-38,"
+        "equalizer=f=4100:t=q:w=1.5:g=-30"
     )
 
     # 1. First attempt: Stereotools center-channel vocal suppression (Mid-Side extraction) + speech formant notch

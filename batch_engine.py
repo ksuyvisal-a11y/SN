@@ -297,9 +297,21 @@ class BatchDubbingManager:
             progress_callback=on_batch_tts
         )
 
+        # Verify and recover any synthesized voices to ensure 100% audible speech
+        from tts_engine import is_valid_audible_audio, synthesize_via_google_khmer_api
+        for idx, d in enumerate(synthesized_items):
+            af = d.get("audio_file")
+            if not is_valid_audible_audio(af):
+                txt = (d.get("text_km") or d.get("text", "")).strip()
+                v = d.get("voice") or v_override or "piseth"
+                fix_out = voices_dir / f"line_recovered_{idx:04d}_{os.urandom(3).hex()}.mp3"
+                new_af = synthesize_via_google_khmer_api(txt, v, str(fix_out))
+                if new_af and is_valid_audible_audio(new_af):
+                    d["audio_file"] = new_af
+
         # Mix Audio with BGM volume and Speech Boost from story settings
         mixed_audio = item_dir / "dubbed_mixed.mp3"
-        cfg_duck = 0.15
+        cfg_duck = 0.12
         cfg_boost = 3.5
         try:
             cfg_p = Path("data/story_config.json")
