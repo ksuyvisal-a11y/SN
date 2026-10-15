@@ -1013,7 +1013,30 @@ class DramaTranslator:
         except Exception:
             pass
 
-        # 3. Tertiary: MyMemory Translation API fallback
+        # 3. Tertiary: Groq Cloud AI Instant Fallback (Qwen 3.8 / GPT-OSS with 20 built-in keys)
+        try:
+            active_k = self.get_active_groq_key()
+            if active_k:
+                g_hdrs = {"Authorization": f"Bearer {active_k}", "Content-Type": "application/json"}
+                g_payload = {
+                    "model": "qwen/qwen3.8-27b",
+                    "messages": [
+                        {"role": "system", "content": "You are a professional Cambodian film dubbing translator. Translate the text into natural spoken Khmer drama dialogue. Output only the Khmer translation, no explanation."},
+                        {"role": "user", "content": cleaned}
+                    ],
+                    "max_tokens": 120,
+                    "temperature": 0.2
+                }
+                g_resp = await client.post("https://api.groq.com/openai/v1/chat/completions", headers=g_hdrs, json=g_payload, timeout=6.0)
+                if g_resp.status_code == 200:
+                    km_out = g_resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                    km_out = km_out.strip('"`\'')
+                    if km_out and any('\u1780' <= c <= '\u17ff' for c in km_out):
+                        return self._post_polish_khmer(km_out, cleaned, voice)
+        except Exception:
+            pass
+
+        # 4. Quaternary: MyMemory Translation API fallback
         try:
             import urllib.parse
             mm_sl = "zh" if sl.startswith("zh") else ("en" if sl.startswith("en") else sl)
@@ -1113,7 +1136,7 @@ class DramaTranslator:
 
         client = self.get_http_client()
         chunk_size = 25
-        candidate_models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"]
+        candidate_models = ["qwen/qwen3.8-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b", "allam-2-7b"]
 
         chunks = [dialogues[i:i + chunk_size] for i in range(0, len(dialogues), chunk_size)]
 
@@ -1214,8 +1237,15 @@ Return JSON object with key "dialogues" containing an array with keys: id, start
                     continue
             return None
 
-        # Execute all chunks in parallel for ultra-high speed with Zero-Drop Reconciliation
-        chunk_tasks = [_process_groq_chunk(c) for c in chunks]
+        # Execute chunks with bounded concurrency (Semaphore=4) to prevent burst limits on long 50+ min movies
+        sem = asyncio.Semaphore(4)
+        async def _bounded_process_chunk(c, idx):
+            async with sem:
+                if idx > 0 and idx % 4 == 0:
+                    await asyncio.sleep(0.08)
+                return await _process_groq_chunk(c)
+
+        chunk_tasks = [_bounded_process_chunk(c, idx) for idx, c in enumerate(chunks)]
         results = await asyncio.gather(*chunk_tasks)
         
         translated_map: Dict[int, Dict[str, Any]] = {}

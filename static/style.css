@@ -5482,6 +5482,7 @@ select, option, optgroup {
     gap: 6px;
     letter-spacing: 0.5px;
     box-shadow: 0 0 10px rgba(34, 197, 94, 0.2);
+    transition: all 0.2s ease;
 }
 
 .engine-status-pill.standby {
@@ -5489,6 +5490,19 @@ select, option, optgroup {
     border: 1px solid rgba(148, 163, 184, 0.25);
     color: #94a3b8;
     box-shadow: none;
+}
+
+.engine-status-pill.error {
+    background: rgba(239, 68, 68, 0.18);
+    border: 1px solid rgba(239, 68, 68, 0.55);
+    color: #fca5a5;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.35);
+    animation: errPillGlow 1.8s infinite alternate;
+}
+
+@keyframes errPillGlow {
+    from { box-shadow: 0 0 8px rgba(239, 68, 68, 0.2); }
+    to { box-shadow: 0 0 16px rgba(239, 68, 68, 0.5); }
 }
 
 /* Professional Hardware Status LED Indicator */
@@ -5504,12 +5518,12 @@ select, option, optgroup {
 
 .pulse-indicator.active {
     background: #22c55e;
-    box-shadow: 0 0 4px rgba(34, 197, 94, 0.8);
+    box-shadow: 0 0 6px rgba(34, 197, 94, 0.9);
 }
 
 .pulse-indicator.busy {
     background: #f59e0b;
-    box-shadow: 0 0 4px rgba(245, 158, 11, 0.8);
+    box-shadow: 0 0 6px rgba(245, 158, 11, 0.9);
 }
 
 .pulse-indicator.standby {
@@ -5517,10 +5531,110 @@ select, option, optgroup {
     box-shadow: none;
 }
 
+.pulse-indicator.error {
+    background: #ef4444;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.95);
+    animation: redPulseDot 1s infinite alternate;
+}
+
+@keyframes redPulseDot {
+    from { opacity: 0.6; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1.2); }
+}
+
+/* Issue / Error Counter Badge in Console Header */
+.terminal-diag-pill {
+    background: rgba(239, 68, 68, 0.18);
+    border: 1px solid rgba(239, 68, 68, 0.5);
+    color: #fca5a5;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 0.64rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    animation: diagPillPulse 2s infinite;
+    transition: all 0.2s ease;
+}
+
+.terminal-diag-pill:hover {
+    background: rgba(239, 68, 68, 0.35);
+    border-color: #ef4444;
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+}
+
+@keyframes diagPillPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+    50% { box-shadow: 0 0 8px 2px rgba(239, 68, 68, 0.3); }
+}
+
+/* Center Filter Pills Group */
+.terminal-center-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.38);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 9999px;
+    padding: 2px 4px;
+}
+
+.term-filter-pill {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    border-radius: 9999px;
+    padding: 2px 8px;
+    font-size: 0.65rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.16s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.term-filter-pill:hover {
+    color: #f1f5f9;
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.term-filter-pill.active {
+    background: rgba(250, 204, 21, 0.2);
+    color: #facc15;
+    box-shadow: 0 0 6px rgba(250, 204, 21, 0.2);
+}
+
+.term-filter-pill.pill-err.has-items {
+    color: #f87171;
+}
+
+.term-filter-pill.pill-err.active {
+    background: rgba(239, 68, 68, 0.25);
+    color: #fca5a5;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.3);
+}
+
+.term-filter-pill.pill-warn.has-items {
+    color: #fbbf24;
+}
+
+.term-filter-pill.pill-warn.active {
+    background: rgba(245, 158, 11, 0.25);
+    color: #fde68a;
+    box-shadow: 0 0 6px rgba(245, 158, 11, 0.3);
+}
+
 .terminal-top-right-group {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .terminal-progress-badge-wrap {
@@ -5545,6 +5659,29 @@ select, option, optgroup {
     border: 1px solid rgba(250, 204, 21, 0.22);
     border-radius: 9999px;
     padding: 1.5px 8px;
+}
+
+.terminal-diag-action-btn {
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    color: #38bdf8;
+    border-radius: 9999px;
+    padding: 3px 10px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.18s ease;
+}
+
+.terminal-diag-action-btn:hover {
+    border-color: #38bdf8;
+    color: #0b0f19;
+    background: #38bdf8;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 10px rgba(56, 189, 248, 0.35);
 }
 
 .terminal-copy-action-btn {
@@ -5592,6 +5729,36 @@ select, option, optgroup {
     transform: translateY(-1px);
 }
 
+/* Floating Auto-Scroll Resume Badge */
+.terminal-scroll-bottom-pill {
+    position: absolute;
+    bottom: 14px;
+    right: 22px;
+    z-index: 25;
+    background: rgba(15, 23, 42, 0.94);
+    border: 1px solid rgba(250, 204, 21, 0.45);
+    color: #facc15;
+    border-radius: 9999px;
+    padding: 4px 14px;
+    font-size: 0.68rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.6);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    backdrop-filter: blur(8px);
+    transition: all 0.2s ease;
+}
+
+.terminal-scroll-bottom-pill:hover {
+    background: #facc15;
+    color: #0b0f19;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(250, 204, 21, 0.35);
+}
+
 /* Studio Live Activity Console Stream - Fully UNLOCKED for Text Selection & Copying */
 .studio-live-terminal-stream,
 .studio-live-terminal-stream * {
@@ -5618,9 +5785,14 @@ select, option, optgroup {
     box-shadow: inset 0 2px 14px rgba(0, 0, 0, 0.9);
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 4px;
     min-height: 0;
     cursor: text;
+}
+
+.studio-engine-monitor-box.has-errors {
+    border-color: rgba(239, 68, 68, 0.45);
+    box-shadow: 0 8px 30px rgba(239, 68, 68, 0.18);
 }
 
 .studio-live-terminal-stream ::selection {
@@ -5650,6 +5822,11 @@ select, option, optgroup {
     align-items: flex-start;
     gap: 8px;
     word-break: break-word;
+    transition: opacity 0.15s ease;
+}
+
+.term-stream-row.hidden-by-filter {
+    display: none !important;
 }
 
 .term-ts {
@@ -5689,10 +5866,135 @@ select, option, optgroup {
     padding-left: 6px;
 }
 
+.term-stream-row.term-warning,
+.term-stream-row.term-warn {
+    color: #fde68a;
+    background: rgba(245, 158, 11, 0.08);
+    border-left: 3px solid #f59e0b;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.term-stream-row.term-warning .term-tag,
+.term-stream-row.term-warn .term-tag {
+    color: #0b0f19;
+    background: #f59e0b;
+    border-color: #fbbf24;
+}
+
+/* Rich Pro Diagnostic Error Card in Terminal Stream */
 .term-stream-row.term-error {
-    color: #f87171;
-    border-left: 2px solid #ef4444;
-    padding-left: 6px;
+    color: #fca5a5;
+    background: rgba(239, 68, 68, 0.09);
+    border-left: 3px solid #ef4444;
+    padding: 6px 10px;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 3px 0;
+    border-top: 1px solid rgba(239, 68, 68, 0.15);
+    border-right: 1px solid rgba(239, 68, 68, 0.15);
+    border-bottom: 1px solid rgba(239, 68, 68, 0.15);
+    box-shadow: 0 2px 12px rgba(239, 68, 68, 0.12);
+}
+
+.term-error-header-line {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+}
+
+.term-stream-row.term-error .term-tag {
+    color: #ffffff;
+    background: #ef4444;
+    border-color: #f87171;
+    font-weight: 700;
+}
+
+.term-error-msg-main {
+    color: #fee2e2;
+    font-weight: 700;
+    flex: 1;
+}
+
+.term-error-suggestion-box {
+    font-size: 0.70rem;
+    color: #fde047;
+    background: rgba(0, 0, 0, 0.45);
+    border-left: 2px solid #eab308;
+    padding: 4px 10px;
+    border-radius: 4px;
+    margin-top: 2px;
+    line-height: 1.45;
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.term-error-suggestion-box i {
+    color: #eab308;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.term-error-details-wrap {
+    margin-top: 3px;
+    padding-top: 3px;
+    border-top: 1px dashed rgba(239, 68, 68, 0.2);
+}
+
+.term-error-details-wrap details {
+    font-size: 0.67rem;
+    color: #94a3b8;
+}
+
+.term-error-details-wrap summary {
+    cursor: pointer;
+    user-select: none;
+    color: #38bdf8;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.term-error-details-wrap summary:hover {
+    color: #7dd3fc;
+    text-decoration: underline;
+}
+
+.term-error-details-wrap pre {
+    background: #090c15;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    padding: 6px 8px;
+    margin-top: 4px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 130px;
+    overflow-y: auto;
+    color: #e2e8f0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.66rem;
+}
+
+.term-copy-single-err-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #94a3b8;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 0.63rem;
+    cursor: pointer;
+    margin-left: 8px;
+    transition: all 0.15s ease;
+}
+
+.term-copy-single-err-btn:hover {
+    color: #f1f5f9;
+    background: rgba(255, 255, 255, 0.15);
 }
 
 /* Bottom App Footer Bar */

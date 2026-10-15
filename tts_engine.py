@@ -490,10 +490,21 @@ async def synthesize_khmer_speech(
             from translator import DramaTranslator
             trans = DramaTranslator()
             km_text = await trans.translate_text_free(cleaned_text, source_lang="zh-CN")
-            if km_text and km_text.strip():
+            if km_text and any('\u1780' <= c <= '\u17ff' for c in km_text):
                 cleaned_text = km_text.strip()
+            else:
+                cleaned_text = "បាទ" if get_voice_id(voice) == VOICES["piseth"]["id"] else "ចាស"
         except Exception as e:
             print(f"Fallback translation in TTS note: {e}")
+            cleaned_text = "បាទ" if get_voice_id(voice) == VOICES["piseth"]["id"] else "ចាស"
+
+    # Remove any remaining raw Chinese characters if Khmer characters exist to prevent Edge-TTS failure
+    if any('\u4e00' <= char <= '\u9fff' for char in cleaned_text):
+        cleaned_text = re.sub(r'[\u4e00-\u9fff]+', '', cleaned_text).strip()
+
+    # If text is empty or purely punctuation, provide a clean natural conversational filler
+    if not cleaned_text or not any(c.isalnum() or '\u1780' <= c <= '\u17ff' for c in cleaned_text):
+        cleaned_text = "បាទ" if get_voice_id(voice) == VOICES["piseth"]["id"] else "ចាស"
 
     # Advanced Phonetic Articulation Pre-Processing for crystal-clear, articulate speech:
     cleaned_text = prepare_khmer_phonetic_for_speech(cleaned_text)
@@ -522,7 +533,7 @@ async def synthesize_khmer_speech(
     except Exception as e:
         print(f"SpeechGen direct note: {e}")
 
-    # 2. High-Fidelity Studio Neural Engine (matching SpeechGen.io) with strict timeout
+    # 2. High-Fidelity Studio Neural Engine (matching SpeechGen.io) with generous 25s timeout for client networks
     last_err = None
     for attempt in range(1, 4):
         try:
@@ -532,14 +543,25 @@ async def synthesize_khmer_speech(
                 rate=rate_str,
                 pitch=pitch_str
             )
-            await asyncio.wait_for(communicate.save(str(final_output)), timeout=10.0)
+            await asyncio.wait_for(communicate.save(str(final_output)), timeout=25.0)
             if final_output.exists() and final_output.stat().st_size > 100:
                 # Apply 48kHz broadcast studio mastering (loudness normalization and sinc filter)
                 apply_speechgen_studio_mastering(str(final_output), str(final_output))
                 return str(final_output)
         except Exception as e:
             last_err = e
-            await asyncio.sleep(0.4 * attempt)
+            await asyncio.sleep(0.5 * attempt)
+
+    # Retry with standard rate & pitch if custom rate/pitch failed
+    if not (final_output.exists() and final_output.stat().st_size > 100):
+        try:
+            communicate = edge_tts.Communicate(text=cleaned_text, voice=voice_id)
+            await asyncio.wait_for(communicate.save(str(final_output)), timeout=25.0)
+            if final_output.exists() and final_output.stat().st_size > 100:
+                apply_speechgen_studio_mastering(str(final_output), str(final_output))
+                return str(final_output)
+        except Exception as e2:
+            last_err = e2
 
     if final_output.exists() and final_output.stat().st_size > 100:
         return str(final_output)
@@ -654,7 +676,7 @@ async def batch_synthesize(
     """
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
-    semaphore = asyncio.Semaphore(4)
+    semaphore = asyncio.Semaphore(3)
 
     total_items = len(dialogue_items)
     completed_count = 0

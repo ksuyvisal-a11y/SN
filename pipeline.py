@@ -6,6 +6,7 @@ import sys
 import json
 import uuid
 import asyncio
+import gc
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
@@ -570,6 +571,7 @@ class ProjectManager:
         project["aspect_ratio"] = aspect_ratio
         project["burn_subtitles"] = burn_subtitles
         self.save_project(project)
+        gc.collect()
 
         # 2. Vocal Separation (Isolate BGM, Eliminate Chinese Vocals)
         update_prog(28, "2/7 Separating original vocals from BGM...", "Separating vocals from BGM...")
@@ -583,6 +585,7 @@ class ProjectManager:
             print(f"Vocal separation warning: {e}")
             project["isolated_bgm_file"] = str(audio_dest)
         self.save_project(project)
+        gc.collect()
 
         # Resolve Voice Mode (Piseth Solo, Sreymom Solo, or Dual Multi-Voice)
         cfg_data = {}
@@ -642,32 +645,61 @@ class ProjectManager:
                 print(f"STT Fallback Exception: {e2}")
 
         if not dialogues:
-            print("Warning: No speech segments were detected by the STT engine for this audio.")
+            raise RuntimeError(
+                "Speech Recognition (STT) could not detect any audible speech in the uploaded video. "
+                "ប្រព័ន្ធ AI មិនអាចចាប់សំឡេងនិយាយនៅក្នុងវីដេអូបានទេ។ សូមពិនិត្យមើលថាវីដេអូដែលបានទម្លាក់ចូលមានសំឡេងនិយាយច្បាស់លាស់។"
+            )
 
         project["dialogues"] = dialogues
         self.save_project(project)
+        gc.collect()
 
         # 4. Translate to Khmer Drama Dialogue (Strictly honors Piseth, Sreymom, or Dual Voice)
         update_prog(62, f"4/7 AI translating script ({voice_label})...", f"Translating script to {voice_label}...")
-        translated = await self.translator.translate_dialogues(
-            dialogues=dialogues,
-            mode=mode,
-            source_lang=source_lang,
-            target_voice_override=v_override,
-            drama_title=proj_title
-        )
+        try:
+            translated = await self.translator.translate_dialogues(
+                dialogues=dialogues,
+                mode=mode,
+                source_lang=source_lang,
+                target_voice_override=v_override,
+                drama_title=proj_title
+            )
+        except Exception as te:
+            print(f"Translation Exception: {te}")
+            raise RuntimeError(f"AI Translation failed: {te}") from te
+
+        if dialogues and not translated:
+            print("Notice: Translation engine returned empty dialogues. Retrying with fallback...")
+            try:
+                translated = await self.translator.translate_dialogues(
+                    dialogues=dialogues,
+                    mode=mode,
+                    source_lang=source_lang,
+                    target_voice_override=v_override
+                )
+            except Exception as te2:
+                print(f"Translation Fallback Exception: {te2}")
+
+        if not translated or len(translated) == 0:
+            raise RuntimeError(
+                "AI Script Translation returned 0 dialogues. "
+                "ការបកប្រែស្គ្រីបមិនទទួលបានជោគជ័យទេ។ សូមពិនិត្យមើលការភ្ជាប់ទៅកាន់ប្រព័ន្ធ AI។"
+            )
+
         if not is_multi:
             chosen_v = "sreymom" if v_override == "sreymom" else "piseth"
             v_desc = "Sreymom (Female Solo)" if chosen_v == "sreymom" else "Piseth (Male Solo)"
-            for d in translated:
+            for d in (translated or []):
                 d["voice"] = chosen_v
                 d["pitch_hz"] = 0
                 d["rate_percent"] = 0
                 d["speaker"] = v_desc
 
-        project["dialogues"] = translated
+        project["dialogues"] = translated or []
         self.save_project(project)
-        update_prog(68, f"4/7 Translation completed! Preparing voice synthesis ({voice_label})...", "Translation completed! Preparing voice synthesis...", dialogues=translated)
+        gc.collect()
+        trans_count = len(translated) if translated else 0
+        update_prog(68, f"4/7 Translation completed ({trans_count} lines)! Preparing voice synthesis ({voice_label})...", f"Translation completed ({trans_count} lines)!", dialogues=translated)
 
         # 5. Neural Khmer Voice Synthesis
         voice_out_dir = proj_dir / "voices"
@@ -694,6 +726,19 @@ class ProjectManager:
         )
         project["dialogues"] = synthesized
         self.save_project(project)
+        gc.collect()
+
+        # Verify that synthesized voices produced audible, non-silent audio files
+        valid_voices = [
+            d for d in synthesized
+            if d.get("audio_file") and Path(d["audio_file"]).exists() and Path(d["audio_file"]).stat().st_size > 1500
+        ]
+        print(f"[OK] TTS Voice Synthesis: {len(valid_voices)} / {len(synthesized)} lines have audible speech audio.")
+        if len(synthesized) > 0 and len(valid_voices) == 0:
+            raise RuntimeError(
+                "Khmer Voice Synthesis (Edge-TTS) failed to generate audible speech for any dialogue lines. "
+                "Edge-TTS មិនអាចទាញយកសំឡេងខ្មែរពីម៉ាស៊ីនបម្រើបានឡើយ។ សូមពិនិត្យមើលការភ្ជាប់អ៊ីនធឺណិត (Internet Connection) នៅលើកុំព្យូទ័ររបស់អ្នក។"
+            )
 
         # 6. Audio Ducking & Clean BGM Mixing (Zero Vocal Leakage)
         update_prog(88, "6/7 Mixing dubbed voice with BGM (Zero Vocal Leakage)...", "Mixing dubbed audio with clean BGM...")
@@ -716,6 +761,7 @@ class ProjectManager:
         project["mixed_audio_file"] = str(mixed_audio)
         project["waveform"] = create_waveform_data(str(mixed_audio))
         self.save_project(project)
+        gc.collect()
 
         # 7. Render Final Video
         update_prog(95, "7/7 Rendering final dubbed MP4 video...", "Rendering final dubbed video...")
@@ -725,6 +771,7 @@ class ProjectManager:
             aspect_ratio=aspect_ratio,
             overlay_config=overlay_config
         )
+        gc.collect()
 
         update_prog(100, "🎉 100% Complete! Dubbed video saved successfully!", "Completed! Video ready.")
         return rendered_project

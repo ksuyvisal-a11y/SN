@@ -1077,7 +1077,7 @@ def license_status_endpoint():
         from update import get_local_version
         info["app_version"] = get_local_version()
     except Exception:
-        info["app_version"] = "1.0.3"
+        info["app_version"] = "1.0.4"
 
     cfg_path = get_data_file("license_config.json")
     if cfg_path.exists():
@@ -2738,6 +2738,72 @@ def auto_dub_video_endpoint():
         else:
             voice_override = cfg.get("khmer_voice", "multi")
 
+def diagnose_pipeline_error(error_msg: str, tb_str: str = "") -> dict:
+    combined = (str(error_msg) + " " + str(tb_str)).lower()
+    
+    # 1. GPU / CUDA Out of Memory
+    if any(k in combined for k in ["cuda out of memory", "out of memory", "cuda error", "allocator"]):
+        return {
+            "category": "GPU / Memory Limit",
+            "tag": "[GPU Out of Memory]",
+            "suggestion_km": "ខ្វះ VRAM/Memory ក្រាហ្វិក។ សូមបិទកម្មវិធីផ្សេង ឬប្ដូរទៅដំណើរការលើ CPU វិញ។",
+            "suggestion_en": "VRAM exhausted. Close background 3D/video apps or switch to CPU mode in settings."
+        }
+    
+    # 2. Network / Edge TTS Connection / Timeout
+    if any(k in combined for k in ["nodename nor servname", "getaddrinfo failed", "connection refused", "connection reset", "timed out", "timeout", "network is unreachable", "ssl", "edge_tts", "connecterror"]):
+        return {
+            "category": "Network & Cloud TTS Connection",
+            "tag": "[Network / TTS Error]",
+            "suggestion_km": "ដាច់ការតភ្ជាប់អ៊ីនធឺណិត ឬសេវាសំឡេង AI TTS។ សូមពិនិត្យមើល Internet / Wi-Fi របស់អ្នក។",
+            "suggestion_en": "Cloud TTS / Network connection failed. Please check your internet connection or Wi-Fi."
+        }
+        
+    # 3. FFmpeg / Codec / Corrupt Video
+    if any(k in combined for k in ["moov atom not found", "invalid data found", "unsupported codec", "ffmpeg", "encoder", "muxer"]):
+        return {
+            "category": "FFmpeg / Media Codec",
+            "tag": "[FFmpeg / Video Codec]",
+            "suggestion_km": "វីដេអូខូចទម្រង់ ឬកូដិកមិនគាំទ្រ។ សូមបម្លែងវីដេអូទៅជា MP4 (H.264 / AAC) រួចសាកល្បងម្ដងទៀត។",
+            "suggestion_en": "Video file appears damaged or uses an unsupported codec. Try re-encoding to MP4 (H.264)."
+        }
+        
+    # 4. Whisper / Speech Recognition
+    if any(k in combined for k in ["whisper", "faster_whisper", "ctranslate2", "speech-to-text", "transcribe"]):
+        return {
+            "category": "Speech Recognition (STT)",
+            "tag": "[Whisper STT Error]",
+            "suggestion_km": "កំហុសក្នុងការស្ដាប់និងបម្លែងសំឡេង (STT)។ សូមពិនិត្យមើលថាតើវីដេអូមានសំឡេងនិយាយច្បាស់លាស់ដែរឬទេ។",
+            "suggestion_en": "Speech-to-text recognition encountered an error. Check if the audio track has spoken dialogue."
+        }
+
+    # 5. AI Script Translation (Gemini, Groq, Translation Engine)
+    if any(k in combined for k in ["translat", "gemini", "groq", "dialogue", "script", "jsondecodeerror"]):
+        return {
+            "category": "AI Script Translation",
+            "tag": "[AI Translation Error]",
+            "suggestion_km": "កំហុសក្នុងម៉ាស៊ីនបកប្រែអត្ថបទ (AI Translation)។ សូមពិនិត្យមើល API Key (Gemini/Groq), Quota Limit, ឬការតភ្ជាប់អ៊ីនធឺណិត។",
+            "suggestion_en": "AI Translation engine error. Verify Gemini/Groq API keys, quota limits, or network connectivity."
+        }
+        
+    # 5. File / Storage / Disk Space
+    if any(k in combined for k in ["no space left on device", "disk full", "permission denied", "filenotfounderror", "file not found"]):
+        return {
+            "category": "Storage / File Access",
+            "tag": "[Storage / Disk Error]",
+            "suggestion_km": "ទំហំផ្ទុក (Drive D/C) ពេញ ឬគ្មានសិទ្ធិបើកឯកសារ។ សូមពិនិត្យមើលទំហំថាសរឹងរបស់អ្នក។",
+            "suggestion_en": "Disk is full or file permission denied. Please verify free storage on Drive D:/C: and try again."
+        }
+        
+    # 6. General Pipeline
+    return {
+        "category": "Pipeline Execution",
+        "tag": "[Pipeline Error]",
+        "suggestion_km": "ដំណើរការត្រូវបានរំខាន។ សូមពិនិត្យមើលព័ត៌មានលម្អិតនៃកំហុសខាងក្រោម ឬសាកល្បងម្ដងទៀត។",
+        "suggestion_en": "Process was interrupted. Please review error details below or retry with a different video file."
+    }
+
+
     if not saved_video_path or not Path(saved_video_path).exists():
         return jsonify({"success": False, "error": "No valid video file uploaded or provided."}), 400
 
@@ -2750,15 +2816,25 @@ def auto_dub_video_endpoint():
         "step_km": "Initializing pipeline...",
         "step_en": "Initializing pipeline...",
         "project": None,
-        "error": None
+        "error": None,
+        "error_type": None,
+        "error_stage": "Stage 1/7: Initializing",
+        "error_details": None,
+        "error_suggestion": None,
+        "error_category": None,
+        "error_tag": None
     }
 
     def _worker(t_id: str, v_path: str, m: str, sl: str, vo: str, ar: str, bs: bool, oc: dict, p_title: str = None):
+        current_stage = "1/7 Audio Extraction"
         def _prog_cb(pct: int, km: str, en: str, dialogues: list = None):
+            nonlocal current_stage
             if t_id in video_auto_tasks:
+                current_stage = en or km or current_stage
                 video_auto_tasks[t_id]["progress"] = pct
                 video_auto_tasks[t_id]["step_km"] = km
                 video_auto_tasks[t_id]["step_en"] = en
+                video_auto_tasks[t_id]["error_stage"] = current_stage
                 if dialogues is not None:
                     video_auto_tasks[t_id]["dialogues"] = dialogues
 
@@ -2795,12 +2871,23 @@ def auto_dub_video_endpoint():
                 if res_proj and res_proj.get("dialogues"):
                     video_auto_tasks[t_id]["dialogues"] = res_proj.get("dialogues")
         except Exception as e:
-            print(f"Auto dubbing worker error: {e}")
+            import traceback
+            tb_str = traceback.format_exc()
+            print(f"Auto dubbing worker error at stage [{current_stage}]: {e}\n{tb_str}")
+            diag = diagnose_pipeline_error(str(e), tb_str)
             if t_id in video_auto_tasks:
+                err_msg = str(e) or type(e).__name__
+                sugg_text = f"{diag.get('suggestion_km')} • {diag.get('suggestion_en')}"
                 video_auto_tasks[t_id]["status"] = "failed"
-                video_auto_tasks[t_id]["error"] = str(e)
-                video_auto_tasks[t_id]["step_km"] = f"Error: {str(e)}"
-                video_auto_tasks[t_id]["step_en"] = f"Error: {str(e)}"
+                video_auto_tasks[t_id]["error"] = err_msg
+                video_auto_tasks[t_id]["error_type"] = type(e).__name__
+                video_auto_tasks[t_id]["error_stage"] = current_stage
+                video_auto_tasks[t_id]["error_details"] = tb_str
+                video_auto_tasks[t_id]["error_suggestion"] = sugg_text
+                video_auto_tasks[t_id]["error_category"] = diag.get("category")
+                video_auto_tasks[t_id]["error_tag"] = diag.get("tag")
+                video_auto_tasks[t_id]["step_km"] = f"Error at {current_stage}: {err_msg}"
+                video_auto_tasks[t_id]["step_en"] = f"Error at {current_stage}: {err_msg}"
 
     threading.Thread(
         target=_worker,
@@ -2834,6 +2921,12 @@ def auto_dub_status_endpoint(task_id):
         "step_km": task.get("step_km", ""),
         "step_en": task.get("step_en", ""),
         "error": task.get("error"),
+        "error_type": task.get("error_type"),
+        "error_stage": task.get("error_stage"),
+        "error_details": task.get("error_details"),
+        "error_suggestion": task.get("error_suggestion"),
+        "error_category": task.get("error_category"),
+        "error_tag": task.get("error_tag"),
         "dialogues": dialogues or []
     }
     if task.get("status") == "completed" and task.get("project"):

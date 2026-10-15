@@ -83,7 +83,7 @@
             <div class="splash-brand-hero">
                 <div class="splash-title-row">
                     <h1 class="splash-title-text">SN TOOL</h1>
-                    <span class="splash-edition-chip" id="splash-version-tag">v1.0.3</span>
+                    <span class="splash-edition-chip" id="splash-version-tag">v1.0.4</span>
                 </div>
                 <div class="splash-subtitle-text">Khmer AI Drama Voice Translator & Movie Recap Studio</div>
 
@@ -1068,27 +1068,54 @@
                                 <span class="engine-status-pill standby" id="monitor-engine-status-pill">
                                     <span class="pulse-indicator standby" id="monitor-pulse-dot"></span> <span id="monitor-engine-status-text">STANDBY</span>
                                 </span>
+                                <!-- Dynamic Error & Issue Badge (shown when errors/warnings are caught) -->
+                                <span class="terminal-diag-pill" id="terminal-diag-pill" style="display:none;" onclick="setTerminalFilter('error')" title="Click to view error diagnostic cards">
+                                    <i class="fa-solid fa-triangle-exclamation"></i> <span id="terminal-error-count">0</span> Issue(s)
+                                </span>
                             </div>
+
+                            <!-- Filter & Diagnostic Quick Controls (Hidden per User request) -->
+                            <div class="terminal-center-filter-group" id="terminal-filter-group" style="display:none;">
+                                <button type="button" class="term-filter-pill active" id="term-filter-all" onclick="setTerminalFilter('all')" title="Show all log streams">All</button>
+                                <button type="button" class="term-filter-pill pill-err" id="term-filter-error" onclick="setTerminalFilter('error')" title="Filter to error issues only">
+                                    <i class="fa-solid fa-circle-xmark"></i> Errors (<span id="term-err-badge">0</span>)
+                                </button>
+                                <button type="button" class="term-filter-pill pill-warn" id="term-filter-warn" onclick="setTerminalFilter('warning')" title="Filter to warning alerts">
+                                    <i class="fa-solid fa-triangle-exclamation"></i> Warn (<span id="term-warn-badge">0</span>)
+                                </button>
+                                <button type="button" class="term-filter-pill pill-dub" id="term-filter-dub" onclick="setTerminalFilter('dub')" title="Filter to dubbing translation lines">
+                                    <i class="fa-solid fa-language"></i> Dubs
+                                </button>
+                            </div>
+
                             <div class="terminal-top-right-group">
-                                <div class="terminal-progress-badge-wrap">
+                                <div class="terminal-progress-badge-wrap" style="display:none;">
                                     <span class="terminal-prog-lbl">Progress:</span>
                                     <span class="terminal-prog-val" id="monitor-export-percent">0%</span>
                                 </div>
-                                <button type="button" class="terminal-copy-action-btn" id="btn-copy-terminal-logs" onclick="copyLiveTerminalLogs()" title="Copy all console output to clipboard (ចម្លងទិន្នន័យ Console ទាំងអស់)">
+                                <button type="button" class="terminal-diag-action-btn" id="btn-export-terminal-diag" style="display:none;" onclick="exportDiagnosticReport()" title="Export complete system diagnostics, errors & log history to clipboard (របាយការណ៍វិភាគកំហុស)">
+                                    <i class="fa-solid fa-stethoscope"></i> Diag
+                                </button>
+                                <button type="button" class="terminal-copy-action-btn" id="btn-copy-terminal-logs" style="display:none;" onclick="copyLiveTerminalLogs()" title="Copy all console output to clipboard (ចម្លងទិន្នន័យ Console ទាំងអស់)">
                                     <i class="fa-solid fa-copy"></i> Copy Logs
                                 </button>
-                                <button type="button" class="terminal-clear-action-btn" onclick="clearLiveTerminal()" title="Clear Live Output">
+                                <button type="button" class="terminal-clear-action-btn" onclick="clearLiveTerminal()" title="Clear Live Output and reset diagnostics">
                                     <i class="fa-solid fa-trash-can"></i> Clear
                                 </button>
                             </div>
                         </div>
 
-                        <!-- Live Console Terminal Screen (Exact Match to User Image 2) -->
+                        <!-- Auto-Scroll Resume Floating Badge -->
+                        <div class="terminal-scroll-bottom-pill" id="terminal-scroll-bottom-pill" style="display:none;" onclick="scrollTerminalToBottom(true)">
+                            <i class="fa-solid fa-arrow-down"></i> Auto-Scroll Paused • Click to jump to latest
+                        </div>
+
+                        <!-- Live Console Terminal Screen (Exact Match to User Image 2 with Pro Diagnostics) -->
                         <div class="studio-live-terminal-stream" id="studio-live-terminal-stream">
                             <div class="term-stream-row term-init">
                                 <span class="term-ts">[Ready]</span>
                                 <span class="term-tag">[SN Studio]</span>
-                                <span class="term-msg">System initialized and ready. Import a video and click <strong style="color:#facc15;">Export</strong> to start dubbing.</span>
+                                <span class="term-msg">System initialized and ready. Import a video and click <strong style="color:#facc15;">Export</strong> to start dubbing. Diagnostic error monitoring active.</span>
                             </div>
                         </div>
                     </div>
@@ -1623,11 +1650,11 @@
                 <div class="modal-inner-body" style="padding:18px; display:flex; flex-direction:column; gap:12px;">
                     <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.03); padding:10px 14px; border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
                         <div style="font-size:0.8rem; color:#94a3b8;">Current Version:</div>
-                        <div id="update-curr-ver" style="font-size:0.82rem; font-weight:700; color:#e2e8f0;">v1.0.3</div>
+                        <div id="update-curr-ver" style="font-size:0.82rem; font-weight:700; color:#e2e8f0;">v1.0.4</div>
                     </div>
                     <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(250,204,21,0.08); padding:10px 14px; border-radius:8px; border:1px solid rgba(250,204,21,0.25);">
                         <div style="font-size:0.8rem; color:#facc15; font-weight:600;">Latest Version Available:</div>
-                        <div id="update-latest-ver" style="font-size:0.88rem; font-weight:800; color:#4ade80;">v1.0.3</div>
+                        <div id="update-latest-ver" style="font-size:0.88rem; font-weight:800; color:#4ade80;">v1.0.4</div>
                     </div>
                     <div>
                         <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">What&#39;s New / Release Notes:</div>
@@ -2583,7 +2610,7 @@
                     <div class="license-gate-footer">
                         <div class="license-gate-footer-badge">
                             <i class="fa-solid fa-shield-halved" style="color:#facc15;"></i>
-                            <span id="gate-security-version">SN TOOL Security Engine • v1.0.3</span>
+                            <span id="gate-security-version">SN TOOL Security Engine • v1.0.4</span>
                         </div>
                     </div>
                 </div>

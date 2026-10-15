@@ -165,7 +165,7 @@ def render_dubbed_video(
             "-shortest",
             str(out_p)
         ]
-        fast_proc = subprocess.run(fast_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60, **get_silent_kwargs())
+        fast_proc = subprocess.run(fast_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=600, **get_silent_kwargs())
         if fast_proc.returncode == 0 and out_p.exists() and out_p.stat().st_size > 5000:
             try:
                 import shutil
@@ -528,8 +528,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         "-filter_complex", full_filter_complex,
         "-map", current_v,
         "-map", "1:a:0",
+        "-threads", str(min(4, os.cpu_count() or 2)),
         "-c:v", "libx264",
         "-preset", "veryfast",
+        "-tune", "fastdecode",
+        "-max_muxing_queue_size", "1024",
         "-crf", "22",
         "-pix_fmt", "yuv420p",
         "-c:a", "aac",
@@ -540,7 +543,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         str(out_p)
     ])
 
+    import gc
+    gc.collect()
+
     proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", timeout=7200, **get_silent_kwargs())
+    gc.collect()
+
     if proc.returncode != 0:
         err_msg = proc.stderr or ""
         try:
@@ -558,8 +566,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             "-i", str(original_video_path),
             "-i", str(mixed_audio_path),
             "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",
+            "-threads", str(min(4, os.cpu_count() or 2)),
             "-c:v", "libx264",
             "-preset", "veryfast",
+            "-tune", "fastdecode",
+            "-max_muxing_queue_size", "1024",
             "-crf", "22",
             "-pix_fmt", "yuv420p",
             "-c:a", "aac",
@@ -572,6 +583,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             str(out_p)
         ]
         subprocess.run(fallback_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=7200, **get_silent_kwargs())
+        gc.collect()
 
     # Always ensure a copy exists in data/exports for easy user access!
     try:

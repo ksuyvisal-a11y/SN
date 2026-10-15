@@ -2246,6 +2246,21 @@ function toggleAutoSwitch(checked) {
     showToast(checked ? "Auto Processing Mode: ON" : "Auto Processing Mode: OFF");
 }
 
+// ==========================================================================
+// STUDIO PROCESSING & ACTIVITY CONSOLE - ADVANCED DIAGNOSTICS & ERROR ENGINE
+// ==========================================================================
+const StudioDiagnostics = {
+    errors: [],
+    warnings: [],
+    logs: [],
+    activeFilter: 'all', // 'all', 'error', 'warning', 'dub'
+    errorCount: 0,
+    warnCount: 0,
+    isAutoScrollPaused: false,
+    maxBuffer: 600,
+    initialized: false
+};
+
 function getFormattedTerminalTime() {
     const now = new Date();
     const h = String(now.getHours()).padStart(2, '0');
@@ -2254,54 +2269,491 @@ function getFormattedTerminalTime() {
     return `[${h}:${m}:${s}]`;
 }
 
-function appendLiveTerminalLine(message, tag = "[Video 1/1]", type = "info") {
+function initStudioDiagnosticsListeners() {
+    if (StudioDiagnostics.initialized) return;
+    StudioDiagnostics.initialized = true;
+
+    // 1. Auto-scroll watcher: pause auto-scroll if user scrolls up to review logs/errors
+    const stream = document.getElementById('studio-live-terminal-stream');
+    const scrollPill = document.getElementById('terminal-scroll-bottom-pill');
+    if (stream) {
+        stream.addEventListener('scroll', () => {
+            const distanceFromBottom = stream.scrollHeight - stream.scrollTop - stream.clientHeight;
+            if (distanceFromBottom > 45) {
+                StudioDiagnostics.isAutoScrollPaused = true;
+                if (scrollPill) scrollPill.style.display = 'inline-flex';
+            } else {
+                StudioDiagnostics.isAutoScrollPaused = false;
+                if (scrollPill) scrollPill.style.display = 'none';
+            }
+        });
+    }
+
+    // 2. Global Uncaught JavaScript Exception Catcher
+    window.addEventListener('error', (event) => {
+        try {
+            const msg = event.message || "Uncaught JavaScript error";
+            const file = event.filename ? event.filename.split('/').pop() : "script";
+            const loc = `${file}:${event.lineno || 0}`;
+            const details = event.error && event.error.stack ? event.error.stack : `Source: ${event.filename} line ${event.lineno}:${event.colno}`;
+            logStudioError("JS Runtime", `${msg} (${loc})`, {
+                details: details,
+                error: event.error,
+                type: "ClientError"
+            }, "A client-side script exception was intercepted. UI remains stable.");
+        } catch (_) {}
+    });
+
+    // 3. Global Unhandled Promise Rejection Catcher (e.g. failed fetches, network drops)
+    window.addEventListener('unhandledrejection', (event) => {
+        try {
+            const reason = event.reason;
+            const msg = (reason && reason.message) ? reason.message : String(reason || "Unhandled Promise Rejection");
+            const details = (reason && reason.stack) ? reason.stack : String(reason);
+            logStudioError("Async Promise", msg, {
+                details: details,
+                reason: reason,
+                type: "UnhandledRejection"
+            }, "An asynchronous request failed or was interrupted. Check network or server connection.");
+        } catch (_) {}
+    });
+
+    // 4. Media Player Error Catcher
+    const mainVideo = document.getElementById('main-video');
+    if (mainVideo) {
+        mainVideo.addEventListener('error', () => {
+            const err = mainVideo.error;
+            let codeMsg = "Unknown Media Error";
+            if (err) {
+                switch (err.code) {
+                    case 1: codeMsg = "MEDIA_ERR_ABORTED (Loading aborted)"; break;
+                    case 2: codeMsg = "MEDIA_ERR_NETWORK (Network error downloading video)"; break;
+                    case 3: codeMsg = "MEDIA_ERR_DECODE (Video decoding failed or codec unsupported)"; break;
+                    case 4: codeMsg = "MEDIA_ERR_SRC_NOT_SUPPORTED (Video format not supported or file missing)"; break;
+                }
+            }
+            logStudioError("Video Player", `Preview playback error: ${codeMsg}`, {
+                details: `Video Src: ${mainVideo.src}\nError Code: ${err ? err.code : 'None'}`
+            }, "Ensure the video file is encoded in standard MP4 (H.264/AAC).");
+        });
+    }
+}
+
+function autoDiagnoseClientMessage(msg) {
+    const lower = String(msg || "").toLowerCase();
+    if (lower.includes("cuda out of memory") || lower.includes("out of memory")) {
+        return "VRAM/GPU memory full. Close heavy background apps or switch to CPU mode.";
+    }
+    if (lower.includes("getaddrinfo") || lower.includes("timeout") || lower.includes("network") || lower.includes("edge_tts") || lower.includes("fetch")) {
+        return "ដាច់ការតភ្ជាប់អ៊ីនធឺណិត ឬសេវា TTS។ សូមពិនិត្យមើល Internet / Wi-Fi។ (Network or Cloud TTS service issue).";
+    }
+    if (lower.includes("ffmpeg") || lower.includes("codec") || lower.includes("moov atom")) {
+        return "វីដេអូខូចទម្រង់ ឬកូដិកមិនគាំទ្រ។ សូមបម្លែងទៅជា MP4 H.264។ (Unsupported video codec or broken file).";
+    }
+    if (lower.includes("whisper") || lower.includes("stt")) {
+        return "កំហុសក្នុងការស្ដាប់សំឡេង (STT)។ សូមពិនិត្យសំឡេងក្នុងវីដេអូ។ (Speech recognition error).";
+    }
+    if (lower.includes("translat") || lower.includes("gemini") || lower.includes("groq") || lower.includes("quota")) {
+        return "កំហុសក្នុងម៉ាស៊ីនបកប្រែ (AI Translation Error)។ សូមពិនិត្យមើល API Key (Gemini/Groq) ឬអ៊ីនធឺណិត។ (Translation API error or quota limit reached).";
+    }
+    if (lower.includes("disk full") || lower.includes("permission denied")) {
+        return "ទំហំផ្ទុក Disk ពេញ ឬគ្មានសិទ្ធិ។ សូមពិនិត្យទំហំថាសរឹង។ (Disk full or file permission denied).";
+    }
+    return null;
+}
+
+function appendLiveTerminalLine(message, tag = "[Video 1/1]", type = "info", meta = null) {
     const stream = document.getElementById('studio-live-terminal-stream');
     if (!stream) return;
 
-    const row = document.createElement('div');
-    row.className = `term-stream-row term-${type}`;
-
-    const tsSpan = document.createElement('span');
-    tsSpan.className = 'term-ts';
-    tsSpan.textContent = getFormattedTerminalTime();
-
-    const tagSpan = document.createElement('span');
-    tagSpan.className = 'term-tag';
-    tagSpan.textContent = tag;
-
-    const msgSpan = document.createElement('span');
-    msgSpan.className = 'term-msg';
-
-    if (type === "dub" && message.includes(" ➜ ")) {
-        const parts = message.split(" ➜ ");
-        msgSpan.innerHTML = `${escapeHtml(parts[0])} <span style="color:#facc15; font-weight:bold;">➜</span> <span style="color:#38bdf8;">${escapeHtml(parts[1])}</span>`;
-    } else {
-        msgSpan.textContent = message;
+    if (!StudioDiagnostics.initialized) {
+        initStudioDiagnosticsListeners();
     }
 
-    row.appendChild(tsSpan);
-    row.appendChild(tagSpan);
-    row.appendChild(msgSpan);
+    // Normalize types
+    let normType = type;
+    if (normType === "warn") normType = "warning";
+    if (normType === "err") normType = "error";
+
+    const timeStr = getFormattedTerminalTime();
+
+    // Track Diagnostic Stats
+    if (normType === "error") {
+        StudioDiagnostics.errorCount++;
+        StudioDiagnostics.errors.push({
+            time: timeStr,
+            tag: tag,
+            message: message,
+            meta: meta
+        });
+
+        // Update badge in top bar
+        const errCountElem = document.getElementById('terminal-error-count');
+        const errBadgeElem = document.getElementById('term-err-badge');
+        const diagPill = document.getElementById('terminal-diag-pill');
+        const termBox = document.getElementById('studio-terminal-box');
+        const pillBtn = document.getElementById('term-filter-error');
+
+        if (errCountElem) errCountElem.textContent = StudioDiagnostics.errorCount;
+        if (errBadgeElem) errBadgeElem.textContent = StudioDiagnostics.errorCount;
+        if (diagPill) diagPill.style.display = 'inline-flex';
+        if (termBox) termBox.classList.add('has-errors');
+        if (pillBtn) pillBtn.classList.add('has-items');
+
+        // Turn status pill to ERROR DETECTED if currently idle/standby
+        const statText = document.getElementById('monitor-engine-status-text');
+        const statPill = document.getElementById('monitor-engine-status-pill');
+        const statDot = document.getElementById('monitor-pulse-dot');
+        if (statText && (statText.textContent.includes('STANDBY') || statText.textContent.includes('READY'))) {
+            statText.textContent = `ERROR DETECTED (${StudioDiagnostics.errorCount})`;
+            if (statPill) statPill.className = 'engine-status-pill error';
+            if (statDot) statDot.className = 'pulse-indicator error';
+        }
+
+    } else if (normType === "warning") {
+        StudioDiagnostics.warnCount++;
+        StudioDiagnostics.warnings.push({
+            time: timeStr,
+            tag: tag,
+            message: message,
+            meta: meta
+        });
+        const warnBadgeElem = document.getElementById('term-warn-badge');
+        const warnBtn = document.getElementById('term-filter-warn');
+        if (warnBadgeElem) warnBadgeElem.textContent = StudioDiagnostics.warnCount;
+        if (warnBtn) warnBtn.classList.add('has-items');
+    }
+
+    // Keep log history
+    StudioDiagnostics.logs.push({
+        time: timeStr,
+        tag: tag,
+        message: message,
+        type: normType,
+        meta: meta
+    });
+    if (StudioDiagnostics.logs.length > 1000) {
+        StudioDiagnostics.logs.shift();
+    }
+
+    // Create Row Element
+    const row = document.createElement('div');
+    row.className = `term-stream-row term-${normType}`;
+    row.setAttribute('data-type', normType);
+
+    if (normType === "error") {
+        // High-end Error Card structure
+        const headerLine = document.createElement('div');
+        headerLine.className = 'term-error-header-line';
+
+        const tsSpan = document.createElement('span');
+        tsSpan.className = 'term-ts';
+        tsSpan.textContent = timeStr;
+
+        const tagSpan = document.createElement('span');
+        tagSpan.className = 'term-tag';
+        tagSpan.textContent = tag || "[ERROR]";
+
+        const msgSpan = document.createElement('span');
+        msgSpan.className = 'term-error-msg-main';
+        msgSpan.innerHTML = `<i class="fa-solid fa-circle-xmark" style="color:#ef4444; margin-right:4px;"></i> ${escapeHtml(message)}`;
+
+        headerLine.appendChild(tsSpan);
+        headerLine.appendChild(tagSpan);
+        headerLine.appendChild(msgSpan);
+        row.appendChild(headerLine);
+
+        // Actionable Suggestion Box
+        const suggestion = (meta && meta.suggestion) ? meta.suggestion : autoDiagnoseClientMessage(message);
+        if (suggestion) {
+            const suggBox = document.createElement('div');
+            suggBox.className = 'term-error-suggestion-box';
+            suggBox.innerHTML = `<i class="fa-solid fa-lightbulb"></i> <span><strong>Solution:</strong> ${escapeHtml(suggestion)}</span>`;
+            row.appendChild(suggBox);
+        }
+
+        // Expandable Details / Trace if available
+        const detailsText = meta && (meta.details || meta.stack || (meta.error && meta.error.stack));
+        if (detailsText) {
+            const detailsWrap = document.createElement('div');
+            detailsWrap.className = 'term-error-details-wrap';
+            detailsWrap.innerHTML = `
+                <details>
+                    <summary>
+                        <i class="fa-solid fa-code"></i> Technical Details / Trace ▼
+                        <button type="button" class="term-copy-single-err-btn" onclick="copySingleDiagnosticError(event, this)">Copy Trace</button>
+                    </summary>
+                    <pre>${escapeHtml(String(detailsText).trim())}</pre>
+                </details>
+            `;
+            row.appendChild(detailsWrap);
+        }
+
+    } else {
+        // Standard Terminal Line (Info, Success, Dub, Warning)
+        const tsSpan = document.createElement('span');
+        tsSpan.className = 'term-ts';
+        tsSpan.textContent = timeStr;
+
+        const tagSpan = document.createElement('span');
+        tagSpan.className = 'term-tag';
+        tagSpan.textContent = tag;
+
+        const msgSpan = document.createElement('span');
+        msgSpan.className = 'term-msg';
+
+        if (normType === "dub" && message.includes(" ➜ ")) {
+            const parts = message.split(" ➜ ");
+            msgSpan.innerHTML = `${escapeHtml(parts[0])} <span style="color:#facc15; font-weight:bold;">➜</span> <span style="color:#38bdf8;">${escapeHtml(parts[1])}</span>`;
+        } else if (normType === "warning") {
+            msgSpan.innerHTML = `<i class="fa-solid fa-triangle-exclamation" style="color:#f59e0b; margin-right:4px;"></i> ${escapeHtml(message)}`;
+        } else {
+            msgSpan.textContent = message;
+        }
+
+        row.appendChild(tsSpan);
+        row.appendChild(tagSpan);
+        row.appendChild(msgSpan);
+    }
+
+    // Apply Filter visibility
+    if (StudioDiagnostics.activeFilter !== 'all') {
+        const matchesFilter = (
+            (StudioDiagnostics.activeFilter === 'error' && normType === 'error') ||
+            (StudioDiagnostics.activeFilter === 'warning' && (normType === 'warning' || normType === 'warn')) ||
+            (StudioDiagnostics.activeFilter === 'dub' && normType === 'dub')
+        );
+        if (!matchesFilter) {
+            row.classList.add('hidden-by-filter');
+        }
+    }
 
     stream.appendChild(row);
 
-    // Keep terminal buffer clean (max 500 rows)
-    while (stream.children.length > 500) {
+    // Keep terminal buffer clean (max rows)
+    while (stream.children.length > StudioDiagnostics.maxBuffer) {
         stream.removeChild(stream.firstChild);
     }
 
-    // Auto-scroll so newest output line is visible
-    stream.scrollTop = stream.scrollHeight;
+    // Auto-scroll if user hasn't scrolled up
+    if (!StudioDiagnostics.isAutoScrollPaused) {
+        stream.scrollTop = stream.scrollHeight;
+    }
+}
+
+function logStudioError(stage, message, errorObj = null, suggestion = null) {
+    let details = "";
+    if (errorObj) {
+        if (typeof errorObj === "string") {
+            details = errorObj;
+        } else if (errorObj.details) {
+            details = errorObj.details;
+        } else if (errorObj.stack) {
+            details = errorObj.stack;
+        } else if (errorObj.error) {
+            details = String(errorObj.error);
+        } else {
+            try { details = JSON.stringify(errorObj, null, 2); } catch (_) { details = String(errorObj); }
+        }
+    }
+    const tag = `[${stage || "Studio Error"}]`;
+    appendLiveTerminalLine(message, tag, "error", {
+        stage: stage,
+        suggestion: suggestion,
+        details: details,
+        error: errorObj
+    });
+}
+
+function logStudioWarning(stage, message, suggestion = null) {
+    const tag = `[${stage || "Notice"}]`;
+    appendLiveTerminalLine(message, tag, "warning", {
+        stage: stage,
+        suggestion: suggestion
+    });
+}
+
+function setTerminalFilter(filterType) {
+    StudioDiagnostics.activeFilter = filterType;
+
+    // Update filter pill UI
+    document.querySelectorAll('.term-filter-pill').forEach(btn => btn.classList.remove('active'));
+    const activeBtn = document.getElementById(`term-filter-${filterType === 'warning' ? 'warn' : filterType}`);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    const stream = document.getElementById('studio-live-terminal-stream');
+    if (!stream) return;
+
+    const rows = stream.querySelectorAll('.term-stream-row');
+    rows.forEach(r => {
+        if (filterType === 'all') {
+            r.classList.remove('hidden-by-filter');
+        } else if (filterType === 'error') {
+            if (r.classList.contains('term-error')) {
+                r.classList.remove('hidden-by-filter');
+            } else {
+                r.classList.add('hidden-by-filter');
+            }
+        } else if (filterType === 'warning') {
+            if (r.classList.contains('term-warning') || r.classList.contains('term-warn')) {
+                r.classList.remove('hidden-by-filter');
+            } else {
+                r.classList.add('hidden-by-filter');
+            }
+        } else if (filterType === 'dub') {
+            if (r.classList.contains('term-dub')) {
+                r.classList.remove('hidden-by-filter');
+            } else {
+                r.classList.add('hidden-by-filter');
+            }
+        }
+    });
+
+    scrollTerminalToBottom(false);
+}
+
+function scrollTerminalToBottom(force = true) {
+    const stream = document.getElementById('studio-live-terminal-stream');
+    const scrollPill = document.getElementById('terminal-scroll-bottom-pill');
+    StudioDiagnostics.isAutoScrollPaused = false;
+    if (scrollPill) scrollPill.style.display = 'none';
+    if (stream) {
+        stream.scrollTop = stream.scrollHeight;
+    }
+}
+
+async function copySingleDiagnosticError(event, btn) {
+    if (event) event.stopPropagation();
+    const detailsWrap = btn ? btn.closest('.term-error-details-wrap') : null;
+    const pre = detailsWrap ? detailsWrap.querySelector('pre') : null;
+    const text = pre ? pre.textContent : "";
+    if (!text) return;
+
+    try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+        }
+        btn.textContent = "Copied! ✓";
+        setTimeout(() => { if (btn) btn.textContent = "Copy Trace"; }, 1800);
+        showToast("Error diagnostic trace copied to clipboard! ✓");
+    } catch (e) {
+        showToast("Copied error trace!");
+    }
+}
+
+async function exportDiagnosticReport() {
+    const stream = document.getElementById('studio-live-terminal-stream');
+    const logs = [];
+    if (stream) {
+        const rows = stream.querySelectorAll('.term-stream-row');
+        rows.forEach(r => {
+            const t = r.innerText || r.textContent || "";
+            if (t.trim()) logs.push(t.trim());
+        });
+    }
+
+    const reportLines = [
+        "================================================================================",
+        "SN STUDIO - SYSTEM DIAGNOSTIC & ERROR ANALYSIS REPORT",
+        "================================================================================",
+        `Timestamp: ${new Date().toISOString()} (${new Date().toLocaleString()})`,
+        `Client OS / Agent: ${navigator.userAgent || "Unknown"}`,
+        `Display Resolution: ${window.innerWidth}x${window.innerHeight} (DPR: ${window.devicePixelRatio || 1})`,
+        `Active Task ID: ${activeDubbingTaskId || "None (Idle)"}`,
+        `Current Story Preset: ${currentStudioPreset || "drama"}`,
+        `Staged Media: ${stagedVideoFile ? (getMediaFileName(stagedVideoFile) || "Video Loaded") : "None"}`,
+        `Total Errors Caught: ${StudioDiagnostics.errorCount}`,
+        `Total Warnings Caught: ${StudioDiagnostics.warnCount}`,
+        "--------------------------------------------------------------------------------",
+        "CAUGHT ERRORS & STACK TRACES:",
+        "--------------------------------------------------------------------------------"
+    ];
+
+    if (StudioDiagnostics.errors.length === 0) {
+        reportLines.push("No fatal errors recorded in current session. System running normally.");
+    } else {
+        StudioDiagnostics.errors.forEach((err, idx) => {
+            reportLines.push(`[Error #${idx + 1}] ${err.time} ${err.tag}: ${err.message}`);
+            if (err.meta && err.meta.suggestion) {
+                reportLines.push(`  Suggested Fix: ${err.meta.suggestion}`);
+            }
+            if (err.meta && err.meta.details) {
+                reportLines.push(`  Trace Details:\n${err.meta.details}`);
+            }
+            reportLines.push("");
+        });
+    }
+
+    reportLines.push("--------------------------------------------------------------------------------");
+    reportLines.push("RECENT CONSOLE ACTIVITY (LAST 60 LINES):");
+    reportLines.push("--------------------------------------------------------------------------------");
+    const recentLogs = logs.slice(-60);
+    if (recentLogs.length === 0) {
+        reportLines.push("Console log buffer is empty.");
+    } else {
+        recentLogs.forEach(l => reportLines.push(l));
+    }
+    reportLines.push("================================================================================");
+
+    const fullReport = reportLines.join('\n');
+    try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(fullReport);
+        } else {
+            const ta = document.createElement('textarea');
+            ta.value = fullReport;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            ta.remove();
+        }
+        showToast("Copied Complete Diagnostic & Error Report to clipboard! ✓");
+    } catch (err) {
+        showToast("Diagnostic report generated and copied!");
+    }
 }
 
 function clearLiveTerminal() {
     const stream = document.getElementById('studio-live-terminal-stream');
+    StudioDiagnostics.errorCount = 0;
+    StudioDiagnostics.warnCount = 0;
+    StudioDiagnostics.errors = [];
+    StudioDiagnostics.warnings = [];
+    StudioDiagnostics.logs = [];
+    StudioDiagnostics.isAutoScrollPaused = false;
+    StudioDiagnostics.activeFilter = 'all';
+
+    const errCountElem = document.getElementById('terminal-error-count');
+    const errBadgeElem = document.getElementById('term-err-badge');
+    const warnBadgeElem = document.getElementById('term-warn-badge');
+    const diagPill = document.getElementById('terminal-diag-pill');
+    const scrollPill = document.getElementById('terminal-scroll-bottom-pill');
+    const termBox = document.getElementById('studio-terminal-box');
+
+    if (errCountElem) errCountElem.textContent = '0';
+    if (errBadgeElem) errBadgeElem.textContent = '0';
+    if (warnBadgeElem) warnBadgeElem.textContent = '0';
+    if (diagPill) diagPill.style.display = 'none';
+    if (scrollPill) scrollPill.style.display = 'none';
+    if (termBox) termBox.classList.remove('has-errors');
+
+    document.querySelectorAll('.term-filter-pill').forEach(btn => {
+        btn.classList.remove('active');
+        btn.classList.remove('has-items');
+    });
+    const allBtn = document.getElementById('term-filter-all');
+    if (allBtn) allBtn.classList.add('active');
+
+    resetEngineMonitorToStandby();
+
     if (stream) {
         stream.innerHTML = `
             <div class="term-stream-row term-init">
                 <span class="term-ts">[Ready]</span>
                 <span class="term-tag">[SN Studio]</span>
-                <span class="term-msg">Log cleared. System ready. Import video and click <strong style="color:#facc15;">Export</strong> to run dubbing.</span>
+                <span class="term-msg">Log cleared. Diagnostics reset. Import video and click <strong style="color:#facc15;">Export</strong> to run dubbing.</span>
             </div>
         `;
     }
@@ -9296,6 +9748,8 @@ async function startAutoDubbingPipeline(file, customTitle = null) {
                             const kmText = d.text_km || d.translated_text || d.khmer_text || d.text || "";
                             if (kmText && kmText !== zhText) {
                                 appendLiveTerminalLine(`[Line ${lineNum}] "${zhText}" ➜ "${kmText}" (${vName})`, "[ZH ➜ KM]", "dub");
+                            } else if (zhText) {
+                                appendLiveTerminalLine(`[Line ${lineNum}] Translation notice: preserved original "${zhText}"`, "[Translation Notice]", "warning");
                             }
                         }
                     });
@@ -9318,7 +9772,11 @@ async function startAutoDubbingPipeline(file, customTitle = null) {
                                 const vName = (d.voice === 'sreymom' || d.voice === 'female') ? 'Sreymom (Female)' : 'Piseth (Male)';
                                 const zhText = d.text || "(Original)";
                                 const kmText = d.translated_text || d.khmer_text || "(Dubbed)";
-                                appendLiveTerminalLine(`[Line ${lineNum}] ZH: "${zhText}" ➜ KM: "${kmText}" (${vName})`, "[ZH ➜ KM]", "dub");
+                                if (kmText && kmText !== zhText) {
+                                    appendLiveTerminalLine(`[Line ${lineNum}] ZH: "${zhText}" ➜ KM: "${kmText}" (${vName})`, "[ZH ➜ KM]", "dub");
+                                } else if (zhText) {
+                                    appendLiveTerminalLine(`[Line ${lineNum}] Translation notice: preserved original "${zhText}"`, "[Translation Notice]", "warning");
+                                }
                             }
                         });
                     }
@@ -9360,9 +9818,26 @@ async function startAutoDubbingPipeline(file, customTitle = null) {
                     clearInterval(activeDubbingPollTimer);
                     activeDubbingPollTimer = null;
                     activeDubbingTaskId = null;
-                    showToast(`Error: ${sData.error || 'Dubbing failed'}`);
-                    appendLiveTerminalLine(`Dubbing error: ${sData.error}`, "[Video 1/1]", "error");
-                    resetEngineMonitorToStandby();
+
+                    const errTitle = sData.error || "Dubbing process interrupted";
+                    const errStage = sData.error_stage || "Step Processing";
+                    const errTag = sData.error_tag || `[${errStage}]`;
+                    const errSugg = sData.error_suggestion || "Please check media file or connection and try again.";
+
+                    logStudioError(errStage, `Pipeline Failure: ${errTitle}`, {
+                        details: sData.error_details || `Task ID: ${activeDubbingTaskId}\nStatus: failed\nError: ${errTitle}`,
+                        type: sData.error_type || "PipelineError",
+                        category: sData.error_category
+                    }, errSugg);
+
+                    showToast(`Dubbing failed: ${errTitle}`);
+
+                    const pill = document.getElementById('monitor-engine-status-pill');
+                    const dot = document.getElementById('monitor-pulse-dot');
+                    const text = document.getElementById('monitor-engine-status-text');
+                    if (pill) pill.className = 'engine-status-pill error';
+                    if (dot) dot.className = 'pulse-indicator error';
+                    if (text) text.textContent = `FAILED AT ${errStage.toUpperCase()}`;
                 }
             } catch (err) {
                 console.warn("Poll error:", err);
@@ -9375,9 +9850,14 @@ async function startAutoDubbingPipeline(file, customTitle = null) {
             clearInterval(activeDubbingPollTimer);
             activeDubbingPollTimer = null;
         }
-        showToast("Failed to upload video");
-        appendLiveTerminalLine(`Network upload failed: ${e.message}`, "[Error]", "error");
-        resetEngineMonitorToStandby();
+        logStudioError("Upload & Connect", `Network upload failed: ${e.message}`, e, "Check your local server connection or verify that the video file is accessible.");
+        showToast(`Failed to upload video: ${e.message}`);
+        const pill = document.getElementById('monitor-engine-status-pill');
+        const dot = document.getElementById('monitor-pulse-dot');
+        const text = document.getElementById('monitor-engine-status-text');
+        if (pill) pill.className = 'engine-status-pill error';
+        if (dot) dot.className = 'pulse-indicator error';
+        if (text) text.textContent = 'UPLOAD FAILED';
     }
 }
 
@@ -9580,13 +10060,13 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
             }
             const data = await res.json();
             if (!data.success || !data.task_id) {
-                appendLiveTerminalLine(`Episode ${epNum} skipped: ${data.error || 'Upload error'}`, `[Ep ${epNum}/${totalBatchCount}]`, "error");
+                logStudioError(`Ep ${epNum}/${totalBatchCount}`, `Episode ${epNum} upload rejected: ${data.error || 'Server error'}`, data.error, "Check file integrity or server status.");
                 continue;
             }
             taskId = data.task_id;
             activeDubbingTaskId = taskId;
         } catch (uploadErr) {
-            appendLiveTerminalLine(`Episode ${epNum} network error: ${uploadErr.message}`, `[Ep ${epNum}/${totalBatchCount}]`, "error");
+            logStudioError(`Ep ${epNum}/${totalBatchCount}`, `Episode ${epNum} network/upload error: ${uploadErr.message}`, uploadErr, "Check network connection or local server status.");
             continue;
         }
 
@@ -9638,6 +10118,8 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
                                 const kmText = d.text_km || d.translated_text || d.khmer_text || d.text || "";
                                 if (kmText && kmText !== zhText) {
                                     appendLiveTerminalLine(`[Line ${lineNum}] "${zhText}" ➜ "${kmText}" (${vName})`, `[Ep ${epNum} Dub]`, "dub");
+                                } else if (zhText) {
+                                    appendLiveTerminalLine(`[Line ${lineNum}] Translation notice: preserved original "${zhText}"`, `[Ep ${epNum} Notice]`, "warning");
                                 }
                             }
                         });
@@ -9669,8 +10151,15 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
                         resolve(true);
                     } else if (sData.status === "failed") {
                         clearInterval(pollInterval);
-                        appendLiveTerminalLine(`Episode ${epNum}/${totalBatchCount} failed: ${sData.error || 'Unknown error'}`, `[Ep ${epNum}/${totalBatchCount}]`, "error");
-                        showToast(`EP ${epNum} error: ${sData.error || 'Failed'}`);
+                        const epErrTitle = sData.error || 'Episode dubbing failed';
+                        const epErrStage = sData.error_stage || `Episode ${epNum}/${totalBatchCount}`;
+                        const epErrSugg = sData.error_suggestion || "Check episode audio track or retry.";
+                        logStudioError(epErrStage, `Episode ${epNum}/${totalBatchCount} failed: ${epErrTitle}`, {
+                            details: sData.error_details || `Task ID: ${taskId}\nStatus: failed`,
+                            type: sData.error_type || "PipelineError",
+                            category: sData.error_category
+                        }, epErrSugg);
+                        showToast(`EP ${epNum} error: ${epErrTitle}`);
                         resolve(false);
                     }
                 } catch (pollErr) {
@@ -10323,7 +10812,7 @@ async function checkForAppUpdates(manual = false) {
         const btnUpdate = document.getElementById('btn-do-update');
         const progContainer = document.getElementById('update-progress-container');
 
-        const curVer = data.current_version || '1.0.3';
+        const curVer = data.current_version || '1.0.4';
         const latVer = data.latest_version || curVer;
 
         if (curEl) curEl.textContent = `v${curVer}`;

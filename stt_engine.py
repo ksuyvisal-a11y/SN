@@ -6,8 +6,11 @@ Strictly Two Authentic Voices: ពិសិដ្ឋ (Piseth - Male Lead) and �
 import os
 import re
 import io
+import json
 import wave
 import subprocess
+import urllib.request
+import urllib.error
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 
@@ -34,6 +37,152 @@ try:
     FASTER_WHISPER_AVAILABLE = True
 except ImportError:
     FASTER_WHISPER_AVAILABLE = False
+
+
+def transcribe_with_groq_whisper(audio_path: str, source_lang: str = "auto") -> List[Dict[str, Any]]:
+    """
+    Ultra-reliable, lightning-fast Groq Cloud Whisper AI engine (whisper-large-v3-turbo).
+    Provides instant, zero-setup STT for client computers without GPUs or failed local models.
+    """
+    if not os.path.exists(audio_path):
+        return []
+
+    try:
+        from translator import BUILTIN_GROQ_KEYS
+    except Exception:
+        BUILTIN_GROQ_KEYS = []
+
+    if not BUILTIN_GROQ_KEYS:
+        return []
+
+    proc_path = audio_path
+    temp_compressed = None
+    try:
+        fsize = os.path.getsize(audio_path)
+        # For long videos (50+ mins to 2+ hours), adaptively scale bitrate so audio is always < 22MB:
+        target_bitrate = "32k"
+        try:
+            from audio_processor import get_media_duration
+            dur = get_media_duration(audio_path)
+            if dur > 5400:     # > 90 mins (full movie)
+                target_bitrate = "16k"
+            elif dur > 3000:   # > 50 mins (standard episode)
+                target_bitrate = "24k"
+        except Exception:
+            pass
+
+        # Compress to mono mp3 if > 18MB or non-standard format
+        if fsize > 18 * 1024 * 1024 or not audio_path.lower().endswith(('.mp3', '.wav', '.m4a')):
+            temp_compressed = audio_path + f".tmp_{os.urandom(4).hex()}.mp3"
+            cmd = [
+                FFMPEG_EXE, '-nostdin', '-y', '-i', str(audio_path),
+                '-vn', '-ac', '1', '-ar', '16000', '-b:a', target_bitrate,
+                str(temp_compressed)
+            ]
+            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=300, **get_silent_kwargs())
+            if os.path.exists(temp_compressed) and os.path.getsize(temp_compressed) > 100:
+                proc_path = temp_compressed
+
+        with open(proc_path, 'rb') as f:
+            audio_bytes = f.read()
+    except Exception as e:
+        print(f"Groq Whisper audio prep note: {e}")
+        return []
+    finally:
+        if temp_compressed and os.path.exists(temp_compressed):
+            try:
+                os.remove(temp_compressed)
+            except Exception:
+                pass
+
+    lang_param = None
+    if source_lang in ('zh', 'chinese', 'mandarin'):
+        lang_param = 'zh'
+    elif source_lang in ('en', 'english'):
+        lang_param = 'en'
+    elif source_lang in ('ko', 'korean'):
+        lang_param = 'ko'
+
+    boundary = '----WebKitFormBoundaryGroqWhisper' + os.urandom(8).hex()
+    body = io.BytesIO()
+
+    fname = os.path.basename(proc_path)
+    ext = os.path.splitext(fname)[1].lower()
+    content_type = 'audio/mpeg' if ext == '.mp3' else ('audio/wav' if ext == '.wav' else 'application/octet-stream')
+
+    body.write(f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{fname}"\r\nContent-Type: {content_type}\r\n\r\n'.encode('utf-8'))
+    body.write(audio_bytes)
+    body.write(b'\r\n')
+
+    body.write(f'--{boundary}\r\nContent-Disposition: form-data; name="model"\r\n\r\nwhisper-large-v3-turbo\r\n'.encode('utf-8'))
+    body.write(f'--{boundary}\r\nContent-Disposition: form-data; name="response_format"\r\n\r\nverbose_json\r\n'.encode('utf-8'))
+
+    if lang_param:
+        body.write(f'--{boundary}\r\nContent-Disposition: form-data; name="language"\r\n\r\n{lang_param}\r\n'.encode('utf-8'))
+
+    body.write(f'--{boundary}--\r\n'.encode('utf-8'))
+    payload = body.getvalue()
+
+    for key in BUILTIN_GROQ_KEYS[:6]:
+        req = urllib.request.Request(
+            'https://api.groq.com/openai/v1/audio/transcriptions',
+            data=payload,
+            headers={
+                'Authorization': f'Bearer {key}',
+                'Content-Type': f'multipart/form-data; boundary={boundary}',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                data = json.loads(resp.read().decode('utf-8'))
+                raw_segs = data.get('segments', [])
+                results = []
+                for s in raw_segs:
+                    txt = s.get('text', '').strip()
+                    if txt:
+                        results.append({
+                            'start': round(float(s.get('start', 0.0)), 2),
+                            'end': round(float(s.get('end', 0.0)), 2),
+                            'text': txt
+                        })
+                if results:
+                    return results
+        except urllib.error.HTTPError as he:
+            err_msg = he.read().decode('utf-8', errors='ignore')
+            print(f"Groq Whisper HTTP {he.code}: {err_msg[:80]}")
+            continue
+        except Exception as ex:
+            print(f"Groq Whisper note: {ex}")
+            continue
+
+    return []
+
+
+def get_system_ram_gb() -> float:
+    """Detect total physical RAM in GB with zero overhead using Win32 API."""
+    try:
+        import ctypes
+        class MEMORYSTATUSEX(ctypes.Structure):
+            _fields_ = [
+                ("dwLength", ctypes.c_ulong),
+                ("dwMemoryLoad", ctypes.c_ulong),
+                ("ullTotalPhys", ctypes.c_ulonglong),
+                ("ullAvailPhys", ctypes.c_ulonglong),
+                ("ullTotalPageFile", ctypes.c_ulonglong),
+                ("ullAvailPageFile", ctypes.c_ulonglong),
+                ("ullTotalVirtual", ctypes.c_ulonglong),
+                ("ullAvailVirtual", ctypes.c_ulonglong),
+                ("sullAvailExtendedVirtual", ctypes.c_ulonglong),
+            ]
+        stat = MEMORYSTATUSEX()
+        stat.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
+        if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(stat)):
+            return round(stat.ullTotalPhys / (1024 ** 3), 1)
+    except Exception:
+        pass
+    return 8.0
+
 
 # Strict Drama First-Person Self-References, Kinship Terms & Direct Vocatives
 FEMALE_VOCATIVES = [
@@ -305,138 +454,179 @@ class SpeechToTextEngine:
                     raw_segments = cached_subs
 
         if not raw_segments:
-            model = self._get_model()
-            if not model:
-                raise RuntimeError(
-                    "AI Speech-to-Text model is not available. Please ensure faster-whisper is installed."
-                )
+            # Low-RAM 4GB Turbo Optimization:
+            # If system has <= 5.0GB RAM and no dedicated CUDA GPU, route directly to Groq Cloud Whisper
+            # to prevent freezing the user's laptop, avoid 500MB RAM allocation, and eliminate disk thrashing!
+            total_ram = get_system_ram_gb()
+            has_cuda = False
+            try:
+                import ctranslate2
+                has_cuda = "cuda" in ctranslate2.get_supported_compute_types("cuda")
+            except Exception:
+                pass
 
-            lang_code = None if source_lang in ("auto", "", None) else source_lang
-            if lang_code in ("zh", "chinese", "mandarin"):
-                lang_code = "zh"
+            if total_ram <= 5.0 and not has_cuda:
+                print(f"[TURBO 4GB RAM] Detected {total_ram}GB RAM. Routing directly to Groq Cloud Whisper (0% CPU / 0% RAM)...")
+                if progress_callback:
+                    progress_callback(46, f"៣/៧ Low-RAM Turbo ({total_ram}GB RAM)៖ ប្រើប្រាស់ Cloud AI Whisper មិនស៊ី RAM...", "Using Cloud Whisper...")
+                try:
+                    cloud_segs = transcribe_with_groq_whisper(audio_path, source_lang=source_lang)
+                    if cloud_segs:
+                        raw_segments = cloud_segs
+                        print(f"[OK] Groq Cloud Whisper transcribed {len(raw_segments)} segments in Low-RAM Mode!")
+                except Exception as e:
+                    print(f"Low-RAM Cloud Whisper note: {e}")
 
-            initial_prompt = None
-            if lang_code == "zh":
-                initial_prompt = "以下是影视剧对话，台词清晰，标点符号完整。"
+        if not raw_segments:
+            model = None
+            try:
+                model = self._get_model()
+            except Exception as me:
+                print(f"Local Faster-Whisper model load note: {me}")
 
-            segments_gen, info = model.transcribe(
-                audio_path,
-                language=lang_code,
-                initial_prompt=initial_prompt,
-                beam_size=min(beam_size, 2),
-                best_of=1,
-                condition_on_previous_text=False,
-                compression_ratio_threshold=2.4,
-                no_speech_threshold=0.88,
-                word_timestamps=True,
-                vad_filter=True,
-                vad_parameters=dict(
-                    threshold=0.25,
-                    min_speech_duration_ms=60,
-                    max_speech_duration_s=8.0,
-                    min_silence_duration_ms=250,
-                    speech_pad_ms=120
-                )
-            )
+            if model:
+                try:
+                    lang_code = None if source_lang in ("auto", "", None) else source_lang
+                    if lang_code in ("zh", "chinese", "mandarin"):
+                        lang_code = "zh"
 
-            tot_dur = getattr(info, "duration", 0) or 1.0
-            for segment in segments_gen:
-                text = segment.text.strip()
-                if not text:
-                    continue
+                    initial_prompt = None
+                    if lang_code == "zh":
+                        initial_prompt = "以下是影视剧对话，台词清晰，标点符号完整。"
 
-                words = getattr(segment, "words", None)
-                if not words:
-                    # If no word-level timestamps, split text by sentence punctuation if long
-                    sub_sentences = [s.strip() for s in re.split(r'([。！？!?\n]+)', text) if s.strip()]
-                    combined_sentences = []
-                    curr_sent = ""
-                    for part in sub_sentences:
-                        curr_sent += part
-                        if re.search(r'[。！？!?\n]', part):
-                            combined_sentences.append(curr_sent.strip())
-                            curr_sent = ""
-                    if curr_sent.strip():
-                        combined_sentences.append(curr_sent.strip())
-
-                    if len(combined_sentences) <= 1:
-                        raw_segments.append({
-                            "start": round(segment.start, 2),
-                            "end": round(segment.end, 2),
-                            "text": text
-                        })
-                    else:
-                        total_chars = max(1, sum(len(s) for s in combined_sentences))
-                        seg_dur = max(0.4, segment.end - segment.start)
-                        cur_t = segment.start
-                        for s in combined_sentences:
-                            p_dur = (len(s) / total_chars) * seg_dur
-                            p_start = round(cur_t, 2)
-                            p_end = round(cur_t + p_dur, 2)
-                            raw_segments.append({
-                                "start": p_start,
-                                "end": max(round(p_start + 0.35, 2), p_end),
-                                "text": s
-                            })
-                            cur_t += p_dur
-                else:
-                    # Word-level timestamp precision: Group words into individual dialogue lines!
-                    curr_words = []
-                    for w_idx, w in enumerate(words):
-                        curr_words.append(w)
-                        w_txt = getattr(w, "word", "") or ""
-
-                        # Check split triggers:
-                        # 1. Punctuation in word (ending marks)
-                        has_punct = bool(re.search(r'[。！？!?；;\n]', w_txt))
-
-                        # 2. Pause between this word and next word (dialogue turn / breathing pause)
-                        has_pause = False
-                        if w_idx + 1 < len(words):
-                            next_w = words[w_idx + 1]
-                            pause_gap = next_w.start - w.end
-                            if pause_gap >= 0.42:
-                                has_pause = True
-                            elif pause_gap >= 0.22 and bool(re.search(r'[，,、]', w_txt)):
-                                has_pause = True
-
-                        # 3. Accumulated length >= 5.5 seconds (prevents runaway sentences)
-                        span = curr_words[-1].end - curr_words[0].start
-                        is_too_long = span >= 5.5 and len(curr_words) >= 4
-
-                        if (has_punct or has_pause or is_too_long) and len(curr_words) > 0:
-                            line_txt = "".join(getattr(cw, "word", "") for cw in curr_words).strip()
-                            if line_txt:
-                                l_start = round(curr_words[0].start, 2)
-                                l_end = round(curr_words[-1].end, 2)
-                                raw_segments.append({
-                                    "start": l_start,
-                                    "end": max(round(l_start + 0.35, 2), l_end),
-                                    "text": line_txt
-                                })
-                            curr_words = []
-
-                    # Any trailing words
-                    if curr_words:
-                        line_txt = "".join(getattr(cw, "word", "") for cw in curr_words).strip()
-                        if line_txt:
-                            l_start = round(curr_words[0].start, 2)
-                            l_end = round(curr_words[-1].end, 2)
-                            raw_segments.append({
-                                "start": l_start,
-                                "end": max(round(l_start + 0.35, 2), l_end),
-                                "text": line_txt
-                            })
-
-                if progress_callback and tot_dur > 0:
-                    p_cur = 45 + int(min(15, (segment.end / tot_dur) * 15))
-                    m_curr = int(segment.end // 60)
-                    s_curr = int(segment.end % 60)
-                    progress_callback(
-                        p_cur,
-                        f"៣/៧ AI កំពុងស្តាប់នៅនាទី {m_curr:02d}:{s_curr:02d}...",
-                        f"Transcribing audio at {m_curr:02d}:{s_curr:02d}..."
+                    segments_gen, info = model.transcribe(
+                        audio_path,
+                        language=lang_code,
+                        initial_prompt=initial_prompt,
+                        beam_size=min(beam_size, 2),
+                        best_of=1,
+                        condition_on_previous_text=False,
+                        compression_ratio_threshold=2.4,
+                        no_speech_threshold=0.88,
+                        word_timestamps=True,
+                        vad_filter=True,
+                        vad_parameters=dict(
+                            threshold=0.25,
+                            min_speech_duration_ms=60,
+                            max_speech_duration_s=8.0,
+                            min_silence_duration_ms=250,
+                            speech_pad_ms=120
+                        )
                     )
+
+                    tot_dur = getattr(info, "duration", 0) or 1.0
+                    for segment in segments_gen:
+                        text = segment.text.strip()
+                        if not text:
+                            continue
+
+                        words = getattr(segment, "words", None)
+                        if not words:
+                            # If no word-level timestamps, split text by sentence punctuation if long
+                            sub_sentences = [s.strip() for s in re.split(r'([。！？!?\n]+)', text) if s.strip()]
+                            combined_sentences = []
+                            curr_sent = ""
+                            for part in sub_sentences:
+                                curr_sent += part
+                                if re.search(r'[。！？!?\n]', part):
+                                    combined_sentences.append(curr_sent.strip())
+                                    curr_sent = ""
+                            if curr_sent.strip():
+                                combined_sentences.append(curr_sent.strip())
+
+                            if len(combined_sentences) <= 1:
+                                raw_segments.append({
+                                    "start": round(segment.start, 2),
+                                    "end": round(segment.end, 2),
+                                    "text": text
+                                })
+                            else:
+                                total_chars = max(1, sum(len(s) for s in combined_sentences))
+                                seg_dur = max(0.4, segment.end - segment.start)
+                                cur_t = segment.start
+                                for s in combined_sentences:
+                                    p_dur = (len(s) / total_chars) * seg_dur
+                                    p_start = round(cur_t, 2)
+                                    p_end = round(cur_t + p_dur, 2)
+                                    raw_segments.append({
+                                        "start": p_start,
+                                        "end": max(round(p_start + 0.35, 2), p_end),
+                                        "text": s
+                                    })
+                                    cur_t += p_dur
+                        else:
+                            # Word-level timestamp precision: Group words into individual dialogue lines!
+                            curr_words = []
+                            for w_idx, w in enumerate(words):
+                                curr_words.append(w)
+                                w_txt = getattr(w, "word", "") or ""
+
+                                # Check split triggers:
+                                # 1. Punctuation in word (ending marks)
+                                has_punct = bool(re.search(r'[。！？!?；;\n]', w_txt))
+
+                                # 2. Pause between this word and next word (dialogue turn / breathing pause)
+                                has_pause = False
+                                if w_idx + 1 < len(words):
+                                    next_w = words[w_idx + 1]
+                                    pause_gap = next_w.start - w.end
+                                    if pause_gap >= 0.42:
+                                        has_pause = True
+                                    elif pause_gap >= 0.22 and bool(re.search(r'[，,、]', w_txt)):
+                                        has_pause = True
+
+                                # 3. Accumulated length >= 5.5 seconds (prevents runaway sentences)
+                                span = curr_words[-1].end - curr_words[0].start
+                                is_too_long = span >= 5.5 and len(curr_words) >= 4
+
+                                if (has_punct or has_pause or is_too_long) and len(curr_words) > 0:
+                                    line_txt = "".join(getattr(cw, "word", "") for cw in curr_words).strip()
+                                    if line_txt:
+                                        l_start = round(curr_words[0].start, 2)
+                                        l_end = round(curr_words[-1].end, 2)
+                                        raw_segments.append({
+                                            "start": l_start,
+                                            "end": max(round(l_start + 0.35, 2), l_end),
+                                            "text": line_txt
+                                        })
+                                    curr_words = []
+
+                            # Any trailing words
+                            if curr_words:
+                                line_txt = "".join(getattr(cw, "word", "") for cw in curr_words).strip()
+                                if line_txt:
+                                    l_start = round(curr_words[0].start, 2)
+                                    l_end = round(curr_words[-1].end, 2)
+                                    raw_segments.append({
+                                        "start": l_start,
+                                        "end": max(round(l_start + 0.35, 2), l_end),
+                                        "text": line_txt
+                                    })
+
+                        if progress_callback and tot_dur > 0:
+                            p_cur = 45 + int(min(15, (segment.end / tot_dur) * 15))
+                            m_curr = int(segment.end // 60)
+                            s_curr = int(segment.end % 60)
+                            progress_callback(
+                                p_cur,
+                                f"៣/៧ AI កំពុងស្តាប់នៅនាទី {m_curr:02d}:{s_curr:02d}...",
+                                f"Transcribing audio at {m_curr:02d}:{s_curr:02d}..."
+                            )
+                except Exception as fe:
+                    print(f"Local Faster-Whisper transcribe note: {fe}. Will attempt Groq Cloud Whisper.")
+
+        # Resilient AI Fallback: If local transcription yielded 0 segments, engage Groq Cloud Whisper
+        if not raw_segments:
+            print("Notice: Local STT yielded 0 segments. Engaging Groq Cloud Whisper AI engine...")
+            if progress_callback:
+                progress_callback(48, "៣/៧ កំពុងប្រើប្រាស់ Cloud AI Whisper (Groq) ដើម្បីស្តាប់ការសន្ទនា...", "Using Groq Cloud Whisper...")
+            try:
+                cloud_segs = transcribe_with_groq_whisper(audio_path, source_lang=source_lang)
+                if cloud_segs:
+                    raw_segments = cloud_segs
+                    print(f"[OK] Groq Cloud Whisper successfully transcribed {len(raw_segments)} dialogue segments!")
+            except Exception as ge:
+                print(f"Groq Cloud Whisper fallback note: {ge}")
 
         if not raw_segments:
             return []
