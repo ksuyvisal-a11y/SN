@@ -62,6 +62,19 @@ def package_update_zip():
                         continue
                     full_p = Path(root) / f
                     rel_p = full_p.relative_to(base_dir)
+                    if f == "ai_provider_config.json":
+                        try:
+                            import json
+                            with open(full_p, "r", encoding="utf-8") as jf:
+                                c = json.load(jf)
+                            c["gemini_api_key"] = ""
+                            c["keys"] = []
+                            c["keys_raw"] = ""
+                            clean_bytes = json.dumps(c, indent=2, ensure_ascii=False).encode("utf-8")
+                            zf.writestr(str(rel_p).replace('\\', '/'), clean_bytes)
+                            continue
+                        except Exception:
+                            pass
                     zf.write(full_p, str(rel_p).replace('\\', '/'))
                     
         # 5. Add only essential scripts needed for shortcut creation (exclude all 100+ dev test scripts)

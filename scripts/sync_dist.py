@@ -159,6 +159,22 @@ if internal_data.exists():
         if src.exists():
             shutil.copy2(src, internal_data / fname)
 
+# Sanitize ai_provider_config.json to prevent any private key leakage in client builds
+import json
+for dst_dir in [data_dst, internal_data]:
+    cfg_p = dst_dir / "ai_provider_config.json"
+    if cfg_p.exists():
+        try:
+            with open(cfg_p, "r", encoding="utf-8") as f:
+                c = json.load(f)
+            c["gemini_api_key"] = ""
+            c["keys"] = []
+            c["keys_raw"] = ""
+            with open(cfg_p, "w", encoding="utf-8") as f:
+                json.dump(c, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
 # ==========================================================================
 # 🛡️ SYSTEM 2: STATIC ASSETS & JAVASCRIPT OBFUSCATION
 # ==========================================================================
