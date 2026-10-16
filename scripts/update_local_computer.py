@@ -36,8 +36,14 @@ def main():
         print("[*] Creating installation directory...")
         installed_dir.mkdir(parents=True, exist_ok=True)
 
-    internal_dir = installed_dir / "_internal"
-    internal_dir.mkdir(parents=True, exist_ok=True)
+    targets = [
+        (installed_dir, installed_dir / "_internal"),
+        (base_dir / "dist" / "SN_TOOL", base_dir / "dist" / "SN_TOOL" / "_internal")
+    ]
+
+    for root_d, int_d in targets:
+        root_d.mkdir(parents=True, exist_ok=True)
+        int_d.mkdir(parents=True, exist_ok=True)
 
     # 1. Update Core Python Modules
     python_modules = [
@@ -54,19 +60,14 @@ def main():
     for mod in python_modules:
         src = base_dir / mod
         if src.exists():
-            # Copy to installed root (priority for DiskPriorityFinder)
-            dst = installed_dir / mod
-            shutil.copy2(src, dst)
-
-            # Copy to _internal as well
-            shutil.copy2(src, internal_dir / mod)
-
-            # Compile to bytecode .pyc in _internal
-            pyc_dst = internal_dir / f"{src.stem}.pyc"
-            try:
-                py_compile.compile(str(src), cfile=str(pyc_dst), optimize=2)
-            except Exception as e:
-                print(f"  Warning compiling {mod}: {e}")
+            for root_d, int_d in targets:
+                shutil.copy2(src, root_d / mod)
+                shutil.copy2(src, int_d / mod)
+                pyc_dst = int_d / f"{src.stem}.pyc"
+                try:
+                    py_compile.compile(str(src), cfile=str(pyc_dst), optimize=2)
+                except Exception:
+                    pass
 
     print(f"  [OK] Updated {len(python_modules)} Python modules (both .py and .pyc)")
 
@@ -80,45 +81,48 @@ def main():
     for cfg in config_files:
         src = base_dir / cfg
         if src.exists():
-            shutil.copy2(src, installed_dir / cfg)
-            shutil.copy2(src, internal_dir / cfg)
+            for root_d, int_d in targets:
+                shutil.copy2(src, root_d / cfg)
+                shutil.copy2(src, int_d / cfg)
     print("  [OK] version.json (v1.0.6) and launch configs updated!")
 
     # 3. Update Static Assets (Web UI)
     print("\n[*] Updating Web UI static assets...")
-    for target_static in [installed_dir / "static", internal_dir / "static"]:
-        if target_static.exists():
-            shutil.rmtree(target_static)
-        shutil.copytree(base_dir / "static", target_static)
+    for root_d, int_d in targets:
+        for target_static in [root_d / "static", int_d / "static"]:
+            if target_static.exists():
+                shutil.rmtree(target_static)
+            shutil.copytree(base_dir / "static", target_static)
     print("  [OK] Static assets updated successfully!")
 
     # 4. Update Data Files (Carefully preserving user projects & license.key!)
     print("\n[*] Updating data catalogs and story configs...")
-    installed_data = installed_dir / "data"
-    installed_data.mkdir(parents=True, exist_ok=True)
-    internal_data = internal_dir / "data"
-    internal_data.mkdir(parents=True, exist_ok=True)
-
     data_files = [
         "story_config.json", "drama_dictionary.json", "shortmax_all_dramas.json",
         "reelshort_all_dramas.json", "ai_dramas_streams.json", "license_keys_online.json",
         "revoked_keys.json", "hongguo_catalog.db"
     ]
-    for df in data_files:
-        src = base_dir / "data" / df
-        if src.exists():
-            shutil.copy2(src, installed_data / df)
-            shutil.copy2(src, internal_data / df)
+    for root_d, int_d in targets:
+        t_data = root_d / "data"
+        t_data.mkdir(parents=True, exist_ok=True)
+        t_int_data = int_d / "data"
+        t_int_data.mkdir(parents=True, exist_ok=True)
+        for df in data_files:
+            src = base_dir / "data" / df
+            if src.exists():
+                shutil.copy2(src, t_data / df)
+                shutil.copy2(src, t_int_data / df)
     print("  [OK] Catalogs and story configs synchronized!")
 
     # 5. Update Scripts and Tools
     print("\n[*] Synchronizing auxiliary scripts...")
-    for target_scripts in [installed_dir / "scripts", internal_dir / "scripts"]:
-        target_scripts.mkdir(parents=True, exist_ok=True)
-        for sname in ["create_shortcut.ps1", "hg_cli_runner.py"]:
-            src = base_dir / "scripts" / sname
-            if src.exists():
-                shutil.copy2(src, target_scripts / sname)
+    for root_d, int_d in targets:
+        for target_scripts in [root_d / "scripts", int_d / "scripts"]:
+            target_scripts.mkdir(parents=True, exist_ok=True)
+            for sname in ["create_shortcut.ps1", "hg_cli_runner.py"]:
+                src = base_dir / "scripts" / sname
+                if src.exists():
+                    shutil.copy2(src, target_scripts / sname)
 
     # 6. Verify and preserve license.key
     lic_file = installed_dir / "license.key"
