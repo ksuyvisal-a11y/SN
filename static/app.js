@@ -10338,9 +10338,11 @@ async function openExportFolderDirect(targetPath) {
 function openModal(id) {
     const modal = document.getElementById(id);
     if (modal) {
-        modal.style.display = 'flex';
+        modal.style.setProperty('display', 'flex', 'important');
         void modal.offsetWidth;
         modal.classList.add('active');
+        modal.style.setProperty('opacity', '1', 'important');
+        modal.style.setProperty('pointer-events', 'auto', 'important');
     }
 }
 
@@ -10900,8 +10902,10 @@ async function checkForAppUpdates(manual = false) {
             }
             const updateModal = document.getElementById('modal-update');
             if (updateModal) {
-                updateModal.style.removeProperty('display');
-                updateModal.style.display = 'flex';
+                updateModal.style.setProperty('display', 'flex', 'important');
+                updateModal.style.setProperty('opacity', '1', 'important');
+                updateModal.style.setProperty('pointer-events', 'auto', 'important');
+                updateModal.style.setProperty('z-index', '9999999', 'important');
             }
             openModal('modal-update');
             if (manual) showToast(`New version available: v${latVer}`);
