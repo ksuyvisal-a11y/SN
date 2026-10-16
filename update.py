@@ -199,6 +199,8 @@ def apply_zip_download_update(download_url: str, app_dir: Path) -> Dict[str, Any
         if is_exe:
             ps1_content = f"""
 Start-Sleep -Seconds 2
+Stop-Process -Name "SN_TOOL" -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 1
 Start-Process "{dest_file}"
 Remove-Item -Force $MyInvocation.MyCommand.Path -ErrorAction SilentlyContinue
 """
@@ -206,9 +208,11 @@ Remove-Item -Force $MyInvocation.MyCommand.Path -ErrorAction SilentlyContinue
             restart_target = f'"{exe_file}"' if exe_file.exists() else f'"{run_bat}"'
             ps1_content = f"""
 Start-Sleep -Seconds 2
-Get-Process -Name "SN_TOOL" -ErrorAction SilentlyContinue | Wait-Process -Timeout 10 -ErrorAction SilentlyContinue
+Stop-Process -Name "SN_TOOL" -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 1
 Expand-Archive -Path "{dest_file}" -DestinationPath "{app_dir}" -Force
 Remove-Item -Force "{dest_file}" -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 1
 Start-Process {restart_target}
 Remove-Item -Force $MyInvocation.MyCommand.Path -ErrorAction SilentlyContinue
 """
