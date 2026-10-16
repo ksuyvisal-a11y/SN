@@ -8864,65 +8864,72 @@ function onToggleMultiVoice(isChecked) {
 }
 
 async function saveStorySettings() {
-    const selVoice = document.getElementById('story-voice-select');
-    const voice = (selVoice && selVoice.value === 'sreymom') ? 'sreymom' : 'piseth';
-    const isMulti = false;
-    const lang = document.getElementById('story-source-lang') ? document.getElementById('story-source-lang').value : 'auto';
-    const whisper = document.getElementById('story-whisper-model') ? document.getElementById('story-whisper-model').value : 'medium';
-    const aspect = document.getElementById('story-aspect-ratio') ? document.getElementById('story-aspect-ratio').value : '9:16';
-    const subtitle = document.getElementById('story-subtitle-mode') ? document.getElementById('story-subtitle-mode').value : 'none';
-    const dubMode = document.getElementById('story-dubbing-mode') ? document.getElementById('story-dubbing-mode').value : 'smart_bgm';
-    const duckElem = document.getElementById('story-ducking-vol');
-    let duckVol = duckElem && duckElem.value ? duckElem.value : '0.15';
-    if (!duckVol || isNaN(parseFloat(duckVol))) duckVol = '0.15';
-
-    const boostElem = document.getElementById('story-speech-boost');
-    let boost = boostElem && boostElem.value ? parseFloat(boostElem.value) : 2.5;
-    if (isNaN(boost)) boost = 2.5;
-
-    const payload = {
-        khmer_voice: voice,
-        auto_multi_voice: isMulti,
-        source_lang: lang,
-        whisper_model: whisper,
-        aspect_ratio: aspect,
-        subtitle_mode: subtitle,
-        dubbing_mode: dubMode,
-        ducking_volume: duckVol,
-        speech_boost_db: boost
-    };
-
-    // Save Drama Dictionary only if the tab is explicitly visible and has content
-    const dictTabBtn = document.getElementById('story-tab-btn-dictionary');
-    const isDictVisible = dictTabBtn && dictTabBtn.style.display !== 'none' && dictTabBtn.offsetParent !== null;
-    const dictElem = document.getElementById('story-dictionary-textarea');
-    if (isDictVisible && dictElem && dictElem.value.trim()) {
-        const dictMap = {};
-        dictElem.value.split('\n').forEach(line => {
-            const trimmed = line.trim();
-            if (trimmed && (trimmed.includes('=') || trimmed.includes(':'))) {
-                const parts = trimmed.includes('=') ? trimmed.split('=') : trimmed.split(':');
-                if (parts.length >= 2) {
-                    const k = parts[0].trim();
-                    const v = parts.slice(1).join('=').trim();
-                    if (k && v) dictMap[k] = v;
-                }
-            }
-        });
-        if (Object.keys(dictMap).length > 0) {
-            try {
-                await fetch('/api/drama-dictionary', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ dictionary: dictMap })
-                });
-            } catch (e) {
-                console.warn("Dictionary save note:", e);
-            }
-        }
+    const saveBtn = document.querySelector('#modal-story-settings .ai-footer-save-btn');
+    const originalBtnHtml = saveBtn ? saveBtn.innerHTML : '';
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Saving...</span>';
     }
 
     try {
+        const selVoice = document.getElementById('story-voice-select');
+        const voice = (selVoice && selVoice.value === 'sreymom') ? 'sreymom' : 'piseth';
+        const isMulti = false;
+        const lang = document.getElementById('story-source-lang') ? document.getElementById('story-source-lang').value : 'auto';
+        const whisper = document.getElementById('story-whisper-model') ? document.getElementById('story-whisper-model').value : 'medium';
+        const aspect = document.getElementById('story-aspect-ratio') ? document.getElementById('story-aspect-ratio').value : '9:16';
+        const subtitle = document.getElementById('story-subtitle-mode') ? document.getElementById('story-subtitle-mode').value : 'none';
+        const dubMode = document.getElementById('story-dubbing-mode') ? document.getElementById('story-dubbing-mode').value : 'smart_bgm';
+        const duckElem = document.getElementById('story-ducking-vol');
+        let duckVol = duckElem && duckElem.value ? duckElem.value : '0.15';
+        if (!duckVol || isNaN(parseFloat(duckVol))) duckVol = '0.15';
+
+        const boostElem = document.getElementById('story-speech-boost');
+        let boost = boostElem && boostElem.value ? parseFloat(boostElem.value) : 2.5;
+        if (isNaN(boost)) boost = 2.5;
+
+        const payload = {
+            khmer_voice: voice,
+            auto_multi_voice: isMulti,
+            source_lang: lang,
+            whisper_model: whisper,
+            aspect_ratio: aspect,
+            subtitle_mode: subtitle,
+            dubbing_mode: dubMode,
+            ducking_volume: duckVol,
+            speech_boost_db: boost
+        };
+
+        // Save Drama Dictionary only if the tab is explicitly visible and has content
+        const dictTabBtn = document.getElementById('story-tab-btn-dictionary');
+        const isDictVisible = dictTabBtn && dictTabBtn.style.display !== 'none' && dictTabBtn.offsetParent !== null;
+        const dictElem = document.getElementById('story-dictionary-textarea');
+        if (isDictVisible && dictElem && dictElem.value.trim()) {
+            const dictMap = {};
+            dictElem.value.split('\n').forEach(line => {
+                const trimmed = line.trim();
+                if (trimmed && (trimmed.includes('=') || trimmed.includes(':'))) {
+                    const parts = trimmed.includes('=') ? trimmed.split('=') : trimmed.split(':');
+                    if (parts.length >= 2) {
+                        const k = parts[0].trim();
+                        const v = parts.slice(1).join('=').trim();
+                        if (k && v) dictMap[k] = v;
+                    }
+                }
+            });
+            if (Object.keys(dictMap).length > 0) {
+                try {
+                    await fetch('/api/drama-dictionary', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ dictionary: dictMap })
+                    });
+                } catch (e) {
+                    console.warn("Dictionary save note:", e);
+                }
+            }
+        }
+
         const resp = await fetch('/api/set-story-config', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -8934,16 +8941,19 @@ async function saveStorySettings() {
             refreshStagedCardVoiceMeta();
             syncStagedCardControls();
 
-            const voiceNameText = voice === 'multi' 
-                ? "Piseth & Sreymom (Male & Female)" 
-                : (voice === 'sreymom' ? "Sreymom (Female Solo)" : "Piseth (Male Solo)");
-            showToast(`Saved voice and dictionary settings: ${voiceNameText} successfully!`);
-            closeModal('modal-story-settings');
+            const voiceNameText = voice === 'sreymom' ? "Sreymom (Female Solo)" : "Piseth (Male Solo)";
+            showToast(`Saved settings: ${voiceNameText} successfully!`);
         } else {
             showToast(`${resData.message || 'Error saving story settings'}`);
         }
     } catch (e) {
         showToast(`Error saving: ${e.message}`);
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalBtnHtml || '<i class="fa-solid fa-check"></i><span>Save</span>';
+        }
+        closeModal('modal-story-settings');
     }
 }
 
@@ -9202,6 +9212,13 @@ function clearAllKeysPool() {
 }
 
 async function saveAiProvidingConfig() {
+    const saveBtn = document.querySelector('#modal-ai-providing .ai-footer-save-btn');
+    const originalBtnHtml = saveBtn ? saveBtn.innerHTML : '';
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Saving...</span>';
+    }
+
     const engine = document.getElementById('ai-engine-select') ? document.getElementById('ai-engine-select').value : 'auto';
     const keysRaw = document.getElementById('ai-keys-pool-textarea') ? document.getElementById('ai-keys-pool-textarea').value.trim() : '';
     const model = document.getElementById('ai-model-select') ? document.getElementById('ai-model-select').value : 'qwen/qwen3.8-27b';
@@ -9237,12 +9254,17 @@ async function saveAiProvidingConfig() {
             }).catch(() => {});
 
             showToast(`Saved Engine, SpeechGen, and API Keys settings successfully!`);
-            closeModal('modal-ai-providing');
         } else {
             showToast(`${resData.message || 'Error saving settings'}`);
         }
     } catch (e) {
         showToast(`Failed to save settings: ${e.message}`);
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalBtnHtml || '<i class="fa-solid fa-check"></i><span>Save</span>';
+        }
+        closeModal('modal-ai-providing');
     }
 }
 
@@ -10338,11 +10360,15 @@ async function openExportFolderDirect(targetPath) {
 function openModal(id) {
     const modal = document.getElementById(id);
     if (modal) {
+        modal.style.removeProperty('display');
+        modal.style.removeProperty('opacity');
+        modal.style.removeProperty('pointer-events');
         modal.style.setProperty('display', 'flex', 'important');
         void modal.offsetWidth;
         modal.classList.add('active');
         modal.style.setProperty('opacity', '1', 'important');
         modal.style.setProperty('pointer-events', 'auto', 'important');
+        modal.style.setProperty('z-index', '9999999', 'important');
     }
 }
 
@@ -10350,11 +10376,13 @@ function closeModal(id) {
     const modal = document.getElementById(id);
     if (modal) {
         modal.classList.remove('active');
-        setTimeout(() => {
-            if (!modal.classList.contains('active')) {
-                modal.style.display = '';
-            }
-        }, 220);
+        modal.style.removeProperty('opacity');
+        modal.style.removeProperty('pointer-events');
+        modal.style.removeProperty('display');
+        modal.style.removeProperty('z-index');
+        modal.style.setProperty('display', 'none', 'important');
+        modal.style.setProperty('opacity', '0', 'important');
+        modal.style.setProperty('pointer-events', 'none', 'important');
     }
 }
 

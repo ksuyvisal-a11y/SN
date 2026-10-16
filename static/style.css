@@ -7383,7 +7383,7 @@ select, option, optgroup {
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     background: rgba(4, 5, 9, 0.78);
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
     z-index: 10000;
