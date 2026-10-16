@@ -230,17 +230,48 @@ def clean_drama_title_for_comparison(title: str) -> str:
     return re.sub(r'[^\w\u4e00-\u9fff]', '', t).strip().lower()
 
 
+def get_genuine_drama_title(drama: Optional[Dict[str, Any]]) -> str:
+    """
+    Extracts the 100% authentic title for any drama across all platforms.
+    For Chinese Hongguo and AI dramas, prioritizes Chinese title.
+    For English platforms (ReelShort, ShortMax, AnyReel, FreeReels), prioritizes genuine English title
+    and strictly rejects synthetic/bracketed fake Chinese pairing titles.
+    """
+    if not drama:
+        return ""
+    pid = str(drama.get("platform_id") or "").lower()
+    did = str(drama.get("id") or "").lower()
+
+    # ByteDance Hongguo & AI Dramas (Genuine Chinese Titles)
+    if pid in ("hongguo", "ai_drama") or did.startswith("hg_") or did.startswith("ai_"):
+        cand = str(drama.get("title_cn") or drama.get("title") or "").strip()
+        m = re.search(r'[《【（「『\[](.*?)[》】）」』\]]', cand)
+        if m:
+            return m.group(1).strip()
+        return cand.split(' - ')[0].strip()
+
+    # English Platforms (ReelShort, ShortMax, AnyReel, FreeReels)
+    title = str(drama.get("title") or drama.get("shortPlayName") or "").strip()
+    # Strip any trailing " - 《...》" if present
+    title = re.sub(r'\s*[-–—]\s*[《【（「『\[].*?[》】）」』\]].*$', '', title).strip()
+    if not title:
+        title = str(drama.get("title_cn") or "").strip()
+    return title.strip()
+
+
 def compute_drama_title_similarity(target_title: str, candidate_title: str) -> float:
     """
-    Computes an intelligent, reliable similarity score (0.0 to 1.0) between target drama and candidate title.
-    Supports long descriptive YouTube/VOD titles where the target drama title is embedded with brackets,
-    actor names, hashtags (#drama, #reelshort), or promotional summaries.
+    Computes an intelligent, reliable, and strict similarity score (0.0 to 1.0) between target drama and candidate title.
+    Enforces ordered character/word sequence matching and rejects multi-drama compilations or partial keyword matches.
     """
     if not target_title or not candidate_title:
         return 0.0
 
-    n_target = clean_drama_title_for_comparison(target_title)
-    n_cand = clean_drama_title_for_comparison(candidate_title)
+    def clean(t):
+        return re.sub(r'[^\w\u4e00-\u9fff]', '', str(t)).strip().lower()
+
+    n_target = clean(target_title)
+    n_cand = clean(candidate_title)
 
     if not n_target or not n_cand:
         return 0.0
@@ -249,39 +280,39 @@ def compute_drama_title_similarity(target_title: str, candidate_title: str) -> f
     if n_target == n_cand:
         return 1.0
 
-    # 2. Substring containment: target title completely contained in candidate title
-    if len(n_target) >= 4 and n_target in n_cand:
-        return 0.95
+    # 2. Chinese drama matching (Strict ordered sequence matching)
+    is_chinese = bool(re.search(r'[\u4e00-\u9fff]', n_target))
+    if is_chinese:
+        # Strip common season/episode suffixes for core comparison
+        core_target = re.sub(r'第?[0-9一二三四五六七八九十]+[季部集]?', '', n_target)
+        core_target = re.sub(r'[全大]结局|全集|完结', '', core_target)
 
-    # Target without numbers/season contained in candidate
-    core_target = re.sub(r'第?[0-9一二三四五六七八九十]+[季部集]?', '', n_target)
-    if len(core_target) >= 4 and core_target in n_cand:
-        return 0.92
+        # Full target contained in candidate
+        if len(core_target) >= 3 and core_target in n_cand:
+            # Candidate shouldn't be a 50-character multi-drama compilation
+            if len(n_cand) <= len(core_target) + 15:
+                return 0.95
 
-    # 3. For English titles: word token overlap (e.g. Demigod Under Oath in Demigod Under Oath | Hot Release #drama)
+        # Strict ordered sequence ratio (evaluates character sequence, not unordered sets)
+        return difflib.SequenceMatcher(None, n_target, n_cand).ratio()
+
+    # 3. English / Western drama matching
     words_target = [w for w in re.findall(r'[a-zA-Z0-9]+', str(target_title).lower()) if len(w) >= 2]
-    words_cand = set(re.findall(r'[a-zA-Z0-9]+', str(candidate_title).lower()))
-    if words_target and words_cand:
-        matched_words = [w for w in words_target if w in words_cand]
-        word_overlap = len(matched_words) / len(words_target)
-        if word_overlap >= 0.8:
-            return 0.90
-        elif word_overlap >= 0.6:
-            return 0.78
+    words_cand = [w for w in re.findall(r'[a-zA-Z0-9]+', str(candidate_title).lower()) if len(w) >= 2]
 
-    # 4. Chinese character overlap
-    ch_target = re.findall(r'[\u4e00-\u9fff]', n_target)
-    ch_cand = set(re.findall(r'[\u4e00-\u9fff]', n_cand))
-    if ch_target and len(ch_target) >= 4 and ch_cand:
-        matched_ch = [c for c in ch_target if c in ch_cand]
-        ch_overlap = len(matched_ch) / len(ch_target)
-        if ch_overlap >= 0.85:
-            return 0.90
-        elif ch_overlap >= 0.70:
-            return 0.80
+    if not words_target or not words_cand:
+        return difflib.SequenceMatcher(None, n_target, n_cand).ratio()
 
-    # 5. Fallback SequenceMatcher ratio
-    seq_ratio = difflib.SequenceMatcher(None, n_target, n_cand).ratio()
+    # Exact continuous phrase containment (e.g. "The Alpha's Forbidden Bunny" in "The Alpha's Forbidden Bunny - Ep 1")
+    phrase_target = " ".join(words_target)
+    phrase_cand = " ".join(words_cand)
+    if phrase_target in phrase_cand:
+        # Reject multi-drama compilations where target is only a small fraction
+        if len(words_cand) <= len(words_target) + 8:
+            return 0.95
+
+    # Sequence matcher ratio
+    seq_ratio = difflib.SequenceMatcher(None, phrase_target, phrase_cand).ratio()
     return seq_ratio
 
 
@@ -565,24 +596,13 @@ def resolve_short_drama_stream_cluster(raw_title: str) -> List[Dict[str, Any]]:
                 best_item = None
                 best_score = 0.0
 
-                # Robust similarity matching (>= 0.55 threshold)
+                # Strict similarity matching (>= 0.82 threshold to eliminate incorrect drama downloads)
                 for it in items:
                     vn = str(it.get('vod_name', '')).strip()
                     score = compute_drama_title_similarity(raw_title, vn)
-                    if score >= 0.55 and score > best_score:
+                    if score >= 0.82 and score > best_score:
                         best_score = score
                         best_item = it
-
-                # Substring containment fallback if strict score was slightly lower
-                if not best_item and items:
-                    clean_raw = re.sub(r'[^\w\u4e00-\u9fff]', '', raw_title).lower()
-                    for it in items:
-                        vn = str(it.get('vod_name', '')).strip()
-                        clean_vn = re.sub(r'[^\w\u4e00-\u9fff]', '', vn).lower()
-                        if clean_raw and clean_vn and (clean_raw in clean_vn or clean_vn in clean_raw):
-                            best_item = it
-                            best_score = 0.65
-                            break
 
                 if not best_item:
                     return []
@@ -721,7 +741,7 @@ def get_drama_episodes(drama: Any, drama_obj: Optional[Dict[str, Any]] = None) -
     if local_folder and os.path.exists(local_folder):
         return hongguo_db.generate_episodes_for_drama(drama)
 
-    raw_title = drama.get("title_cn") or drama.get("title", "")
+    raw_title = get_genuine_drama_title(drama)
     drama_id = str(drama.get("id") or "hg_00001")
     total_expected = int(drama.get("total_episodes") or 0)
 
@@ -736,25 +756,6 @@ def get_drama_episodes(drama: Any, drama_obj: Optional[Dict[str, Any]] = None) -
             sm_eps = shortmax_service.resolve_shortmax_episodes(drama)
             if sm_eps:
                 drama["total_episodes"] = len(sm_eps)
-                # Ensure 100% of episodes have valid stream and download URLs
-                missing_streams = [e for e in sm_eps if not e.get("stream_url")]
-                if missing_streams:
-                    c_eps = resolve_short_drama_stream_cluster(raw_title)
-                    if not c_eps:
-                        ai_cache, ai_title_index = get_ai_streams_cache()
-                        norm_t = normalize_drama_title(raw_title)
-                        if norm_t and norm_t in ai_title_index:
-                            chosen = ai_cache.get(ai_title_index[norm_t])
-                            if chosen and chosen.get("play_url"):
-                                c_eps = parse_vod_play_url(chosen["play_url"], "ShortMax Genuine Cluster")
-                    if c_eps:
-                        for idx, e in enumerate(sm_eps):
-                            if not e.get("stream_url") and idx < len(c_eps):
-                                cluster_match = c_eps[idx]
-                                u = cluster_match.get("stream_url", "")
-                                e["stream_url"] = u
-                                e["download_url"] = u
-                                e["is_online_stream"] = True
                 return sm_eps
         except Exception as sm_e:
             print(f"[ShortMax Resolver] Error: {sm_e}")
@@ -773,25 +774,6 @@ def get_drama_episodes(drama: Any, drama_obj: Optional[Dict[str, Any]] = None) -
             rs_eps = reelshort_service.resolve_reelshort_episodes(drama)
             if rs_eps:
                 drama["total_episodes"] = len(rs_eps)
-                # Ensure 100% of episodes have valid stream and download URLs
-                missing_streams = [e for e in rs_eps if not e.get("stream_url")]
-                if missing_streams:
-                    c_eps = resolve_short_drama_stream_cluster(raw_title)
-                    if not c_eps:
-                        ai_cache, ai_title_index = get_ai_streams_cache()
-                        norm_t = normalize_drama_title(raw_title)
-                        if norm_t and norm_t in ai_title_index:
-                            chosen = ai_cache.get(ai_title_index[norm_t])
-                            if chosen and chosen.get("play_url"):
-                                c_eps = parse_vod_play_url(chosen["play_url"], "ReelShort Genuine Cluster")
-                    if c_eps:
-                        for idx, e in enumerate(rs_eps):
-                            if not e.get("stream_url") and idx < len(c_eps):
-                                cluster_match = c_eps[idx]
-                                u = cluster_match.get("stream_url", "")
-                                e["stream_url"] = u
-                                e["download_url"] = u
-                                e["is_online_stream"] = True
                 return rs_eps
         except Exception as rs_e:
             print(f"[ReelShort Resolver] Error: {rs_e}")
@@ -1480,7 +1462,7 @@ def resolve_full_series_master_stream(drama_title: str, total_eps: int = 50, dra
 
     raw_t = drama_title
     if drama_obj:
-        raw_t = drama_obj.get("title_cn") or drama_obj.get("title") or drama_title
+        raw_t = get_genuine_drama_title(drama_obj) or drama_title
     clean_t = re.sub(r'^[^\w\u4e00-\u9fff]+|[^\w\u4e00-\u9fff]+$', '', str(raw_t)).strip()
     if not clean_t:
         return None
@@ -1536,13 +1518,16 @@ def resolve_full_series_master_stream(drama_title: str, total_eps: int = 50, dra
                 try:
                     res = ydl.extract_info(f"ytsearch4:{q}", download=False)
                     entries = res.get("entries", [])
+                    compilation_words = ["compilation", "collection", "top 10", "top 5", "合集", "大合集", "多部", "部合集", "10部", "5部"]
                     for e in entries:
                         e_title = e.get("title") or ""
+                        # Reject multi-drama compilations
+                        if any(cw in e_title.lower() for cw in compilation_words):
+                            continue
                         dur = e.get("duration") or 0
                         sim = compute_drama_title_similarity(clean_t, e_title)
-                        is_long = dur >= 1800 # 30+ minutes full drama
-                        has_full = any(w in e_title.lower() for w in ["full", "全集", "完整版", "ep 1 -", "episode 1"])
-                        if (sim >= 0.65 and (is_long or has_full)) or sim >= 0.80:
+                        is_long = dur >= 1200 # 20+ minutes full drama
+                        if sim >= 0.85 and (is_long or dur >= 600):
                             u = e.get("url")
                             if u:
                                 _DRAMA_MASTER_STREAM_CACHE[cache_k] = u
@@ -2335,7 +2320,7 @@ class DramaDownloadManager:
 
         safe_drama_title = "Drama_Series"
         if self.current_drama:
-            raw_title = self.current_drama.get("title_cn") or self.current_drama.get("title", "Drama")
+            raw_title = get_genuine_drama_title(self.current_drama) or "Drama"
             clean_t = re.sub(r'[\\/*?:"<>|\r\n\t《》]', "_", raw_title).strip(". ").strip()
             safe_drama_title = clean_t or "Hongguo_Drama"
 
@@ -2476,7 +2461,7 @@ class DramaDownloadManager:
             # 1. Resolve authentic live streams from Short Drama VOD cluster (500,000+ dramas)
             drama_raw_title = ""
             if self.current_drama:
-                drama_raw_title = self.current_drama.get("title_cn") or self.current_drama.get("title", "")
+                drama_raw_title = get_genuine_drama_title(self.current_drama)
 
             cluster_streams: Dict[int, Dict[str, Any]] = {}
             alt_streams_map: Dict[int, List[str]] = {}
@@ -2985,10 +2970,7 @@ class DramaDownloadManager:
                         # Cross-Platform Genuine Failover: Search for this EXACT drama on other platforms
                         fb_success = False
                         try:
-                            target_title = (
-                                self.current_drama.get("title_cn") or 
-                                self.current_drama.get("title", "") if self.current_drama else ""
-                            )
+                            target_title = get_genuine_drama_title(self.current_drama) if self.current_drama else ""
                             if target_title:
                                 norm_target = clean_drama_title_for_comparison(target_title)
                                 if len(norm_target) >= 4:
@@ -2996,6 +2978,10 @@ class DramaDownloadManager:
                                     cur_id = self.current_drama.get("id", "") if self.current_drama else ""
                                     for cand_d in cands:
                                         if cand_d.get("id") == cur_id:
+                                            continue
+                                        cand_title = get_genuine_drama_title(cand_d)
+                                        # Strict title similarity check to reject different dramas
+                                        if compute_drama_title_similarity(target_title, cand_title) < 0.90:
                                             continue
                                         cand_plat = cand_d.get("platform_id", "cross-platform")
                                         cand_eps = get_drama_episodes(cand_d)

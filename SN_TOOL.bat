@@ -20,7 +20,11 @@ where python >nul 2>nul
 if %ERRORLEVEL% EQU 0 (
     if exist "desktop_app.py" (
         python desktop_app.py
-        if %ERRORLEVEL% NEQ 0 pause
+        if %ERRORLEVEL% NEQ 0 (
+            echo.
+            echo [FALLBACK] កំពុងបើកតាមរយៈ Web Launcher ជំនួសវិញ...
+            python run_studio.py
+        )
         goto :END
     )
     python run_studio.py

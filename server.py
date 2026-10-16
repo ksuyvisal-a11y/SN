@@ -777,10 +777,15 @@ def get_ai_config_endpoint():
     cfg = load_stored_ai_config()
     safe_cfg = {
         "engine": cfg.get("engine", "auto"),
+        "mode": cfg.get("mode", "cloud_server_only"),
+        "cloud_only": cfg.get("cloud_only", True),
+        "stt_engine": cfg.get("stt_engine", "nisay-transcribe"),
+        "translation_engine": cfg.get("translation_engine", "gemini-3.8-flash-high"),
+        "has_cloud_engine": True,
         "gemini_api_key": cfg.get("gemini_api_key", ""),
         "keys": cfg.get("keys", []),
         "keys_raw": cfg.get("keys_raw", "\n".join(cfg.get("keys", []))),
-        "model": cfg.get("model", "qwen/qwen3.8-27b"),
+        "model": cfg.get("model", "gemini-3.8-flash-high"),
         "temperature": cfg.get("temperature", 0.3),
         "prompt_style": cfg.get("prompt_style", "drama_dubbing")
     }
@@ -811,14 +816,21 @@ def set_ai_config_endpoint():
         keys.insert(0, gemini_api_key)
 
     engine = data.get("engine", "auto")
-    model = data.get("model", "qwen/qwen3.8-27b")
+    model = data.get("model", "gemini-3.8-flash-high")
     try:
         temperature = float(data.get("temperature", 0.3))
     except Exception:
         temperature = 0.3
     prompt_style = data.get("prompt_style", "drama_dubbing")
 
-    cfg = {
+    n_input = data.get("nisay_api_key", "").strip()
+    saved_nisay = existing_cfg.get("nisay_api_key", "")
+    if n_input and "••" not in n_input and n_input != "nisay-YOUR_API_KEY":
+        saved_nisay = n_input
+        os.environ["NISAY_API_KEY"] = n_input
+
+    cfg = dict(existing_cfg)
+    cfg.update({
         "engine": engine,
         "groq_api_key": groq_api_key,
         "groq_keys": groq_keys,
@@ -827,8 +839,13 @@ def set_ai_config_endpoint():
         "keys_raw": keys_raw,
         "model": model,
         "temperature": temperature,
-        "prompt_style": prompt_style
-    }
+        "prompt_style": prompt_style,
+        "mode": existing_cfg.get("mode", "cloud_server_only"),
+        "cloud_only": existing_cfg.get("cloud_only", True),
+        "stt_engine": existing_cfg.get("stt_engine", "nisay-transcribe"),
+        "translation_engine": existing_cfg.get("translation_engine", "gemini-3.8-flash-high"),
+        "nisay_api_key": saved_nisay
+    })
 
     AI_CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(AI_CONFIG_FILE, "w", encoding="utf-8") as f:
@@ -2660,6 +2677,72 @@ def upload_overlay_subtitle_endpoint():
     })
 
 
+def diagnose_pipeline_error(error_msg: str, tb_str: str = "") -> dict:
+    combined = (str(error_msg) + " " + str(tb_str)).lower()
+    
+    # 1. GPU / CUDA Out of Memory
+    if any(k in combined for k in ["cuda out of memory", "out of memory", "cuda error", "allocator"]):
+        return {
+            "category": "GPU / Memory Limit",
+            "tag": "[GPU Out of Memory]",
+            "suggestion_km": "ខ្វះ VRAM/Memory ក្រាហ្វិក។ សូមបិទកម្មវិធីផ្សេង ឬប្ដូរទៅដំណើរការលើ CPU វិញ។",
+            "suggestion_en": "VRAM exhausted. Close background 3D/video apps or switch to CPU mode in settings."
+        }
+    
+    # 2. Network / Edge TTS Connection / Timeout
+    if any(k in combined for k in ["nodename nor servname", "getaddrinfo failed", "connection refused", "connection reset", "timed out", "timeout", "network is unreachable", "ssl", "edge_tts", "connecterror"]):
+        return {
+            "category": "Network & Cloud TTS Connection",
+            "tag": "[Network / TTS Error]",
+            "suggestion_km": "ដាច់ការតភ្ជាប់អ៊ីនធឺណិត ឬសេវាសំឡេង AI TTS។ សូមពិនិត្យមើល Internet / Wi-Fi របស់អ្នក។",
+            "suggestion_en": "Cloud TTS / Network connection failed. Please check your internet connection or Wi-Fi."
+        }
+        
+    # 3. FFmpeg / Codec / Corrupt Video
+    if any(k in combined for k in ["moov atom not found", "invalid data found", "unsupported codec", "ffmpeg", "encoder", "muxer"]):
+        return {
+            "category": "FFmpeg / Media Codec",
+            "tag": "[FFmpeg / Video Codec]",
+            "suggestion_km": "វីដេអូខូចទម្រង់ ឬកូដិកមិនគាំទ្រ។ សូមបម្លែងវីដេអូទៅជា MP4 (H.264 / AAC) រួចសាកល្បងម្ដងទៀត។",
+            "suggestion_en": "Video file appears damaged or uses an unsupported codec. Try re-encoding to MP4 (H.264)."
+        }
+        
+    # 4. Whisper / Speech Recognition
+    if any(k in combined for k in ["whisper", "faster_whisper", "ctranslate2", "speech-to-text", "transcribe"]):
+        return {
+            "category": "Speech Recognition (STT)",
+            "tag": "[Whisper STT Error]",
+            "suggestion_km": "កំហុសក្នុងការស្ដាប់និងបម្លែងសំឡេង (STT)។ សូមពិនិត្យមើលថាតើវីដេអូមានសំឡេងនិយាយច្បាស់លាស់ដែរឬទេ។",
+            "suggestion_en": "Speech-to-text recognition encountered an error. Check if the audio track has spoken dialogue."
+        }
+
+    # 5. AI Script Translation (Gemini, Groq, Translation Engine)
+    if any(k in combined for k in ["translat", "gemini", "groq", "dialogue", "script", "jsondecodeerror"]):
+        return {
+            "category": "AI Script Translation",
+            "tag": "[AI Translation Error]",
+            "suggestion_km": "កំហុសក្នុងម៉ាស៊ីនបកប្រែអត្ថបទ (AI Translation)។ សូមពិនិត្យមើល API Key (Gemini/Groq), Quota Limit, ឬការតភ្ជាប់អ៊ីនធឺណិត។",
+            "suggestion_en": "AI Translation engine error. Verify Gemini/Groq API keys, quota limits, or network connectivity."
+        }
+        
+    # 5. File / Storage / Disk Space
+    if any(k in combined for k in ["no space left on device", "disk full", "permission denied", "filenotfounderror", "file not found"]):
+        return {
+            "category": "Storage / File Access",
+            "tag": "[Storage / Disk Error]",
+            "suggestion_km": "ទំហំផ្ទុក (Drive D/C) ពេញ ឬគ្មានសិទ្ធិបើកឯកសារ។ សូមពិនិត្យមើលទំហំថាសរឹងរបស់អ្នក។",
+            "suggestion_en": "Disk is full or file permission denied. Please verify free storage on Drive D:/C: and try again."
+        }
+        
+    # 6. General Pipeline
+    return {
+        "category": "Pipeline Execution",
+        "tag": "[Pipeline Error]",
+        "suggestion_km": "ដំណើរការត្រូវបានរំខាន។ សូមពិនិត្យមើលព័ត៌មានលម្អិតនៃកំហុសខាងក្រោម ឬសាកល្បងម្ដងទៀត។",
+        "suggestion_en": "Process was interrupted. Please review error details below or retry with a different video file."
+    }
+
+
 @app.route("/api/projects/auto-dub-video", methods=["POST"])
 def auto_dub_video_endpoint():
     """
@@ -2762,72 +2845,6 @@ def auto_dub_video_endpoint():
             voice_override = "multi"
         else:
             voice_override = cfg.get("khmer_voice", "multi")
-
-def diagnose_pipeline_error(error_msg: str, tb_str: str = "") -> dict:
-    combined = (str(error_msg) + " " + str(tb_str)).lower()
-    
-    # 1. GPU / CUDA Out of Memory
-    if any(k in combined for k in ["cuda out of memory", "out of memory", "cuda error", "allocator"]):
-        return {
-            "category": "GPU / Memory Limit",
-            "tag": "[GPU Out of Memory]",
-            "suggestion_km": "ខ្វះ VRAM/Memory ក្រាហ្វិក។ សូមបិទកម្មវិធីផ្សេង ឬប្ដូរទៅដំណើរការលើ CPU វិញ។",
-            "suggestion_en": "VRAM exhausted. Close background 3D/video apps or switch to CPU mode in settings."
-        }
-    
-    # 2. Network / Edge TTS Connection / Timeout
-    if any(k in combined for k in ["nodename nor servname", "getaddrinfo failed", "connection refused", "connection reset", "timed out", "timeout", "network is unreachable", "ssl", "edge_tts", "connecterror"]):
-        return {
-            "category": "Network & Cloud TTS Connection",
-            "tag": "[Network / TTS Error]",
-            "suggestion_km": "ដាច់ការតភ្ជាប់អ៊ីនធឺណិត ឬសេវាសំឡេង AI TTS។ សូមពិនិត្យមើល Internet / Wi-Fi របស់អ្នក។",
-            "suggestion_en": "Cloud TTS / Network connection failed. Please check your internet connection or Wi-Fi."
-        }
-        
-    # 3. FFmpeg / Codec / Corrupt Video
-    if any(k in combined for k in ["moov atom not found", "invalid data found", "unsupported codec", "ffmpeg", "encoder", "muxer"]):
-        return {
-            "category": "FFmpeg / Media Codec",
-            "tag": "[FFmpeg / Video Codec]",
-            "suggestion_km": "វីដេអូខូចទម្រង់ ឬកូដិកមិនគាំទ្រ។ សូមបម្លែងវីដេអូទៅជា MP4 (H.264 / AAC) រួចសាកល្បងម្ដងទៀត។",
-            "suggestion_en": "Video file appears damaged or uses an unsupported codec. Try re-encoding to MP4 (H.264)."
-        }
-        
-    # 4. Whisper / Speech Recognition
-    if any(k in combined for k in ["whisper", "faster_whisper", "ctranslate2", "speech-to-text", "transcribe"]):
-        return {
-            "category": "Speech Recognition (STT)",
-            "tag": "[Whisper STT Error]",
-            "suggestion_km": "កំហុសក្នុងការស្ដាប់និងបម្លែងសំឡេង (STT)។ សូមពិនិត្យមើលថាតើវីដេអូមានសំឡេងនិយាយច្បាស់លាស់ដែរឬទេ។",
-            "suggestion_en": "Speech-to-text recognition encountered an error. Check if the audio track has spoken dialogue."
-        }
-
-    # 5. AI Script Translation (Gemini, Groq, Translation Engine)
-    if any(k in combined for k in ["translat", "gemini", "groq", "dialogue", "script", "jsondecodeerror"]):
-        return {
-            "category": "AI Script Translation",
-            "tag": "[AI Translation Error]",
-            "suggestion_km": "កំហុសក្នុងម៉ាស៊ីនបកប្រែអត្ថបទ (AI Translation)។ សូមពិនិត្យមើល API Key (Gemini/Groq), Quota Limit, ឬការតភ្ជាប់អ៊ីនធឺណិត។",
-            "suggestion_en": "AI Translation engine error. Verify Gemini/Groq API keys, quota limits, or network connectivity."
-        }
-        
-    # 5. File / Storage / Disk Space
-    if any(k in combined for k in ["no space left on device", "disk full", "permission denied", "filenotfounderror", "file not found"]):
-        return {
-            "category": "Storage / File Access",
-            "tag": "[Storage / Disk Error]",
-            "suggestion_km": "ទំហំផ្ទុក (Drive D/C) ពេញ ឬគ្មានសិទ្ធិបើកឯកសារ។ សូមពិនិត្យមើលទំហំថាសរឹងរបស់អ្នក។",
-            "suggestion_en": "Disk is full or file permission denied. Please verify free storage on Drive D:/C: and try again."
-        }
-        
-    # 6. General Pipeline
-    return {
-        "category": "Pipeline Execution",
-        "tag": "[Pipeline Error]",
-        "suggestion_km": "ដំណើរការត្រូវបានរំខាន។ សូមពិនិត្យមើលព័ត៌មានលម្អិតនៃកំហុសខាងក្រោម ឬសាកល្បងម្ដងទៀត។",
-        "suggestion_en": "Process was interrupted. Please review error details below or retry with a different video file."
-    }
-
 
     if not saved_video_path or not Path(saved_video_path).exists():
         return jsonify({"success": False, "error": "No valid video file uploaded or provided."}), 400

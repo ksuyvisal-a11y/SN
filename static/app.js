@@ -22,6 +22,8 @@ let dlSelectedCategory = "all";
 let dlCurrentDrama = null;
 let dlEpisodesList = [];
 let dlPollTimer = null;
+let dlPollActive = false;
+let dlPollSessionId = 0;
 let dlCurrentPage = 1;
 let dlTotalDramasCount = 49509;
 let dlSearchQuery = "";
@@ -4897,7 +4899,16 @@ async function downloadAllQueueEpisodes() {
 
     const catBtnAll = document.getElementById('btn-dl-catalog-all');
     if (catBtnAll) {
+        catBtnAll.disabled = true;
         catBtnAll.innerHTML = `<i class="fa-solid fa-bolt-lightning fa-spin" style="color:#facc15;"></i> <span>⚡ Downloading (${total} episodes)...</span>`;
+    }
+
+    // Cancel any previous polling session
+    dlPollActive = false;
+    if (dlPollTimer) {
+        clearTimeout(dlPollTimer);
+        clearInterval(dlPollTimer);
+        dlPollTimer = null;
     }
 
     try {
@@ -4913,13 +4924,24 @@ async function downloadAllQueueEpisodes() {
         });
         const data = await res.json();
 
-        // Start active polling
-        let batchDownloadChimePlayed = false;
-        if (dlPollTimer) clearInterval(dlPollTimer);
-        dlPollTimer = setInterval(async () => {
+        // Start active controlled polling with strict session ID and completion latch
+        const currentSessionId = ++dlPollSessionId;
+        dlPollActive = true;
+        let batchDownloadCompletedNotified = false;
+
+        async function pollDownloaderStatus() {
+            if (!dlPollActive || dlPollSessionId !== currentSessionId) {
+                return;
+            }
+
             try {
                 const sRes = await fetch('/api/downloader/status');
                 const sData = await sRes.json();
+
+                if (!dlPollActive || dlPollSessionId !== currentSessionId) {
+                    return;
+                }
+
                 if (sData) {
                     if (sData.last_download_dir) {
                         updateDramaSavePathDisplay(sData.last_download_dir);
@@ -4995,13 +5017,21 @@ async function downloadAllQueueEpisodes() {
                     }
                     updateDownloaderStats(sData.stats);
 
+                    // Check if download finished
                     if (!sData.is_downloading) {
-                        clearInterval(dlPollTimer);
-                        dlPollTimer = null;
-                        if (!batchDownloadChimePlayed) {
-                            batchDownloadChimePlayed = true;
-                            playWindowsCompletionSound();
+                        dlPollActive = false;
+                        if (dlPollTimer) {
+                            clearTimeout(dlPollTimer);
+                            clearInterval(dlPollTimer);
+                            dlPollTimer = null;
                         }
+
+                        // Strict single-fire latch
+                        if (batchDownloadCompletedNotified) {
+                            return;
+                        }
+                        batchDownloadCompletedNotified = true;
+
                         if (btnAll) {
                             btnAll.disabled = false;
                             btnAll.innerHTML = `<i class="fa-solid fa-circle-check" style="color:#4ade80;"></i> <span>Downloaded all episodes ${total}/${total} & Full Movie 100%</span>`;
@@ -5010,6 +5040,7 @@ async function downloadAllQueueEpisodes() {
                             }, 6000);
                         }
                         if (catBtnAll) {
+                            catBtnAll.disabled = false;
                             catBtnAll.innerHTML = `<i class="fa-solid fa-circle-check" style="color:#4ade80;"></i> <span>All ${total} episodes & Full Movie downloaded</span>`;
                             setTimeout(() => {
                                 catBtnAll.innerHTML = `<i class="fa-solid fa-bolt-lightning" style="color:#facc15;"></i> <span id="dl-catalog-dl-all-text">⚡ Turbo High-Speed & 100% Full Series</span>`;
@@ -5030,15 +5061,29 @@ async function downloadAllQueueEpisodes() {
                         if (dlQueueActiveEpisodeNum) {
                             playQueueEpisode(dlQueueActiveEpisodeNum, false);
                         }
+                        return; // Done! Do not schedule another poll!
                     }
                 }
             } catch (e) {}
-        }, 400);
+
+            // Schedule next poll tick only if session is still alive
+            if (dlPollActive && dlPollSessionId === currentSessionId) {
+                dlPollTimer = setTimeout(pollDownloaderStatus, 500);
+            }
+        }
+
+        // Kick off first poll
+        dlPollTimer = setTimeout(pollDownloaderStatus, 400);
+
     } catch (e) {
+        dlPollActive = false;
         showToast("Failed to start download");
         if (btnAll) {
             btnAll.disabled = false;
             btnAll.innerHTML = originalText;
+        }
+        if (catBtnAll) {
+            catBtnAll.disabled = false;
         }
     }
 }
@@ -5537,13 +5582,32 @@ async function startBatchDownload() {
             })
         });
 
-        // Start Polling
-        let queueBatchChimePlayed = false;
-        if (dlPollTimer) clearInterval(dlPollTimer);
-        dlPollTimer = setInterval(async () => {
+        // Cancel previous polling session
+        dlPollActive = false;
+        if (dlPollTimer) {
+            clearTimeout(dlPollTimer);
+            clearInterval(dlPollTimer);
+            dlPollTimer = null;
+        }
+
+        // Start Controlled Polling
+        const currentSessionId = ++dlPollSessionId;
+        dlPollActive = true;
+        let queueBatchCompletedNotified = false;
+
+        async function pollBatchQueueStatus() {
+            if (!dlPollActive || dlPollSessionId !== currentSessionId) {
+                return;
+            }
+
             try {
                 const sRes = await fetch('/api/downloader/status');
                 const sData = await sRes.json();
+
+                if (!dlPollActive || dlPollSessionId !== currentSessionId) {
+                    return;
+                }
+
                 if (sData) {
                     if (sData.episodes && sData.episodes.length > 0) {
                         dlEpisodesList = sData.episodes;
@@ -5614,19 +5678,33 @@ async function startBatchDownload() {
                     }
                     updateDownloaderStats(sData.stats);
                     if (!sData.is_downloading) {
-                        clearInterval(dlPollTimer);
-                        dlPollTimer = null;
-                        if (!queueBatchChimePlayed) {
-                            queueBatchChimePlayed = true;
-                            playWindowsCompletionSound();
+                        dlPollActive = false;
+                        if (dlPollTimer) {
+                            clearTimeout(dlPollTimer);
+                            clearInterval(dlPollTimer);
+                            dlPollTimer = null;
                         }
+
+                        if (queueBatchCompletedNotified) {
+                            return;
+                        }
+                        queueBatchCompletedNotified = true;
+
                         showToast(`🎉 Downloaded all (${selected.length} episodes) 100% complete!`);
                         appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Batch download finished: ${selected.length} episodes ready in ${path}`);
+                        return; // Done
                     }
                 }
             } catch (e) {}
-        }, 400);
+
+            if (dlPollActive && dlPollSessionId === currentSessionId) {
+                dlPollTimer = setTimeout(pollBatchQueueStatus, 500);
+            }
+        }
+
+        dlPollTimer = setTimeout(pollBatchQueueStatus, 400);
     } catch (e) {
+        dlPollActive = false;
         showToast("Failed to start download");
     }
 }
@@ -5635,7 +5713,10 @@ async function stopBatchDownload() {
     try {
         await fetch('/api/downloader/stop', { method: 'POST' });
         showToast("Download Stopped");
+        dlPollActive = false;
+        ++dlPollSessionId;
         if (dlPollTimer) {
+            clearTimeout(dlPollTimer);
             clearInterval(dlPollTimer);
             dlPollTimer = null;
         }
@@ -9221,7 +9302,7 @@ async function saveAiProvidingConfig() {
 
     const engine = document.getElementById('ai-engine-select') ? document.getElementById('ai-engine-select').value : 'auto';
     const keysRaw = document.getElementById('ai-keys-pool-textarea') ? document.getElementById('ai-keys-pool-textarea').value.trim() : '';
-    const model = document.getElementById('ai-model-select') ? document.getElementById('ai-model-select').value : 'qwen/qwen3.8-27b';
+    const model = document.getElementById('ai-model-select') ? document.getElementById('ai-model-select').value : 'gemini-3.8-flash-high';
     const temperature = document.getElementById('ai-temperature-slider') ? parseFloat(document.getElementById('ai-temperature-slider').value) : 0.3;
     const promptStyle = document.getElementById('ai-system-prompt-input') ? document.getElementById('ai-system-prompt-input').value.trim() : '';
 
@@ -10777,12 +10858,23 @@ if (typeof document !== 'undefined') {
 // ==========================================================================
 // UTILITIES
 // ==========================================================================
+let _lastToastMsg = "";
+let _lastToastTime = 0;
+
 function showToast(msg) {
     if (!msg) return;
 
+    const str = String(msg);
+    const now = Date.now();
+    // Drop rapid identical toast spam within 2.5 seconds
+    if (str === _lastToastMsg && (now - _lastToastTime < 2500)) {
+        return;
+    }
+    _lastToastMsg = str;
+    _lastToastTime = now;
+
     let tag = "[SN Studio]";
     let type = "info";
-    const str = String(msg);
     const lower = str.toLowerCase();
 
     // NEVER trigger completion chime for individual episodes (only when entire task or all episodes are 100% finished!)

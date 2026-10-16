@@ -48,10 +48,14 @@ def patch_silent_subprocess():
         is_gui_app = any(gui in cmd_str for gui in ("msedge", "chrome", "explorer", "dialog", "picker")) or kwargs.pop("is_gui_dialog", False)
 
         if not is_gui_app:
+            # Add BELOW_NORMAL_PRIORITY_CLASS (0x00004000) so heavy FFmpeg/tool processes
+            # never starve the Windows GUI, mouse, or browser of CPU resources
+            below_normal = 0x00004000
+            base_flags = subprocess.CREATE_NO_WINDOW | below_normal
             if "creationflags" not in kwargs:
-                kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+                kwargs["creationflags"] = base_flags
             else:
-                kwargs["creationflags"] |= subprocess.CREATE_NO_WINDOW
+                kwargs["creationflags"] |= base_flags
 
             si = kwargs.get("startupinfo")
             if si is None:
@@ -74,14 +78,14 @@ def patch_silent_subprocess():
 
 
 def get_silent_kwargs() -> Dict[str, Any]:
-    """Return explicit subprocess creationflags and startupinfo to guarantee zero console window popup on Windows."""
+    """Return explicit subprocess creationflags and startupinfo with BELOW_NORMAL_PRIORITY_CLASS to prevent Windows freezes."""
     import sys
     if sys.platform == "win32":
         si = subprocess.STARTUPINFO()
         si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         si.wShowWindow = 0
         return {
-            "creationflags": subprocess.CREATE_NO_WINDOW,
+            "creationflags": subprocess.CREATE_NO_WINDOW | 0x00004000,
             "startupinfo": si
         }
     return {}

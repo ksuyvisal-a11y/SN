@@ -50,6 +50,13 @@ try:
 except ImportError:
     FASTER_WHISPER_AVAILABLE = False
 
+try:
+    from nisay_transcribe import get_nisay_api_key, transcribe_to_segments as transcribe_with_nisay
+    NISAY_AVAILABLE = True
+except ImportError:
+    NISAY_AVAILABLE = False
+
+
 
 def get_all_groq_keys() -> List[str]:
     """Retrieve full active pool of Groq API keys across configs and built-ins."""
@@ -530,6 +537,20 @@ class SpeechToTextEngine:
                 if cached_subs and len(cached_subs) > 0:
                     raw_segments = cached_subs
 
+        if not raw_segments and NISAY_AVAILABLE:
+            nisay_k = get_nisay_api_key()
+            if nisay_k and nisay_k != "nisay-YOUR_API_KEY":
+                print("[NISAY TRANSCRIBE] Active key found. Routing to Nisay AI Gateway (model: nisay-transcribe)...")
+                if progress_callback:
+                    progress_callback(46, "៣/៧ Nisay AI៖ កំពុងប្រើប្រាស់ Nisay Transcribe (លឿន & ច្បាស់កម្រិត Millisecond)...", "Using Nisay Transcribe...")
+                try:
+                    nisay_segs = transcribe_with_nisay(audio_path, language=source_lang, progress_callback=progress_callback)
+                    if nisay_segs:
+                        raw_segments = nisay_segs
+                        print(f"[OK] Nisay Transcribe transcribed {len(raw_segments)} dialogue segments with millisecond timestamps!")
+                except Exception as ne:
+                    print(f"Nisay Transcribe note: {ne}")
+
         if not raw_segments:
             # High-Speed Zero-Freeze Optimization:
             # If system has no dedicated NVIDIA CUDA GPU, prioritize Groq Cloud Whisper
@@ -554,12 +575,30 @@ class SpeechToTextEngine:
                 except Exception as e:
                     print(f"Cloud Whisper note: {e}")
 
+        # Cloud-Server-Only Enforcement:
+        # 100% Online Cloud Server Only (Nisay Transcribe + Groq Cloud Whisper).
+        # Completely bypasses local Faster-Whisper models to prevent high CPU usage, local model downloads, and freezing.
+        CLOUD_SERVER_ONLY = True
+        if CLOUD_SERVER_ONLY:
+            if not raw_segments:
+                print("[CLOUD ONLY] Retrying cloud STT engines...")
+                try:
+                    cloud_segs = transcribe_with_groq_whisper(audio_path, source_lang=source_lang)
+                    if cloud_segs:
+                        raw_segments = cloud_segs
+                except Exception as e:
+                    print(f"Cloud STT retry note: {e}")
+
+            if not raw_segments:
+                raise RuntimeError("Cloud STT Error: Online Cloud Servers (Nisay Transcribe / Cloud Whisper) returned no audio dialogues. Local processing is disabled (Cloud Server Only mode).")
+
         if not raw_segments:
             model = None
             try:
                 model = self._get_model()
             except Exception as me:
                 print(f"Local Faster-Whisper model load note: {me}")
+
 
             if model:
                 try:
@@ -713,10 +752,13 @@ class SpeechToTextEngine:
         is_single_voice = vo_clean in ("piseth", "sreymom", "male", "female")
         single_voice = "sreymom" if vo_clean in ("sreymom", "female") else "piseth"
 
-        # Load audio samples into memory ONCE for ultra-fast in-memory acoustic analysis
+        # Check if segments already have speaker diarization from Cloud STT (Nisay S0, S1...)
+        has_cloud_speakers = any(str(s.get("speaker", "")).upper().startswith("S") for s in raw_segments)
+
+        # Only load audio samples into memory if local acoustic analysis is strictly necessary
         audio_samples = None
         sr = 16000
-        if not is_single_voice and NUMPY_AVAILABLE and audio_path and os.path.exists(audio_path):
+        if not is_single_voice and not has_cloud_speakers and NUMPY_AVAILABLE and audio_path and os.path.exists(audio_path):
             audio_samples, sr = load_audio_samples_16k(audio_path)
 
         # 1. First Pass: Fast Acoustic Analysis & Vocative Classification
@@ -741,9 +783,25 @@ class SpeechToTextEngine:
                 })
                 continue
 
-            # Fast in-memory acoustic slice
+            # Fast cloud speaker attribution if available
             acoustics = None
-            if audio_samples is not None and len(audio_samples) > 0:
+            if has_cloud_speakers:
+                spk_id = str(seg.get("speaker", "S0")).strip().upper()
+                if spk_id in ("S1", "S3", "S5") or (spk_id.startswith("S") and spk_id[1:].isdigit() and int(spk_id[1:]) % 2 == 1):
+                    acoustics = {
+                        "role": "female",
+                        "voice": "sreymom",
+                        "speaker": "តួស្រី (ស្រីមុំ)",
+                        "f0": 210.0
+                    }
+                else:
+                    acoustics = {
+                        "role": "male",
+                        "voice": "piseth",
+                        "speaker": "តួប្រុស (ពិសិដ្ឋ)",
+                        "f0": 125.0
+                    }
+            elif audio_samples is not None and len(audio_samples) > 0:
                 s_idx = max(0, int(start * sr))
                 e_idx = min(len(audio_samples), int(end * sr))
                 if e_idx > s_idx:

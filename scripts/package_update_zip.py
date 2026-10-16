@@ -11,12 +11,12 @@ CLIENT_RUNTIME_PY = [
     "license_engine.py", "hongguo_service.py", "hongguo_db.py",
     "shortmax_service.py", "reelshort_service.py", "recap_engine.py",
     "series_memory.py", "subtitle_styler.py", "translate_video.py",
-    "run_studio.py", "update.py"
+    "run_studio.py", "update.py", "nisay_transcribe.py", "nisay_translate.py"
 ]
 
 CLIENT_ROOT_FILES = [
     "version.json", "icon.ico", "license_config.json", "custom_keys.json",
-    "START_SN_TOOL.bat", "SN_TOOL.bat", "CREATE_DESKTOP_SHORTCUT.bat"
+    "START_SN_TOOL.bat", "SN_TOOL.bat", "Khmer_Drama_Studio_Launcher.bat", "CREATE_DESKTOP_SHORTCUT.bat"
 ]
 
 def package_update_zip():

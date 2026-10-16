@@ -359,23 +359,31 @@ class ProjectManager:
         else:
             v_override = voice_override
 
-        # Ensure dialogues have acoustic diarization if in multi-voice mode
+        # Ensure dialogues have speaker role assignment if in multi-voice mode (Zero-Freeze Fast Diarization)
         if v_override in ("multi", "auto_multi"):
-            target_audio = project.get("isolated_vocals_file") or project.get("audio_file")
-            if target_audio and Path(target_audio).exists():
-                try:
-                    from stt_engine import analyze_segment_acoustics
-                    for d in project.get("dialogues", []):
-                        spk_low = str(d.get("speaker", "")).lower()
-                        if not d.get("detected_role") or "solo" in spk_low:
-                            s_time = float(d.get("start", 0.0))
-                            e_time = float(d.get("end", s_time + 1.0))
-                            ac = analyze_segment_acoustics(str(target_audio), s_time, e_time)
-                            if ac.get("role") in ("female", "male"):
-                                d["detected_role"] = ac["role"]
-                                d["voice"] = ac["voice"]
-                except Exception as e:
-                    print(f"Acoustic re-diarization notice: {e}")
+            last_role = "male"
+            for d in project.get("dialogues", []):
+                role = d.get("detected_role")
+                if role in ("female", "male"):
+                    last_role = role
+                    d["voice"] = "sreymom" if role == "female" else "piseth"
+                    continue
+
+                spk_str = str(d.get("speaker", "")).lower()
+                if any(kw in spk_str for kw in ("female", "ស្រី", "s1", "s3", "s5")):
+                    d["detected_role"] = "female"
+                    d["voice"] = "sreymom"
+                    last_role = "female"
+                elif any(kw in spk_str for kw in ("male", "ប្រុស", "s0", "s2", "s4")):
+                    d["detected_role"] = "male"
+                    d["voice"] = "piseth"
+                    last_role = "male"
+                else:
+                    # Alternate conversation turn smoothly
+                    new_role = "female" if last_role == "male" else "male"
+                    d["detected_role"] = new_role
+                    d["voice"] = "sreymom" if new_role == "female" else "piseth"
+                    last_role = new_role
 
         translated_dialogues = await self.translator.translate_dialogues(
             dialogues=project.get("dialogues", []),

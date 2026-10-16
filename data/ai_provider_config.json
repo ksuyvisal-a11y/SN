@@ -1,5 +1,10 @@
 {
   "engine": "auto",
+  "mode": "cloud_server_only",
+  "cloud_only": true,
+  "stt_engine": "nisay-transcribe",
+  "translation_engine": "gemini-3.8-flash-high",
+  "nisay_api_key": "",
   "groq_api_key": "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",
   "groq_keys": [
     "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",
@@ -82,7 +87,7 @@
   "gemini_api_key": "",
   "keys": [],
   "keys_raw": "",
-  "model": "gemini-2.5-flash",
+  "model": "gemini-3.8-flash-high",
   "temperature": 0.3,
   "prompt_style": "You are a master Cambodian film dubbing scriptwriter and voice director specializing in Asian TV dramas. Translate dialogue lines into natural, emotional, authentic spoken Khmer film dubbing language (ពិសិដ្ឋ & ស្រីមុំ)."
 }

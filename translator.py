@@ -30,6 +30,13 @@ try:
 except ImportError:
     GENAI_AVAILABLE = False
 
+try:
+    from nisay_translate import get_nisay_api_key, translate_khmer
+    NISAY_TRANSLATE_AVAILABLE = True
+except ImportError:
+    NISAY_TRANSLATE_AVAILABLE = False
+
+
 DRAMA_PROMPT_SYSTEM = """You are a master Cambodian film dubbing scriptwriter and voice director specializing in Asian TV dramas (Chinese, Korean, Thai).
 Translate dialogue lines into deeply emotional, authentic, captivating, natural spoken Khmer film dubbing language (ភាសាបញ្ចូលសំឡេងរឿងភាគទូរទស្សន៍ខ្មែរអាជីព ពិរោះរណ្តំ ដូចរឿងភាគទូរទស្សន៍ហង្សមាស បាយ័ន ស៊ីធីអិន).
 
@@ -969,6 +976,18 @@ class DramaTranslator:
         if clean_key in custom_dict:
             return self._post_polish_khmer(custom_dict[clean_key], cleaned, voice)
 
+        # 0. Primary Online Cloud AI: Nisay Gateway (gemini-3.8-flash-high)
+        if NISAY_TRANSLATE_AVAILABLE:
+            try:
+                n_key = get_nisay_api_key()
+                if n_key and n_key != "nisay-YOUR_API_KEY":
+                    n_res = await asyncio.to_thread(translate_khmer, cleaned, "chinese_general", custom_dict)
+                    if n_res and isinstance(n_res, str) and n_res.strip():
+                        return self._post_polish_khmer(n_res.strip(), cleaned, voice)
+            except Exception:
+                pass
+
+
         sl = "auto" if source_lang in ("auto", "", None) else source_lang
         if sl in ("zh", "chinese"):
             sl = "zh-CN"
@@ -1130,7 +1149,83 @@ class DramaTranslator:
             "pitch_hz": v_info["pitch_hz"]
         }
 
+    async def translate_dialogues_nisay(
+        self,
+        dialogues: List[Dict[str, Any]],
+        source_lang: str = "auto",
+        target_voice_override: Optional[str] = None,
+        category: str = "chinese_general",
+        custom_dict: Optional[Dict[str, str]] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Translate dialogue items using Nisay AI Gateway (gemini-3.8-flash-high).
+        High-fidelity, category-aware online cloud translation with Standard Khmer orthography.
+        """
+        if not dialogues:
+            return []
+
+        texts = []
+        for itm in dialogues:
+            txt = (itm.get("text") or itm.get("text_original") or "").strip()
+            texts.append(txt)
+
+        chunk_size = 25
+        text_chunks = [texts[i:i + chunk_size] for i in range(0, len(texts), chunk_size)]
+
+        sem = asyncio.Semaphore(4)
+        async def _trans_chunk(t_chunk):
+            async with sem:
+                return await asyncio.to_thread(
+                    translate_khmer,
+                    t_chunk,
+                    category=category,
+                    entity_glossary=custom_dict
+                )
+
+        chunk_tasks = [_trans_chunk(tc) for tc in text_chunks]
+        chunk_results = await asyncio.gather(*chunk_tasks)
+
+        all_translated_texts = []
+        for c_res in chunk_results:
+            if isinstance(c_res, list):
+                all_translated_texts.extend(c_res)
+            elif isinstance(c_res, str):
+                all_translated_texts.append(c_res)
+
+        results = []
+        for idx, itm in enumerate(dialogues):
+            orig_text = (itm.get("text") or itm.get("text_original") or "").strip()
+            start = itm.get("start", 0.0)
+            end = itm.get("end", 0.0)
+            dur_sec = round(max(0.2, float(end) - float(start)), 2)
+
+            v_info = self._determine_strictly_two_voices(itm, target_voice_override)
+            chosen_voice = v_info["voice"]
+
+            raw_km = all_translated_texts[idx] if idx < len(all_translated_texts) else orig_text
+            final_text_km = enrich_khmer_drama_dialogue(
+                str(raw_km).strip(),
+                orig_text,
+                chosen_voice,
+                duration_sec=dur_sec
+            )
+
+            results.append({
+                "id": itm.get("id", idx + 1),
+                "start": start,
+                "end": end,
+                "speaker": v_info["character_role"],
+                "text_original": orig_text,
+                "text_km": final_text_km,
+                "voice": chosen_voice,
+                "rate_percent": v_info["rate_percent"],
+                "pitch_hz": v_info["pitch_hz"]
+            })
+
+        return results
+
     async def translate_dialogues_groq(
+
         self,
         dialogues: List[Dict[str, Any]],
         mode: str = "drama_dubbing",
@@ -1323,6 +1418,25 @@ Return JSON object with key "dialogues" containing an array with keys: id, start
             glossary_block = f"\n\nSTRICT CHARACTER NAMES & VOCABULARY DICTIONARY (You MUST use these exact Khmer terms for translation):\n{dict_str}\n"
             active_system_prompt = active_system_prompt + glossary_block
 
+        # 0. Primary Online Cloud AI: Nisay Gateway (gemini-3.8-flash-high)
+        if NISAY_TRANSLATE_AVAILABLE:
+            nisay_k = get_nisay_api_key()
+            if nisay_k and nisay_k != "nisay-YOUR_API_KEY":
+                try:
+                    print(f"[NISAY CLOUD TRANSLATE] Translating {len(dialogues)} dialogues via Online Cloud Server (gemini-3.8-flash-high)...")
+                    nisay_res = await self.translate_dialogues_nisay(
+                        dialogues=dialogues,
+                        source_lang=source_lang,
+                        target_voice_override=target_voice_override,
+                        category="chinese_general",
+                        custom_dict=custom_dict
+                    )
+                    if nisay_res and len(nisay_res) == len(dialogues):
+                        print(f"[OK] Nisay Cloud Server translated {len(nisay_res)} dialogues successfully!")
+                        return nisay_res
+                except Exception as ne:
+                    print(f"Nisay Cloud translation note: {ne}")
+
         # 1. Groq Ultra-Fast AI (Parallel Chunks, 500-800 tokens/sec)
         if self.groq_api_key and str(self.groq_api_key).startswith("gsk_"):
             try:
@@ -1463,6 +1577,12 @@ Return ONLY valid JSON array with keys: id, start, end, text_original, text_km, 
                     return [g_translated_map[i] for i in range(len(dialogues))]
             except Exception as e:
                 print(f"Gemini translation note: {e}. Using professional free drama dubbing engine.")
+
+        # Cloud-Server-Only Enforcement:
+        # Bypasses local fallback to guarantee 100% online cloud execution
+        CLOUD_SERVER_ONLY = True
+        if CLOUD_SERVER_ONLY:
+            raise RuntimeError("Cloud Translation Error: Online Cloud Servers (Nisay gemini-3.8-flash-high / Groq Cloud) failed or returned no response. Local fallback processing is disabled (Cloud Server Only mode).")
 
         # 3. High-Speed Local Drama Dubbing Engine (Concurrent with Semaphore=12 & Connection Pool)
         sem = asyncio.Semaphore(12)
