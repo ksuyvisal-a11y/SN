@@ -426,11 +426,11 @@ def mix_dubbed_audio(
     max_d_end = 0.0
     for idx, item in enumerate(dialogue_items):
         af = item.get("audio_file")
-        if not af or not Path(af).exists() or Path(af).stat().st_size < 500:
+        from tts_engine import synthesize_via_google_khmer_api, is_valid_audible_audio
+        if not af or not Path(af).exists() or not is_valid_audible_audio(af):
             txt = (item.get("text_km") or item.get("text", "")).strip()
             if txt:
                 try:
-                    from tts_engine import synthesize_via_google_khmer_api, is_valid_audible_audio
                     v = item.get("voice") or "piseth"
                     rec_p = Path(output_mixed_path).parent / f"auto_recovered_{idx}_{os.urandom(3).hex()}.mp3"
                     fixed_audio = synthesize_via_google_khmer_api(txt, v, str(rec_p))
@@ -440,7 +440,7 @@ def mix_dubbed_audio(
                 except Exception as rec_err:
                     print(f"On-the-fly audio recovery note: {rec_err}")
 
-        if af and Path(af).exists() and Path(af).stat().st_size > 100:
+        if af and Path(af).exists() and is_valid_audible_audio(af):
             valid_lines.append((idx, item))
         d_end = float(item.get("end", item.get("orig_end", 0.0)))
         if d_end > max_d_end:

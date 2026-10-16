@@ -217,7 +217,25 @@ def is_valid_audible_audio(file_path: Optional[str]) -> bool:
             return False
         return True
     except Exception:
-        return p.stat().st_size > 2500
+        # High-res fallback via FFmpeg volumedetect
+        try:
+            cmd = [
+                get_ffmpeg_path(),
+                "-nostdin",
+                "-y",
+                "-i", str(p),
+                "-af", "volumedetect",
+                "-f", "null",
+                "-"
+            ]
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=10, **get_silent_kwargs())
+            for line in res.stderr.split("\n"):
+                if "max_volume:" in line:
+                    val = float(line.split("max_volume:")[1].replace("dB", "").strip())
+                    return val > -50.0
+        except Exception:
+            pass
+        return False
 
 
 def _chunk_khmer_text(text: str, max_chars: int = 140) -> List[str]:
@@ -822,9 +840,9 @@ def trim_and_fit_voice_audio(audio_path: str, max_duration_sec: Optional[float] 
                         if len(stretched) > 0:
                             trimmed = stretched
 
-            # Strictly guarantee speech does not overrun the available slot before the next speaker
-            if len(trimmed) > target_ms + 80:
-                trimmed = trimmed[:target_ms + 50].fade_out(35)
+            # Guarantee speech fits within available slot before the next speaker
+            if len(trimmed) > target_ms + 250:
+                trimmed = trimmed[:target_ms + 200].fade_out(45)
 
         save_audio_safely(trimmed, str(audio_path))
         return len(trimmed) / 1000.0
@@ -864,14 +882,14 @@ async def batch_synthesize(
             end = float(item.get("end", start + 2.0))
 
             # Lip-sync mouth movement duration budget:
-            # Actor speaks for (end - start) seconds. Synchronize speech to finish near mouth closure!
-            mouth_dur = max(0.35, end - start)
+            # Allows natural Khmer spoken phrasing while guaranteeing speech finishes before next actor speaks
+            mouth_dur = max(0.5, end - start)
             if index + 1 < len(dialogue_items):
-                nxt_start = float(dialogue_items[index + 1].get("start", end + 1.0))
-                gap_to_next = max(0.35, nxt_start - start - 0.08)
-                avail_dur = min(mouth_dur + 0.25, gap_to_next)
+                nxt_start = float(dialogue_items[index + 1].get("start", end + 2.0))
+                gap_to_next = max(0.8, nxt_start - start - 0.08)
+                avail_dur = min(max(mouth_dur + 2.0, 3.5), gap_to_next)
             else:
-                avail_dur = mouth_dur + 0.25
+                avail_dur = max(mouth_dur + 3.0, 4.5)
 
             # Dynamically calculate optimal Edge-TTS speaking rate (+0% to +35%)
             # so the speech tempo naturally matches the actor's mouth speed, eliminating voice lag!
