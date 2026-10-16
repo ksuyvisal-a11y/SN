@@ -10880,7 +10880,7 @@ async function checkForAppUpdates(manual = false) {
         const btnUpdate = document.getElementById('btn-do-update');
         const progContainer = document.getElementById('update-progress-container');
 
-        const curVer = data.current_version || '1.0.5';
+        const curVer = data.current_version || '1.0.6';
         const latVer = data.latest_version || curVer;
 
         if (curEl) curEl.textContent = `v${curVer}`;
