@@ -4449,6 +4449,7 @@ function renderQueueViewForCurrentDrama() {
             const row = document.createElement('div');
             row.className = `dl-q2-tr ${isPlaying ? 'active' : ''}`;
             row.id = `dl-q-row-${epNum}`;
+            row.setAttribute('data-ep', epNum);
             row.onclick = () => playQueueEpisode(epNum);
 
             row.innerHTML = `
@@ -4480,6 +4481,146 @@ function renderQueueViewForCurrentDrama() {
     // Prepare playback for active episode paused with play button ready
     if (!dlQueueActiveEpisodeNum) {
         playQueueEpisode(1, false);
+    }
+}
+
+function updateEpisodeUIState(ep, isDownloadingBatch = false) {
+    const epNum = parseInt(ep.episode_num || ep.episode_number || 0);
+    if (!epNum) return;
+
+    const fill = document.getElementById(`dl-q-fill-${epNum}`);
+    const cardFill = document.getElementById(`dl-card-fill-${epNum}`);
+    const card = document.getElementById(`dl-ep-card-${epNum}`) || document.querySelector(`.dl-ep-card-btn[data-ep="${epNum}"]`);
+    const text = document.getElementById(`dl-q-text-${epNum}`);
+    const row = document.getElementById(`dl-q-row-${epNum}`) || document.querySelector(`.dl-q2-tr[data-ep="${epNum}"]`);
+    const prog = typeof ep.progress === 'number' ? ep.progress : (ep.status === 'Completed' ? 100 : 0);
+
+    let status = ep.status || '';
+    if (prog === 100 || status === 'Completed') {
+        status = 'Completed';
+    } else if (status === 'Failed') {
+        status = 'Failed';
+    } else if (prog > 0 || status === 'Downloading') {
+        status = 'Downloading';
+    } else if (isDownloadingBatch || status === 'Queued') {
+        status = 'Queued';
+    } else {
+        status = status || 'Ready';
+    }
+
+    // 1. Episode Queue Table Progress Fill Track
+    if (fill) {
+        if (status === 'Completed') {
+            fill.style.width = '100%';
+            fill.style.background = '#10b981';
+        } else if (status === 'Failed') {
+            fill.style.width = '100%';
+            fill.style.background = '#ef4444';
+        } else if (status === 'Downloading') {
+            fill.style.width = `${Math.max(prog, 5)}%`;
+            fill.style.background = 'linear-gradient(90deg, #f59e0b, #fbbf24)';
+        } else {
+            fill.style.width = '0%';
+            fill.style.background = '#334155';
+        }
+    }
+
+    // 2. Center Card Grid Progress Track
+    if (cardFill) {
+        cardFill.style.width = (status === 'Completed') ? '100%' : (status === 'Downloading' ? `${Math.max(prog, 5)}%` : '0%');
+    }
+
+    // 3. Center Episode Card Tag & Completed Visual
+    if (card) {
+        if (status === 'Completed') {
+            card.classList.add('completed');
+        } else {
+            card.classList.remove('completed');
+        }
+        const cardTag = card.querySelector('.dl-ep-card-tag');
+        if (cardTag) {
+            if (status === 'Completed') {
+                cardTag.textContent = 'READY';
+                cardTag.style.color = '#10b981';
+            } else if (status === 'Downloading') {
+                cardTag.textContent = `${prog}%`;
+                cardTag.style.color = '#f59e0b';
+            } else if (status === 'Failed') {
+                cardTag.textContent = 'FAIL';
+                cardTag.style.color = '#ef4444';
+            } else if (status === 'Queued') {
+                cardTag.textContent = 'QUEUED';
+                cardTag.style.color = '#94a3b8';
+            } else {
+                cardTag.textContent = 'FREE';
+                cardTag.style.color = '#38bdf8';
+            }
+        }
+    }
+
+    // 4. Episode Queue Table Progress Percentage Text
+    if (text) {
+        if (status === 'Completed') {
+            text.textContent = '100%';
+            text.style.color = '#10b981';
+        } else if (status === 'Failed') {
+            text.textContent = 'Failed';
+            text.style.color = '#ef4444';
+        } else if (status === 'Downloading') {
+            text.textContent = `${prog}%`;
+            text.style.color = '#fbbf24';
+        } else if (status === 'Queued') {
+            text.textContent = '0%';
+            text.style.color = '#94a3b8';
+        } else {
+            text.textContent = '0%';
+            text.style.color = '#64748b';
+        }
+    }
+
+    // 5. Episode Queue Table Access / Status Pill
+    if (row) {
+        const pill = row.querySelector('.dl-q2-status-pill');
+        if (pill) {
+            pill.className = `dl-q2-status-pill ${status.toLowerCase()}`;
+            if (status === 'Completed') {
+                pill.textContent = 'Completed';
+                pill.style.color = '#10b981';
+            } else if (status === 'Failed') {
+                pill.textContent = 'Failed';
+                pill.style.color = '#ef4444';
+            } else if (status === 'Downloading') {
+                pill.textContent = `Downloading ${prog}%`;
+                pill.style.color = '#f59e0b';
+            } else if (status === 'Queued') {
+                pill.textContent = 'Queued';
+                pill.style.color = '#94a3b8';
+            } else {
+                pill.textContent = 'Ready';
+                pill.style.color = '#38bdf8';
+            }
+        }
+    }
+
+    // 6. Catalog Table Checkbox Status
+    const catStatus = document.getElementById(`dl-cat-status-${epNum}`);
+    if (catStatus) {
+        if (status === 'Completed') {
+            catStatus.textContent = '✔ 100%';
+            catStatus.style.color = '#10b981';
+        } else if (status === 'Downloading') {
+            catStatus.textContent = `⚡ ${prog}%`;
+            catStatus.style.color = '#f59e0b';
+        } else if (status === 'Failed') {
+            catStatus.textContent = '❌ Failed';
+            catStatus.style.color = '#ef4444';
+        } else if (status === 'Queued') {
+            catStatus.textContent = 'Queued';
+            catStatus.style.color = '#94a3b8';
+        } else {
+            catStatus.textContent = 'Ready';
+            catStatus.style.color = '#38bdf8';
+        }
     }
 }
 
@@ -4856,33 +4997,11 @@ async function downloadAllQueueEpisodes() {
             e.status = 'Queued';
             e.progress = 0;
         }
+        updateEpisodeUIState(e, true);
     });
 
-    // Update UI checkmarks and rows in Queue table immediately
+    // Update UI checkmarks in Queue table immediately
     document.querySelectorAll('.dl-q2-capsule-toggle').forEach(t => t.classList.add('checked'));
-    dlEpisodesList.forEach(ep => {
-        const epNum = ep.episode_num || ep.episode_number;
-        const fill = document.getElementById(`dl-q-fill-${epNum}`);
-        const cardFill = document.getElementById(`dl-card-fill-${epNum}`);
-        const text = document.getElementById(`dl-q-text-${epNum}`);
-        const row = document.getElementById(`dl-q-row-${epNum}`);
-        if (ep.status !== 'Completed') {
-            if (fill) fill.style.width = '0%';
-            if (cardFill) cardFill.style.width = '0%';
-            if (text) {
-                text.textContent = '0%';
-                text.style.color = '#94a3b8';
-            }
-            if (row) {
-                const pill = row.querySelector('.dl-q2-status-pill');
-                if (pill) {
-                    pill.textContent = 'Queued';
-                    pill.className = 'dl-q2-status-pill queued';
-                    pill.style.color = '#94a3b8';
-                }
-            }
-        }
-    });
 
     const path = getEffectiveSaveLocation();
     const computedDir = getComputedDramaFolder().replace(/\//g, '\\');
@@ -4952,108 +5071,7 @@ async function downloadAllQueueEpisodes() {
                     if (sData.episodes && sData.episodes.length > 0) {
                         dlEpisodesList = sData.episodes;
                         sData.episodes.forEach(ep => {
-                            const epNum = ep.episode_num || ep.episode_number;
-                            const fill = document.getElementById(`dl-q-fill-${epNum}`);
-                            const cardFill = document.getElementById(`dl-card-fill-${epNum}`);
-                            const card = document.getElementById(`dl-ep-card-${epNum}`);
-                            const text = document.getElementById(`dl-q-text-${epNum}`);
-                            const row = document.getElementById(`dl-q-row-${epNum}`);
-                            const prog = ep.progress || 0;
-                            const status = ep.status || (prog === 100 ? 'Completed' : (prog > 0 ? 'Downloading' : 'Queued'));
-
-                            if (fill) {
-                                if (status === 'Completed' || prog === 100) {
-                                    fill.style.width = '100%';
-                                    fill.style.background = '#10b981';
-                                } else if (status === 'Failed') {
-                                    fill.style.width = '100%';
-                                    fill.style.background = '#ef4444';
-                                } else if (status === 'Downloading') {
-                                    fill.style.width = `${prog}%`;
-                                    fill.style.background = 'linear-gradient(90deg, #f59e0b, #fbbf24)';
-                                } else {
-                                    fill.style.width = '0%';
-                                }
-                            }
-                            if (cardFill) {
-                                cardFill.style.width = (status === 'Completed' || prog === 100) ? '100%' : (status === 'Downloading' ? `${prog}%` : '0%');
-                            }
-                            if (card) {
-                                if (status === 'Completed' || prog === 100) {
-                                    card.classList.add('completed');
-                                } else {
-                                    card.classList.remove('completed');
-                                }
-                                const cardTag = card.querySelector('.dl-ep-card-tag');
-                                if (cardTag) {
-                                    if (status === 'Completed' || prog === 100) {
-                                        cardTag.textContent = 'READY';
-                                        cardTag.style.color = '#10b981';
-                                    } else if (status === 'Downloading') {
-                                        cardTag.textContent = `${prog}%`;
-                                        cardTag.style.color = '#f59e0b';
-                                    } else if (status === 'Failed') {
-                                        cardTag.textContent = 'FAIL';
-                                        cardTag.style.color = '#ef4444';
-                                    } else {
-                                        cardTag.textContent = 'QUEUED';
-                                        cardTag.style.color = '#94a3b8';
-                                    }
-                                }
-                            }
-                            if (text) {
-                                if (status === 'Completed' || prog === 100) {
-                                    text.textContent = '100%';
-                                    text.style.color = '#10b981';
-                                } else if (status === 'Failed') {
-                                    text.textContent = 'Failed';
-                                    text.style.color = '#ef4444';
-                                } else if (status === 'Downloading') {
-                                    text.textContent = `${prog}%`;
-                                    text.style.color = '#fbbf24';
-                                } else {
-                                    text.textContent = '0%';
-                                    text.style.color = '#94a3b8';
-                                }
-                            }
-                            if (row) {
-                                const pill = row.querySelector('.dl-q2-status-pill');
-                                if (pill) {
-                                    pill.className = `dl-q2-status-pill ${status.toLowerCase()}`;
-                                    if (status === 'Completed' || prog === 100) {
-                                        pill.textContent = 'Completed';
-                                        pill.style.color = '#10b981';
-                                    } else if (status === 'Failed') {
-                                        pill.textContent = 'Failed';
-                                        pill.style.color = '#ef4444';
-                                    } else if (status === 'Downloading') {
-                                        pill.textContent = `Downloading ${prog}%`;
-                                        pill.style.color = '#f59e0b';
-                                    } else if (status === 'Queued') {
-                                        pill.textContent = 'Queued';
-                                        pill.style.color = '#94a3b8';
-                                    } else {
-                                        pill.textContent = status;
-                                        pill.style.color = '#38bdf8';
-                                    }
-                                }
-                            }
-                            const catStatus = document.getElementById(`dl-cat-status-${epNum}`);
-                            if (catStatus) {
-                                if (status === 'Completed' || prog === 100) {
-                                    catStatus.textContent = '✔ 100%';
-                                    catStatus.style.color = '#10b981';
-                                } else if (status === 'Downloading') {
-                                    catStatus.textContent = `⚡ ${prog}%`;
-                                    catStatus.style.color = '#f59e0b';
-                                } else if (status === 'Failed') {
-                                    catStatus.textContent = '❌ Failed';
-                                    catStatus.style.color = '#ef4444';
-                                } else {
-                                    catStatus.textContent = status || 'Queued';
-                                    catStatus.style.color = '#94a3b8';
-                                }
-                            }
+                            updateEpisodeUIState(ep, sData.is_downloading);
                         });
                     }
                     updateDownloaderStats(sData.stats);
@@ -5593,31 +5611,13 @@ async function startBatchDownload() {
     showToast(`Downloading all (${selected.length} episodes)...`);
     appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Starting batch queue for ${selected.length} episodes...`);
 
-    // Option 1: Immediately set all non-completed episodes to Queued & 0% in UI
+    // Option 1: Immediately set all non-completed episodes to Queued in UI
     dlEpisodesList.forEach(e => {
         if (e.status !== 'Completed') {
             e.status = 'Queued';
             e.progress = 0;
-            const epNum = e.episode_num || e.episode_number;
-            const fill = document.getElementById(`dl-q-fill-${epNum}`);
-            const cardFill = document.getElementById(`dl-card-fill-${epNum}`);
-            const text = document.getElementById(`dl-q-text-${epNum}`);
-            const row = document.getElementById(`dl-q-row-${epNum}`);
-            if (fill) fill.style.width = '0%';
-            if (cardFill) cardFill.style.width = '0%';
-            if (text) {
-                text.textContent = '0%';
-                text.style.color = '#94a3b8';
-            }
-            if (row) {
-                const pill = row.querySelector('.dl-q2-status-pill');
-                if (pill) {
-                    pill.textContent = 'Queued';
-                    pill.className = 'dl-q2-status-pill queued';
-                    pill.style.color = '#94a3b8';
-                }
-            }
         }
+        updateEpisodeUIState(e, true);
     });
 
     const path = getEffectiveSaveLocation();
@@ -5665,108 +5665,7 @@ async function startBatchDownload() {
                     if (sData.episodes && sData.episodes.length > 0) {
                         dlEpisodesList = sData.episodes;
                         sData.episodes.forEach(ep => {
-                            const epNum = ep.episode_num || ep.episode_number;
-                            const fill = document.getElementById(`dl-q-fill-${epNum}`);
-                            const cardFill = document.getElementById(`dl-card-fill-${epNum}`);
-                            const card = document.getElementById(`dl-ep-card-${epNum}`);
-                            const text = document.getElementById(`dl-q-text-${epNum}`);
-                            const row = document.getElementById(`dl-q-row-${epNum}`);
-                            const prog = ep.progress || 0;
-                            const status = ep.status || (prog === 100 ? 'Completed' : (prog > 0 ? 'Downloading' : 'Queued'));
-
-                            if (fill) {
-                                if (status === 'Completed' || prog === 100) {
-                                    fill.style.width = '100%';
-                                    fill.style.background = '#10b981';
-                                } else if (status === 'Failed') {
-                                    fill.style.width = '100%';
-                                    fill.style.background = '#ef4444';
-                                } else if (status === 'Downloading') {
-                                    fill.style.width = `${prog}%`;
-                                    fill.style.background = 'linear-gradient(90deg, #f59e0b, #fbbf24)';
-                                } else {
-                                    fill.style.width = '0%';
-                                }
-                            }
-                            if (cardFill) {
-                                cardFill.style.width = (status === 'Completed' || prog === 100) ? '100%' : (status === 'Downloading' ? `${prog}%` : '0%');
-                            }
-                            if (card) {
-                                if (status === 'Completed' || prog === 100) {
-                                    card.classList.add('completed');
-                                } else {
-                                    card.classList.remove('completed');
-                                }
-                                const cardTag = card.querySelector('.dl-ep-card-tag');
-                                if (cardTag) {
-                                    if (status === 'Completed' || prog === 100) {
-                                        cardTag.textContent = 'READY';
-                                        cardTag.style.color = '#10b981';
-                                    } else if (status === 'Downloading') {
-                                        cardTag.textContent = `${prog}%`;
-                                        cardTag.style.color = '#f59e0b';
-                                    } else if (status === 'Failed') {
-                                        cardTag.textContent = 'FAIL';
-                                        cardTag.style.color = '#ef4444';
-                                    } else {
-                                        cardTag.textContent = 'QUEUED';
-                                        cardTag.style.color = '#94a3b8';
-                                    }
-                                }
-                            }
-                            if (text) {
-                                if (status === 'Completed' || prog === 100) {
-                                    text.textContent = '100%';
-                                    text.style.color = '#10b981';
-                                } else if (status === 'Failed') {
-                                    text.textContent = 'Failed';
-                                    text.style.color = '#ef4444';
-                                } else if (status === 'Downloading') {
-                                    text.textContent = `${prog}%`;
-                                    text.style.color = '#fbbf24';
-                                } else {
-                                    text.textContent = '0%';
-                                    text.style.color = '#94a3b8';
-                                }
-                            }
-                            if (row) {
-                                const pill = row.querySelector('.dl-q2-status-pill');
-                                if (pill) {
-                                    pill.className = `dl-q2-status-pill ${status.toLowerCase()}`;
-                                    if (status === 'Completed' || prog === 100) {
-                                        pill.textContent = 'Completed';
-                                        pill.style.color = '#10b981';
-                                    } else if (status === 'Failed') {
-                                        pill.textContent = 'Failed';
-                                        pill.style.color = '#ef4444';
-                                    } else if (status === 'Downloading') {
-                                        pill.textContent = `Downloading ${prog}%`;
-                                        pill.style.color = '#f59e0b';
-                                    } else if (status === 'Queued') {
-                                        pill.textContent = 'Queued';
-                                        pill.style.color = '#94a3b8';
-                                    } else {
-                                        pill.textContent = status;
-                                        pill.style.color = '#38bdf8';
-                                    }
-                                }
-                            }
-                            const catStatus = document.getElementById(`dl-cat-status-${epNum}`);
-                            if (catStatus) {
-                                if (status === 'Completed' || prog === 100) {
-                                    catStatus.textContent = '✔ 100%';
-                                    catStatus.style.color = '#10b981';
-                                } else if (status === 'Downloading') {
-                                    catStatus.textContent = `⚡ ${prog}%`;
-                                    catStatus.style.color = '#f59e0b';
-                                } else if (status === 'Failed') {
-                                    catStatus.textContent = '❌ Failed';
-                                    catStatus.style.color = '#ef4444';
-                                } else {
-                                    catStatus.textContent = status || 'Queued';
-                                    catStatus.style.color = '#94a3b8';
-                                }
-                            }
+                            updateEpisodeUIState(ep, sData.is_downloading);
                         });
                     }
                     updateDownloaderStats(sData.stats);

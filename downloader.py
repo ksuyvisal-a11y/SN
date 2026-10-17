@@ -2326,7 +2326,13 @@ class DramaDownloadManager:
     def start_download_batch(self, episode_ids: List[str], save_location: str, save_poster: bool = True, auto_merge_full: bool = False):
         """Start downloading selected episodes as real video files in a background worker."""
         if self.is_downloading:
-            return {"success": False, "message": "Download is already running."}
+            self.stop_requested = True
+            for _ in range(12):
+                if not self.is_downloading:
+                    break
+                time.sleep(0.1)
+            self.is_downloading = False
+            self.stop_requested = False
 
         self.is_downloading = True
         self.stop_requested = False
