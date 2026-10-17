@@ -10679,15 +10679,15 @@ async function checkDeviceLicenseStatus() {
             if (badgeElem) {
                 if (data.is_expiring_soon) {
                     const daysLeft = (data.days_remaining !== null && data.days_remaining !== undefined) ? `${data.days_remaining} Days` : 'Expiring Soon';
-                    badgeElem.textContent = `EXPIRING SOON (${daysLeft})`;
+                    badgeElem.innerHTML = `<span class="lic-pulse-dot" style="background-color:#f59e0b; box-shadow:0 0 8px #f59e0b;"></span> EXPIRING SOON (${daysLeft})`;
                     badgeElem.style.borderColor = "#f59e0b";
                     badgeElem.style.color = "#fbbf24";
                     badgeElem.style.background = "rgba(245,158,11,0.18)";
                 } else {
-                    badgeElem.textContent = "ACTIVE";
-                    badgeElem.style.borderColor = "#22c55e";
+                    badgeElem.innerHTML = `<span class="lic-pulse-dot"></span> ACTIVE`;
+                    badgeElem.style.borderColor = "rgba(34,197,94,0.45)";
                     badgeElem.style.color = "#4ade80";
-                    badgeElem.style.background = "rgba(34,197,94,0.15)";
+                    badgeElem.style.background = "rgba(34,197,94,0.16)";
                 }
             }
             if (planElem) planElem.textContent = data.plan || "PRO Studio";
@@ -10704,7 +10704,7 @@ async function checkDeviceLicenseStatus() {
             document.body.classList.add('license-locked');
             if (_splashDismissed && gateModal) gateModal.classList.add('active');
             if (badgeElem) {
-                badgeElem.textContent = data.status === "EXPIRED" ? "EXPIRED" : "UNLICENSED";
+                badgeElem.innerHTML = `<span class="lic-pulse-dot" style="background-color:#ef4444; box-shadow:0 0 8px #ef4444;"></span> ${data.status === "EXPIRED" ? "EXPIRED" : "UNLICENSED"}`;
                 badgeElem.style.borderColor = "#ef4444";
                 badgeElem.style.color = "#f87171";
                 badgeElem.style.background = "rgba(239,68,68,0.15)";
