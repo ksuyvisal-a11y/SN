@@ -108,7 +108,7 @@ def admin_custom_key():
     data = request.get_json(force=True) or {}
     custom_key = data.get("custom_key", "").strip()
     if not custom_key:
-        return jsonify({"success": False, "error": "សូមបញ្ចូល Custom Key"}), 400
+        return jsonify({"success": False, "error": "Please enter Custom Key"}), 400
     client_name = data.get("client_name", "").strip() or "Customer"
     duration_days = int(data.get("duration_days", 0))
     hwid = data.get("hwid") or None
@@ -132,7 +132,7 @@ def admin_revoke_key():
     key = data.get("license_key", "").strip()
     reason = data.get("reason", "Admin manual revoke")
     if not key:
-        return jsonify({"success": False, "error": "សូមបញ្ចូល Key"}), 400
+        return jsonify({"success": False, "error": "Please enter Key"}), 400
     ok, msg = revoke_license_key(key, reason)
     return jsonify({"success": ok, "message": msg})
 
@@ -141,7 +141,7 @@ def admin_unrevoke_key():
     data = request.get_json(force=True) or {}
     key = data.get("license_key", "").strip()
     if not key:
-        return jsonify({"success": False, "error": "សូមបញ្ចូល Key"}), 400
+        return jsonify({"success": False, "error": "Please enter Key"}), 400
     ok, msg = unrevoke_license_key(key)
     return jsonify({"success": ok, "message": msg})
 
@@ -150,7 +150,7 @@ def admin_delete_key():
     data = request.get_json(force=True) or {}
     key = data.get("license_key", "").strip()
     if not key:
-        return jsonify({"success": False, "error": "សូមបញ្ចូល Key"}), 400
+        return jsonify({"success": False, "error": "Please enter Key"}), 400
     ok, msg = delete_license_key_record(key)
     return jsonify({"success": ok, "message": msg})
 
@@ -171,7 +171,7 @@ def admin_extend_key():
     auto_push = bool(data.get("auto_push", True))
 
     if not key:
-        return jsonify({"success": False, "error": "សូមបញ្ចូល License Key"}), 400
+        return jsonify({"success": False, "error": "Please enter License Key"}), 400
 
     ok, msg, enriched = extend_license_key(key, additional_days=additional_days, plan=plan)
     if ok and auto_push:
@@ -185,7 +185,7 @@ def admin_sync_online():
         keys = sync_online_keys()
         return jsonify({
             "success": True,
-            "message": f"បាន Sync Key ទៅកាន់ Online Registry ({len(keys)} Keys) ជោគជ័យ!",
+            "message": f"Successfully synced {len(keys)} keys to Online Registry!",
             "count": len(keys)
         })
     except Exception as e:
@@ -220,7 +220,7 @@ def main():
     print("=" * 68)
     print(" 👑 SN TOOL - LICENSE ADMIN CONTROL CENTER (ISOLATED)")
     print(f" 🌐 Dedicated Admin Address: {ADMIN_URL}")
-    print(" 🛡️  Port: 8888 (ដាច់ដោយឡែកពី Tool របស់ភ្ញៀវ Port 8000)")
+    print(" 🛡️  Port: 8888 (Dedicated Admin Control Center - Isolated from Port 8000)")
     print("=" * 68)
 
     if is_admin_server_running():
@@ -235,7 +235,7 @@ def main():
     log = logging.getLogger('werkzeug')
     log.setLevel(logging.ERROR)
     print(f"[OK] Admin Server started on http://127.0.0.1:{ADMIN_PORT}")
-    print("👉 បងអាចប្រើប្រាស់ Dashboard បង្កើត Key បានភ្លាមៗ! (ចុច Ctrl+C ដើម្បីបិទ)")
+    print("👉 Admin Dashboard is ready for key management! (Press Ctrl+C to stop)")
     try:
         admin_app.run(host="127.0.0.1", port=ADMIN_PORT, debug=False, use_reloader=False)
     except KeyboardInterrupt:

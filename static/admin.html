@@ -2356,8 +2356,8 @@
                         <i class="fa-solid fa-tower-broadcast"></i>
                     </div>
                     <div>
-                        <div class="remote-modal-title-main">📡 បន្តសុពលភាព KEY ពីចម្ងាយ (REMOTE EXTENSION)</div>
-                        <div class="remote-modal-subtitle">អតិថិជននឹងបន្តប្រើ Key ចាស់បានភ្លាមៗ ដោយមិនបាច់ដូរ Key ឬវាយអ្វីឡើយ</div>
+                        <div class="remote-modal-title-main">📡 REMOTE LICENSE EXTENSION (OTA)</div>
+                        <div class="remote-modal-subtitle">Customer can continue using existing key without changing or re-entering anything</div>
                     </div>
                 </div>
                 <button type="button" class="remote-modal-close-btn" onclick="closeRemoteExtendModal()">✕</button>
@@ -2368,7 +2368,7 @@
                 <!-- Target Key Summary Card -->
                 <div class="remote-key-summary-box">
                     <div class="remote-sum-row">
-                        <span class="remote-sum-label"><i class="fa-solid fa-user-tag" style="color:var(--primary);"></i> អតិថិជន:</span>
+                        <span class="remote-sum-label"><i class="fa-solid fa-user-tag" style="color:var(--primary);"></i> Customer:</span>
                         <strong class="remote-sum-val" id="remote-ext-client-name">-</strong>
                     </div>
                     <div class="remote-sum-row">
@@ -2376,7 +2376,7 @@
                         <code class="remote-sum-code" id="remote-ext-key-str">-</code>
                     </div>
                     <div class="remote-sum-row">
-                        <span class="remote-sum-label"><i class="fa-solid fa-hourglass-half" style="color:#0284c7;"></i> ផុតកំណត់បច្ចុប្បន្ន:</span>
+                        <span class="remote-sum-label"><i class="fa-solid fa-hourglass-half" style="color:#0284c7;"></i> Current Expiry:</span>
                         <span class="remote-sum-expiry" id="remote-ext-curr-expiry">-</span>
                     </div>
                 </div>
@@ -2384,38 +2384,38 @@
                 <!-- Select Duration Grid -->
                 <div class="remote-duration-section">
                     <label class="remote-dur-label">
-                        <span>ជ្រើសរើសរយៈពេលដែលត្រូវបន្ថែម (Extend Duration):</span>
-                        <span class="remote-dur-hint" id="remote-dur-hint-text">+30 ថ្ងៃ (1 ខែ)</span>
+                        <span>Select Extension Duration:</span>
+                        <span class="remote-dur-hint" id="remote-dur-hint-text">+30 Days (1 Month)</span>
                     </label>
                     <input type="hidden" id="remote-ext-days-val" value="30">
                     <input type="hidden" id="remote-ext-plan-val" value="PRO 30D">
 
                     <div class="remote-presets-grid">
-                        <button type="button" class="btn-remote-preset active" onclick="selectRemoteExtendPreset(30, 'PRO 30D', '+30 ថ្ងៃ (1 ខែ)', this)">
-                            <span class="remote-p-title">📅 +1 ខែ (+30 ថ្ងៃ)</span>
-                            <span class="remote-p-sub">បន្ថែម 30 ថ្ងៃ</span>
+                        <button type="button" class="btn-remote-preset active" onclick="selectRemoteExtendPreset(30, 'PRO 30D', '+30 Days (1 Month)', this)">
+                            <span class="remote-p-title">📅 +1 Month (+30 Days)</span>
+                            <span class="remote-p-sub">Add 30 Days</span>
                         </button>
-                        <button type="button" class="btn-remote-preset" onclick="selectRemoteExtendPreset(90, 'PRO 90D', '+90 ថ្ងៃ (3 ខែ)', this)">
-                            <span class="remote-p-title">📅 +3 ខែ (+90 ថ្ងៃ)</span>
-                            <span class="remote-p-sub">បន្ថែម 90 ថ្ងៃ</span>
+                        <button type="button" class="btn-remote-preset" onclick="selectRemoteExtendPreset(90, 'PRO 90D', '+90 Days (3 Months)', this)">
+                            <span class="remote-p-title">📅 +3 Months (+90 Days)</span>
+                            <span class="remote-p-sub">Add 90 Days</span>
                         </button>
-                        <button type="button" class="btn-remote-preset" onclick="selectRemoteExtendPreset(365, 'PRO 1Y', '+365 ថ្ងៃ (1 ឆ្នាំ)', this)">
-                            <span class="remote-p-title">📅 +1 ឆ្នាំ (+365 ថ្ងៃ)</span>
-                            <span class="remote-p-sub">បន្ថែម 365 ថ្ងៃ</span>
+                        <button type="button" class="btn-remote-preset" onclick="selectRemoteExtendPreset(365, 'PRO 1Y', '+365 Days (1 Year)', this)">
+                            <span class="remote-p-title">📅 +1 Year (+365 Days)</span>
+                            <span class="remote-p-sub">Add 365 Days</span>
                         </button>
-                        <button type="button" class="btn-remote-preset" onclick="selectRemoteExtendPreset(0, 'LIFETIME', '👑 Lifetime (រហូត / អចិន្ត្រៃយ៍)', this)">
-                            <span class="remote-p-title">👑 Lifetime (រហូត)</span>
-                            <span class="remote-p-sub">ប្រើប្រាស់បានរហូត</span>
+                        <button type="button" class="btn-remote-preset" onclick="selectRemoteExtendPreset(0, 'LIFETIME', '👑 Lifetime (Permanent)', this)">
+                            <span class="remote-p-title">👑 Lifetime (Permanent)</span>
+                            <span class="remote-p-sub">Never Expires</span>
                         </button>
                     </div>
 
                     <!-- Custom Days Row (Optional) -->
                     <div style="margin-top:10px;">
                         <button type="button" class="btn-remote-preset" id="btn-remote-custom-toggle" onclick="toggleRemoteCustomDays(this)" style="width:100%; text-align:left; padding:8px 12px;">
-                            <span class="remote-p-title">✍️ បញ្ចូលចំនួនថ្ងៃជាក់លាក់ (Custom Days)</span>
+                            <span class="remote-p-title">✍️ Enter Custom Days</span>
                         </button>
                         <div id="remote-custom-days-row" style="display:none; margin-top:8px;">
-                            <input type="number" id="input-remote-custom-days" class="light-input" placeholder="បញ្ចូលចំនួនថ្ងៃ (ឧ. 15, 45, 60...)" min="1" oninput="onRemoteCustomDaysInput(this.value)">
+                            <input type="number" id="input-remote-custom-days" class="light-input" placeholder="Enter number of days (e.g. 15, 45, 60...)" min="1" oninput="onRemoteCustomDaysInput(this.value)">
                         </div>
                     </div>
                 </div>
@@ -2424,17 +2424,17 @@
                 <div class="remote-ota-toggle-row">
                     <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.8rem; color:#475569;">
                         <input type="checkbox" id="remote-auto-push-check" checked style="accent-color:var(--primary); width:16px; height:16px;">
-                        <span><strong>Sync &amp; Auto-Push ទៅ Online Cloud</strong> (ឱ្យកុំព្យូទ័រភ្ញៀវទទួលបានភ្លាមៗ OTA)</span>
+                        <span><strong>Sync &amp; Auto-Push to Cloud</strong> (Clients receive update immediately via OTA)</span>
                     </label>
                 </div>
             </div>
 
             <!-- Footer Buttons -->
             <div class="remote-modal-footer">
-                <button type="button" class="btn-remote-cancel" onclick="closeRemoteExtendModal()">បោះបង់</button>
+                <button type="button" class="btn-remote-cancel" onclick="closeRemoteExtendModal()">Cancel</button>
                 <button type="button" class="btn-remote-confirm" id="btn-confirm-remote-ext" onclick="executeRemoteExtend()">
                     <i class="fa-solid fa-tower-broadcast"></i>
-                    <span>បញ្ជាក់ការបន្តសុពលភាពពីចម្ងាយ</span>
+                    <span>Confirm Remote Extension</span>
                 </button>
             </div>
         </div>
@@ -2787,34 +2787,34 @@
         // Pre-formatted Telegram / Messenger Text Delivery Message (Khmer + English VIP Style)
         function copyTelegramDeliveryMessage() {
             if (!currentRecord || !currentRecord.license_key) return;
-            const client = currentRecord.client_name || "អតិថិជនកិត្តិយស";
+            const client = currentRecord.client_name || "Valued Customer";
             const key = currentRecord.license_key;
             const plan = currentRecord.plan || "PRO Lifetime";
-            const expiry = currentRecord.expires_at || "LIFETIME (ប្រើប្រាស់រហូត)";
-            const hwid = (!currentRecord.bound_hwid || currentRecord.bound_hwid === "ANY" || currentRecord.bound_hwid === "*") ? "កុំព្យូទ័រណាក៏បាន (Any Machine)" : currentRecord.bound_hwid;
+            const expiry = currentRecord.expires_at || "LIFETIME (Never Expires)";
+            const hwid = (!currentRecord.bound_hwid || currentRecord.bound_hwid === "ANY" || currentRecord.bound_hwid === "*") ? "Any Machine (Universal)" : currentRecord.bound_hwid;
 
             const text = 
-`🎬 ជំរាបសួរ ${client}!
-សូមស្វាគមន៍មកកាន់ SN TOOL - STUDIO PRO ផ្លូវការ ✨
+`🎬 Hello ${client}!
+Welcome to SN TOOL - STUDIO PRO Official ✨
 =========================================
-👤 ឈ្មោះអតិថិជន: ${client}
+👤 Customer Name: ${client}
 🔑 LICENSE KEY: ${key}
-📦 កញ្ចប់សេវា (Plan): ${plan}
-⏳ សុពលភាព: ${expiry}
-🔒 ម៉ាស៊ីន (Hardware HWID): ${hwid}
+📦 Plan: ${plan}
+⏳ Expiry Date: ${expiry}
+🔒 Machine HWID: ${hwid}
 =========================================
-📖 មគ្គុទ្ទេសក៍ណែនាំប្រើប្រាស់រហ័ស (Quick Guide):
-១. បើកកម្មវិធី SN TOOL នៅលើកុំព្យូទ័ររបស់អ្នក
-២. Copy លេខ Key ខាងលើ យកទៅ Paste ចូលប្រអប់ License Key
-៣. ចុចប៊ូតុង "Activate License" ដើម្បីបើកដំណើរការពេញលេញ ១០០%
-៤. ចូលផ្ទាំង "Downloader" ដើម្បីទាញយករឿងភាគ 1080p Full HD
-៥. ចូលផ្ទាំង "Studio" ដើម្បីបកប្រែ & បញ្ចូលសំឡេងខ្មែរ AI ពិសិដ្ឋ / ស្រីមុំ
+📖 Quick Onboarding Guide:
+1. Open SN TOOL on your computer.
+2. Copy and Paste your License Key above into the Activation field.
+3. Click "Activate License" to unlock full Studio access.
+4. Go to "Downloader" tab to fetch short dramas in 1080p Full HD.
+5. Go to "Studio" tab to translate & dub with Khmer Neural AI voices.
 
-💬 ប្រសិនបើត្រូវការជំនួយ ឬចម្ងល់ផ្សេងៗ សូមឆាតមកកាន់ Admin គ្រប់ពេល!
-🙏 សូមអរគុណសម្រាប់ការជឿទុកចិត្ត និងគាំទ្រ SN TOOL STUDIO PRO! 🚀`;
+💬 For support or inquiries, feel free to contact Admin anytime!
+🙏 Thank you for choosing SN TOOL STUDIO PRO! 🚀`;
 
             navigator.clipboard.writeText(text).then(() => {
-                showToast("💬 បានចម្លងសារជូនភ្ញៀវរួចរាល់! អាច Paste ផ្ញើក្នុង Telegram/Facebook បានភ្លាមៗ!");
+                showToast("💬 Copied delivery message! Ready to paste into Telegram or Messenger!");
             });
         }
 
@@ -3074,9 +3074,9 @@
                 </div>
 
                 <div class="record-actions">
-                    <button type="button" class="btn-rec-remote-renew" onclick="openRemoteExtendModal(${index})" title="📡 បន្តសុពលភាព Key ពីចម្ងាយ (OTA Renew - ភ្ញៀវមិនបាច់ដូរ Key)">
+                    <button type="button" class="btn-rec-remote-renew" onclick="openRemoteExtendModal(${index})" title="Remote Extend Key (OTA Renew - No key change required)">
                         <i class="fa-solid fa-tower-broadcast"></i>
-                        <span>បន្តពីចម្ងាយ</span>
+                        <span>Remote Extend</span>
                     </button>
                     <button type="button" class="btn-record-action" onclick="copySingleItemTelegram(${index})" title="Copy delivery message for customer">
                         <i class="fa-solid fa-paper-plane" style="color:var(--primary);"></i>
@@ -3113,7 +3113,7 @@
             document.getElementById('remote-ext-curr-expiry').textContent = item.expires_at || "LIFETIME";
 
             // Reset preset to 30 days default
-            selectRemoteExtendPreset(30, 'PRO 30D', '+30 ថ្ងៃ (1 ខែ)', document.querySelector('.btn-remote-preset'));
+            selectRemoteExtendPreset(30, 'PRO 30D', '+30 Days (1 Month)', document.querySelector('.btn-remote-preset'));
             const customRow = document.getElementById('remote-custom-days-row');
             if (customRow) customRow.style.display = 'none';
 
@@ -3166,13 +3166,13 @@
             if (days > 0) {
                 document.getElementById('remote-ext-days-val').value = days;
                 document.getElementById('remote-ext-plan-val').value = `PRO ${days}D`;
-                document.getElementById('remote-dur-hint-text').textContent = `+${days} ថ្ងៃ`;
+                document.getElementById('remote-dur-hint-text').textContent = `+${days} Days`;
             }
         }
 
         async function executeRemoteExtend() {
             if (!activeExtendKeyItem) {
-                showToast("❌ មិនមាន Key ត្រូវបានជ្រើសរើសឡើយ!");
+                showToast("❌ No License Key selected!");
                 return;
             }
 
@@ -3184,7 +3184,7 @@
             const btnConfirm = document.getElementById('btn-confirm-remote-ext');
             if (btnConfirm) {
                 btnConfirm.disabled = true;
-                btnConfirm.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>កំពុងបន្តពីចម្ងាយ...</span>`;
+                btnConfirm.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Extending Remotely...</span>`;
             }
 
             try {
@@ -3201,7 +3201,7 @@
 
                 const data = await res.json();
                 if (data.success) {
-                    showToast(data.message || `🎉 បានបន្តសុពលភាព Key ${key} ពីចម្ងាយដោយជោគជ័យ!`);
+                    showToast(data.message || `🎉 License Key ${key} extended remotely successfully!`);
                     closeRemoteExtendModal();
                     await fetchKeysHistory();
                 } else {
@@ -3213,7 +3213,7 @@
             } finally {
                 if (btnConfirm) {
                     btnConfirm.disabled = false;
-                    btnConfirm.innerHTML = `<i class="fa-solid fa-tower-broadcast"></i> <span>បញ្ជាក់ការបន្តសុពលភាពពីចម្ងាយ</span>`;
+                    btnConfirm.innerHTML = `<i class="fa-solid fa-tower-broadcast"></i> <span>Confirm Remote Extension</span>`;
                 }
             }
         }
