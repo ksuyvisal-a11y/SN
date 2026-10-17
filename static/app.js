@@ -3918,7 +3918,7 @@ async function loadDramaCatalog(platformId = "hongguo", query = "", category = "
 
                 // Clean title (remove brackets, extra tags)
                 const displayTitle = (drama.title_cn || drama.title || '').replace(/[《》]/g, '').split(' - ')[0].trim();
-                const posterUrl = drama.poster || 'posters/poster_sample_ceo.jpg';
+                const posterUrl = drama.poster || '';
                 const rank = drama.rank_num || (idx + 1);
                 const isTopRank = rank <= 3;
                 const ratingBadge = drama.rating ? `<span class="lb-score">★ ${escapeHtml(drama.rating)}</span>` : '';
@@ -3928,7 +3928,7 @@ async function loadDramaCatalog(platformId = "hongguo", query = "", category = "
                     <div class="dl-card-thumb-wrap">
                         <span class="lb-rank ${isTopRank ? 'top' : ''}">${rank}</span>
                         ${ratingBadge}
-                        <img src="${posterUrl}" alt="${escapeHtml(displayTitle)}" loading="lazy" onerror="this.onerror=null; this.src='posters/poster_sample_ceo.jpg';">
+                        ${posterUrl ? `<img src="${posterUrl}" alt="${escapeHtml(displayTitle)}" loading="lazy" onerror="this.onerror=null; this.style.opacity='0';">` : ''}
                         ${heatBadge}
                     </div>
                     <div class="dl-card-details-box">
@@ -4030,8 +4030,20 @@ async function selectDramaCard(dramaId, openQueueMode = false) {
 
         if (title) title.textContent = cachedDrama.title_cn || cachedDrama.title || "Drama";
         if (posterImg) {
-            posterImg.src = cachedDrama.poster || 'posters/poster_sample_ceo.jpg';
-            posterImg.style.opacity = '1';
+            const emptyIcon = document.getElementById('dl-info-poster-empty-icon');
+            const posterFrame = document.getElementById('dl-info-poster-frame');
+            if (cachedDrama.poster) {
+                posterImg.src = cachedDrama.poster;
+                posterImg.style.display = 'block';
+                posterImg.style.opacity = '1';
+                if (emptyIcon) emptyIcon.style.display = 'none';
+                if (posterFrame) posterFrame.style.borderStyle = 'solid';
+            } else {
+                posterImg.removeAttribute('src');
+                posterImg.style.display = 'none';
+                if (emptyIcon) emptyIcon.style.display = 'block';
+                if (posterFrame) posterFrame.style.borderStyle = 'dashed';
+            }
         }
         if (badge) badge.textContent = `${(cachedDrama.platform || 'HONGGUO').toUpperCase()} • ${cachedDrama.rating || '9.8'} ★`;
         if (stats) stats.textContent = `Episodes ${totalEps} • Locked 0 • Selected ${totalEps}`;
@@ -4085,8 +4097,20 @@ async function selectDramaCard(dramaId, openQueueMode = false) {
 
             if (title) title.textContent = data.drama.title;
             if (posterImg) {
-                posterImg.src = data.drama.poster || 'posters/poster_sample_ceo.jpg';
-                posterImg.style.opacity = '1';
+                const emptyIcon = document.getElementById('dl-info-poster-empty-icon');
+                const posterFrame = document.getElementById('dl-info-poster-frame');
+                if (data.drama.poster) {
+                    posterImg.src = data.drama.poster;
+                    posterImg.style.display = 'block';
+                    posterImg.style.opacity = '1';
+                    if (emptyIcon) emptyIcon.style.display = 'none';
+                    if (posterFrame) posterFrame.style.borderStyle = 'solid';
+                } else {
+                    posterImg.removeAttribute('src');
+                    posterImg.style.display = 'none';
+                    if (emptyIcon) emptyIcon.style.display = 'block';
+                    if (posterFrame) posterFrame.style.borderStyle = 'dashed';
+                }
             }
             if (badge) badge.textContent = `${data.drama.platform.toUpperCase()} • ${data.drama.rating || '9.8'} ★`;
             if (stats) stats.textContent = `Episodes ${totalEps} • Locked 0 • Selected ${totalEps}`;
@@ -4324,8 +4348,17 @@ function renderQueueViewForCurrentDrama() {
         centerTitleElem.textContent = `《${dramaTitle}》`;
     }
     const centerPosterElem = document.getElementById('dl-center-poster-img');
+    const centerEmptyIcon = document.getElementById('dl-center-poster-empty-icon');
     if (centerPosterElem) {
-        centerPosterElem.src = dlCurrentDrama.poster || 'posters/poster_sample_ceo.jpg';
+        if (dlCurrentDrama && dlCurrentDrama.poster) {
+            centerPosterElem.src = dlCurrentDrama.poster;
+            centerPosterElem.style.display = 'block';
+            if (centerEmptyIcon) centerEmptyIcon.style.display = 'none';
+        } else {
+            centerPosterElem.removeAttribute('src');
+            centerPosterElem.style.display = 'none';
+            if (centerEmptyIcon) centerEmptyIcon.style.display = 'block';
+        }
     }
     const centerPlatElem = document.getElementById('dl-center-platform-badge');
     if (centerPlatElem) {
@@ -4767,7 +4800,7 @@ async function playQueueEpisode(epNum, autoPlay = true) {
     // A. Check if the episode object already has an authentic video URL (e.g. from folder import or completed download)
     const rawUrl = epObj?.video_url || epObj?.stream_url;
     if (rawUrl) {
-        loadVideoWithHls(video, rawUrl, dlCurrentDrama?.poster || 'posters/poster_sample_ceo.jpg');
+        loadVideoWithHls(video, rawUrl, dlCurrentDrama?.poster || '');
         video.currentTime = 0;
         if (autoPlay) {
             video.play().then(() => {
@@ -4794,7 +4827,7 @@ async function playQueueEpisode(epNum, autoPlay = true) {
         const data = await res.json();
         const vUrl = data.video_url || data.stream_url;
         if (data.success && vUrl) {
-            loadVideoWithHls(video, vUrl, data.poster || dlCurrentDrama.poster || 'posters/poster_sample_ceo.jpg');
+            loadVideoWithHls(video, vUrl, data.poster || dlCurrentDrama?.poster || '');
             video.currentTime = 0;
             if (autoPlay) {
                 video.play().then(() => {

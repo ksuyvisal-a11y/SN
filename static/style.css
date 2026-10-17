@@ -7153,8 +7153,8 @@ select, option, optgroup {
 .dl-info-poster-box {
     width: 68px;
     height: 92px;
-    background: rgba(8, 12, 20, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(15, 23, 42, 0.6);
+    border: 1.5px dashed rgba(255, 255, 255, 0.18);
     border-radius: 8px;
     display: flex;
     align-items: center;
