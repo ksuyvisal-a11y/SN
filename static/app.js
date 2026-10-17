@@ -5444,12 +5444,21 @@ async function downloadCurrentQueueEpisode() {
 // Global Keyboard Handler for Queue / Preview Player Mode
 window.addEventListener('keydown', (e) => {
     if (dlCurrentViewMode === 'queue') {
-        if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+        const isInput = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA');
+        if (isInput) return;
+
+        if (e.code === 'Space') {
             e.preventDefault();
             toggleQueuePlay();
         } else if (e.code === 'Escape') {
             e.preventDefault();
             switchDlViewMode('catalog');
+        } else if (e.code === 'ArrowRight' || e.code === 'KeyN') {
+            e.preventDefault();
+            queueNextEpisode();
+        } else if (e.code === 'ArrowLeft' || e.code === 'KeyP') {
+            e.preventDefault();
+            queuePrevEpisode();
         }
     }
 });
