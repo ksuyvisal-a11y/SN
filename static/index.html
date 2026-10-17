@@ -1230,7 +1230,7 @@
                             <span class="dl-clapper-emoji">🎬</span> Top 100 on 红果 right now (49,509)
                         </div>
                         <div class="dl-header-actions-right" style="display:flex; align-items:center; gap:8px;">
-                            <span class="dl-header-tip-text">Tip: click any poster to preview and open episode player</span>
+                            <span class="dl-header-tip-text">Tip: click any drama to view info & episodes</span>
                             <button type="button" class="dl-catalog-refresh-btn" id="btn-dl-refresh-catalog" onclick="refreshDramaCatalog()" title="Refresh Catalog">
                                 <i class="fa-solid fa-arrows-rotate"></i> Refresh
                             </button>
@@ -1255,18 +1255,18 @@
                         <div class="dl-section-header-title">DRAMA INFO</div>
                         <div class="dl-info-main-content">
                             <div class="dl-info-poster-box">
-                                <img id="dl-info-poster-img" src="posters/poster_yan_lu.jpg" alt="Drama Poster" style="width:100%; height:100%; object-fit:cover; border-radius:6px;">
+                                <img id="dl-info-poster-img" src="posters/poster_sample_ceo.jpg" alt="Drama Poster" style="width:100%; height:100%; object-fit:cover; border-radius:6px; opacity:0.4;">
                             </div>
                             <div class="dl-info-text-col">
-                                <div class="dl-info-title-main" id="dl-info-title-text">No drama loaded</div>
-                                <div class="dl-info-platform-tag" id="dl-info-platform-badge">HONGGUO</div>
-                                <div class="dl-info-stats-row" id="dl-info-stats-text">Episodes 0 • Locked 0 • Selected 0</div>
+                                <div class="dl-info-title-main" id="dl-info-title-text">No drama selected</div>
+                                <div class="dl-info-platform-tag" id="dl-info-platform-badge">READY</div>
+                                <div class="dl-info-stats-row" id="dl-info-stats-text">Click any drama card to load</div>
                             </div>
                         </div>
                         <button class="dl-btn-preview-wide" onclick="previewLoadedDrama()">Preview Video</button>
                         <button class="dl-btn-preview-wide dl-catalog-dl-all-btn" id="btn-dl-catalog-all" onclick="downloadCurrentDramaFullSeries()">
                             <i class="fa-solid fa-bolt-lightning" style="font-size:1.15rem; color:#facc15;"></i>
-                            <span id="dl-catalog-dl-all-text">⚡ Turbo High-Speed & 100% Full Series</span>
+                            <span id="dl-catalog-dl-all-text">Download All Episodes</span>
                         </button>
                         <!-- Dedicated Folder Destination & Explorer Manager -->
                         <div class="dl-folder-manager-box">
@@ -1282,16 +1282,16 @@
                             </div>
                             <div class="dl-fmb-path-bar" onclick="selectCustomDownloadFolder()" title="Click to select folder location">
                                 <i class="fa-solid fa-hard-drive dl-fmb-drive-icon"></i>
-                                <span class="dl-fmb-path-text" id="dl-catalog-save-folder-path">D:\SN_Dramas\东北话事人\</span>
+                                <span class="dl-fmb-path-text" id="dl-catalog-save-folder-path">D:\SN_Dramas\</span>
                                 <span class="dl-fmb-edit-badge"><i class="fa-solid fa-pen"></i> Browse</span>
                             </div>
-                            <button type="button" class="dl-fmb-open-btn" onclick="openCurrentDramaFolder()" title="Open Drama Folder in File Explorer">
+                            <button type="button" class="dl-fmb-open-btn" onclick="openCurrentDramaFolder()" title="Open Drama Folder in Explorer">
                                 <i class="fa-solid fa-arrow-up-right-from-square"></i>
                                 <span>Open Drama Folder in Explorer</span>
                             </button>
                         </div>
                         <div class="dl-info-synopsis-snippet" id="dl-info-desc-text">
-                            Paste a supported URL to inspect its episode catalog and prepare the download queue.
+                            Select any drama from the catalog on the left to view details and episodes, or paste an online video link.
                         </div>
                     </div>
 
@@ -1302,7 +1302,7 @@
                             <span class="dl-ep-range-pill" id="dl-episodes-range-tag">EP 0-0</span>
                         </div>
                         <div class="dl-episodes-scroll-list" id="dl-episodes-list-box">
-                            <!-- Populated dynamically via JS -->
+                            <div style="color:#716655; font-size:0.75rem; padding:24px 8px; text-align:center;">No drama selected. Click a drama on the left to view episodes.</div>
                         </div>
                     </div>
 
@@ -1418,10 +1418,10 @@
                             <div class="dl-ai-meta-content">
                                 <div class="dl-dib-badge-row">
                                     <span class="dl-dib-badge" id="dl-center-platform-badge">HONGGUO AI PIPELINE</span>
-                                    <span class="dl-dib-count" id="dl-center-ep-count">80 Episodes</span>
+                                    <span class="dl-dib-count" id="dl-center-ep-count">0 Episodes</span>
                                     <span class="dl-ai-chip-pill"><i class="fa-solid fa-microchip"></i> AI Studio</span>
                                 </div>
-                                <h3 class="dl-dib-title" id="dl-center-drama-title">EP01 - Drama Series</h3>
+                                <h3 class="dl-dib-title" id="dl-center-drama-title">Drama Series</h3>
                                 <p class="dl-dib-desc">Download all episodes in crystal clear 1080p Full HD high-speed.</p>
                             </div>
                         </div>
@@ -1429,7 +1429,7 @@
                         <!-- Primary Hero: Turbo Download All Episodes -->
                         <button type="button" class="dl-hero-dl-btn" id="btn-q-download-all" onclick="downloadAllQueueEpisodes()">
                             <i class="fa-solid fa-bolt-lightning"></i>
-                            <span id="dl-q-download-all-text">⚡ Download All Episodes (EP 1 - 80)</span>
+                            <span id="dl-q-download-all-text">⚡ Download All Episodes</span>
                         </button>
 
                         <!-- Streamlined Executive Save Folder Bar (Single Clean Row) -->
@@ -1437,7 +1437,7 @@
                             <div class="dl-afb-icon"><i class="fa-solid fa-folder-tree"></i></div>
                             <div class="dl-afb-info">
                                 <span class="dl-afb-label">Save Folder Path:</span>
-                                <span class="dl-afb-path" id="dl-q2-save-folder-path" onclick="selectCustomDownloadFolder()" title="Click to select folder">D:\SN_Dramas\东北话事人\</span>
+                                <span class="dl-afb-path" id="dl-q2-save-folder-path" onclick="selectCustomDownloadFolder()" title="Click to select folder">D:\SN_Dramas\</span>
                             </div>
                             <div class="dl-afb-actions">
                                 <button type="button" class="dl-afb-btn" onclick="selectCustomDownloadFolder()" title="Choose New Folder">
@@ -1454,7 +1454,7 @@
                             <!-- Header Matching Image 2: Episodes (100 total) + Complete Episode List + Auto-Next -->
                             <div class="dl-hub-header">
                                 <div class="dl-hub-title-block">
-                                    <h2 class="dl-hub-main-title" id="dl-hub-episodes-title">Episodes (80 total)</h2>
+                                    <h2 class="dl-hub-main-title" id="dl-hub-episodes-title">Episodes</h2>
                                     <span class="dl-hub-subtitle">Complete Episode List</span>
                                 </div>
 

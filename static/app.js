@@ -3913,9 +3913,10 @@ async function loadDramaCatalog(platformId = "hongguo", query = "", category = "
                 const card = document.createElement('div');
                 card.className = `dl-card-item ${dlCurrentDrama && dlCurrentDrama.id === drama.id ? 'active' : ''}`;
                 card.id = `dl-card-${drama.id}`;
-                card.onclick = () => selectDramaCard(drama.id, true);
+                card.onclick = () => selectDramaCard(drama.id, false);
+                card.ondblclick = () => selectDramaCard(drama.id, true);
 
-                // Clean title matching Image 2 (e.g. 东北话事人)
+                // Clean title (remove brackets, extra tags)
                 const displayTitle = (drama.title_cn || drama.title || '').replace(/[《》]/g, '').split(' - ')[0].trim();
                 const posterUrl = drama.poster || 'posters/poster_sample_ceo.jpg';
                 const rank = drama.rank_num || (idx + 1);
@@ -3936,10 +3937,6 @@ async function loadDramaCatalog(platformId = "hongguo", query = "", category = "
                 `;
                 container.appendChild(card);
             });
-
-            if (!append && !dlCurrentDrama) {
-                selectDramaCard(data.dramas[0].id, false);
-            }
         } else if (!append) {
             dlHasMore = false;
             if (platformId === 'shortmax' || platformId === 'freereels' || platformId === 'anyreel') {
@@ -4032,10 +4029,15 @@ async function selectDramaCard(dramaId, openQueueMode = false) {
         const desc = document.getElementById('dl-info-desc-text');
 
         if (title) title.textContent = cachedDrama.title_cn || cachedDrama.title || "Drama";
-        if (posterImg) posterImg.src = cachedDrama.poster || 'posters/poster_sample_ceo.jpg';
+        if (posterImg) {
+            posterImg.src = cachedDrama.poster || 'posters/poster_sample_ceo.jpg';
+            posterImg.style.opacity = '1';
+        }
         if (badge) badge.textContent = `${(cachedDrama.platform || 'HONGGUO').toUpperCase()} • ${cachedDrama.rating || '9.8'} ★`;
         if (stats) stats.textContent = `Episodes ${totalEps} • Locked 0 • Selected ${totalEps}`;
         if (desc) desc.textContent = cachedDrama.description || "Hongguo Short Drama Series Manifest.";
+
+        updateDramaSavePathDisplay();
 
         const catDlBtnText = document.getElementById('dl-catalog-dl-all-text');
         if (catDlBtnText) catDlBtnText.textContent = `Download All Episodes (EP 1 - ${totalEps})`;
@@ -4082,7 +4084,10 @@ async function selectDramaCard(dramaId, openQueueMode = false) {
             const totalEps = data.drama.total_episodes || dlEpisodesList.length || 80;
 
             if (title) title.textContent = data.drama.title;
-            if (posterImg) posterImg.src = data.drama.poster || 'posters/poster_sample_ceo.jpg';
+            if (posterImg) {
+                posterImg.src = data.drama.poster || 'posters/poster_sample_ceo.jpg';
+                posterImg.style.opacity = '1';
+            }
             if (badge) badge.textContent = `${data.drama.platform.toUpperCase()} • ${data.drama.rating || '9.8'} ★`;
             if (stats) stats.textContent = `Episodes ${totalEps} • Locked 0 • Selected ${totalEps}`;
             if (desc) desc.textContent = data.drama.description || "Hongguo Short Drama Series Manifest.";
@@ -4958,11 +4963,11 @@ function getEffectiveSaveLocation() {
 function getComputedDramaFolder() {
     let base = getEffectiveSaveLocation();
     base = base.replace(/\\/g, '/').replace(/\/+$/, '');
-    let folderName = 'Drama_Series';
-    if (dlCurrentDrama) {
-        const rawTitle = dlCurrentDrama.title_cn || dlCurrentDrama.title || 'Drama';
-        folderName = rawTitle.replace(/[\\/*?:"<>|《》]/g, '_').trim() || 'Hongguo_Drama';
+    if (!dlCurrentDrama) {
+        return base;
     }
+    const rawTitle = dlCurrentDrama.title_cn || dlCurrentDrama.title || 'Drama';
+    const folderName = rawTitle.replace(/[\\/*?:"<>|《》]/g, '_').trim() || 'Hongguo_Drama';
     return `${base}/${folderName}`;
 }
 
@@ -5455,6 +5460,7 @@ async function initSaveLocationPaths() {
         }
     });
     updateDriveButtonHighlight();
+    updateDramaSavePathDisplay();
 }
 
 function selectDrive(driveLetter) {
@@ -5475,6 +5481,7 @@ function selectDrive(driveLetter) {
     localStorage.setItem('sn_save_location', targetPath);
     localStorage.setItem('sn_active_drive', letter);
     updateDriveButtonHighlight();
+    updateDramaSavePathDisplay();
 
     showToast(`Selected Drive ${letter}: (${targetPath})`);
     appendDownloaderLog(`[${new Date().toLocaleTimeString()}] Active download location: Drive ${letter}: (${targetPath})`);
@@ -5667,7 +5674,10 @@ async function sendAllQueueToStudio() {
 }
 
 async function previewLoadedDrama() {
-    if (!dlCurrentDrama) return;
+    if (!dlCurrentDrama) {
+        showToast("Please select a drama from the catalog first");
+        return;
+    }
     switchDlViewMode('queue');
     playQueueEpisode(1);
     showToast(`🎬 Opening '${dlCurrentDrama.title}' in Player mode`);
