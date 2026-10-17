@@ -316,6 +316,67 @@ def get_recap_hooks():
     return jsonify({"hooks": VIRAL_KHMER_HOOKS})
 
 
+@app.route("/api/recap/generate", methods=["POST"])
+def generate_recap_story_endpoint():
+    """
+    Generate an AI Movie Recap script (សម្រាយសាច់រឿង Facebook & TikTok)
+    using Gemini 3.8 Flash High on Nisay Online Cloud Server.
+    """
+    data = request.get_json(force=True) or {}
+    project_id = data.get("project_id")
+    raw_text = data.get("text", "")
+    drama_title = data.get("title", "")
+    genre = data.get("genre", "drama_revenge")
+    voice = data.get("voice", "piseth")
+
+    dialogues_input = None
+    if project_id:
+        p = pm.load_project(project_id)
+        if p:
+            dialogues_input = p.get("dialogues", [])
+            if not drama_title:
+                drama_title = p.get("title", "")
+    if not dialogues_input and raw_text:
+        dialogues_input = raw_text
+
+    try:
+        script = RecapEngine.generate_ai_movie_recap(
+            transcript_or_dialogues=dialogues_input or "រឿងភាគខ្លី",
+            drama_title=drama_title,
+            genre=genre,
+            voice=voice
+        )
+        return jsonify({"success": True, "recap_script": script})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/projects/<project_id>/apply-recap-script", methods=["POST"])
+def apply_recap_script_endpoint(project_id):
+    """
+    Convert an AI-generated Movie Recap story into timed spoken dialogues and apply to project.
+    """
+    project = pm.load_project(project_id)
+    if not project:
+        return jsonify({"error": "Project not found"}), 404
+    data = request.get_json(force=True) or {}
+    recap_script = data.get("recap_script", "")
+    voice = data.get("voice", "piseth")
+    duration = float(project.get("duration", 60.0) or 60.0)
+    if not recap_script:
+        return jsonify({"error": "recap_script is empty"}), 400
+
+    timed_dialogues = RecapEngine.format_recap_script_into_timed_dialogues(
+        recap_text=recap_script,
+        total_duration=duration,
+        voice=voice
+    )
+    project["dialogues"] = timed_dialogues
+    project["mode"] = "movie_recap"
+    pm.save_project(project)
+    return jsonify({"success": True, "dialogues_count": len(timed_dialogues), "project": project})
+
+
 @app.route("/api/projects/sample/<sample_key>", methods=["POST"])
 def load_sample_drama(sample_key):
     try:

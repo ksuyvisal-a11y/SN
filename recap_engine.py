@@ -84,3 +84,83 @@ class RecapEngine:
             "pitch_hz": 0
         }
         return list(dialogues) + [outro_item]
+
+    @staticmethod
+    def generate_ai_movie_recap(
+        transcript_or_dialogues: Any,
+        drama_title: str = "",
+        genre: str = "drama_revenge",
+        voice: str = "piseth"
+    ) -> str:
+        """
+        Generate complete viral Cambodian Facebook & TikTok Movie Recap script (សម្រាយសាច់រឿង)
+        using Gemini 3.8 Flash High on Nisay Online Cloud Gateway.
+        """
+        try:
+            from nisay_translate import generate_gemini_recap_script
+            return generate_gemini_recap_script(
+                transcript_or_dialogues=transcript_or_dialogues,
+                drama_title=drama_title,
+                genre=genre,
+                voice=voice
+            )
+        except Exception as e:
+            print(f"RecapEngine AI generation note: {e}")
+            hook = random.choice(VIRAL_KHMER_HOOKS.get(genre, VIRAL_KHMER_HOOKS["drama_revenge"]))
+            outro = random.choice(VIRAL_KHMER_OUTROS)
+            return f"{hook}\n\nរឿងភាគដ៏រំជើបរំជួលនេះ បង្ហាញពីការតស៊ូ និងការសងសឹកដ៏អស្ចារ្យ។\n\n{outro}"
+
+    @staticmethod
+    def format_recap_script_into_timed_dialogues(
+        recap_text: str,
+        total_duration: float,
+        voice: str = "piseth"
+    ) -> List[Dict[str, Any]]:
+        """
+        Split an AI-generated Movie Recap story into evenly paced, timed spoken segments
+        ready for neural voice synthesis (TTS) and video subtitle burn-in.
+        """
+        import re
+        lines = [line.strip() for line in recap_text.splitlines() if line.strip()]
+        clean_sentences = []
+        for line in lines:
+            if line.startswith("<") or line.startswith("🎬") or line.startswith("---") or line.startswith("**ចំណងជើង") or "តន្ត្រី" in line:
+                continue
+            cleaned = re.sub(r'[*#_~`\[\]()]', '', line).strip()
+            # Split by Khmer punctuation or sentence stops
+            parts = re.split(r'([។?!៖\n]+)', cleaned)
+            cur = ""
+            for p in parts:
+                cur += p
+                if any(punct in p for punct in ("។", "?", "!", "\n")) and len(cur.strip()) >= 15:
+                    clean_sentences.append(cur.strip())
+                    cur = ""
+            if cur.strip() and len(cur.strip()) >= 5:
+                clean_sentences.append(cur.strip())
+
+        if not clean_sentences:
+            clean_sentences = [recap_text[:120].strip()]
+
+        count = len(clean_sentences)
+        slot_dur = max(2.5, min(6.5, total_duration / max(1, count)))
+        results = []
+        cur_t = 0.5
+        for i, s_text in enumerate(clean_sentences, start=1):
+            dur = max(2.0, min(8.0, len(s_text) * 0.12))
+            end_t = round(min(total_duration, cur_t + dur), 2)
+            results.append({
+                "id": i,
+                "start": round(cur_t, 2),
+                "end": end_t,
+                "speaker": "អ្នកសម្រាយ (Recap Host - Piseth)" if voice == "piseth" else "អ្នកសម្រាយ (Recap Host - Sreymom)",
+                "text_original": s_text,
+                "text_km": s_text,
+                "voice": voice,
+                "rate_percent": 0,
+                "pitch_hz": 0
+            })
+            cur_t = round(end_t + 0.35, 2)
+            if cur_t >= total_duration - 1.0:
+                break
+
+        return results

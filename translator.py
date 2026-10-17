@@ -1155,11 +1155,13 @@ class DramaTranslator:
         source_lang: str = "auto",
         target_voice_override: Optional[str] = None,
         category: str = "chinese_general",
-        custom_dict: Optional[Dict[str, str]] = None
+        custom_dict: Optional[Dict[str, str]] = None,
+        mode: str = "drama_dubbing"
     ) -> List[Dict[str, Any]]:
         """
         Translate dialogue items using Nisay AI Gateway (gemini-3.8-flash-high).
         High-fidelity, category-aware online cloud translation with Standard Khmer orthography.
+        Supports both authentic drama dubbing and high-energy viral Facebook/TikTok Movie Recap narration.
         """
         if not dialogues:
             return []
@@ -1172,6 +1174,11 @@ class DramaTranslator:
         chunk_size = 25
         text_chunks = [texts[i:i + chunk_size] for i in range(0, len(texts), chunk_size)]
 
+        if mode == "movie_recap":
+            context_directive = "Movie Recap Storyteller Style (សម្រាយរឿង Facebook & TikTok): Translate into thrilling, high-energy spoken Khmer recap narration by a charismatic Cambodian narrator (អ្នកសម្រាយរឿង ពិសិដ្ឋ/ស្រីមុំ). Dramatic, fast-paced, and engaging."
+        else:
+            context_directive = f"Story genre: {category}. Apply Standard Khmer orthography and authentic Asian drama dubbing dialogue style."
+
         sem = asyncio.Semaphore(4)
         async def _trans_chunk(t_chunk):
             async with sem:
@@ -1179,7 +1186,8 @@ class DramaTranslator:
                     translate_khmer,
                     t_chunk,
                     category=category,
-                    entity_glossary=custom_dict
+                    entity_glossary=custom_dict,
+                    context=context_directive
                 )
 
         chunk_tasks = [_trans_chunk(tc) for tc in text_chunks]
@@ -1202,6 +1210,16 @@ class DramaTranslator:
             v_info = self._determine_strictly_two_voices(itm, target_voice_override)
             chosen_voice = v_info["voice"]
 
+            speaker_title = v_info["character_role"]
+            pitch_hz = v_info["pitch_hz"]
+            rate_percent = v_info["rate_percent"]
+
+            if mode == "movie_recap":
+                narrator_name = "Piseth" if chosen_voice == "piseth" else "Sreymom"
+                speaker_title = f"អ្នកសម្រាយ (Recap Host - {narrator_name})"
+                pitch_hz = 0
+                rate_percent = 2
+
             raw_km = all_translated_texts[idx] if idx < len(all_translated_texts) else orig_text
             final_text_km = enrich_khmer_drama_dialogue(
                 str(raw_km).strip(),
@@ -1214,12 +1232,12 @@ class DramaTranslator:
                 "id": itm.get("id", idx + 1),
                 "start": start,
                 "end": end,
-                "speaker": v_info["character_role"],
+                "speaker": speaker_title,
                 "text_original": orig_text,
                 "text_km": final_text_km,
                 "voice": chosen_voice,
-                "rate_percent": v_info["rate_percent"],
-                "pitch_hz": v_info["pitch_hz"]
+                "rate_percent": rate_percent,
+                "pitch_hz": pitch_hz
             })
 
         return results
@@ -1429,7 +1447,8 @@ Return JSON object with key "dialogues" containing an array with keys: id, start
                         source_lang=source_lang,
                         target_voice_override=target_voice_override,
                         category="chinese_general",
-                        custom_dict=custom_dict
+                        custom_dict=custom_dict,
+                        mode=mode
                     )
                     if nisay_res and len(nisay_res) == len(dialogues):
                         print(f"[OK] Nisay Cloud Server translated {len(nisay_res)} dialogues successfully!")

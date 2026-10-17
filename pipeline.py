@@ -714,6 +714,18 @@ class ProjectManager:
                 d["rate_percent"] = 0
                 d["speaker"] = v_desc
 
+        if mode == "movie_recap" and translated:
+            import random
+            recap_v = "sreymom" if v_override == "sreymom" else "piseth"
+            has_hook = any("Viral Hook" in str(d.get("speaker", "")) for d in translated)
+            if not has_hook:
+                hook_opts = RecapEngine.get_hooks("drama_revenge")
+                chosen_hook = random.choice(hook_opts) if hook_opts else "កុំទាន់អាលរំលង! រឿងរ៉ាវបន្ទាប់ពីនេះនឹងធ្វើឱ្យអ្នកស្មានមិនដល់..."
+                translated = RecapEngine.inject_viral_hook(translated, chosen_hook, voice=recap_v)
+            has_outro = any("Call To Action" in str(d.get("speaker", "")) for d in translated)
+            if not has_outro:
+                translated = RecapEngine.inject_viral_outro(translated, voice=recap_v)
+
         project["dialogues"] = translated or []
         self.save_project(project)
         gc.collect()

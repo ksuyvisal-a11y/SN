@@ -85,6 +85,29 @@ def get_nisay_api_key() -> str:
     return os.environ.get("NISAY_API_KEY", "nisay-YOUR_API_KEY")
 
 
+CHAT_ENDPOINT = f"{BASE_URL}/chat/completions"
+SUPPORTED_CATEGORIES = {
+    "chinese_general",
+    "chinese_romance",
+    "chinese_historical",
+    "chinese_time_travel"
+}
+
+
+def normalize_category(category: Optional[str]) -> str:
+    """Normalize any genre or custom mode string to one of Nisay Gateway's 4 supported categories."""
+    cat = (category or "").lower().strip()
+    if cat in SUPPORTED_CATEGORIES:
+        return cat
+    if any(k in cat for k in ("romance", "love", "sweet", "couple", "kiss")):
+        return "chinese_romance"
+    if any(k in cat for k in ("hist", "ancient", "costume", "palace", "wuxia", "emperor")):
+        return "chinese_historical"
+    if any(k in cat for k in ("time", "travel", "transmigrat", "reborn", "future", "modern")):
+        return "chinese_time_travel"
+    return "chinese_general"
+
+
 def translate_khmer(
     texts: Union[str, List[str]],
     category: str = DEFAULT_CATEGORY,
@@ -110,10 +133,11 @@ def translate_khmer(
         "Content-Type": "application/json"
     }
 
+    safe_category = normalize_category(category)
     is_batch = isinstance(texts, list)
     payload_text = texts if is_batch else [texts]
 
-    context_str = context or f"Story genre: {category}. Apply Standard Khmer orthography."
+    context_str = context or f"Story genre: {safe_category}. Apply Standard Khmer orthography."
 
     last_error = None
     for attempt in range(1, max_retries + 1):
@@ -123,7 +147,7 @@ def translate_khmer(
                 "source_lang": "auto",
                 "target_lang": "km",
                 "model": MANDATORY_MODEL,
-                "category": category,
+                "category": safe_category,
                 "context": context_str,
                 "entity_glossary": entity_glossary or {}
             }
@@ -168,6 +192,85 @@ def translate_khmer(
             time.sleep(2 * attempt)
 
     raise RuntimeError(f"Gemini 3.8 Flash High translation failed after {max_retries} retries: {last_error}")
+
+
+def generate_gemini_recap_script(
+    transcript_or_dialogues: Union[str, List[Dict[str, Any]]],
+    drama_title: str = "",
+    genre: str = "drama_revenge",
+    voice: str = "piseth",
+    api_key: Optional[str] = None,
+    timeout: int = 120
+) -> str:
+    """
+    Generate an engaging, viral Cambodian Facebook & TikTok Movie Recap script
+    (សម្រាយសាច់រឿង) using Gemini 3.8 Flash High on Nisay Cloud Server.
+    """
+    resolved_key = (api_key or get_nisay_api_key()).strip()
+    if not resolved_key or resolved_key == "nisay-YOUR_API_KEY":
+        raise ValueError("Missing NISAY_API_KEY for Gemini 3.8 Flash Recap Generator.")
+
+    headers = {
+        "Authorization": f"Bearer {resolved_key}",
+        "Content-Type": "application/json"
+    }
+
+    # Format transcript lines
+    if isinstance(transcript_or_dialogues, list):
+        dialogue_lines = []
+        for d in transcript_or_dialogues:
+            s_t = d.get("start", 0)
+            txt = d.get("text_km") or d.get("text_original") or d.get("text", "")
+            if txt:
+                dialogue_lines.append(f"[{s_t:.1f}s] {txt}")
+        content_block = "\n".join(dialogue_lines)
+    else:
+        content_block = str(transcript_or_dialogues)
+
+    voice_narrator = "ស្រីមុំ (Sreymom - Female Narrator)" if voice == "sreymom" else "ពិសិដ្ឋ (Piseth - Male Narrator)"
+    title_str = f"រឿង៖ {drama_title}" if drama_title else "រឿងភាគខ្លី (Asian Drama Series)"
+
+    system_prompt = f"""You are a master Cambodian Facebook & TikTok Movie Recap Storyteller and Director (អ្នកសម្រាយរឿង {voice_narrator}).
+Your mission is to take Asian TV drama video transcripts and craft an electrifying, emotional, viral Movie Recap narrative script (សម្រាយសាច់រឿង) in authentic spoken Khmer.
+
+GUIDELINES:
+1. STRUCTURE:
+   - 🔥 VIRAL HOOK (3-5s): A heart-stopping question or shocking statement that grabs Facebook/TikTok viewers within the first 3 seconds.
+   - 🎬 INTENSE DRAMA STORYTELLING: Recount the story with high energy, suspense, emotional highs and lows, twists, and authentic Cambodian spoken drama terms (អុញនោះ, ស្មានមិនដល់, មើលងាយ, សងសឹក, កក្រើក).
+   - ⚡ CALL-TO-ACTION OUTRO: End with an irresistible teaser and request to Like, Share, and Follow for Part 2 (រង់ចាំទស្សនាភាគ ២).
+2. TONE & VOCABULARY:
+   - Natural spoken Khmer film recap cadence (ពិរោះស្ដាប់ រណ្តំចិត្ត ដូចអ្នកសម្រាយរឿង Facebook & TikTok ល្បីៗ).
+   - NO robotic or direct literal book translations.
+   - Flow smoothly as a single narrator speaking continuously with dramatic tension."""
+
+    user_prompt = f"""Title: {title_str}
+Genre: {genre}
+Input Video Dialogue / Transcript:
+\"\"\"
+{content_block[:6000]}
+\"\"\"
+
+Write the complete viral Khmer Movie Recap script (សម្រាយសាច់រឿង) ready for voice dubbing and Facebook/TikTok publishing:"""
+
+    payload = {
+        "model": MANDATORY_MODEL,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        "temperature": 0.35
+    }
+
+    try:
+        resp = requests.post(CHAT_ENDPOINT, headers=headers, json=payload, timeout=timeout)
+        resp.raise_for_status()
+        res_data = resp.json()
+        return res_data["choices"][0]["message"]["content"]
+    except Exception as e:
+        print(f"Gemini 3.8 Flash Movie Recap generation warning: {e}")
+        # Fallback to translate_khmer
+        summary_prompt = f"សម្រាយរឿង {title_str}៖ " + content_block[:500]
+        return str(translate_khmer(summary_prompt, category="chinese_general"))
 
 
 def main():

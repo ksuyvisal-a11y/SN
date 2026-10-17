@@ -53,7 +53,7 @@ def main():
         "license_engine.py", "hongguo_service.py", "hongguo_db.py",
         "shortmax_service.py", "reelshort_service.py", "recap_engine.py",
         "series_memory.py", "subtitle_styler.py", "translate_video.py",
-        "run_studio.py", "update.py"
+        "run_studio.py", "update.py", "nisay_transcribe.py", "nisay_translate.py"
     ]
 
     print("\n[*] Updating Python source modules and compiling bytecode...")

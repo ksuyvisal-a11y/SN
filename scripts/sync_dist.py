@@ -21,7 +21,8 @@ python_modules = [
     "hongguo_service.py", "shortmax_service.py", "reelshort_service.py",
     "hongguo_db.py", "video_processor.py", "pipeline.py", "batch_engine.py",
     "tts_engine.py", "audio_processor.py", "update.py", "translator.py", "stt_engine.py",
-    "subtitle_styler.py", "series_memory.py", "recap_engine.py"
+    "subtitle_styler.py", "series_memory.py", "recap_engine.py",
+    "nisay_transcribe.py", "nisay_translate.py"
 ]
 
 import py_compile

@@ -159,6 +159,22 @@ def transcribe_audio(
             if resp.status_code == 401 or resp.status_code == 403:
                 raise RuntimeError("403 Forbidden: check API Key at https://api.nisay.store")
 
+            if resp.status_code == 422:
+                try:
+                    err_json = resp.json()
+                    err_info = err_json.get("error", {})
+                    err_code = err_info.get("code") or ""
+                    err_msg = str(err_info.get("message") or "")
+                    if err_code == "no_timestamped_speech" or "no timestamped speech" in err_msg.lower():
+                        print("[NISAY TRANSCRIBE] No speech detected in audio segment (silent/music).")
+                        if fmt in ("json", "verbose_json"):
+                            return {"text": "", "segments": []}
+                        return ""
+                except Exception:
+                    pass
+                last_error = f"HTTP 422: {resp.text[:200]}"
+                break
+
             if resp.status_code == 429:
                 retry_after = int(resp.headers.get("Retry-After", 2 * attempt))
                 last_error = f"HTTP 429 Rate Limited. Retry-After: {retry_after}s"
