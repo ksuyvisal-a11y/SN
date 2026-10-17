@@ -9955,9 +9955,9 @@ async function startAutoDubbingPipeline(file, customTitle = null) {
                             const zhText = d.text_original || d.text || "";
                             const kmText = d.text_km || d.translated_text || d.khmer_text || d.text || "";
                             if (kmText && kmText !== zhText) {
-                                appendLiveTerminalLine(`[Line ${lineNum}] "${zhText}" ➜ "${kmText}" (${vName})`, "[ZH ➜ KM]", "dub");
+                                appendLiveTerminalLine(`[Line ${lineNum}] Dialogue translated & synchronized (${vName})`, "[Dialogue Pipeline]", "dub");
                             } else if (zhText) {
-                                appendLiveTerminalLine(`[Line ${lineNum}] Translation notice: preserved original "${zhText}"`, "[Translation Notice]", "warning");
+                                appendLiveTerminalLine(`[Line ${lineNum}] Dialogue preserved: original audio retained`, "[Dialogue Pipeline]", "warning");
                             }
                         }
                     });
@@ -9981,9 +9981,9 @@ async function startAutoDubbingPipeline(file, customTitle = null) {
                                 const zhText = d.text || "(Original)";
                                 const kmText = d.translated_text || d.khmer_text || "(Dubbed)";
                                 if (kmText && kmText !== zhText) {
-                                    appendLiveTerminalLine(`[Line ${lineNum}] ZH: "${zhText}" ➜ KM: "${kmText}" (${vName})`, "[ZH ➜ KM]", "dub");
+                                    appendLiveTerminalLine(`[Line ${lineNum}] Dialogue translated & synchronized (${vName})`, "[Dialogue Pipeline]", "dub");
                                 } else if (zhText) {
-                                    appendLiveTerminalLine(`[Line ${lineNum}] Translation notice: preserved original "${zhText}"`, "[Translation Notice]", "warning");
+                                    appendLiveTerminalLine(`[Line ${lineNum}] Dialogue preserved: original audio retained`, "[Dialogue Pipeline]", "warning");
                                 }
                             }
                         });
@@ -10090,7 +10090,7 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
         appendLiveTerminalLine(`========================================================================`, "[Full Movie Mode]", "info");
         appendLiveTerminalLine(`🎬 FULL MOVIE MERGED DUBBING INITIATED`, "[Full Movie Mode]", "info");
         appendLiveTerminalLine(`Episodes: ${totalBatchCount} episodes loaded in story order.`, "[Full Movie Mode]", "info");
-        appendLiveTerminalLine(`Mode: Single-Pass Full Movie Dubbing (បកពេញតែម្ដង់ មិនមែនជាភាគ)`, "[Full Movie Mode]", "info");
+        appendLiveTerminalLine(`Mode: Single-Pass Full Movie Dubbing (Full Feature Length)`, "[Full Movie Mode]", "info");
         appendLiveTerminalLine(`Voices: Piseth (Male Solo) & Sreymom (Female Solo) • Zero Vocal Leakage`, "[Full Movie Mode]", "info");
         appendLiveTerminalLine(`========================================================================`, "[Full Movie Mode]", "info");
 
@@ -10325,9 +10325,9 @@ async function startStudioBatchDubbingPipeline(files, outputMode = 'separate') {
                                 const zhText = d.text_original || d.text || "";
                                 const kmText = d.text_km || d.translated_text || d.khmer_text || d.text || "";
                                 if (kmText && kmText !== zhText) {
-                                    appendLiveTerminalLine(`[Line ${lineNum}] "${zhText}" ➜ "${kmText}" (${vName})`, `[Ep ${epNum} Dub]`, "dub");
+                                    appendLiveTerminalLine(`[Line ${lineNum}] Dialogue translated & synchronized (${vName})`, `[Ep ${epNum} Dub]`, "dub");
                                 } else if (zhText) {
-                                    appendLiveTerminalLine(`[Line ${lineNum}] Translation notice: preserved original "${zhText}"`, `[Ep ${epNum} Notice]`, "warning");
+                                    appendLiveTerminalLine(`[Line ${lineNum}] Dialogue preserved: original audio retained`, `[Ep ${epNum} Dub]`, "warning");
                                 }
                             }
                         });
