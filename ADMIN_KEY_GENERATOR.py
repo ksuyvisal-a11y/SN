@@ -91,21 +91,32 @@ def print_header():
     print("=" * 65)
 
 def print_key_card(record):
-    msg = (
+    client = record.get('client_name') or 'អតិថិជនកិត្តិយស'
+    key = record.get('license_key', '')
+    plan = record.get('plan') or 'PRO Lifetime'
+    expiry = record.get('expires_at') or 'LIFETIME (ប្រើប្រាស់រហូត)'
+    hwid = record.get('bound_hwid') or 'កុំព្យូទ័រណាក៏បាន (Any Machine)'
+    if hwid in ['ANY', '*']:
+        hwid = 'កុំព្យូទ័រណាក៏បាន (Any Machine)'
+
+    delivery_msg = (
         f"\n=======================================================\n"
-        f" 🎬 SN STUDIO - LICENSE KEY\n"
+        f" 🎬 SN STUDIO - VIP LICENSE KEY\n"
         f"=======================================================\n"
-        f" 👤 Client:  {record.get('client_name')}\n"
-        f" 🔑 Key:     {record.get('license_key')}\n"
-        f" 📦 Plan:    {record.get('plan')}\n"
-        f" ⏳ Expiry:  {record.get('expires_at')}\n"
-        f" 🔒 HWID:    {record.get('bound_hwid')}\n"
-        f"=======================================================\n"
-        f"👉 Instructions: Open SN STUDIO -> Paste this Key and click Activate\n"
+        f" 👤 អតិថិជន (Client): {client}\n"
+        f" 🔑 លេខកូដ (Key):     {key}\n"
+        f" 📦 កញ្ចប់ (Plan):     {plan}\n"
+        f" ⏳ សុពលភាព (Expiry): {expiry}\n"
+        f" 🔒 ម៉ាស៊ីន (HWID):    {hwid}\n"
+        f"-------------------------------------------------------\n"
+        f" 📖 មគ្គុទ្ទេសក៍ណែនាំរហ័ស:\n"
+        f" ១. បើកកម្មវិធី SN TOOL នៅលើកុំព្យូទ័រ\n"
+        f" ២. Paste លេខ License Key ខាងលើ រួចចុច Activate License\n"
+        f" ៣. ចូលប្រើ Downloader & AI Studio បានភ្លាមៗ ១០០%!\n"
         f"======================================================="
     )
-    print(msg)
-    copy_to_clipboard(record.get('license_key', ''))
+    print(delivery_msg)
+    copy_to_clipboard(key)
     print(" (✨ Key copied to Clipboard automatically!)")
 
 def interactive_menu():

@@ -5905,16 +5905,23 @@ function openSettingsModal() {
     openModal('modal-settings');
 }
 
+function openUserGuideModal() {
+    openModal('modal-settings');
+    openSettingsSubpage('guide');
+}
+
 function backToSettingsHub() {
     const hub = document.getElementById('settings-main-hub-view');
     const subAi = document.getElementById('settings-subpage-ai');
     const subLic = document.getElementById('settings-subpage-license');
     const subStory = document.getElementById('settings-subpage-story');
+    const subGuide = document.getElementById('settings-subpage-guide');
 
     if (hub) hub.style.display = 'flex';
     if (subAi) subAi.style.display = 'none';
     if (subLic) subLic.style.display = 'none';
     if (subStory) subStory.style.display = 'none';
+    if (subGuide) subGuide.style.display = 'none';
 }
 
 function openSettingsSubpage(key) {
@@ -5933,13 +5940,16 @@ function openSettingsSubpage(key) {
     const subAi = document.getElementById('settings-subpage-ai');
     const subLic = document.getElementById('settings-subpage-license');
     const subStory = document.getElementById('settings-subpage-story');
+    const subGuide = document.getElementById('settings-subpage-guide');
 
     if (hub) hub.style.display = 'none';
     if (subAi) subAi.style.display = 'none';
     if (subLic) subLic.style.display = 'none';
     if (subStory) subStory.style.display = 'none';
+    if (subGuide) subGuide.style.display = 'none';
 
     if (key === 'license' && subLic) subLic.style.display = 'flex';
+    if (key === 'guide' && subGuide) subGuide.style.display = 'flex';
 }
 
 // ==========================================================================

@@ -2418,33 +2418,37 @@
             });
         }
 
-        // Pre-formatted Telegram / Messenger Text Delivery Message
+        // Pre-formatted Telegram / Messenger Text Delivery Message (Khmer + English VIP Style)
         function copyTelegramDeliveryMessage() {
             if (!currentRecord || !currentRecord.license_key) return;
-            const client = currentRecord.client_name || "Valued Customer";
+            const client = currentRecord.client_name || "អតិថិជនកិត្តិយស";
             const key = currentRecord.license_key;
-            const plan = currentRecord.plan || "PRO";
-            const expiry = currentRecord.expires_at || "Lifetime (No Expiry)";
-            const hwid = (!currentRecord.bound_hwid || currentRecord.bound_hwid === "ANY" || currentRecord.bound_hwid === "*") ? "Any Machine" : currentRecord.bound_hwid;
+            const plan = currentRecord.plan || "PRO Lifetime";
+            const expiry = currentRecord.expires_at || "LIFETIME (ប្រើប្រាស់រហូត)";
+            const hwid = (!currentRecord.bound_hwid || currentRecord.bound_hwid === "ANY" || currentRecord.bound_hwid === "*") ? "កុំព្យូទ័រណាក៏បាន (Any Machine)" : currentRecord.bound_hwid;
 
             const text = 
-`🎬 SN TOOL - LICENSE KEY
+`🎬 ជំរាបសួរ ${client}!
+សូមស្វាគមន៍មកកាន់ SN TOOL - STUDIO PRO ផ្លូវការ ✨
 =========================================
-👤 Customer: ${client}
-🔑 Key: ${key}
-📦 Plan: ${plan}
-⏳ Validity: ${expiry}
-🔒 Machine: ${hwid}
+👤 ឈ្មោះអតិថិជន: ${client}
+🔑 LICENSE KEY: ${key}
+📦 កញ្ចប់សេវា (Plan): ${plan}
+⏳ សុពលភាព: ${expiry}
+🔒 ម៉ាស៊ីន (Hardware HWID): ${hwid}
 =========================================
-👉 Instructions:
-1. Open SN TOOL on your computer
-2. Copy the Key above and paste it into the activation field
-3. Click "ACTIVATE NOW" to complete!
+📖 មគ្គុទ្ទេសក៍ណែនាំប្រើប្រាស់រហ័ស (Quick Guide):
+១. បើកកម្មវិធី SN TOOL នៅលើកុំព្យូទ័ររបស់អ្នក
+២. Copy លេខ Key ខាងលើ យកទៅ Paste ចូលប្រអប់ License Key
+៣. ចុចប៊ូតុង "Activate License" ដើម្បីបើកដំណើរការពេញលេញ ១០០%
+៤. ចូលផ្ទាំង "Downloader" ដើម្បីទាញយករឿងភាគ 1080p Full HD
+៥. ចូលផ្ទាំង "Studio" ដើម្បីបកប្រែ & បញ្ចូលសំឡេងខ្មែរ AI ពិសិដ្ឋ / ស្រីមុំ
 
-🙏 Thank you for using SN STUDIO! ✨`;
+💬 ប្រសិនបើត្រូវការជំនួយ ឬចម្ងល់ផ្សេងៗ សូមឆាតមកកាន់ Admin គ្រប់ពេល!
+🙏 សូមអរគុណសម្រាប់ការជឿទុកចិត្ត និងគាំទ្រ SN TOOL STUDIO PRO! 🚀`;
 
             navigator.clipboard.writeText(text).then(() => {
-                showToast("💬 Message copied! Ready to paste into Telegram/Facebook!");
+                showToast("💬 បានចម្លងសារជូនភ្ញៀវរួចរាល់! អាច Paste ផ្ញើក្នុង Telegram/Facebook បានភ្លាមៗ!");
             });
         }
 

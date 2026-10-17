@@ -156,6 +156,10 @@
                     </div>
                 </div>
 
+                <button class="nav-pill-btn" id="btn-tab-guide" onclick="openUserGuideModal()" title="មគ្គុទ្ទេសក៍ណែនាំ (User Manual)">
+                    <i class="fa-solid fa-book-open" style="color:#38bdf8;"></i>
+                    <span>Guide</span>
+                </button>
                 <button class="nav-pill-btn" id="btn-tab-settings" onclick="openSettingsModal()" title="Studio Settings & License">
                     <i class="fa-solid fa-gear icon-settings"></i>
                     <span>Settings</span>
@@ -1615,6 +1619,20 @@
                         </div>
                         <i class="fa-solid fa-chevron-right modal-chevron-arrow"></i>
                     </div>
+
+                    <!-- Row 4: User Manual / មគ្គុទ្ទេសក៍ណែនាំ -->
+                    <div class="modal-nav-row-card" onclick="openSettingsSubpage('guide')">
+                        <div class="modal-card-left-col">
+                            <div class="modal-icon-badge badge-guide" style="background:rgba(56,189,248,0.15); border:1px solid rgba(56,189,248,0.3); color:#38bdf8;">
+                                <i class="fa-solid fa-book-open"></i>
+                            </div>
+                            <div class="modal-card-titles">
+                                <div class="modal-card-title-main">មគ្គុទ្ទេសក៍ណែនាំ (User Manual)</div>
+                                <div class="modal-card-desc-sub">របៀបប្រើប្រាស់ Downloader, Dubbing &amp; License</div>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right modal-chevron-arrow"></i>
+                    </div>
                 </div>
 
                 <!-- Subpage 1: Studio Translation Engine -->
@@ -1692,6 +1710,98 @@
                         <option selected>Piseth Solo (Male Drama Narration)</option>
                         <option>Sreymom Solo (Female Drama Narration)</option>
                     </select>
+                </div>
+
+                <!-- Subpage 4: User Manual / មគ្គុទ្ទេសក៍ណែនាំ -->
+                <div class="modal-inner-body" id="settings-subpage-guide" style="display:none;">
+                    <button type="button" class="lic-back-btn" onclick="backToSettingsHub()">
+                        <i class="fa-solid fa-arrow-left"></i>
+                        <span>Back to General Settings</span>
+                    </button>
+
+                    <div class="manual-guide-card-wrapper">
+                        <!-- Top Header Brand -->
+                        <div class="manual-header-banner">
+                            <div class="manual-emblem">
+                                <i class="fa-solid fa-book-open-reader"></i>
+                            </div>
+                            <div class="manual-header-text">
+                                <div class="manual-title">SN TOOL - STUDIO PRO GUIDE</div>
+                                <div class="manual-subtitle">មគ្គុទ្ទេសក៍ណែនាំការប្រើប្រាស់ផ្លូវការ</div>
+                            </div>
+                        </div>
+
+                        <!-- Scrollable Step-by-Step Sections -->
+                        <div class="manual-scroll-body">
+                            <!-- Step 1: Activation -->
+                            <div class="manual-step-item">
+                                <div class="manual-step-header">
+                                    <span class="manual-step-badge step-gold">ជំហាន ១</span>
+                                    <span class="manual-step-title">ការដាក់ License Key &amp; ដំណើរការ</span>
+                                </div>
+                                <div class="manual-step-content">
+                                    <p>• បើកកម្មវិធី <strong>SN TOOL</strong> នៅលើកុំព្យូទ័ររបស់អ្នក។</p>
+                                    <p>• ចម្លង (Copy) លេខ <strong>License Key</strong> ដែលទទួលបានពី Admin រួច Paste ចូលប្រអប់ និងចុច <strong>Activate</strong>។</p>
+                                    <p>• ប្រព័ន្ធនឹងភ្ជាប់ជាមួយកូដម៉ាស៊ីន (HWID) ដោយស្វ័យប្រវត្តិក្លាយជា <strong>VIP Active</strong>។</p>
+                                </div>
+                            </div>
+
+                            <!-- Step 2: Downloader -->
+                            <div class="manual-step-item">
+                                <div class="manual-step-header">
+                                    <span class="manual-step-badge step-blue">ជំហាន ២</span>
+                                    <span class="manual-step-title">ការទាញយករឿងភាគ 1080p (Downloader)</span>
+                                </div>
+                                <div class="manual-step-content">
+                                    <p>• ចុចផ្ទាំង <strong>Downloader</strong> ពីលើ Menu ខាងលើ។</p>
+                                    <p>• ជ្រើសរើសប្រភព Source (<strong>Hongguo</strong>, <strong>AnyReel</strong>, <strong>KuaiShou</strong>, ...)</p>
+                                    <p>• វាយឈ្មោះរឿង ឬ Paste Link រឿងភាគ រួចចុច <strong>Search / Fetch Info</strong>។</p>
+                                    <p>• ជ្រើសរើសភាគដែលចង់បាន រួចចុចប៊ូតុង <strong>Download Selected</strong>។</p>
+                                </div>
+                            </div>
+
+                            <!-- Step 3: Studio Dubbing -->
+                            <div class="manual-step-item">
+                                <div class="manual-step-header">
+                                    <span class="manual-step-badge step-green">ជំហាន ៣</span>
+                                    <span class="manual-step-title">ការបកប្រែ &amp; បញ្ចូលសំឡេងខ្មែរ (Studio Dubbing)</span>
+                                </div>
+                                <div class="manual-step-content">
+                                    <p>• ចូលផ្ទាំង <strong>Studio</strong> រួចអូសទម្លាក់ (Drag &amp; Drop) វីដេអូចូល។</p>
+                                    <p>• ជ្រើសរើសសម្លេង AI Khmer (<strong>ពិសិដ្ឋ Solo</strong> / <strong>ស្រីមុំ Solo</strong> ឬ <strong>Multi-Voice</strong>)។</p>
+                                    <p>• ចុចប៊ូតុង <strong>AI Transcribe &amp; Translate</strong> ដើម្បីបកប្រែអត្ថបទស្វ័យប្រវត្តិ។</p>
+                                    <p>• ពិនិត្យមើល Dialogue Grid និងកែសម្រួលពាក្យពេចន៍តាមចំណូលចិត្ត។</p>
+                                    <p>• ចុច <strong>Export Video</strong> ដើម្បី Render វីដេអូចេញជា Full HD!</p>
+                                </div>
+                            </div>
+
+                            <!-- Step 4: Power Tools -->
+                            <div class="manual-step-item">
+                                <div class="manual-step-header">
+                                    <span class="manual-step-badge step-purple">ជំហាន ៤</span>
+                                    <span class="manual-step-title">ឧបករណ៍ជំនួយ (Power Tools)</span>
+                                </div>
+                                <div class="manual-step-content">
+                                    <p>• <strong>Merge Video:</strong> ភ្ជាប់វីដេអូភាគច្រើនចូលគ្នាជាវីដេអូពេញ ១ ភាគ (Full Video)។</p>
+                                    <p>• <strong>Split Video:</strong> កាត់វីដេអូវែងជាច្រើនភាគតូចៗស្មើៗគ្នា។</p>
+                                    <p>• <strong>Batch Rename:</strong> ប្តូរឈ្មោះឯកសាររាប់រយភាគតាមលំដាប់ដោយស្វ័យប្រវត្តិ។</p>
+                                </div>
+                            </div>
+
+                            <!-- Step 5: FAQ & Support -->
+                            <div class="manual-faq-box">
+                                <div class="manual-faq-title"><i class="fa-solid fa-circle-question" style="color:#facc15;"></i> សំណួរញឹកញាប់ &amp; ជំនួយបច្ចេកទេស</div>
+                                <div class="manual-faq-item">
+                                    <strong>❓ តើអាចប្តូរកុំព្យូទ័រប្រើបានទេ?</strong>
+                                    <span>License Key ជាប់ជាមួយកូដសម្គាល់ Hardware ID នៃម៉ាស៊ីនមួយ។ ប្រសិនបើប្តូរម៉ាស៊ីន សូមទាក់ទង Admin ដើម្បី Unbind ជូន។</span>
+                                </div>
+                                <div class="manual-faq-item">
+                                    <strong>💬 ត្រូវការជំនួយបន្ទាន់?</strong>
+                                    <span>សូមទាក់ទង Telegram ផ្លូវការរបស់ Admin ឬអ្នកផ្គត់ផ្គង់ដើម្បីទទួលបានការគាំទ្រ ២៤/៧។</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
