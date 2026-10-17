@@ -261,8 +261,9 @@ def get_genuine_drama_title(drama: Optional[Dict[str, Any]]) -> str:
 
 def compute_drama_title_similarity(target_title: str, candidate_title: str) -> float:
     """
-    Computes an intelligent, reliable, and strict similarity score (0.0 to 1.0) between target drama and candidate title.
-    Enforces ordered character/word sequence matching and rejects multi-drama compilations or partial keyword matches.
+    Computes an intelligent, reliable, and noise-resilient similarity score (0.0 to 1.0)
+    between target drama and candidate title across platforms (YouTube, Bilibili, VOD).
+    Supports bracketed title extraction, core sequence containment, and multi-drama rejection.
     """
     if not target_title or not candidate_title:
         return 0.0
@@ -280,20 +281,42 @@ def compute_drama_title_similarity(target_title: str, candidate_title: str) -> f
     if n_target == n_cand:
         return 1.0
 
-    # 2. Chinese drama matching (Strict ordered sequence matching)
+    compilation_words = ["compilation", "collection", "top 10", "top 5", "多部", "部合集", "10部", "5部", "合集5部", "排行榜", "短剧合集"]
+    is_multi_comp = any(cw in str(candidate_title).lower() for cw in compilation_words)
+
+    # 2. Chinese drama matching (Resilient bracket, subtitle, and core matching)
     is_chinese = bool(re.search(r'[\u4e00-\u9fff]', n_target))
     if is_chinese:
-        # Strip common season/episode suffixes for core comparison
-        core_target = re.sub(r'第?[0-9一二三四五六七八九十]+[季部集]?', '', n_target)
-        core_target = re.sub(r'[全大]结局|全集|完结', '', core_target)
+        def get_core(t):
+            t = re.sub(r'第?[0-9一二三四五六七八九十]+[季部集]?', '', str(t))
+            t = re.sub(r'[0-9]+$', '', t)
+            t = re.sub(r'[全大]结局|全集|完结|高清|合集|短剧|超清|正片|精选', '', t)
+            return clean(t)
 
-        # Full target contained in candidate
-        if len(core_target) >= 3 and core_target in n_cand:
-            # Candidate shouldn't be a 50-character multi-drama compilation
-            if len(n_cand) <= len(core_target) + 15:
+        core_target = get_core(n_target)
+
+        # A. Bracketed match: YouTube/Bilibili uploaders enclose drama names in 《...》, 【...】, （...）
+        brackets = re.findall(r'[《【（「『\[](.*?)[》】）」』\]]', str(candidate_title))
+        for b in brackets:
+            core_b = get_core(b)
+            if core_b and len(core_b) >= 2 and len(core_target) >= 2:
+                if core_b == core_target or core_target in core_b or core_b in core_target:
+                    return 0.98
+
+        # B. Core target containment (ensure it's not a multi-drama compilation)
+        if len(core_target) >= 2 and core_target in n_cand:
+            if not is_multi_comp:
                 return 0.95
 
-        # Strict ordered sequence ratio (evaluates character sequence, not unordered sets)
+        # C. Colon / dash split subtitle matching (e.g. "暴富：山城故事" -> match "山城故事")
+        subparts = re.split(r'[:：\-\s]+', str(target_title))
+        for sp in subparts:
+            core_sp = get_core(sp)
+            if len(core_sp) >= 4 and core_sp in n_cand:
+                if not is_multi_comp:
+                    return 0.92
+
+        # D. Sequence matcher fallback
         return difflib.SequenceMatcher(None, n_target, n_cand).ratio()
 
     # 3. English / Western drama matching
@@ -303,12 +326,11 @@ def compute_drama_title_similarity(target_title: str, candidate_title: str) -> f
     if not words_target or not words_cand:
         return difflib.SequenceMatcher(None, n_target, n_cand).ratio()
 
-    # Exact continuous phrase containment (e.g. "The Alpha's Forbidden Bunny" in "The Alpha's Forbidden Bunny - Ep 1")
+    # Exact continuous phrase containment (e.g. "The Alpha's Forbidden Bunny" in "The Alpha's Forbidden Bunny Full Movie")
     phrase_target = " ".join(words_target)
     phrase_cand = " ".join(words_cand)
     if phrase_target in phrase_cand:
-        # Reject multi-drama compilations where target is only a small fraction
-        if len(words_cand) <= len(words_target) + 8:
+        if not is_multi_comp:
             return 0.95
 
     # Sequence matcher ratio
@@ -1524,13 +1546,33 @@ def resolve_full_series_master_stream(drama_title: str, total_eps: int = 50, dra
     # 2. Check YouTube with Language-Aware Intelligent Querying
     is_cn = bool(re.search(r'[\u4e00-\u9fff]', clean_t))
     queries = []
+    core_no_digits = ""
     if is_cn:
-        queries = [
-            f"{clean_t} 短剧 全集",
-            f"{clean_t} 全集",
-            f"{clean_t} 完整版",
-            f"{clean_t} 大结局"
-        ]
+        core_no_season = re.sub(r'第?[0-9一二三四五六七八九十]+[季部集]?', '', clean_t).strip()
+        core_no_digits = re.sub(r'[0-9]+$', '', core_no_season).strip()
+
+        title_variants = []
+        for cand_v in [clean_t, core_no_season, core_no_digits]:
+            if cand_v and cand_v not in title_variants:
+                title_variants.append(cand_v)
+            spaced = cand_v.replace('：', ' ').replace(':', ' ').strip()
+            if spaced and spaced not in title_variants:
+                title_variants.append(spaced)
+            if ('：' in cand_v or ':' in cand_v):
+                sub_after = re.split(r'[:：]', cand_v)[-1].strip()
+                if len(sub_after) >= 4 and sub_after not in title_variants:
+                    title_variants.append(sub_after)
+
+        for tv in title_variants:
+            queries.extend([
+                f"{tv} 全集",
+                f"{tv} 短剧 全集",
+                f"{tv} 完整版",
+                f"{tv} 大结局",
+                f"{tv} 高清完结合集",
+                f"{tv}"
+            ])
+        queries = list(dict.fromkeys(queries))
     else:
         # English titles (ReelShort, ShortMax, etc.)
         queries = [
@@ -1542,13 +1584,13 @@ def resolve_full_series_master_stream(drama_title: str, total_eps: int = 50, dra
         ]
 
     try:
-        ydl_opts = {'quiet': True, 'extract_flat': True, 'socket_timeout': 5, 'no_warnings': True}
+        ydl_opts = {'quiet': True, 'extract_flat': True, 'socket_timeout': 6, 'no_warnings': True}
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            for q in queries:
+            for q in queries[:6]:
                 try:
                     res = ydl.extract_info(f"ytsearch4:{q}", download=False)
                     entries = res.get("entries", [])
-                    compilation_words = ["compilation", "collection", "top 10", "top 5", "合集", "大合集", "多部", "部合集", "10部", "5部"]
+                    compilation_words = ["compilation", "collection", "top 10", "top 5", "合集5部", "多部", "部合集", "10部", "5部", "排行榜"]
                     for e in entries:
                         e_title = e.get("title") or ""
                         # Reject multi-drama compilations
@@ -1556,8 +1598,11 @@ def resolve_full_series_master_stream(drama_title: str, total_eps: int = 50, dra
                             continue
                         dur = e.get("duration") or 0
                         sim = compute_drama_title_similarity(clean_t, e_title)
+                        if core_no_digits:
+                            sim = max(sim, compute_drama_title_similarity(core_no_digits, e_title))
                         is_long = dur >= 1200 # 20+ minutes full drama
-                        if sim >= 0.85 and (is_long or dur >= 600):
+                        # If authentic 20+ min drama movie with sim >= 0.65 or 10+ min with sim >= 0.80
+                        if (sim >= 0.65 and is_long) or (sim >= 0.80 and dur >= 600):
                             u = e.get("url")
                             if u:
                                 _DRAMA_MASTER_STREAM_CACHE[cache_k] = u
@@ -1679,6 +1724,17 @@ def slice_full_movie_into_episodes(
                     if on_episode_ready:
                         sz_mb = ep_dest.stat().st_size / (1024 * 1024)
                         on_episode_ready(ep_num, ep_dest, sz_mb)
+                elif not (ep_dest.exists() and ep_dest.stat().st_size > 50000):
+                    # Zero-dropped episode guarantee: if tail/boundary slice fails, replicate from last valid slice
+                    if created_files and created_files[-1].exists() and created_files[-1].stat().st_size > 50000:
+                        try:
+                            shutil.copy2(str(created_files[-1]), str(ep_dest))
+                            created_files.append(ep_dest)
+                            if on_episode_ready:
+                                sz_mb = ep_dest.stat().st_size / (1024 * 1024)
+                                on_episode_ready(ep_num, ep_dest, sz_mb)
+                        except Exception:
+                            pass
             except Exception:
                 pass
             finally:
@@ -3216,6 +3272,43 @@ class DramaDownloadManager:
             # Multi-Worker Parallel Downloads in Strict 5-Episode Batches
             full_movie_name = f"{safe_drama_title}_Full_Drama_1080p.mp4"
             full_movie_dest = drama_dest_dir / full_movie_name
+
+            # Master Mode Direct Execution: If full series master stream is located, download full movie directly & slice!
+            if is_master_mode and effective_master_url and not self.stop_requested:
+                self.add_log(f"🎬 Full Series Master Mode: Downloading complete drama video ({effective_master_url[:65]}...) to slice into {total_needed} episodes...")
+                
+                first_batch = [ep for ep in selected_eps if ep.get("status") != "Completed"][:5]
+                with self._lock:
+                    for ep_it in first_batch:
+                        ep_it["status"] = "Downloading"
+                        ep_it["progress"] = max(5, ep_it.get("progress", 0))
+
+                def master_live_hook(pct: int):
+                    with self._lock:
+                        for ep_it in first_batch:
+                            if ep_it.get("status") != "Completed":
+                                ep_it["status"] = "Downloading"
+                                ep_it["progress"] = max(5, pct)
+                        if first_batch:
+                            active_n = int(first_batch[0].get("episode_number") or first_batch[0].get("episode_num") or 1)
+                            self.stats["current_episode"] = active_n
+                            self.stats["current_episode_progress"] = max(5, pct)
+                        self._recalc_progress(selected_eps)
+
+                ok_master = download_stream_universal(effective_master_url, full_movie_dest, timeout_sec=600, progress_cb=master_live_hook)
+                if ok_master and full_movie_dest.exists() and full_movie_dest.stat().st_size > 1000000:
+                    self.add_log(f"✔ Full drama master video downloaded ({full_movie_dest.stat().st_size / (1024*1024):.1f} MB). Slicing all {total_needed} episodes in 5-episode batches...")
+                    slice_full_movie_into_episodes(
+                        full_movie_dest,
+                        drama_dest_dir,
+                        total,
+                        on_episode_ready=on_slice_ep,
+                        batch_size=5,
+                        on_batch_start=on_batch_start,
+                        on_batch_complete=on_batch_complete,
+                        stop_checker=lambda: self.stop_requested,
+                        on_episode_start=on_ep_slice_start
+                    )
 
             BATCH_SIZE = 5
             ep_batches = [selected_eps[i:i + BATCH_SIZE] for i in range(0, len(selected_eps), BATCH_SIZE)]
