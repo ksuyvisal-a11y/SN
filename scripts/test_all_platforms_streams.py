@@ -27,7 +27,7 @@ def test():
             empty_cnt = sum(1 for e in eps if not e.get("stream_url"))
             total_tested += len(eps)
             total_empty_streams += empty_cnt
-            sample_u = eps[0].get("stream_url", "")[:50] if eps else "N/A"
+            sample_u = str(eps[0].get("stream_url") or "")[:50] if eps else "N/A"
             status_str = "OK (100% covered)" if empty_cnt == 0 else f"FAIL ({empty_cnt} empty)"
             print(f"  [{status_str}] ID: {did} | Episodes: {len(eps)} | Stream: {sample_u}...", flush=True)
 
