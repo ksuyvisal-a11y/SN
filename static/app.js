@@ -10775,7 +10775,8 @@ async function submitGateLicense() {
 }
 
 async function confirmActivateLicense() {
-    const key = document.getElementById('input-license-key').value.trim();
+    const keyInput = document.getElementById('input-license-key');
+    const key = keyInput ? keyInput.value.trim() : "";
     const nameInput = document.getElementById('settings-client-name-input');
     const clientName = nameInput ? nameInput.value.trim() : "";
     if (!key) {
