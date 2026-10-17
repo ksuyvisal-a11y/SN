@@ -1212,7 +1212,7 @@ def download_m3u8_stream_turbo(stream_url: str, dest_file: Path, timeout_sec: in
         except Exception:
             pass
 
-        # Tier 2: FFmpeg with persistent socket connection and reconnect flags
+        # Tier 2: FFmpeg with persistent socket connection and reconnect flags (with live progress tracking)
         try:
             temp_ffmpeg_out = isolated_temp / f"{dest_file.stem}_ff.mp4"
             cmd = [
@@ -1231,7 +1231,25 @@ def download_m3u8_stream_turbo(stream_url: str, dest_file: Path, timeout_sec: in
                 "-movflags", "+faststart",
                 str(temp_ffmpeg_out)
             ]
-            proc = subprocess.run(cmd, capture_output=True, timeout=timeout_sec, **silent_kw)
+            proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **silent_kw)
+            start_t = time.time()
+            while proc.poll() is None:
+                if time.time() - start_t > timeout_sec:
+                    try:
+                        proc.kill()
+                    except Exception:
+                        pass
+                    break
+                if progress_callback:
+                    if temp_ffmpeg_out.exists() and temp_ffmpeg_out.stat().st_size > 0:
+                        est = min(95, max(10, int((temp_ffmpeg_out.stat().st_size / (22 * 1024 * 1024)) * 100)))
+                        progress_callback(est)
+                    else:
+                        elapsed = time.time() - start_t
+                        est = min(85, max(5, int(elapsed * 4)))
+                        progress_callback(est)
+                time.sleep(0.35)
+
             if temp_ffmpeg_out.exists() and temp_ffmpeg_out.stat().st_size > 100000:
                 if dest_file.exists():
                     try:
@@ -1263,7 +1281,7 @@ download_m3u8_stream_with_ffmpeg = download_m3u8_stream_turbo
 # HONGGUO_HEADERS, resolve_hongguo_series_vids, and get_hongguo_episode_real_stream_url are defined above.
 
 
-def download_stream_turbo_chunked(stream_url: str, dest_file: Path, timeout_sec: int = 120) -> bool:
+def download_stream_turbo_chunked(stream_url: str, dest_file: Path, timeout_sec: int = 120, progress_callback: Optional[Callable[[int], None]] = None) -> bool:
     """
     High-Speed Direct Chunked Stream Downloader with 512KB buffers and ByteDance CDN headers.
     Streams to isolated temp directory and renames atomically upon completion.
@@ -1279,7 +1297,7 @@ def download_stream_turbo_chunked(stream_url: str, dest_file: Path, timeout_sec:
     part_file = isolated_chunk / f"{dest_file.stem}.part"
 
     try:
-        # Tier 1: Direct High-Speed Python Chunked Streaming (512KB chunks)
+        # Tier 1: Direct High-Speed Python Chunked Streaming (512KB chunks) with live progress
         try:
             import ssl
             ssl_ctx = ssl.create_default_context()
@@ -1288,12 +1306,22 @@ def download_stream_turbo_chunked(stream_url: str, dest_file: Path, timeout_sec:
             req = urllib.request.Request(stream_url, headers=HONGGUO_HEADERS)
             with urllib.request.urlopen(req, timeout=timeout_sec, context=ssl_ctx) as resp:
                 if resp.status in (200, 206):
+                    total_len = int(resp.headers.get('Content-Length') or 0)
+                    downloaded = 0
                     with open(part_file, "wb") as f:
                         while True:
                             chunk = resp.read(512 * 1024)
                             if not chunk:
                                 break
                             f.write(chunk)
+                            downloaded += len(chunk)
+                            if progress_callback:
+                                if total_len > 0:
+                                    pct = min(99, max(1, int((downloaded / total_len) * 100)))
+                                    progress_callback(pct)
+                                else:
+                                    pct = min(95, max(1, int((downloaded / (20 * 1024 * 1024)) * 100)))
+                                    progress_callback(pct)
                     if part_file.exists() and part_file.stat().st_size > 100000:
                         if dest_file.exists():
                             try:
@@ -1301,6 +1329,8 @@ def download_stream_turbo_chunked(stream_url: str, dest_file: Path, timeout_sec:
                             except Exception:
                                 pass
                         shutil.move(str(part_file), str(dest_file))
+                        if progress_callback:
+                            progress_callback(100)
                         return True
         except Exception:
             pass
@@ -1704,6 +1734,17 @@ class DramaDownloadManager:
         """Return the latest download logs."""
         with self._lock:
             return list(self.logs[-limit:])
+
+    def _recalc_progress(self, selected_eps: Optional[List[Dict[str, Any]]] = None):
+        """Dynamically compute real-time overall download progress factoring in in-flight episode percentages."""
+        with self._lock:
+            eps = selected_eps or [e for e in self.episodes if e.get("is_selected", True)]
+            if not eps:
+                return
+            total_prog = sum(e.get("progress", 0) for e in eps)
+            pct = max(0, min(100, int(total_prog / len(eps))))
+            self.stats["progress_percent"] = pct
+
 
     def add_to_queue(self, drama_data: Dict[str, Any], save_location: str = "D:/SN_Dramas") -> Dict[str, Any]:
         """Add a drama to the automated batch download queue."""
@@ -2528,8 +2569,19 @@ class DramaDownloadManager:
                                                     ep_it["video_url"] = f"/media/{ep_it['filepath']}"
                                                     ep_it["size_mb"] = f"{sz_mb:.1f}"
                                                     self.stats["completed"] += 1
-                                                    self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total) * 100) if total > 0 else 100
+                                                    self._recalc_progress(selected_eps)
                                                     self.add_log(f"✔ [EP {ep_n:02d}/{total:02d}] 100% Completed ({sz_mb:.1f} MB, Full HD)")
+                                        elif ep_it.get("status") == "Downloading":
+                                            # Continuous live progress increment based on real file growth or active decryption time
+                                            with self._lock:
+                                                cur_p = ep_it.get("progress", 5)
+                                                if cand_f.exists() and cand_f.stat().st_size > 50000:
+                                                    est_pct = min(95, max(15, int((cand_f.stat().st_size / (20 * 1024 * 1024)) * 100)))
+                                                    ep_it["progress"] = max(cur_p, est_pct)
+                                                else:
+                                                    if cur_p < 90:
+                                                        ep_it["progress"] = min(90, cur_p + 3)
+                                                self._recalc_progress(selected_eps)
                             except Exception:
                                 pass
                             time.sleep(0.3)
@@ -2548,7 +2600,8 @@ class DramaDownloadManager:
                                     ep_n = ep_it.get("episode_number") or ep_it.get("episode_num") or 1
                                     if ep_n in v_batch and ep_it.get("status") != "Completed":
                                         ep_it["status"] = "Downloading"
-                                        ep_it["progress"] = max(1, ep_it.get("progress", 0))
+                                        ep_it["progress"] = max(10, ep_it.get("progress", 0))
+                                self._recalc_progress(selected_eps)
 
                             self.add_log(f"📦 [VIP Batch {vb_idx + 1}/{len(vip_batches)}] Decrypting 5 episodes: EP {v_batch[0]:02d} - EP {v_batch[-1]:02d}...")
 
@@ -2577,7 +2630,7 @@ class DramaDownloadManager:
                                                 ep_it["video_url"] = f"/media/{ep_it['filepath']}"
                                                 ep_it["size_mb"] = f"{sz_mb:.1f}"
                                                 self.stats["completed"] += 1
-                                                self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total) * 100) if total > 0 else 100
+                                                self._recalc_progress(selected_eps)
                                                 self.add_log(f"✔ [EP {ep_n:02d}/{total:02d}] 100% Completed ({sz_mb:.1f} MB, Full HD)")
                                                 batch_saved += 1
                             if batch_saved == 0 and vb_idx == 0:
@@ -2605,7 +2658,7 @@ class DramaDownloadManager:
                                             ep_it["video_url"] = f"/media/{ep_it['filepath']}"
                                             ep_it["size_mb"] = f"{sz_mb:.1f}"
                                             self.stats["completed"] += 1
-                                            self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total) * 100) if total > 0 else 100
+                                            self._recalc_progress(selected_eps)
                                             self.add_log(f"✔ [EP {ep_n:02d}/{total:02d}] 100% Completed ({sz_mb:.1f} MB, Full HD)")
 
             if all(ep.get("status") == "Completed" for ep in selected_eps):
@@ -2663,13 +2716,14 @@ class DramaDownloadManager:
                             ep["video_url"] = f"/media/{ep['filepath']}"
                             ep["size_mb"] = f"{sz_mb:.1f}"
                             self.stats["completed"] += 1
-                            self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total_cnt) * 100) if total_cnt > 0 else 100
+                            self._recalc_progress(selected_eps)
                             self.add_log(f"✔ Episode {ep_num:02d} verified on disk ({sz_mb:.1f} MB, Full HD)")
                     return True
 
                 with self._lock:
                     ep["status"] = "Downloading"
-                    ep["progress"] = 0
+                    ep["progress"] = max(1, ep.get("progress", 0))
+                    self._recalc_progress(selected_eps)
                     self.add_log(f"⚡ Downloading EP {ep_num:02d}/{total_cnt:02d} (1080p Full HD Turbo)...")
 
                 # 2. Source A: Multi-source VOD Cluster with Turbo 16-fragment concurrency
@@ -2735,6 +2789,7 @@ class DramaDownloadManager:
                     with self._lock:
                         ep["status"] = "Downloading"
                         ep["progress"] = max(1, min(99, int(pct)))
+                        self._recalc_progress(selected_eps)
 
                 for attempt_url in cand_urls:
                     if self.stop_requested:
@@ -2749,7 +2804,7 @@ class DramaDownloadManager:
                             ep["video_url"] = f"/media/{ep['filepath']}"
                             ep["size_mb"] = f"{sz_mb:.1f}"
                             self.stats["completed"] += 1
-                            self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total_cnt) * 100) if total_cnt > 0 else 100
+                            self._recalc_progress(selected_eps)
                             self.add_log(f"✔ Genuine drama episode {ep_num:02d} downloaded successfully ({sz_mb:.1f} MB, 1080p Turbo)")
                         return True
 
@@ -2770,7 +2825,7 @@ class DramaDownloadManager:
                         real_url = get_hongguo_episode_real_stream_url(use_sid, target_vid)
 
                     if real_url:
-                        download_stream_turbo_chunked(real_url, dest_file, timeout_sec=120)
+                        download_stream_turbo_chunked(real_url, dest_file, timeout_sec=120, progress_callback=single_ep_hook)
                         if dest_file.exists() and dest_file.stat().st_size > 1000000:
                             sz_mb = dest_file.stat().st_size / (1024 * 1024)
                             with self._lock:
@@ -2780,7 +2835,7 @@ class DramaDownloadManager:
                                 ep["video_url"] = f"/media/{ep['filepath']}"
                                 ep["size_mb"] = f"{sz_mb:.1f}"
                                 self.stats["completed"] += 1
-                                self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total_cnt) * 100) if total_cnt > 0 else 100
+                                self._recalc_progress(selected_eps)
                                 self.add_log(f"✔ Real drama episode {ep_num:02d} downloaded from ByteDance ({sz_mb:.1f} MB, 1080p)")
                             return True
 
@@ -2798,7 +2853,7 @@ class DramaDownloadManager:
                                 ep["video_url"] = f"/media/{ep['filepath']}"
                                 ep["size_mb"] = f"{sz_mb:.1f}"
                                 self.stats["completed"] += 1
-                                self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total_cnt) * 100) if total_cnt > 0 else 100
+                                self._recalc_progress(selected_eps)
                                 self.add_log(f"✔ Full drama movie stream downloaded as {dest_file.name} ({sz_mb:.1f} MB, 1080p)")
                             return True
 
@@ -2874,7 +2929,7 @@ class DramaDownloadManager:
                                 ep["video_url"] = f"/media/{ep['filepath']}"
                                 ep["size_mb"] = f"{sz_mb:.1f}"
                                 self.stats["completed"] += 1
-                                self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total_cnt) * 100) if total_cnt > 0 else 100
+                                self._recalc_progress(selected_eps)
                                 self.add_log(f"✔ Live video stream downloaded via yt-dlp: {ep_file_name} ({sz_mb:.1f} MB)")
                             clean_stray_download_artifacts(drama_dest_dir)
                             return True
@@ -2906,7 +2961,7 @@ class DramaDownloadManager:
                                 ep["video_url"] = f"/media/{ep['filepath']}"
                                 ep["size_mb"] = f"{sz_mb:.1f}"
                                 self.stats["completed"] += 1
-                                self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total_cnt) * 100) if total_cnt > 0 else 100
+                                self._recalc_progress(selected_eps)
                                 self.add_log(f"✔ [VIP Engine] Single episode {ep_num:02d} decrypted ({sz_mb:.1f} MB, 1080p)")
                             return True
                     except Exception:
@@ -2931,7 +2986,7 @@ class DramaDownloadManager:
                         ep["video_url"] = f"/media/{ep['filepath']}"
                         ep["size_mb"] = f"{file_size_mb:.1f}"
                         self.stats["completed"] += 1
-                        self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total_cnt) * 100) if total_cnt > 0 else 100
+                        self._recalc_progress(selected_eps)
                         self.add_log(f"✔ [EP {ep_num:02d}/{total_cnt:02d}] Saved: {dest_file.name} ({file_size_mb:.1f} MB, Authentic Video)")
                     return True
                 else:
@@ -2963,7 +3018,7 @@ class DramaDownloadManager:
                             ep["video_url"] = f"/media/{ep['filepath']}"
                             ep["size_mb"] = f"{file_size_mb:.1f}"
                             self.stats["completed"] += 1
-                            self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total_cnt) * 100) if total_cnt > 0 else 100
+                            self._recalc_progress(selected_eps)
                             self.add_log(f"✔ [EP {ep_num:02d}/{total_cnt:02d}] Verified: {dest_file.name} ({file_size_mb:.1f} MB)")
                         return True
                     else:
@@ -2992,7 +3047,7 @@ class DramaDownloadManager:
                                                 self.add_log(f"⚡ [Cross-Platform] Connecting genuine {cand_plat.upper()} stream for EP {ep_num:02d} of '{target_title}'...")
                                                 ok_dl = download_m3u8_stream_turbo(alt_url, dest_file, timeout_sec=180, progress_callback=single_ep_hook)
                                                 if not ok_dl or not dest_file.exists() or dest_file.stat().st_size < 100000:
-                                                    download_stream_turbo_chunked(alt_url, dest_file, timeout_sec=120)
+                                                    download_stream_turbo_chunked(alt_url, dest_file, timeout_sec=120, progress_callback=single_ep_hook)
                                                 if dest_file.exists() and dest_file.stat().st_size > 100000:
                                                     fb_success = True
                                                     break
@@ -3008,7 +3063,7 @@ class DramaDownloadManager:
                                 ep["video_url"] = f"/media/{ep['filepath']}"
                                 ep["size_mb"] = f"{sz_mb:.1f}"
                                 self.stats["completed"] += 1
-                                self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total_cnt) * 100) if total_cnt > 0 else 100
+                                self._recalc_progress(selected_eps)
                                 self.add_log(f"✔ [EP {ep_num:02d}/{total_cnt:02d}] Genuine episode downloaded via Cross-Platform ({sz_mb:.1f} MB, Full HD)")
                             return True
 
@@ -3016,7 +3071,7 @@ class DramaDownloadManager:
                             ep["status"] = "Failed"
                             ep["progress"] = 0
                             self.stats["failed"] += 1
-                            self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total_cnt) * 100) if total_cnt > 0 else 100
+                            self._recalc_progress(selected_eps)
                             self.add_log(f"❌ [EP {ep_num:02d}/{total_cnt:02d}] Failed: Verified stream for '{safe_drama_title}' could not be reached. Skipping to protect video accuracy.")
                         return False
 
@@ -3078,25 +3133,13 @@ class DramaDownloadManager:
                 is_master_mode = True
                 self.add_log(f"🎬 Full series master mode activated: Downloading full drama movie to slice into all {total_needed} episodes!")
 
-            def on_slice_ep(ep_n, ep_f, sz_mb):
-                with self._lock:
-                    target_ep = next((e for e in selected_eps if (e.get("episode_number") or e.get("episode_num")) == ep_n), None)
-                    if target_ep and target_ep.get("status") != "Completed":
-                        target_ep["status"] = "Completed"
-                        target_ep["progress"] = 100
-                        target_ep["filepath"] = str(ep_f.resolve()).replace("\\", "/")
-                        target_ep["video_url"] = f"/media/{target_ep['filepath']}"
-                        target_ep["size_mb"] = f"{sz_mb:.1f}"
-                        self.stats["completed"] += 1
-                        self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total) * 100) if total > 0 else 100
-                        self.add_log(f"✔ [EP {ep_n:02d}/{total:02d}] 100% Completed ({sz_mb:.1f} MB, Full HD)")
-
             def on_ep_slice_start(ep_n):
                 with self._lock:
                     target_ep = next((e for e in selected_eps if (e.get("episode_number") or e.get("episode_num")) == ep_n), None)
                     if target_ep and target_ep.get("status") != "Completed":
                         target_ep["status"] = "Downloading"
                         target_ep["progress"] = 50
+                        self._recalc_progress(selected_eps)
 
             def on_slice_ep(ep_n, ep_f, sz_mb):
                 with self._lock:
@@ -3108,7 +3151,7 @@ class DramaDownloadManager:
                         target_ep["video_url"] = f"/media/{target_ep['filepath']}"
                         target_ep["size_mb"] = f"{sz_mb:.1f}"
                         self.stats["completed"] += 1
-                        self.stats["progress_percent"] = int(((self.stats["completed"] + self.stats["failed"]) / total) * 100) if total > 0 else 100
+                        self._recalc_progress(selected_eps)
                         self.add_log(f"✔ [EP {ep_n:02d}/{total:02d}] 100% Completed ({sz_mb:.1f} MB, Full HD)")
 
             def on_batch_start(b_idx, total_b, batch_ep_nums):
@@ -3118,6 +3161,7 @@ class DramaDownloadManager:
                         if ep_n in batch_ep_nums and ep_it.get("status") != "Completed":
                             ep_it["status"] = "Downloading"
                             ep_it["progress"] = max(10, ep_it.get("progress", 0))
+                    self._recalc_progress(selected_eps)
                 self.add_log(f"⚡ [Batch {b_idx}/{total_b}] Slicing 5 episodes: EP {batch_ep_nums[0]:02d} - EP {batch_ep_nums[-1]:02d}...")
 
             def on_batch_complete(b_idx, total_b, batch_ep_nums):
@@ -3147,7 +3191,8 @@ class DramaDownloadManager:
                 with self._lock:
                     for ep in pending_eps:
                         ep["status"] = "Downloading"
-                        ep["progress"] = max(1, ep.get("progress", 0))
+                        ep["progress"] = max(5, ep.get("progress", 0))
+                    self._recalc_progress(selected_eps)
 
                 # Download this batch (max 2 concurrent threads to prevent PC freezing/lag)
                 max_w = min(2, len(pending_eps))
@@ -3195,6 +3240,7 @@ class DramaDownloadManager:
                                 self.stats["completed"] += 1
                                 if self.stats["failed"] > 0:
                                     self.stats["failed"] -= 1
+                                self._recalc_progress(selected_eps)
                                 self.add_log(f"✔ [EP {ep_n:02d}/{total:02d}] Sliced & Verified: {ep_f.name}")
 
                 # Step 2: If full movie does not exist on disk, resolve and download it now!
@@ -3215,11 +3261,11 @@ class DramaDownloadManager:
 
                         def rec_live_hook(pct: int):
                             with self._lock:
-                                self.stats["progress_percent"] = pct
                                 for ep_it in first_rec_batch:
                                     if ep_it.get("status") != "Completed":
                                         ep_it["status"] = "Downloading"
                                         ep_it["progress"] = max(1, pct)
+                                self._recalc_progress(selected_eps)
 
                         ok_master = download_stream_universal(effective_master_url, full_movie_dest, timeout_sec=600, progress_cb=rec_live_hook)
                         if ok_master and full_movie_dest.exists() and full_movie_dest.stat().st_size > 1000000:
@@ -3248,6 +3294,7 @@ class DramaDownloadManager:
                                         self.stats["completed"] += 1
                                         if self.stats["failed"] > 0:
                                             self.stats["failed"] -= 1
+                                        self._recalc_progress(selected_eps)
                                         self.add_log(f"✔ [EP {ep_n:02d}/{total:02d}] Auto-Recovered & Verified: {ep_f.name}")
 
                 # Step 3: For Hongguo dramas with sid, retry missing episodes via VIP engine in batches of 5
@@ -3283,6 +3330,7 @@ class DramaDownloadManager:
                                         self.stats["completed"] += 1
                                         if self.stats["failed"] > 0:
                                             self.stats["failed"] -= 1
+                                        self._recalc_progress(selected_eps)
                                         self.add_log(f"✔ [VIP Recovery] [EP {ep_n:02d}/{total:02d}] Decrypted: {ep_f.name}")
                     except Exception as hg_ex:
                         self.add_log(f"Notice: VIP Recovery note: {hg_ex}")
