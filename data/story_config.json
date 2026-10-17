@@ -2,12 +2,12 @@
   "khmer_voice": "piseth",
   "auto_multi_voice": false,
   "source_lang": "auto",
-  "whisper_model": "cloud_nisay",
+  "whisper_model": "",
   "aspect_ratio": "9:16",
   "subtitle_mode": "none",
   "dubbing_mode": "smart_bgm",
-  "ducking_volume": "0.15",
-  "speech_boost_db": 2.5,
+  "ducking_volume": "0.00",
+  "speech_boost_db": 8,
   "speechgen_token": "",
   "speechgen_email": ""
 }

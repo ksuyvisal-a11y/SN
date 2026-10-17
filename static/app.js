@@ -9916,19 +9916,18 @@ async function startAutoDubbingPipeline(file, customTitle = null) {
                 if (!sData.success) return;
 
                 const pct = sData.progress || 10;
-                const rawKm = sData.step_km || sData.step_en || "Processing...";
-                const stepKm = sanitizeBranding(rawKm);
-                const stepEn = sanitizeBranding(sData.step_en || rawKm);
+                const rawEn = sData.step_en || sData.step_km || "Processing...";
+                const stepEn = sanitizeBranding(rawEn);
                 const rem = 100 - pct;
                 const eta = Math.max(1, Math.round((elapsed / Math.max(1, pct)) * rem));
 
-                updateExportProgressUI(pct, elapsed, eta, stepKm);
+                updateExportProgressUI(pct, elapsed, eta, stepEn);
                 
                 // Update bottom footer
                 const footerProg = document.getElementById('footer-studio-progress');
                 if (footerProg) footerProg.style.width = `${pct}%`;
                 const footerText = document.querySelector('#footer-studio-main div:first-child');
-                if (footerText) footerText.textContent = `Status: ${stepKm} (${pct}%)`;
+                if (footerText) footerText.textContent = `Status: ${stepEn} (${pct}%)`;
 
                 // Stream realistic vocal separation progress ticks while in separation stage (<35%)
                 if (pct < 35) {
@@ -9942,7 +9941,7 @@ async function startAutoDubbingPipeline(file, customTitle = null) {
                 // Log pipeline milestone when step transitions
                 if (stepEn && stepEn !== lastLoggedStep) {
                     lastLoggedStep = stepEn;
-                    appendLiveTerminalLine(`${stepEn} (${pct}%) [${stepKm}]`, "[Video 1/1]", "info");
+                    appendLiveTerminalLine(`${stepEn} (${pct}%)`, "[Video 1/1]", "info");
                 }
 
                 // Stream translated dialogue data lines in real-time

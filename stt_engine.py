@@ -542,7 +542,7 @@ class SpeechToTextEngine:
             if nisay_k and nisay_k != "nisay-YOUR_API_KEY":
                 print("[SN CLOUD SPEECH] Active engine initialized. Routing to SN AI Speech Pipeline...")
                 if progress_callback:
-                    progress_callback(46, "៣/៧ SN AI៖ កំពុងដំណើរការ SN Tool Speech Engine (លឿន & ច្បាស់កម្រិត Millisecond)...", "Using SN Tool Speech Engine...")
+                    progress_callback(46, "Using SN Tool Speech Engine...", "Using SN Tool Speech Engine...")
                 try:
                     nisay_segs = transcribe_with_nisay(audio_path, language=source_lang, progress_callback=progress_callback)
                     if nisay_segs:

@@ -350,7 +350,8 @@ def transcribe_to_segments(
                 pct = 46 + int((chunk_idx / max(1, total_chunks)) * 14)
                 m_s = int(c_start // 60)
                 m_e = int((c_start + c_dur) // 60)
-                progress_callback(pct, f"៣/៧ SN AI Cloud៖ កំពុងស្តាប់ភាគទី {chunk_idx + 1}/{total_chunks} ({m_s:02d}:00 - {m_e:02d}:00)...", f"Transcribing chunk {chunk_idx + 1}/{total_chunks}...")
+                en_msg = f"Transcribing chunk {chunk_idx + 1}/{total_chunks} ({m_s:02d}:00 - {m_e:02d}:00)..."
+                progress_callback(pct, en_msg, en_msg)
             except Exception:
                 pass
 
