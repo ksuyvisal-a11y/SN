@@ -4417,31 +4417,50 @@ function renderQueueViewForCurrentDrama() {
         const displayEpTitle = rawEpTitle.startsWith('EP') ? rawEpTitle : `EP${String(epNum).padStart(2, '0')} - ${rawEpTitle}`;
         const isSelected = ep.is_selected !== false;
         const isPlaying = (epNum === (dlQueueActiveEpisodeNum || 1));
-        const prog = ep.progress || (ep.status === 'Completed' ? 100 : 0);
-
-        let statusText = ep.status || (prog === 100 ? 'Completed' : 'Ready');
-        let statusClass = 'ready';
-        let fillStyle = `width: ${prog}%;`;
-        let textStyle = '';
-
-        if (statusText === 'Completed' || prog === 100) {
+        const prog = typeof ep.progress === 'number' ? ep.progress : (ep.status === 'Completed' ? 100 : 0);
+        let statusText = ep.status || '';
+        if (prog === 100 || statusText === 'Completed') {
             statusText = 'Completed';
+        } else if (statusText === 'Failed') {
+            statusText = 'Failed';
+        } else if (prog > 0 || statusText === 'Downloading') {
+            statusText = 'Downloading';
+        } else if (dlPollActive || statusText === 'Queued') {
+            statusText = 'Queued';
+        } else {
+            statusText = statusText || 'Ready';
+        }
+
+        let statusClass = statusText.toLowerCase();
+        let fillStyle = 'width: 0%;';
+        let textStyle = 'color: #64748b;';
+        let pillDisplay = statusText;
+
+        if (statusText === 'Completed') {
             statusClass = 'completed';
             fillStyle = 'width: 100%; background: #10b981;';
             textStyle = 'color: #10b981;';
+            pillDisplay = 'Completed';
         } else if (statusText === 'Failed') {
-            statusText = 'Failed';
             statusClass = 'failed';
             fillStyle = 'width: 100%; background: #ef4444;';
             textStyle = 'color: #ef4444;';
+            pillDisplay = 'Failed';
         } else if (statusText === 'Downloading') {
             statusClass = 'downloading';
-            fillStyle = `width: ${prog}%; background: linear-gradient(90deg, #f59e0b, #fbbf24);`;
+            fillStyle = `width: ${Math.max(prog, 5)}%; background: linear-gradient(90deg, #f59e0b, #fbbf24);`;
             textStyle = 'color: #fbbf24;';
+            pillDisplay = `Downloading ${prog}%`;
         } else if (statusText === 'Queued') {
             statusClass = 'queued';
             fillStyle = 'width: 0%;';
             textStyle = 'color: #94a3b8;';
+            pillDisplay = 'Queued';
+        } else {
+            statusClass = 'ready';
+            fillStyle = 'width: 0%;';
+            textStyle = 'color: #64748b;';
+            pillDisplay = 'Ready';
         }
 
         // Table Row matching Image 2
@@ -4458,7 +4477,7 @@ function renderQueueViewForCurrentDrama() {
                     <span class="dl-q2-ep-badge-text">EP ${epNum}</span>
                     <span class="dl-q2-ep-name-text" title="${escapeHtml(displayEpTitle)}">${escapeHtml(displayEpTitle)}</span>
                 </div>
-                <div class="dl-q2-status-pill ${statusClass}">${statusText}</div>
+                <div class="dl-q2-status-pill ${statusClass}">${pillDisplay}</div>
                 <div class="dl-q2-prog-group">
                     <div class="dl-q2-prog-track">
                         <div class="dl-q2-prog-fill ${statusClass}" id="dl-q-fill-${epNum}" style="${fillStyle}"></div>
