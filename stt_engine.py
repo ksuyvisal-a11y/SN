@@ -540,16 +540,16 @@ class SpeechToTextEngine:
         if not raw_segments and NISAY_AVAILABLE:
             nisay_k = get_nisay_api_key()
             if nisay_k and nisay_k != "nisay-YOUR_API_KEY":
-                print("[NISAY TRANSCRIBE] Active key found. Routing to Nisay AI Gateway (model: nisay-transcribe)...")
+                print("[SN CLOUD SPEECH] Active engine initialized. Routing to SN AI Speech Pipeline...")
                 if progress_callback:
-                    progress_callback(46, "៣/៧ Nisay AI៖ កំពុងប្រើប្រាស់ Nisay Transcribe (លឿន & ច្បាស់កម្រិត Millisecond)...", "Using Nisay Transcribe...")
+                    progress_callback(46, "៣/៧ SN AI៖ កំពុងដំណើរការ SN Tool Speech Engine (លឿន & ច្បាស់កម្រិត Millisecond)...", "Using SN Tool Speech Engine...")
                 try:
                     nisay_segs = transcribe_with_nisay(audio_path, language=source_lang, progress_callback=progress_callback)
                     if nisay_segs:
                         raw_segments = nisay_segs
-                        print(f"[OK] Nisay Transcribe transcribed {len(raw_segments)} dialogue segments with millisecond timestamps!")
+                        print(f"[OK] SN Tool Speech Engine transcribed {len(raw_segments)} dialogue segments with millisecond timestamps!")
                 except Exception as ne:
-                    print(f"Nisay Transcribe note: {ne}")
+                    print(f"SN Tool Speech Engine note: {ne}")
 
         if not raw_segments:
             # High-Speed Zero-Freeze Optimization:
@@ -576,7 +576,7 @@ class SpeechToTextEngine:
                     print(f"Cloud Whisper note: {e}")
 
         # Cloud-Server-Only Enforcement:
-        # 100% Online Cloud Server Only (Nisay Transcribe + Groq Cloud Whisper).
+        # 100% Online Cloud Server Only (SN Tool Speech Engine + Groq Cloud Whisper).
         # Completely bypasses local Faster-Whisper models to prevent high CPU usage, local model downloads, and freezing.
         CLOUD_SERVER_ONLY = True
         if CLOUD_SERVER_ONLY:
@@ -590,7 +590,7 @@ class SpeechToTextEngine:
                     print(f"Cloud STT retry note: {e}")
 
             if not raw_segments:
-                raise RuntimeError("Cloud STT Error: Online Cloud Servers (Nisay Transcribe / Cloud Whisper) returned no audio dialogues. Local processing is disabled (Cloud Server Only mode).")
+                raise RuntimeError("Cloud STT Error: SN Tool Cloud Servers returned no audio dialogues. Local processing is disabled (Cloud Server Only mode).")
 
         if not raw_segments:
             model = None

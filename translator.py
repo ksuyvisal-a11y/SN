@@ -1441,7 +1441,7 @@ Return JSON object with key "dialogues" containing an array with keys: id, start
             nisay_k = get_nisay_api_key()
             if nisay_k and nisay_k != "nisay-YOUR_API_KEY":
                 try:
-                    print(f"[NISAY CLOUD TRANSLATE] Translating {len(dialogues)} dialogues via Online Cloud Server (gemini-3.8-flash-high)...")
+                    print(f"[SN AI CLOUD TRANSLATE] Translating {len(dialogues)} dialogues via Online Cloud Server...")
                     nisay_res = await self.translate_dialogues_nisay(
                         dialogues=dialogues,
                         source_lang=source_lang,
@@ -1451,10 +1451,10 @@ Return JSON object with key "dialogues" containing an array with keys: id, start
                         mode=mode
                     )
                     if nisay_res and len(nisay_res) == len(dialogues):
-                        print(f"[OK] Nisay Cloud Server translated {len(nisay_res)} dialogues successfully!")
+                        print(f"[OK] SN AI Cloud Server translated {len(nisay_res)} dialogues successfully!")
                         return nisay_res
                 except Exception as ne:
-                    print(f"Nisay Cloud translation note: {ne}")
+                    print(f"SN AI Cloud translation note: {ne}")
 
         # 1. Groq Ultra-Fast AI (Parallel Chunks, 500-800 tokens/sec)
         if self.groq_api_key and str(self.groq_api_key).startswith("gsk_"):
@@ -1601,7 +1601,7 @@ Return ONLY valid JSON array with keys: id, start, end, text_original, text_km, 
         # Bypasses local fallback to guarantee 100% online cloud execution
         CLOUD_SERVER_ONLY = True
         if CLOUD_SERVER_ONLY:
-            raise RuntimeError("Cloud Translation Error: Online Cloud Servers (Nisay gemini-3.8-flash-high / Groq Cloud) failed or returned no response. Local fallback processing is disabled (Cloud Server Only mode).")
+            raise RuntimeError("Cloud Translation Error: SN AI Online Cloud Servers failed or returned no response. Local fallback processing is disabled (Cloud Server Only mode).")
 
         # 3. High-Speed Local Drama Dubbing Engine (Concurrent with Semaphore=12 & Connection Pool)
         sem = asyncio.Semaphore(12)

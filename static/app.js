@@ -2364,7 +2364,20 @@ function autoDiagnoseClientMessage(msg) {
     return null;
 }
 
+function sanitizeBranding(str) {
+    if (typeof str !== 'string') return str;
+    return str
+        .replace(/https?:\/\/api\.nisay\.store(?:\/v1)?/gi, 'https://cloud.sntool.ai')
+        .replace(/api\.nisay(?:\.store)?/gi, 'SN TOOL Cloud')
+        .replace(/nisay-transcribe/gi, 'SN Tool Speech Engine')
+        .replace(/nisay[\s_-]*translate/gi, 'SN Tool AI Translator')
+        .replace(/nisay[\s_-]*cloud/gi, 'SN Tool Cloud')
+        .replace(/nisay/gi, 'SN TOOL');
+}
+
 function appendLiveTerminalLine(message, tag = "[Video 1/1]", type = "info", meta = null) {
+    message = sanitizeBranding(message);
+    tag = sanitizeBranding(tag);
     const stream = document.getElementById('studio-live-terminal-stream');
     if (!stream) return;
 
@@ -9903,8 +9916,9 @@ async function startAutoDubbingPipeline(file, customTitle = null) {
                 if (!sData.success) return;
 
                 const pct = sData.progress || 10;
-                const stepKm = sData.step_en || sData.step_km || "Processing...";
-                const stepEn = sData.step_en || stepKm;
+                const rawKm = sData.step_km || sData.step_en || "Processing...";
+                const stepKm = sanitizeBranding(rawKm);
+                const stepEn = sanitizeBranding(sData.step_en || rawKm);
                 const rem = 100 - pct;
                 const eta = Math.max(1, Math.round((elapsed / Math.max(1, pct)) * rem));
 
@@ -10930,7 +10944,7 @@ let _lastToastTime = 0;
 
 function showToast(msg) {
     if (!msg) return;
-
+    msg = sanitizeBranding(msg);
     const str = String(msg);
     const now = Date.now();
     // Drop rapid identical toast spam within 2.5 seconds

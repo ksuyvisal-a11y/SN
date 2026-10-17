@@ -94,7 +94,7 @@ class RecapEngine:
     ) -> str:
         """
         Generate complete viral Cambodian Facebook & TikTok Movie Recap script (សម្រាយសាច់រឿង)
-        using Gemini 3.8 Flash High on Nisay Online Cloud Gateway.
+        using Gemini 3.8 Flash High on SN AI Online Cloud Gateway.
         """
         try:
             from nisay_translate import generate_gemini_recap_script

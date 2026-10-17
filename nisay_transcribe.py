@@ -125,8 +125,7 @@ def transcribe_audio(
     resolved_key = (api_key or get_nisay_api_key()).strip()
     if not resolved_key or resolved_key == "nisay-YOUR_API_KEY":
         raise ValueError(
-            "Missing NISAY_API_KEY. Please set NISAY_API_KEY in your environment, "
-            ".env file, or data/ai_provider_config.json. Obtain a key at https://api.nisay.store"
+            "Missing Cloud Speech API Key. Please check your SN TOOL configuration in Settings."
         )
 
     headers = {
@@ -157,7 +156,7 @@ def transcribe_audio(
                 )
 
             if resp.status_code == 401 or resp.status_code == 403:
-                raise RuntimeError("403 Forbidden: check API Key at https://api.nisay.store")
+                raise RuntimeError("403 Forbidden: check Cloud API Key in SN TOOL Settings")
 
             if resp.status_code == 422:
                 try:
@@ -166,7 +165,7 @@ def transcribe_audio(
                     err_code = err_info.get("code") or ""
                     err_msg = str(err_info.get("message") or "")
                     if err_code == "no_timestamped_speech" or "no timestamped speech" in err_msg.lower():
-                        print("[NISAY TRANSCRIBE] No speech detected in audio segment (silent/music).")
+                        print("[SN CLOUD SPEECH] No speech detected in audio segment (silent/music).")
                         if fmt in ("json", "verbose_json"):
                             return {"text": "", "segments": []}
                         return ""
@@ -200,7 +199,7 @@ def transcribe_audio(
             last_error = str(e)
             time.sleep(2 * attempt)
 
-    raise RuntimeError(f"Nisay Transcribe failed after {max_retries} attempts: {last_error}")
+    raise RuntimeError(f"SN Cloud Speech Engine failed after {max_retries} attempts: {last_error}")
 
 
 def _compress_or_slice_audio(
@@ -215,7 +214,7 @@ def _compress_or_slice_audio(
         import subprocess
         from audio_processor import get_ffmpeg_path, get_silent_kwargs
         ffmpeg_bin = get_ffmpeg_path()
-        out_f = output_path or str(Path("cache") / f"nisay_slice_{uuid.uuid4().hex[:8]}.mp3")
+        out_f = output_path or str(Path("cache") / f"sn_slice_{uuid.uuid4().hex[:8]}.mp3")
         Path(out_f).parent.mkdir(parents=True, exist_ok=True)
 
         cmd = [ffmpeg_bin, "-nostdin", "-y"]
@@ -232,7 +231,7 @@ def _compress_or_slice_audio(
         if os.path.exists(out_f) and os.path.getsize(out_f) > 100:
             return out_f
     except Exception as e:
-        print(f"Nisay audio slice note: {e}")
+        print(f"SN audio slice note: {e}")
     return None
 
 
@@ -338,7 +337,7 @@ def transcribe_to_segments(
     all_segments = []
     global_seg_id = 1
 
-    print(f"[NISAY CHUNK ENGINE] Long media detected ({total_dur:.1f}s / {file_size_mb:.1f}MB). Processing in {total_chunks} adaptive cloud chunks...")
+    print(f"[SN CLOUD ENGINE] Long media detected ({total_dur:.1f}s / {file_size_mb:.1f}MB). Processing in {total_chunks} adaptive cloud chunks...")
 
     for chunk_idx in range(total_chunks):
         c_start = chunk_idx * chunk_size_sec
@@ -351,7 +350,7 @@ def transcribe_to_segments(
                 pct = 46 + int((chunk_idx / max(1, total_chunks)) * 14)
                 m_s = int(c_start // 60)
                 m_e = int((c_start + c_dur) // 60)
-                progress_callback(pct, f"៣/៧ Nisay Cloud AI៖ កំពុងស្តាប់ភាគទី {chunk_idx + 1}/{total_chunks} ({m_s:02d}:00 - {m_e:02d}:00)...", f"Transcribing chunk {chunk_idx + 1}/{total_chunks}...")
+                progress_callback(pct, f"៣/៧ SN AI Cloud៖ កំពុងស្តាប់ភាគទី {chunk_idx + 1}/{total_chunks} ({m_s:02d}:00 - {m_e:02d}:00)...", f"Transcribing chunk {chunk_idx + 1}/{total_chunks}...")
             except Exception:
                 pass
 
@@ -373,9 +372,9 @@ def transcribe_to_segments(
                 s["start"] = round(c_start + float(s["start"]), 3)
                 s["end"] = round(c_start + float(s["end"]), 3)
                 all_segments.append(s)
-            print(f"[NISAY CHUNK {chunk_idx+1}/{total_chunks}] Transcribed {len(chunk_segs)} segments ({c_start:.1f}s - {c_start+c_dur:.1f}s)")
+            print(f"[SN CLOUD CHUNK {chunk_idx+1}/{total_chunks}] Transcribed {len(chunk_segs)} segments ({c_start:.1f}s - {c_start+c_dur:.1f}s)")
         except Exception as ce:
-            print(f"[NISAY CHUNK {chunk_idx+1}] Warning: {ce}")
+            print(f"[SN CLOUD CHUNK {chunk_idx+1}] Warning: {ce}")
         finally:
             if tmp_chunk and os.path.exists(tmp_chunk):
                 try:

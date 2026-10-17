@@ -124,8 +124,7 @@ def translate_khmer(
     resolved_key = (api_key or get_nisay_api_key()).strip()
     if not resolved_key or resolved_key == "nisay-YOUR_API_KEY":
         raise ValueError(
-            "Missing NISAY_API_KEY. Please set NISAY_API_KEY in your environment, "
-            ".env file, or data/ai_provider_config.json. Obtain a key at https://api.nisay.store"
+            "Missing Cloud Translation API Key. Please check your SN TOOL configuration in Settings."
         )
 
     headers = {
@@ -160,7 +159,7 @@ def translate_khmer(
             )
 
             if resp.status_code == 401 or resp.status_code == 403:
-                raise RuntimeError("403 Forbidden: check API Key at https://api.nisay.store")
+                raise RuntimeError("403 Forbidden: check Cloud API Key in SN TOOL Settings")
 
             if resp.status_code == 429:
                 retry_after = int(resp.headers.get("Retry-After", 2 * attempt))
@@ -191,7 +190,7 @@ def translate_khmer(
             last_error = str(e)
             time.sleep(2 * attempt)
 
-    raise RuntimeError(f"Gemini 3.8 Flash High translation failed after {max_retries} retries: {last_error}")
+    raise RuntimeError(f"SN AI Cloud Translation failed after {max_retries} retries: {last_error}")
 
 
 def generate_gemini_recap_script(

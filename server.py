@@ -320,7 +320,7 @@ def get_recap_hooks():
 def generate_recap_story_endpoint():
     """
     Generate an AI Movie Recap script (សម្រាយសាច់រឿង Facebook & TikTok)
-    using Gemini 3.8 Flash High on Nisay Online Cloud Server.
+    using Gemini 3.8 Flash High on SN AI Online Cloud Server.
     """
     data = request.get_json(force=True) or {}
     project_id = data.get("project_id")
@@ -2938,13 +2938,24 @@ def auto_dub_video_endpoint():
 
     def _worker(t_id: str, v_path: str, m: str, sl: str, vo: str, ar: str, bs: bool, oc: dict, p_title: str = None):
         current_stage = "1/7 Audio Extraction"
+        def _clean_branding(text: str) -> str:
+            if not text:
+                return text
+            t = re.sub(r'https?://api\.nisay\.store(?:/v1)?', 'https://cloud.sntool.ai', str(text), flags=re.IGNORECASE)
+            t = re.sub(r'api\.nisay(?:\.store)?', 'SN TOOL Cloud', t, flags=re.IGNORECASE)
+            t = re.sub(r'nisay-transcribe', 'SN Tool Speech Engine', t, flags=re.IGNORECASE)
+            t = re.sub(r'nisay[-_ ]*translate', 'SN Tool AI Translator', t, flags=re.IGNORECASE)
+            t = re.sub(r'nisay[-_ ]*cloud', 'SN Tool Cloud', t, flags=re.IGNORECASE)
+            t = re.sub(r'nisay', 'SN TOOL', t, flags=re.IGNORECASE)
+            return t
+
         def _prog_cb(pct: int, km: str, en: str, dialogues: list = None):
             nonlocal current_stage
             if t_id in video_auto_tasks:
-                current_stage = en or km or current_stage
+                current_stage = _clean_branding(en or km or current_stage)
                 video_auto_tasks[t_id]["progress"] = pct
-                video_auto_tasks[t_id]["step_km"] = km
-                video_auto_tasks[t_id]["step_en"] = en
+                video_auto_tasks[t_id]["step_km"] = _clean_branding(km)
+                video_auto_tasks[t_id]["step_en"] = _clean_branding(en)
                 video_auto_tasks[t_id]["error_stage"] = current_stage
                 if dialogues is not None:
                     video_auto_tasks[t_id]["dialogues"] = dialogues
@@ -2987,13 +2998,13 @@ def auto_dub_video_endpoint():
             print(f"Auto dubbing worker error at stage [{current_stage}]: {e}\n{tb_str}")
             diag = diagnose_pipeline_error(str(e), tb_str)
             if t_id in video_auto_tasks:
-                err_msg = str(e) or type(e).__name__
+                err_msg = _clean_branding(str(e) or type(e).__name__)
                 sugg_text = f"{diag.get('suggestion_km')} • {diag.get('suggestion_en')}"
                 video_auto_tasks[t_id]["status"] = "failed"
                 video_auto_tasks[t_id]["error"] = err_msg
                 video_auto_tasks[t_id]["error_type"] = type(e).__name__
                 video_auto_tasks[t_id]["error_stage"] = current_stage
-                video_auto_tasks[t_id]["error_details"] = tb_str
+                video_auto_tasks[t_id]["error_details"] = _clean_branding(tb_str)
                 video_auto_tasks[t_id]["error_suggestion"] = sugg_text
                 video_auto_tasks[t_id]["error_category"] = diag.get("category")
                 video_auto_tasks[t_id]["error_tag"] = diag.get("tag")
