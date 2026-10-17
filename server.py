@@ -1341,6 +1341,14 @@ def downloader_drama_detail_endpoint(drama_id):
     if not drama:
         return jsonify({"success": False, "error": "Drama not found"}), 404
 
+    if drama_downloader.is_downloading and drama_downloader.current_drama and str(drama_downloader.current_drama.get("id")) == str(drama_id):
+        return jsonify({
+            "success": True,
+            "drama": drama_downloader.current_drama,
+            "episodes": drama_downloader.episodes,
+            "stats": drama_downloader.stats
+        })
+
     episodes = get_drama_episodes(drama)
     drama_downloader.current_drama = drama
     drama_downloader.episodes = episodes

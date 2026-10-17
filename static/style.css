@@ -10891,12 +10891,27 @@ select, option, optgroup {
     transition: width 0.3s ease, background 0.3s ease;
 }
 
+.dl-q2-prog-fill.downloading {
+    background: linear-gradient(90deg, #f59e0b, #fef08a, #f59e0b) !important;
+    background-size: 200% 100% !important;
+    animation: dlShimmerProg 1.6s linear infinite !important;
+}
+
 .dl-q2-prog-fill.completed {
     background: #10b981 !important;
 }
 
 .dl-q2-prog-fill.failed {
     background: #ef4444 !important;
+}
+
+.dl-q2-prog-fill.queued {
+    background: #334155 !important;
+}
+
+@keyframes dlShimmerProg {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
 }
 
 .dl-q2-prog-val {

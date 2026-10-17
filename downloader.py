@@ -1712,7 +1712,9 @@ class DramaDownloadManager:
             "completed": 0,
             "failed": 0,
             "locked": 0,
-            "progress_percent": 0
+            "progress_percent": 0,
+            "current_episode": 1,
+            "current_episode_progress": 0
         }
         self.download_queue: List[Dict[str, Any]] = []
         self.queue_active: bool = False
@@ -1735,15 +1737,54 @@ class DramaDownloadManager:
         with self._lock:
             return list(self.logs[-limit:])
 
+    def update_episode_progress(self, ep_num: int, status: str, progress: int, filepath: str = "", video_url: str = "", size_mb: float = 0.0):
+        """Atomically update status and progress of a specific episode across all tracking arrays."""
+        with self._lock:
+            target_num = int(ep_num)
+            for ep in self.episodes:
+                try:
+                    num = int(ep.get("episode_number") or ep.get("episode_num") or 0)
+                except Exception:
+                    num = 0
+                if num == target_num:
+                    ep["status"] = status
+                    ep["progress"] = max(0, min(100, int(progress)))
+                    if filepath:
+                        ep["filepath"] = filepath
+                    if video_url:
+                        ep["video_url"] = video_url
+                    if size_mb > 0:
+                        ep["size_mb"] = f"{size_mb:.1f}"
+                    break
+            self.stats["current_episode"] = target_num
+            self.stats["current_episode_progress"] = max(0, min(100, int(progress)))
+            self._recalc_progress()
+
     def _recalc_progress(self, selected_eps: Optional[List[Dict[str, Any]]] = None):
         """Dynamically compute real-time overall download progress factoring in in-flight episode percentages."""
         with self._lock:
-            eps = selected_eps or [e for e in self.episodes if e.get("is_selected", True)]
+            eps = selected_eps or [e for e in self.episodes if e.get("is_selected", True)] or self.episodes
             if not eps:
                 return
             total_prog = sum(e.get("progress", 0) for e in eps)
             pct = max(0, min(100, int(total_prog / len(eps))))
             self.stats["progress_percent"] = pct
+            done_cnt = sum(1 for e in eps if e.get("status") == "Completed" or e.get("progress") == 100)
+            self.stats["completed"] = done_cnt
+            active_ep = next((e for e in eps if e.get("status") == "Downloading"), None)
+            if active_ep:
+                try:
+                    self.stats["current_episode"] = int(active_ep.get("episode_number") or active_ep.get("episode_num") or 1)
+                except Exception:
+                    pass
+                self.stats["current_episode_progress"] = int(active_ep.get("progress", 0))
+            else:
+                next_p = next((e for e in eps if e.get("status") not in ("Completed", "Failed")), None)
+                if next_p:
+                    try:
+                        self.stats["current_episode"] = int(next_p.get("episode_number") or next_p.get("episode_num") or (done_cnt + 1))
+                    except Exception:
+                        pass
 
 
     def add_to_queue(self, drama_data: Dict[str, Any], save_location: str = "D:/SN_Dramas") -> Dict[str, Any]:
@@ -3141,24 +3182,23 @@ class DramaDownloadManager:
 
             def on_ep_slice_start(ep_n):
                 with self._lock:
-                    target_ep = next((e for e in selected_eps if (e.get("episode_number") or e.get("episode_num")) == ep_n), None)
+                    target_ep = next((e for e in selected_eps if int(e.get("episode_number") or e.get("episode_num") or 0) == int(ep_n)), None)
                     if target_ep and target_ep.get("status") != "Completed":
                         target_ep["status"] = "Downloading"
                         target_ep["progress"] = 50
-                        self._recalc_progress(selected_eps)
+                self.update_episode_progress(ep_n, "Downloading", 50)
 
             def on_slice_ep(ep_n, ep_f, sz_mb):
                 with self._lock:
-                    target_ep = next((e for e in selected_eps if (e.get("episode_number") or e.get("episode_num")) == ep_n), None)
+                    target_ep = next((e for e in selected_eps if int(e.get("episode_number") or e.get("episode_num") or 0) == int(ep_n)), None)
                     if target_ep and target_ep.get("status") != "Completed":
                         target_ep["status"] = "Completed"
                         target_ep["progress"] = 100
                         target_ep["filepath"] = str(ep_f.resolve()).replace("\\", "/")
                         target_ep["video_url"] = f"/media/{target_ep['filepath']}"
                         target_ep["size_mb"] = f"{sz_mb:.1f}"
-                        self.stats["completed"] += 1
-                        self._recalc_progress(selected_eps)
-                        self.add_log(f"✔ [EP {ep_n:02d}/{total:02d}] 100% Completed ({sz_mb:.1f} MB, Full HD)")
+                self.update_episode_progress(ep_n, "Completed", 100, filepath=str(ep_f.resolve()).replace("\\", "/"), video_url=f"/media/{str(ep_f.resolve()).replace(chr(92), '/')}", size_mb=sz_mb)
+                self.add_log(f"✔ [EP {ep_n:02d}/{total:02d}] 100% Completed ({sz_mb:.1f} MB, Full HD)")
 
             def on_batch_start(b_idx, total_b, batch_ep_nums):
                 with self._lock:
@@ -3271,6 +3311,10 @@ class DramaDownloadManager:
                                     if ep_it.get("status") != "Completed":
                                         ep_it["status"] = "Downloading"
                                         ep_it["progress"] = max(1, pct)
+                                if first_rec_batch:
+                                    active_n = int(first_rec_batch[0].get("episode_number") or first_rec_batch[0].get("episode_num") or 1)
+                                    self.stats["current_episode"] = active_n
+                                    self.stats["current_episode_progress"] = max(1, pct)
                                 self._recalc_progress(selected_eps)
 
                         ok_master = download_stream_universal(effective_master_url, full_movie_dest, timeout_sec=600, progress_cb=rec_live_hook)

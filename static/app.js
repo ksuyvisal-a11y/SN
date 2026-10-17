@@ -4528,6 +4528,7 @@ function updateEpisodeUIState(ep, isDownloadingBatch = false) {
 
     // 1. Episode Queue Table Progress Fill Track
     if (fill) {
+        fill.className = `dl-q2-prog-fill ${status.toLowerCase()}`;
         if (status === 'Completed') {
             fill.style.width = '100%';
             fill.style.background = '#10b981';
@@ -4545,6 +4546,7 @@ function updateEpisodeUIState(ep, isDownloadingBatch = false) {
 
     // 2. Center Card Grid Progress Track
     if (cardFill) {
+        cardFill.className = `dl-ep-card-prog-fill ${status.toLowerCase()}`;
         cardFill.style.width = (status === 'Completed') ? '100%' : (status === 'Downloading' ? `${Math.max(prog, 5)}%` : '0%');
     }
 
@@ -4552,8 +4554,12 @@ function updateEpisodeUIState(ep, isDownloadingBatch = false) {
     if (card) {
         if (status === 'Completed') {
             card.classList.add('completed');
-        } else {
+            card.classList.remove('downloading');
+        } else if (status === 'Downloading') {
             card.classList.remove('completed');
+            card.classList.add('downloading');
+        } else {
+            card.classList.remove('completed', 'downloading');
         }
         const cardTag = card.querySelector('.dl-ep-card-tag');
         if (cardTag) {
@@ -4578,6 +4584,7 @@ function updateEpisodeUIState(ep, isDownloadingBatch = false) {
 
     // 4. Episode Queue Table Progress Percentage Text
     if (text) {
+        text.className = `dl-q2-prog-val ${status.toLowerCase()}`;
         if (status === 'Completed') {
             text.textContent = '✔ 100%';
             text.style.color = '#10b981';
@@ -5011,12 +5018,20 @@ async function downloadAllQueueEpisodes() {
     // Select all episodes: mark non-completed as 'Queued' (NOT 'Downloading' yet!)
     dlEpisodesList.forEach(e => {
         e.is_selected = true;
-        if (e.status !== 'Completed') {
+        if (e.status !== 'Completed' && e.progress !== 100) {
             e.status = 'Queued';
             e.progress = 0;
         }
         updateEpisodeUIState(e, true);
     });
+
+    // Optimistically mark first pending episode as actively starting (10%)
+    const firstPending = dlEpisodesList.find(e => e.status !== 'Completed' && e.progress !== 100);
+    if (firstPending) {
+        firstPending.status = 'Downloading';
+        firstPending.progress = 10;
+        updateEpisodeUIState(firstPending, true);
+    }
 
     // Update UI checkmarks in Queue table immediately
     document.querySelectorAll('.dl-q2-capsule-toggle').forEach(t => t.classList.add('checked'));
@@ -5088,21 +5103,50 @@ async function downloadAllQueueEpisodes() {
                     }
                     if (sData.episodes && sData.episodes.length > 0) {
                         dlEpisodesList = sData.episodes;
-                        sData.episodes.forEach(ep => {
-                            updateEpisodeUIState(ep, sData.is_downloading);
-                        });
                     }
                     updateDownloaderStats(sData.stats);
 
+                    const curPct = sData.stats?.progress_percent ?? 0;
+                    const curComp = sData.stats?.completed ?? 0;
+                    const curTot = sData.stats?.total ?? (dlEpisodesList ? dlEpisodesList.length : total);
+                    const activeEpNum = parseInt(sData.stats?.current_episode ?? (curComp + 1));
+                    const activeEpProg = parseInt(sData.stats?.current_episode_progress ?? 0);
+
                     if (sData.is_downloading) {
-                        const curPct = sData.stats?.progress_percent ?? 0;
-                        const curComp = sData.stats?.completed ?? 0;
-                        const curTot = sData.stats?.total ?? (dlEpisodesList ? dlEpisodesList.length : total);
                         if (btnAll) {
                             btnAll.innerHTML = `<i class="fa-solid fa-bolt-lightning fa-spin" style="color:#facc15;"></i> <span>⚡ Downloading ${curPct}% (EP ${curComp}/${curTot})...</span>`;
                         }
                         if (catBtnAll) {
                             catBtnAll.innerHTML = `<i class="fa-solid fa-bolt-lightning fa-spin" style="color:#facc15;"></i> <span>⚡ Downloading ${curPct}% (${curComp}/${curTot} EPs)...</span>`;
+                        }
+
+                        // Synchronize every episode in dlEpisodesList with live download state
+                        if (dlEpisodesList && dlEpisodesList.length > 0) {
+                            dlEpisodesList.forEach((ep, idx) => {
+                                const epNum = parseInt(ep.episode_num || ep.episode_number || (idx + 1));
+                                if (epNum <= curComp || ep.status === 'Completed' || ep.progress === 100) {
+                                    ep.status = 'Completed';
+                                    ep.progress = 100;
+                                } else if (epNum === activeEpNum || ep.status === 'Downloading') {
+                                    ep.status = 'Downloading';
+                                    let p = ep.progress || activeEpProg;
+                                    if (!p || p < 5) p = 15;
+                                    ep.progress = Math.min(99, Math.max(5, p));
+                                } else if (epNum > curComp + 1) {
+                                    if (ep.status !== 'Failed') {
+                                        ep.status = 'Queued';
+                                        ep.progress = 0;
+                                    }
+                                }
+                                updateEpisodeUIState(ep, true);
+                            });
+                        }
+                    } else {
+                        // Not downloading: update normally
+                        if (dlEpisodesList && dlEpisodesList.length > 0) {
+                            dlEpisodesList.forEach(ep => {
+                                updateEpisodeUIState(ep, false);
+                            });
                         }
                     }
 
@@ -5113,6 +5157,15 @@ async function downloadAllQueueEpisodes() {
                             clearTimeout(dlPollTimer);
                             clearInterval(dlPollTimer);
                             dlPollTimer = null;
+                        }
+
+                        // Mark all episodes Completed when batch ends successfully
+                        if (dlEpisodesList && dlEpisodesList.length > 0) {
+                            dlEpisodesList.forEach(ep => {
+                                ep.status = 'Completed';
+                                ep.progress = 100;
+                                updateEpisodeUIState(ep, false);
+                            });
                         }
 
                         // Strict single-fire latch
