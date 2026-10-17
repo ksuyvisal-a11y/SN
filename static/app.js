@@ -4475,7 +4475,6 @@ function renderQueueViewForCurrentDrama() {
                 <div class="dl-q2-col-ep">
                     <div class="dl-q2-capsule-toggle ${isSelected ? 'checked' : ''}" onclick="event.stopPropagation(); toggleQueueEpisodeSelect(${epNum})"></div>
                     <span class="dl-q2-ep-badge-text">EP ${epNum}</span>
-                    <span class="dl-q2-ep-name-text" title="${escapeHtml(displayEpTitle)}">${escapeHtml(displayEpTitle)}</span>
                 </div>
                 <div class="dl-q2-prog-group">
                     <div class="dl-q2-prog-track">
