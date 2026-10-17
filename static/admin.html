@@ -1269,6 +1269,18 @@
             color: var(--primary);
             background: var(--primary-soft);
         }
+        .btn-rec-renew {
+            color: #0284c7;
+            border-color: #bae6fd;
+            background: #f0f9ff;
+        }
+
+        .btn-rec-renew:hover {
+            background: #e0f2fe;
+            border-color: #38bdf8;
+            color: #0369a1;
+            transform: scale(1.06);
+        }
 
         .btn-rec-block {
             color: var(--badge-red-text);
@@ -2708,6 +2720,9 @@
                 </div>
 
                 <div class="record-actions">
+                    <button type="button" class="btn-record-action btn-rec-renew" onclick="handleRenewRow(${index})" title="🔄 Renew / បន្ត Key ជូនភ្ញៀវនេះ">
+                        <i class="fa-solid fa-arrows-rotate" style="color:#0ea5e9;"></i>
+                    </button>
                     <button type="button" class="btn-record-action" onclick="copySingleKey('${item.license_key}')" title="Copy Key">
                         <i class="fa-solid fa-copy"></i>
                     </button>
@@ -2729,6 +2744,23 @@
                 </div>
             `;
             return card;
+        }
+
+        function handleRenewRow(index) {
+            const item = allKeysData[index];
+            if (!item) return;
+            switchSection('generator');
+            const nameInput = document.getElementById('input-client-name');
+            if (nameInput) nameInput.value = item.client_name || '';
+            const customKeyInput = document.getElementById('input-custom-key');
+            if (customKeyInput) customKeyInput.value = '';
+            const hwidInput = document.getElementById('input-hwid');
+            if (hwidInput) {
+                hwidInput.value = (item.bound_hwid && item.bound_hwid !== 'ANY' && item.bound_hwid !== '*') ? item.bound_hwid : '';
+            }
+            updateLiveDeliveryCard();
+            showToast(`🔄 បានបំពេញព័ត៌មាន "${item.client_name || 'អតិថិជន'}" រួចរាល់! សូមរើសរយៈពេល រួចចុច GENERATE KEY`);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         function selectRowForDelivery(index) {
