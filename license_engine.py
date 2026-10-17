@@ -926,21 +926,28 @@ def check_remote_revocation_online(cleaned_key: str, current_hwid: str) -> Optio
     return None
 
 
+_CACHED_HWID: Optional[str] = None
+
 def get_machine_hwid() -> str:
-    """Generate a unique hardware ID (HWID) for the current machine."""
+    """Generate a unique hardware ID (HWID) for the current machine (cached for extreme speed)."""
+    global _CACHED_HWID
+    if _CACHED_HWID:
+        return _CACHED_HWID
     try:
         if sys.platform == "win32":
             # Get Windows Machine GUID
             cmd = 'powershell "(Get-CimInstance -Class Win32_ComputerSystemProduct).UUID"'
             res = subprocess.check_output(cmd, shell=True, text=True, stderr=subprocess.DEVNULL).strip()
             if res and len(res) > 8:
-                return hashlib.sha256(res.encode()).hexdigest()[:16].upper()
+                _CACHED_HWID = hashlib.sha256(res.encode()).hexdigest()[:16].upper()
+                return _CACHED_HWID
     except Exception:
         pass
     
     # Fallback using node and platform
     raw = f"{platform.node()}-{platform.machine()}-{platform.processor()}"
-    return hashlib.sha256(raw.encode()).hexdigest()[:16].upper()
+    _CACHED_HWID = hashlib.sha256(raw.encode()).hexdigest()[:16].upper()
+    return _CACHED_HWID
 
 
 def generate_license_key(client_name: str, duration_days: int = 30, hwid: Optional[str] = None, plan: str = "PRO") -> Dict[str, Any]:
