@@ -41,6 +41,8 @@ from license_engine import (
     calculate_key_live_status,
     sync_and_load_admin_history,
     sync_online_keys,
+    extend_license_key,
+    push_online_registry_async,
     ADMIN_HISTORY_FILE,
     GENERATED_KEYS_LOG,
     CUSTOM_KEYS_FILE,
@@ -159,6 +161,23 @@ def admin_clear_all_keys():
         return jsonify({"success": ok, "message": msg})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+@admin_app.route("/api/admin/extend-key", methods=["POST"])
+def admin_extend_key():
+    data = request.get_json(force=True) or {}
+    key = data.get("license_key", "").strip()
+    additional_days = int(data.get("additional_days", 30))
+    plan = data.get("plan")
+    auto_push = bool(data.get("auto_push", True))
+
+    if not key:
+        return jsonify({"success": False, "error": "សូមបញ្ចូល License Key"}), 400
+
+    ok, msg, enriched = extend_license_key(key, additional_days=additional_days, plan=plan)
+    if ok and auto_push:
+        push_online_registry_async()
+
+    return jsonify({"success": ok, "message": msg, "key_record": enriched})
 
 @admin_app.route("/api/admin/sync-online", methods=["POST", "GET"])
 def admin_sync_online():

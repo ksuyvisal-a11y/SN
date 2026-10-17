@@ -711,6 +711,153 @@ def delete_license_key_record(target_key: str) -> Tuple[bool, str]:
     return True, f"🗑️ Successfully deleted Key {cleaned}!"
 
 
+def extend_license_key(target_key: str, additional_days: int = 30, plan: Optional[str] = None) -> Tuple[bool, str, Dict[str, Any]]:
+    """
+    Remotely extend/renew an existing license key by adding days or setting to Lifetime.
+    Updates admin_key_history.json, custom_keys.json, and data/license_keys_online.json.
+    When the user opens the tool, check_current_device_license() automatically syncs the new date OTA!
+    """
+    cleaned = target_key.strip().upper()
+    if not cleaned:
+        return False, "សូមជ្រើសរើស ឬបញ្ចូល Key ដែលត្រូវបន្តសុពលភាព", {}
+
+    # Unban if revoked
+    revoked_list = get_revoked_keys()
+    if cleaned in revoked_list:
+        revoked_list.remove(cleaned)
+        try:
+            with open(REVOKED_KEYS_FILE, "w", encoding="utf-8") as f:
+                json.dump({"revoked_keys": revoked_list, "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
+    now = datetime.now()
+    now_ts = int(now.timestamp())
+
+    # Find existing record in history or custom keys
+    target_record = None
+    
+    # 1. Search in admin_key_history.json
+    history = []
+    if ADMIN_HISTORY_FILE.exists():
+        try:
+            with open(ADMIN_HISTORY_FILE, "r", encoding="utf-8") as f:
+                history = json.load(f)
+            for r in history:
+                if r.get("license_key", "").strip().upper() == cleaned:
+                    target_record = r
+                    break
+        except Exception:
+            history = []
+
+    # 2. Search in custom_keys.json
+    custom_dict = {}
+    if CUSTOM_KEYS_FILE.exists():
+        try:
+            with open(CUSTOM_KEYS_FILE, "r", encoding="utf-8") as f:
+                custom_dict = json.load(f)
+            if cleaned in custom_dict:
+                if not target_record:
+                    target_record = custom_dict[cleaned]
+        except Exception:
+            custom_dict = {}
+
+    # If not found in either file, create a base record
+    if not target_record:
+        target_record = {
+            "license_key": cleaned,
+            "client_name": "Customer",
+            "plan": plan or "PRO",
+            "duration_days": additional_days,
+            "created_at": now.strftime("%Y-%m-%d %H:%M:%S"),
+            "bound_hwid": "ANY",
+            "status": "ACTIVE"
+        }
+        history.insert(0, target_record)
+
+    # Calculate new expiry
+    if additional_days <= 0 or (plan and plan.upper() in ("LIFETIME", "LIFE")):
+        target_record["expires_at"] = "LIFETIME"
+        target_record["expiry_timestamp"] = 0
+        target_record["plan"] = plan or "PRO Lifetime"
+        target_record["status"] = "ACTIVE"
+    else:
+        # Calculate base timestamp
+        current_expiry_ts = target_record.get("expiry_timestamp", 0)
+        # If currently active and unexpired, extend from current expiry date!
+        if current_expiry_ts > now_ts:
+            base_ts = current_expiry_ts
+        else:
+            base_ts = now_ts
+        
+        new_ts = base_ts + (additional_days * 86400)
+        new_dt = datetime.fromtimestamp(new_ts)
+        target_record["expires_at"] = new_dt.strftime("%Y-%m-%d")
+        target_record["expiry_timestamp"] = new_ts
+        target_record["duration_days"] = int(target_record.get("duration_days", 0)) + additional_days
+        target_record["status"] = "ACTIVE"
+        if plan:
+            target_record["plan"] = plan
+
+    target_record["last_renewed"] = now.strftime("%Y-%m-%d %H:%M:%S")
+
+    # Save to admin_key_history.json
+    found_in_hist = False
+    for i, r in enumerate(history):
+        if r.get("license_key", "").strip().upper() == cleaned:
+            history[i] = target_record
+            found_in_hist = True
+            break
+    if not found_in_hist:
+        history.insert(0, target_record)
+
+    try:
+        with open(ADMIN_HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(history, f, indent=2, ensure_ascii=False)
+    except Exception:
+        pass
+
+    # Save to custom_keys.json if present or if was custom
+    if cleaned in custom_dict or CUSTOM_KEYS_FILE.exists():
+        custom_dict[cleaned] = target_record
+        try:
+            with open(CUSTOM_KEYS_FILE, "w", encoding="utf-8") as f:
+                json.dump(custom_dict, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
+    # Synchronize all online keys and distribution files
+    try:
+        sync_online_keys()
+    except Exception:
+        pass
+
+    enriched = calculate_key_live_status(target_record)
+    msg = f"🎉 បានបន្តសុពលភាព Key {cleaned} ពីចម្ងាយដោយជោគជ័យ! សុពលភាពថ្មីរហូតដល់ {target_record.get('expires_at')}"
+    return True, msg, enriched
+
+
+def push_online_registry_async():
+    """Commit and push updated license_keys_online.json to GitHub repository in background."""
+    def _worker():
+        try:
+            subprocess.run(
+                ["git", "add", "data/license_keys_online.json", "data/revoked_keys.json", "admin_key_history.json"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10
+            )
+            subprocess.run(
+                ["git", "commit", "-m", "remote-license: update online keys registry [OTA sync]"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10
+            )
+            subprocess.run(
+                ["git", "push", "origin", "main"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=25
+            )
+        except Exception:
+            pass
+    threading.Thread(target=_worker, daemon=True).start()
+
+
 def clear_all_admin_keys() -> Tuple[bool, str]:
     """
     Purge all customer keys, reset admin history, custom keys, and log.
@@ -1378,6 +1525,29 @@ def check_current_device_license() -> Dict[str, Any]:
                 "message": remote_msg,
                 "hwid": current_hwid
             }
+
+        # Check if Admin has remotely renewed / extended this license key in online registry
+        try:
+            online_ok, _, online_rec = check_key_online(license_key, current_hwid)
+            if online_ok and isinstance(online_rec, dict):
+                remote_exp_ts = online_rec.get("expiry_timestamp", 0)
+                remote_exp_str = online_rec.get("expires_at", "LIFETIME")
+                local_exp_ts = data.get("expiry_timestamp", 0)
+
+                # If remote is Lifetime while local was limited, OR remote has a further expiry date:
+                if (remote_exp_str == "LIFETIME" and local_exp_ts > 0) or (remote_exp_ts > local_exp_ts):
+                    data["expires_at"] = remote_exp_str
+                    data["expiry_timestamp"] = remote_exp_ts
+                    data["plan"] = online_rec.get("plan", data.get("plan", "PRO"))
+                    data["last_active"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    data["checksum"] = hmac.new(SECRET_ADMIN_SALT.encode(), f"{license_key}|{current_hwid}".encode(), hashlib.sha256).hexdigest()[:16]
+                    try:
+                        with open(lic_path, "w", encoding="utf-8") as f:
+                            json.dump(data, f, indent=2, ensure_ascii=False)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
 
         # Touch activity & calculate live dynamic status
         touch_license_activity(license_key, current_hwid)

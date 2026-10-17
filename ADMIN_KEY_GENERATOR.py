@@ -29,6 +29,7 @@ from license_engine import (
     set_license_required,
     get_machine_hwid,
     sync_online_keys,
+    extend_license_key,
     ADMIN_HISTORY_FILE,
     GENERATED_KEYS_LOG,
     CUSTOM_KEYS_FILE,
@@ -135,6 +136,7 @@ def interactive_menu():
             print(" 👥 SECTION 3: CUSTOMER MANAGEMENT & BLOCK USER")
             print(" [4] Block / Revoke User Key (Revoke / Ban Key)")
             print(" [5] Unban Key (Restore / Reactivate Key)")
+            print(" [E] 📡 Extend / Renew Key Remotely (បន្តសុពលភាព Key ពីចម្ងាយ)")
             print(" [7] View All Keys History")
             print(" [8] Verify License Key")
             print("-" * 65)
@@ -254,6 +256,55 @@ def interactive_menu():
                 continue
             ok, msg = unrevoke_license_key(key_to_unban)
             print(f"\n{msg}")
+            input("\nPress Enter to continue...")
+
+        elif choice.upper() == "E":
+            print("\n📡 EXTEND / RENEW LICENSE KEY REMOTELY (បន្តសុពលភាព Key ពីចម្ងាយ):")
+            target_key = input("👉 Enter Customer's License Key to extend: ").strip()
+            if not target_key:
+                print("⚠️ No Key entered!")
+                input("\nPress Enter to continue...")
+                continue
+
+            print("\nSelect Extension Duration (ជ្រើសរើសរយៈពេលបន្ត):")
+            print(" [1] +30 Days (១ ខែ)")
+            print(" [2] +90 Days (៣ ខែ)")
+            print(" [3] +365 Days (១ ឆ្នាំ)")
+            print(" [4] 👑 Lifetime (អចិន្ត្រៃយ៍ / រហូត)")
+            print(" [5] Custom Days (បញ្ចូលចំនួនថ្ងៃតាមចិត្ត)")
+            dur_sel = input("👉 Select (1-5): ").strip()
+
+            if dur_sel == "1":
+                add_days = 30
+                plan = "PRO 30D"
+            elif dur_sel == "2":
+                add_days = 90
+                plan = "PRO 90D"
+            elif dur_sel == "3":
+                add_days = 365
+                plan = "PRO 1Y"
+            elif dur_sel == "4":
+                add_days = 0
+                plan = "LIFETIME"
+            elif dur_sel == "5":
+                try:
+                    add_days = int(input("👉 Enter number of days (e.g. 15, 60, 180): ").strip())
+                    plan = f"PRO {add_days}D"
+                except Exception:
+                    add_days = 30
+                    plan = "PRO 30D"
+            else:
+                add_days = 30
+                plan = "PRO 30D"
+
+            ok, msg, rec = extend_license_key(target_key, additional_days=add_days, plan=plan)
+            print(f"\n{msg}")
+            if ok:
+                print(f"👤 Client:  {rec.get('client_name')}")
+                print(f"🔑 Key:     {rec.get('license_key')}")
+                print(f"📦 Plan:    {rec.get('plan')}")
+                print(f"⏳ Expiry:  {rec.get('expires_at')}")
+                print("\n✨ Updated online registry successfully! When customer opens tool, it auto-renews OTA!")
             input("\nPress Enter to continue...")
 
         elif choice == "6":

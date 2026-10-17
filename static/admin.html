@@ -1426,6 +1426,266 @@
             opacity: 1;
             transform: translateY(0);
         }
+
+        /* Remote License Renewal Modal (OTA) */
+        .remote-modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .remote-modal-card {
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.35), 0 0 35px rgba(2, 132, 199, 0.2);
+            border: 1px solid #e2e8f0;
+            width: 520px;
+            max-width: 95vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            animation: modalFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes modalFadeIn {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .remote-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            background: linear-gradient(135deg, #f0f9ff, #f8fafc);
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .remote-modal-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .remote-modal-icon-box {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            background: rgba(2, 132, 199, 0.12);
+            color: #0284c7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            border: 1px solid rgba(2, 132, 199, 0.25);
+        }
+
+        .remote-modal-title-main {
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: #0f172a;
+        }
+
+        .remote-modal-subtitle {
+            font-size: 0.73rem;
+            color: #64748b;
+            margin-top: 2px;
+        }
+
+        .remote-modal-close-btn {
+            background: transparent;
+            border: none;
+            font-size: 1.1rem;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 6px 10px;
+            border-radius: 6px;
+            transition: all 0.15s ease;
+        }
+
+        .remote-modal-close-btn:hover {
+            background: #fee2e2;
+            color: #ef4444;
+        }
+
+        .remote-modal-body {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .remote-key-summary-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .remote-sum-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.8rem;
+        }
+
+        .remote-sum-label {
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .remote-sum-code {
+            font-family: var(--font-mono);
+            font-weight: 700;
+            color: #0284c7;
+            background: #e0f2fe;
+            padding: 2px 7px;
+            border-radius: 4px;
+        }
+
+        .remote-dur-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+
+        .remote-dur-hint {
+            color: #0284c7;
+            font-weight: 800;
+        }
+
+        .remote-presets-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .btn-remote-preset {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 10px 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .btn-remote-preset:hover {
+            border-color: #0284c7;
+            background: #f0f9ff;
+        }
+
+        .btn-remote-preset.active {
+            border-color: #0284c7;
+            background: #f0f9ff;
+            box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.25);
+        }
+
+        .remote-p-title {
+            font-size: 0.84rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .remote-p-sub {
+            font-size: 0.7rem;
+            color: #64748b;
+            margin-top: 2px;
+        }
+
+        .remote-modal-footer {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 14px 20px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .btn-remote-cancel {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .btn-remote-cancel:hover {
+            background: #f1f5f9;
+        }
+
+        .btn-remote-confirm {
+            background: linear-gradient(135deg, #0284c7, #0369a1);
+            color: #ffffff;
+            border: none;
+            padding: 9px 20px;
+            border-radius: 8px;
+            font-size: 0.84rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
+            transition: all 0.16s ease;
+        }
+
+        .btn-remote-confirm:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(2, 132, 199, 0.45);
+        }
+
+        .btn-rec-remote-renew {
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            border: 1px solid #bae6fd;
+            color: #0369a1;
+            font-weight: 700;
+            padding: 6px 12px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: all 0.16s ease;
+        }
+
+        .btn-rec-remote-renew:hover {
+            background: #0284c7;
+            color: #ffffff;
+            border-color: #0284c7;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+        }
+
+        .btn-rec-remote-renew:hover i {
+            color: #ffffff !important;
+        }
     </style>
 </head>
 <body>
@@ -2086,6 +2346,100 @@
         </main>
     </div>
 
+    <!-- Remote License Renewal Modal (Over-The-Air / OTA) -->
+    <div class="remote-modal-backdrop" id="modal-remote-extend" style="display:none;" onclick="handleRemoteModalBackdropClick(event)">
+        <div class="remote-modal-card">
+            <!-- Header -->
+            <div class="remote-modal-header">
+                <div class="remote-modal-title">
+                    <div class="remote-modal-icon-box">
+                        <i class="fa-solid fa-tower-broadcast"></i>
+                    </div>
+                    <div>
+                        <div class="remote-modal-title-main">📡 បន្តសុពលភាព KEY ពីចម្ងាយ (REMOTE EXTENSION)</div>
+                        <div class="remote-modal-subtitle">អតិថិជននឹងបន្តប្រើ Key ចាស់បានភ្លាមៗ ដោយមិនបាច់ដូរ Key ឬវាយអ្វីឡើយ</div>
+                    </div>
+                </div>
+                <button type="button" class="remote-modal-close-btn" onclick="closeRemoteExtendModal()">✕</button>
+            </div>
+
+            <!-- Body -->
+            <div class="remote-modal-body">
+                <!-- Target Key Summary Card -->
+                <div class="remote-key-summary-box">
+                    <div class="remote-sum-row">
+                        <span class="remote-sum-label"><i class="fa-solid fa-user-tag" style="color:var(--primary);"></i> អតិថិជន:</span>
+                        <strong class="remote-sum-val" id="remote-ext-client-name">-</strong>
+                    </div>
+                    <div class="remote-sum-row">
+                        <span class="remote-sum-label"><i class="fa-solid fa-key" style="color:#d97706;"></i> License Key:</span>
+                        <code class="remote-sum-code" id="remote-ext-key-str">-</code>
+                    </div>
+                    <div class="remote-sum-row">
+                        <span class="remote-sum-label"><i class="fa-solid fa-hourglass-half" style="color:#0284c7;"></i> ផុតកំណត់បច្ចុប្បន្ន:</span>
+                        <span class="remote-sum-expiry" id="remote-ext-curr-expiry">-</span>
+                    </div>
+                </div>
+
+                <!-- Select Duration Grid -->
+                <div class="remote-duration-section">
+                    <label class="remote-dur-label">
+                        <span>ជ្រើសរើសរយៈពេលដែលត្រូវបន្ថែម (Extend Duration):</span>
+                        <span class="remote-dur-hint" id="remote-dur-hint-text">+30 ថ្ងៃ (1 ខែ)</span>
+                    </label>
+                    <input type="hidden" id="remote-ext-days-val" value="30">
+                    <input type="hidden" id="remote-ext-plan-val" value="PRO 30D">
+
+                    <div class="remote-presets-grid">
+                        <button type="button" class="btn-remote-preset active" onclick="selectRemoteExtendPreset(30, 'PRO 30D', '+30 ថ្ងៃ (1 ខែ)', this)">
+                            <span class="remote-p-title">📅 +1 ខែ (+30 ថ្ងៃ)</span>
+                            <span class="remote-p-sub">បន្ថែម 30 ថ្ងៃ</span>
+                        </button>
+                        <button type="button" class="btn-remote-preset" onclick="selectRemoteExtendPreset(90, 'PRO 90D', '+90 ថ្ងៃ (3 ខែ)', this)">
+                            <span class="remote-p-title">📅 +3 ខែ (+90 ថ្ងៃ)</span>
+                            <span class="remote-p-sub">បន្ថែម 90 ថ្ងៃ</span>
+                        </button>
+                        <button type="button" class="btn-remote-preset" onclick="selectRemoteExtendPreset(365, 'PRO 1Y', '+365 ថ្ងៃ (1 ឆ្នាំ)', this)">
+                            <span class="remote-p-title">📅 +1 ឆ្នាំ (+365 ថ្ងៃ)</span>
+                            <span class="remote-p-sub">បន្ថែម 365 ថ្ងៃ</span>
+                        </button>
+                        <button type="button" class="btn-remote-preset" onclick="selectRemoteExtendPreset(0, 'LIFETIME', '👑 Lifetime (រហូត / អចិន្ត្រៃយ៍)', this)">
+                            <span class="remote-p-title">👑 Lifetime (រហូត)</span>
+                            <span class="remote-p-sub">ប្រើប្រាស់បានរហូត</span>
+                        </button>
+                    </div>
+
+                    <!-- Custom Days Row (Optional) -->
+                    <div style="margin-top:10px;">
+                        <button type="button" class="btn-remote-preset" id="btn-remote-custom-toggle" onclick="toggleRemoteCustomDays(this)" style="width:100%; text-align:left; padding:8px 12px;">
+                            <span class="remote-p-title">✍️ បញ្ចូលចំនួនថ្ងៃជាក់លាក់ (Custom Days)</span>
+                        </button>
+                        <div id="remote-custom-days-row" style="display:none; margin-top:8px;">
+                            <input type="number" id="input-remote-custom-days" class="light-input" placeholder="បញ្ចូលចំនួនថ្ងៃ (ឧ. 15, 45, 60...)" min="1" oninput="onRemoteCustomDaysInput(this.value)">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- GitHub OTA Sync Checkbox -->
+                <div class="remote-ota-toggle-row">
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.8rem; color:#475569;">
+                        <input type="checkbox" id="remote-auto-push-check" checked style="accent-color:var(--primary); width:16px; height:16px;">
+                        <span><strong>Sync &amp; Auto-Push ទៅ Online Cloud</strong> (ឱ្យកុំព្យូទ័រភ្ញៀវទទួលបានភ្លាមៗ OTA)</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Footer Buttons -->
+            <div class="remote-modal-footer">
+                <button type="button" class="btn-remote-cancel" onclick="closeRemoteExtendModal()">បោះបង់</button>
+                <button type="button" class="btn-remote-confirm" id="btn-confirm-remote-ext" onclick="executeRemoteExtend()">
+                    <i class="fa-solid fa-tower-broadcast"></i>
+                    <span>បញ្ជាក់ការបន្តសុពលភាពពីចម្ងាយ</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Notification -->
     <div class="toast-notif" id="toast-notif">
         <i class="fa-solid fa-circle-check" style="color:#22c55e; font-size:1.1rem;"></i>
@@ -2720,14 +3074,15 @@
                 </div>
 
                 <div class="record-actions">
-                    <button type="button" class="btn-record-action btn-rec-renew" onclick="handleRenewRow(${index})" title="🔄 Renew / បន្ត Key ជូនភ្ញៀវនេះ">
-                        <i class="fa-solid fa-arrows-rotate" style="color:#0ea5e9;"></i>
-                    </button>
-                    <button type="button" class="btn-record-action" onclick="copySingleKey('${item.license_key}')" title="Copy Key">
-                        <i class="fa-solid fa-copy"></i>
+                    <button type="button" class="btn-rec-remote-renew" onclick="openRemoteExtendModal(${index})" title="📡 បន្តសុពលភាព Key ពីចម្ងាយ (OTA Renew - ភ្ញៀវមិនបាច់ដូរ Key)">
+                        <i class="fa-solid fa-tower-broadcast"></i>
+                        <span>បន្តពីចម្ងាយ</span>
                     </button>
                     <button type="button" class="btn-record-action" onclick="copySingleItemTelegram(${index})" title="Copy delivery message for customer">
                         <i class="fa-solid fa-paper-plane" style="color:var(--primary);"></i>
+                    </button>
+                    <button type="button" class="btn-record-action" onclick="copySingleKey('${item.license_key}')" title="Copy Key">
+                        <i class="fa-solid fa-copy"></i>
                     </button>
                     ${isRevoked ? `
                         <button type="button" class="btn-record-action btn-rec-unban" onclick="handleUnbanRow('${item.license_key}')" title="Unban Key">
@@ -2746,21 +3101,125 @@
             return card;
         }
 
-        function handleRenewRow(index) {
+        let activeExtendKeyItem = null;
+
+        function openRemoteExtendModal(index) {
             const item = allKeysData[index];
             if (!item) return;
-            switchSection('generator');
-            const nameInput = document.getElementById('input-client-name');
-            if (nameInput) nameInput.value = item.client_name || '';
-            const customKeyInput = document.getElementById('input-custom-key');
-            if (customKeyInput) customKeyInput.value = '';
-            const hwidInput = document.getElementById('input-hwid');
-            if (hwidInput) {
-                hwidInput.value = (item.bound_hwid && item.bound_hwid !== 'ANY' && item.bound_hwid !== '*') ? item.bound_hwid : '';
+            activeExtendKeyItem = item;
+
+            document.getElementById('remote-ext-client-name').textContent = item.client_name || "Customer";
+            document.getElementById('remote-ext-key-str').textContent = item.license_key;
+            document.getElementById('remote-ext-curr-expiry').textContent = item.expires_at || "LIFETIME";
+
+            // Reset preset to 30 days default
+            selectRemoteExtendPreset(30, 'PRO 30D', '+30 ថ្ងៃ (1 ខែ)', document.querySelector('.btn-remote-preset'));
+            const customRow = document.getElementById('remote-custom-days-row');
+            if (customRow) customRow.style.display = 'none';
+
+            const modal = document.getElementById('modal-remote-extend');
+            if (modal) modal.style.display = 'flex';
+        }
+
+        function closeRemoteExtendModal() {
+            const modal = document.getElementById('modal-remote-extend');
+            if (modal) modal.style.display = 'none';
+            activeExtendKeyItem = null;
+        }
+
+        function handleRemoteModalBackdropClick(e) {
+            if (e.target && e.target.id === 'modal-remote-extend') {
+                closeRemoteExtendModal();
             }
-            updateLiveDeliveryCard();
-            showToast(`🔄 បានបំពេញព័ត៌មាន "${item.client_name || 'អតិថិជន'}" រួចរាល់! សូមរើសរយៈពេល រួចចុច GENERATE KEY`);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function selectRemoteExtendPreset(days, plan, label, btnElem) {
+            document.getElementById('remote-ext-days-val').value = days;
+            document.getElementById('remote-ext-plan-val').value = plan;
+            document.getElementById('remote-dur-hint-text').textContent = label;
+
+            document.querySelectorAll('.btn-remote-preset').forEach(b => b.classList.remove('active'));
+            if (btnElem) btnElem.classList.add('active');
+
+            const customRow = document.getElementById('remote-custom-days-row');
+            if (customRow) customRow.style.display = 'none';
+        }
+
+        function toggleRemoteCustomDays(btnElem) {
+            const customRow = document.getElementById('remote-custom-days-row');
+            if (!customRow) return;
+            const isShown = customRow.style.display === 'block';
+            customRow.style.display = isShown ? 'none' : 'block';
+            if (!isShown) {
+                document.querySelectorAll('.btn-remote-preset').forEach(b => b.classList.remove('active'));
+                if (btnElem) btnElem.classList.add('active');
+                const customInp = document.getElementById('input-remote-custom-days');
+                if (customInp) {
+                    customInp.focus();
+                    if (customInp.value) onRemoteCustomDaysInput(customInp.value);
+                }
+            }
+        }
+
+        function onRemoteCustomDaysInput(val) {
+            const days = parseInt(val, 10);
+            if (days > 0) {
+                document.getElementById('remote-ext-days-val').value = days;
+                document.getElementById('remote-ext-plan-val').value = `PRO ${days}D`;
+                document.getElementById('remote-dur-hint-text').textContent = `+${days} ថ្ងៃ`;
+            }
+        }
+
+        async function executeRemoteExtend() {
+            if (!activeExtendKeyItem) {
+                showToast("❌ មិនមាន Key ត្រូវបានជ្រើសរើសឡើយ!");
+                return;
+            }
+
+            const key = activeExtendKeyItem.license_key;
+            const days = parseInt(document.getElementById('remote-ext-days-val').value, 10) || 0;
+            const plan = document.getElementById('remote-ext-plan-val').value || "PRO";
+            const autoPush = document.getElementById('remote-auto-push-check') ? document.getElementById('remote-auto-push-check').checked : true;
+
+            const btnConfirm = document.getElementById('btn-confirm-remote-ext');
+            if (btnConfirm) {
+                btnConfirm.disabled = true;
+                btnConfirm.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>កំពុងបន្តពីចម្ងាយ...</span>`;
+            }
+
+            try {
+                const res = await fetch('/api/admin/extend-key', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        license_key: key,
+                        additional_days: days,
+                        plan: plan,
+                        auto_push: autoPush
+                    })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message || `🎉 បានបន្តសុពលភាព Key ${key} ពីចម្ងាយដោយជោគជ័យ!`);
+                    closeRemoteExtendModal();
+                    await fetchKeysHistory();
+                } else {
+                    showToast("❌ " + (data.error || data.message || "Failed to extend key"));
+                }
+            } catch (err) {
+                console.error("Extend error:", err);
+                showToast("❌ Network error while extending key");
+            } finally {
+                if (btnConfirm) {
+                    btnConfirm.disabled = false;
+                    btnConfirm.innerHTML = `<i class="fa-solid fa-tower-broadcast"></i> <span>បញ្ជាក់ការបន្តសុពលភាពពីចម្ងាយ</span>`;
+                }
+            }
+        }
+
+        function handleRenewRow(index) {
+            openRemoteExtendModal(index);
         }
 
         function selectRowForDelivery(index) {

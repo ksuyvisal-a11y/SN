@@ -47,160 +47,6 @@
     "bound_hwid": "ANY",
     "status": "ACTIVE"
   },
-  "SAL-VIP-2026": {
-    "license_key": "SAL-VIP-2026",
-    "client_name": "Sal",
-    "plan": "LIFETIME",
-    "duration_days": 0,
-    "created_at": "2026-10-01 00:00:00",
-    "expires_at": "LIFETIME",
-    "expiry_timestamp": 0,
-    "bound_hwid": "ANY",
-    "status": "ACTIVE"
-  },
-  "SAL-VIP-888": {
-    "license_key": "SAL-VIP-888",
-    "client_name": "Khmer User",
-    "plan": "LIFETIME",
-    "duration_days": 0,
-    "created_at": "2026-10-01 00:00:00",
-    "expires_at": "LIFETIME",
-    "expiry_timestamp": 0,
-    "bound_hwid": "ANY",
-    "status": "ACTIVE"
-  },
-  "SAL-2026": {
-    "license_key": "SAL-2026",
-    "client_name": "Sal",
-    "plan": "LIFETIME",
-    "duration_days": 0,
-    "created_at": "2026-10-01 00:00:00",
-    "expires_at": "LIFETIME",
-    "expiry_timestamp": 0,
-    "bound_hwid": "ANY",
-    "status": "ACTIVE"
-  },
-  "MYPASS888": {
-    "license_key": "MYPASS888",
-    "client_name": "Customer",
-    "plan": "LIFETIME",
-    "duration_days": 0,
-    "created_at": "2026-10-01 00:00:00",
-    "expires_at": "LIFETIME",
-    "expiry_timestamp": 0,
-    "bound_hwid": "ANY",
-    "status": "ACTIVE"
-  },
-  "VIP-CAMBODIA-2026": {
-    "license_key": "VIP-CAMBODIA-2026",
-    "client_name": "Cambodia User",
-    "plan": "LIFETIME",
-    "duration_days": 0,
-    "created_at": "2026-10-01 00:00:00",
-    "expires_at": "LIFETIME",
-    "expiry_timestamp": 0,
-    "bound_hwid": "ANY",
-    "status": "ACTIVE"
-  },
-  "VIP-PRO-2026": {
-    "license_key": "VIP-PRO-2026",
-    "client_name": "Studio Pro",
-    "plan": "LIFETIME",
-    "duration_days": 0,
-    "created_at": "2026-10-01 00:00:00",
-    "expires_at": "LIFETIME",
-    "expiry_timestamp": 0,
-    "bound_hwid": "ANY",
-    "status": "ACTIVE"
-  },
-  "SN-STUDIO-PRO": {
-    "license_key": "SN-STUDIO-PRO",
-    "client_name": "Studio Pro",
-    "plan": "LIFETIME",
-    "duration_days": 0,
-    "created_at": "2026-10-01 00:00:00",
-    "expires_at": "LIFETIME",
-    "expiry_timestamp": 0,
-    "bound_hwid": "ANY",
-    "status": "ACTIVE"
-  },
-  "SN-VIP-8888": {
-    "license_key": "SN-VIP-8888",
-    "client_name": "Member",
-    "plan": "LIFETIME",
-    "duration_days": 0,
-    "created_at": "2026-10-01 00:00:00",
-    "expires_at": "LIFETIME",
-    "expiry_timestamp": 0,
-    "bound_hwid": "ANY",
-    "status": "ACTIVE"
-  },
-  "VIP-STUDIO-2026": {
-    "license_key": "VIP-STUDIO-2026",
-    "client_name": "Studio Member",
-    "plan": "LIFETIME",
-    "duration_days": 0,
-    "created_at": "2026-10-01 00:00:00",
-    "expires_at": "LIFETIME",
-    "expiry_timestamp": 0,
-    "bound_hwid": "ANY",
-    "status": "ACTIVE"
-  },
-  "SN-2026-PRO": {
-    "license_key": "SN-2026-PRO",
-    "client_name": "SN Pro",
-    "plan": "LIFETIME",
-    "duration_days": 0,
-    "created_at": "2026-10-01 00:00:00",
-    "expires_at": "LIFETIME",
-    "expiry_timestamp": 0,
-    "bound_hwid": "ANY",
-    "status": "ACTIVE"
-  },
-  "LIFETIME-VIP": {
-    "license_key": "LIFETIME-VIP",
-    "client_name": "Lifetime User",
-    "plan": "LIFETIME",
-    "duration_days": 0,
-    "created_at": "2026-10-01 00:00:00",
-    "expires_at": "LIFETIME",
-    "expiry_timestamp": 0,
-    "bound_hwid": "ANY",
-    "status": "ACTIVE"
-  },
-  "VIP-DARA-2026": {
-    "license_key": "VIP-DARA-2026",
-    "client_name": "Dara",
-    "plan": "LIFETIME",
-    "duration_days": 0,
-    "created_at": "2026-10-01 00:00:00",
-    "expires_at": "LIFETIME",
-    "expiry_timestamp": 0,
-    "bound_hwid": "ANY",
-    "status": "ACTIVE"
-  },
-  "SN-VIP": {
-    "license_key": "SN-VIP",
-    "client_name": "Member",
-    "plan": "LIFETIME",
-    "duration_days": 0,
-    "created_at": "2026-10-01 00:00:00",
-    "expires_at": "LIFETIME",
-    "expiry_timestamp": 0,
-    "bound_hwid": "ANY",
-    "status": "ACTIVE"
-  },
-  "VIP2026": {
-    "license_key": "VIP2026",
-    "client_name": "Member",
-    "plan": "LIFETIME",
-    "duration_days": 0,
-    "created_at": "2026-10-01 00:00:00",
-    "expires_at": "LIFETIME",
-    "expiry_timestamp": 0,
-    "bound_hwid": "ANY",
-    "status": "ACTIVE"
-  },
   "DRAMA-4404-2026": {
     "license_key": "DRAMA-4404-2026",
     "client_name": "sal",
@@ -215,6 +61,18 @@
     "status": "ACTIVE",
     "revoked_at": "2026-10-05 21:55:31",
     "revoke_reason": "Admin blocked user"
+  },
+  "SAL-2026": {
+    "license_key": "SAL-2026",
+    "client_name": "Customer",
+    "plan": "PRO",
+    "duration_days": 90,
+    "created_at": "2026-10-17 15:12:13",
+    "bound_hwid": "ANY",
+    "status": "ACTIVE",
+    "expires_at": "2026-12-16",
+    "expiry_timestamp": 1797408733,
+    "last_renewed": "2026-10-17 15:12:18"
   },
   "SN-PRO-526A-3693-F457-DBD7A0": {
     "license_key": "SN-PRO-526A-3693-F457-DBD7A0",

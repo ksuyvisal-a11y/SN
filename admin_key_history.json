@@ -1,5 +1,17 @@
 [
   {
+    "license_key": "SAL-2026",
+    "client_name": "Customer",
+    "plan": "PRO",
+    "duration_days": 90,
+    "created_at": "2026-10-17 15:12:13",
+    "bound_hwid": "ANY",
+    "status": "ACTIVE",
+    "expires_at": "2026-12-16",
+    "expiry_timestamp": 1797408733,
+    "last_renewed": "2026-10-17 15:12:18"
+  },
+  {
     "license_key": "SN-PRO-526A-3693-F457-DBD7A0",
     "client_name": "Developer",
     "plan": "PRO",
@@ -12,8 +24,8 @@
     "signature": "DBD7A0",
     "status": "ACTIVE",
     "activated_at": "2026-10-07 10:20:17",
-    "last_active": "2026-10-17 14:23:54",
-    "use_count": 7283,
+    "last_active": "2026-10-17 15:12:30",
+    "use_count": 7284,
     "active_hwid": "E53CEFB948DFC356",
     "last_active_hwid": "E53CEFB948DFC356"
   },
