@@ -4477,12 +4477,11 @@ function renderQueueViewForCurrentDrama() {
                     <span class="dl-q2-ep-badge-text">EP ${epNum}</span>
                     <span class="dl-q2-ep-name-text" title="${escapeHtml(displayEpTitle)}">${escapeHtml(displayEpTitle)}</span>
                 </div>
-                <div class="dl-q2-status-pill ${statusClass}">${pillDisplay}</div>
                 <div class="dl-q2-prog-group">
                     <div class="dl-q2-prog-track">
                         <div class="dl-q2-prog-fill ${statusClass}" id="dl-q-fill-${epNum}" style="${fillStyle}"></div>
                     </div>
-                    <span class="dl-q2-prog-val ${statusClass}" id="dl-q-text-${epNum}" style="${textStyle}">${statusText === 'Failed' ? 'Failed' : `${prog}%`}</span>
+                    <span class="dl-q2-prog-val ${statusClass}" id="dl-q-text-${epNum}" style="${textStyle}">${statusText === 'Completed' ? '✔ 100%' : (statusText === 'Failed' ? '❌ Failed' : (statusText === 'Downloading' ? `⚡ ${prog}%` : `${prog}%`))}</span>
                 </div>
             `;
             tbody.appendChild(row);
@@ -4580,13 +4579,13 @@ function updateEpisodeUIState(ep, isDownloadingBatch = false) {
     // 4. Episode Queue Table Progress Percentage Text
     if (text) {
         if (status === 'Completed') {
-            text.textContent = '100%';
+            text.textContent = '✔ 100%';
             text.style.color = '#10b981';
         } else if (status === 'Failed') {
-            text.textContent = 'Failed';
+            text.textContent = '❌ Failed';
             text.style.color = '#ef4444';
         } else if (status === 'Downloading') {
-            text.textContent = `${prog}%`;
+            text.textContent = `⚡ ${prog}%`;
             text.style.color = '#fbbf24';
         } else if (status === 'Queued') {
             text.textContent = '0%';

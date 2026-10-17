@@ -10688,9 +10688,9 @@ select, option, optgroup {
 
 .dl-q2-thead {
     display: grid;
-    grid-template-columns: 1fr 100px 95px;
+    grid-template-columns: 1fr 130px;
     align-items: center;
-    padding: 8px 10px;
+    padding: 8px 12px;
     font-size: 0.68rem;
     font-weight: 800;
     color: #64748b;
@@ -10705,7 +10705,7 @@ select, option, optgroup {
 }
 
 .dl-q2-th-status {
-    text-align: center;
+    display: none;
 }
 
 .dl-q2-th-prog {
@@ -10741,9 +10741,9 @@ select, option, optgroup {
 /* Individual Episode Queue Row */
 .dl-q2-tr {
     display: grid;
-    grid-template-columns: 1fr 100px 95px;
+    grid-template-columns: 1fr 130px;
     align-items: center;
-    padding: 7px 8px;
+    padding: 7px 10px;
     border-radius: 7px;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -10871,15 +10871,15 @@ select, option, optgroup {
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 8px;
+    gap: 10px;
     padding-right: 4px;
 }
 
 .dl-q2-prog-track {
     flex: 1;
-    height: 4px;
+    height: 5px;
     background: rgba(255, 255, 255, 0.08);
-    border-radius: 2px;
+    border-radius: 3px;
     overflow: hidden;
 }
 
@@ -10887,7 +10887,7 @@ select, option, optgroup {
     height: 100%;
     width: 0%;
     background: linear-gradient(90deg, #f59e0b, #fbbf24);
-    border-radius: 2px;
+    border-radius: 3px;
     transition: width 0.3s ease, background 0.3s ease;
 }
 
@@ -10904,8 +10904,9 @@ select, option, optgroup {
     font-weight: 700;
     color: #94a3b8;
     font-family: 'JetBrains Mono', monospace;
-    min-width: 32px;
+    min-width: 52px;
     text-align: right;
+    white-space: nowrap;
     transition: color 0.2s ease;
 }
 
