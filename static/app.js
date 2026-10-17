@@ -4474,7 +4474,7 @@ function renderQueueViewForCurrentDrama() {
             row.innerHTML = `
                 <div class="dl-q2-col-ep">
                     <div class="dl-q2-capsule-toggle ${isSelected ? 'checked' : ''}" onclick="event.stopPropagation(); toggleQueueEpisodeSelect(${epNum})"></div>
-                    <span class="dl-q2-ep-badge-text">EP ${epNum}</span>
+                    <span class="dl-q2-ep-badge-text">Episode ${String(epNum).padStart(2, '0')}</span>
                 </div>
                 <div class="dl-q2-prog-group">
                     <div class="dl-q2-prog-track">
@@ -4490,7 +4490,7 @@ function renderQueueViewForCurrentDrama() {
         if (dropdown) {
             const opt = document.createElement('option');
             opt.value = epNum;
-            opt.textContent = `EP ${epNum}`;
+            opt.textContent = `Episode ${String(epNum).padStart(2, '0')}`;
             dropdown.appendChild(opt);
         }
     });
