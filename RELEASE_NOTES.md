@@ -1,6 +1,15 @@
-# 🚀 SN TOOL STUDIO PRO - Official Release v1.0.6
+# 🚀 SN TOOL STUDIO PRO - Official Release v1.0.7
 
-### ✨ មុខងារ និងការកែលម្អក្នុង Version 1.0.6៖
+### ✨ មុខងារ និងការកែលម្អក្នុង Version 1.0.7៖
+- 📡 **Over-The-Air (OTA) Remote License Extension:** បន្តសុពលភាព License Key របស់អតិថិជនពីចម្ងាយបានភ្លាមៗ ដោយអតិថិជនមិនបាច់ផ្លាស់ប្តូរ ឬវាយបញ្ចូល Key ថ្មីឡើយ។
+- 👑 **English Orion SaaS Admin Dashboard:** ផ្ទាំងគ្រប់គ្រង License Admin Control Center (Port 8888) ត្រូវបានកែសម្រួលជាភាសាអង់គ្លេសស្អាត ទំនើប ស្រួលប្រើ និងមានសុវត្ថិភាពខ្ពស់។
+- 💎 **Nisay Cloud AI Gateway Live Monitor:** បន្ថែមឧបករណ៍ត្រួតពិនិត្យសមតុល្យ និង Token ផ្ទាល់ជាមួយ Nisay API Gateway ដោយគ្រាន់តែចុច 1-Click។
+- 🛡️ **Military-Grade Bytecode Protection:** កូដ Python ទាំងអស់ត្រូវបាន Compile ទៅជា `.pyc` ក្នុងកញ្ចប់ចែកចាយ និង Obfuscate JavaScript ការពារការបែកធ្លាយកូដដើម ១០០%។
+- ⚡ **Enhanced Update Engine:** ជួសជុល និងធ្វើបច្ចុប្បន្នភាពប្រព័ន្ធស្វែងរកកំណែថ្មីដោយស្វ័យប្រវត្តិតាមរយៈ GitHub Releases។
+
+---
+
+### 🌟 Version 1.0.6៖
 - 🎙️ **100% Khmer Voice Guarantee on All Client PCs:** ស្ថាបត្យកម្ម Dual-Engine (Edge-TTS + Direct Google Khmer Neural Speech Failover) ធានាថាសំឡេងពិសិដ្ឋ និងស្រីមុំ តែងតែបន្លឺឡើងឮច្បាស់ ១០០% គ្មានការដាច់សំឡេងស្ងាត់ឡើយ។
 - 🔇 **Zero Vocal Bleed (-45dB Formant Notch Filter):** បិទសំឡេងដើមរបស់តួសម្តែងក្នុងរឿងភាគបរទេសឱ្យស្ងាត់ល្អ ១០០% ជាមួយមុខងារ conversational hold 2.2s និងកាត់ Formant -45dB មិនឱ្យជាន់សំឡេងគ្នា។
 - 🔒 **Universal SSL & Antivirus Shield:** ការពារបញ្ហាដាច់ TLS connection និង certificate rejection នៅលើកុំព្យូទ័រ Client និងប្រព័ន្ធ Auto-healing whitelist។

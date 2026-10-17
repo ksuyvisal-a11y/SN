@@ -1166,7 +1166,7 @@ def license_status_endpoint():
         from update import get_local_version
         info["app_version"] = get_local_version()
     except Exception:
-        info["app_version"] = "1.0.4"
+        info["app_version"] = "1.0.7"
 
     cfg_path = get_data_file("license_config.json")
     if cfg_path.exists():

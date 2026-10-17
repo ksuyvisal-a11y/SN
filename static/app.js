@@ -11114,8 +11114,8 @@ async function checkForAppUpdates(manual = false) {
                 const ghRes = await fetch('https://raw.githubusercontent.com/ksuyvisal-a11y/SN/main/version.json?t=' + Date.now());
                 if (ghRes.ok) {
                     const ghData = await ghRes.json();
-                    const curTag = document.getElementById('splash-version-tag')?.textContent?.replace('v', '').trim() || '1.0.4';
-                    const latVer = (ghData.version || '1.0.4').trim();
+                    const curTag = document.getElementById('splash-version-tag')?.textContent?.replace('v', '').trim() || '1.0.7';
+                    const latVer = (ghData.version || '1.0.7').trim();
                     data = {
                         success: true,
                         has_update: latVer !== curTag,
@@ -11145,7 +11145,7 @@ async function checkForAppUpdates(manual = false) {
         const btnUpdate = document.getElementById('btn-do-update');
         const progContainer = document.getElementById('update-progress-container');
 
-        const curVer = data.current_version || '1.0.6';
+        const curVer = data.current_version || '1.0.7';
         const latVer = data.latest_version || curVer;
 
         if (curEl) curEl.textContent = `v${curVer}`;
