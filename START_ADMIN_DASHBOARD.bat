@@ -9,11 +9,11 @@ cls
 
 echo ========================================================================
 echo  👑 SN TOOL - LICENSE ADMIN CONTROL CENTER (ORION LIGHT THEME)
-echo  🛡️  Port: 8888 (ដំណើរការដាច់ដោយឡែកពី Tool ភ្ញៀវ Port 8000)
-echo  🔐 ប្រព័ន្ធគ្រប់គ្រង និងបង្កើត KEY ជូនអតិថិជន
+echo  🛡️  Port: 8888 (Dedicated Admin Control Center - Isolated from Port 8000)
+echo  🔐 License Key Management & Generation System
 echo ========================================================================
 echo.
-echo [INFO] កំពុងចាប់ផ្តើម Admin Server (Port 8888) និងបើក Browser...
+echo [INFO] Starting Admin Server (Port 8888) and opening Browser...
 echo.
 
 where python >nul 2>nul
@@ -48,7 +48,7 @@ pause
 :END
 echo.
 echo ========================================================================
-echo  [INFO] កម្មវិធី ADMIN DASHBOARD បានបញ្ចប់ដំណើរការ ឬត្រូវបានបិទ។
-echo  👉 ចុច Enter ឬ Key ណាមួយដើម្បីចាកចេញពីផ្ទាំងនេះ...
+echo  [INFO] ADMIN DASHBOARD process finished or closed.
+echo  👉 Press Enter or any key to exit this window...
 echo ========================================================================
 pause >nul

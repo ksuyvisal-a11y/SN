@@ -92,28 +92,28 @@ def print_header():
     print("=" * 65)
 
 def print_key_card(record):
-    client = record.get('client_name') or 'អតិថិជនកិត្តិយស'
+    client = record.get('client_name') or 'Valued Customer'
     key = record.get('license_key', '')
     plan = record.get('plan') or 'PRO Lifetime'
-    expiry = record.get('expires_at') or 'LIFETIME (ប្រើប្រាស់រហូត)'
-    hwid = record.get('bound_hwid') or 'កុំព្យូទ័រណាក៏បាន (Any Machine)'
+    expiry = record.get('expires_at') or 'LIFETIME (Permanent)'
+    hwid = record.get('bound_hwid') or 'Any Machine (Universal)'
     if hwid in ['ANY', '*']:
-        hwid = 'កុំព្យូទ័រណាក៏បាន (Any Machine)'
+        hwid = 'Any Machine (Universal)'
 
     delivery_msg = (
         f"\n=======================================================\n"
         f" 🎬 SN STUDIO - VIP LICENSE KEY\n"
         f"=======================================================\n"
-        f" 👤 អតិថិជន (Client): {client}\n"
-        f" 🔑 លេខកូដ (Key):     {key}\n"
-        f" 📦 កញ្ចប់ (Plan):     {plan}\n"
-        f" ⏳ សុពលភាព (Expiry): {expiry}\n"
-        f" 🔒 ម៉ាស៊ីន (HWID):    {hwid}\n"
+        f" 👤 Customer: {client}\n"
+        f" 🔑 License Key: {key}\n"
+        f" 📦 Plan: {plan}\n"
+        f" ⏳ Validity: {expiry}\n"
+        f" 🔒 Machine HWID: {hwid}\n"
         f"-------------------------------------------------------\n"
-        f" 📖 មគ្គុទ្ទេសក៍ណែនាំរហ័ស:\n"
-        f" ១. បើកកម្មវិធី SN TOOL នៅលើកុំព្យូទ័រ\n"
-        f" ២. Paste លេខ License Key ខាងលើ រួចចុច Activate License\n"
-        f" ៣. ចូលប្រើ Downloader & AI Studio បានភ្លាមៗ ១០០%!\n"
+        f" 📖 Quick Onboarding Guide:\n"
+        f" 1. Open SN TOOL on your computer.\n"
+        f" 2. Copy and Paste your License Key above, then click Activate License.\n"
+        f" 3. Enjoy full access to Downloader & AI Studio 100%!\n"
         f"======================================================="
     )
     print(delivery_msg)
@@ -136,7 +136,7 @@ def interactive_menu():
             print(" 👥 SECTION 3: CUSTOMER MANAGEMENT & BLOCK USER")
             print(" [4] Block / Revoke User Key (Revoke / Ban Key)")
             print(" [5] Unban Key (Restore / Reactivate Key)")
-            print(" [E] 📡 Extend / Renew Key Remotely (បន្តសុពលភាព Key ពីចម្ងាយ)")
+            print(" [E] 📡 Extend / Renew Key Remotely (OTA Extension)")
             print(" [7] View All Keys History")
             print(" [8] Verify License Key")
             print("-" * 65)
@@ -259,19 +259,19 @@ def interactive_menu():
             input("\nPress Enter to continue...")
 
         elif choice.upper() == "E":
-            print("\n📡 EXTEND / RENEW LICENSE KEY REMOTELY (បន្តសុពលភាព Key ពីចម្ងាយ):")
+            print("\n📡 EXTEND / RENEW LICENSE KEY REMOTELY (OTA Extension):")
             target_key = input("👉 Enter Customer's License Key to extend: ").strip()
             if not target_key:
                 print("⚠️ No Key entered!")
                 input("\nPress Enter to continue...")
                 continue
 
-            print("\nSelect Extension Duration (ជ្រើសរើសរយៈពេលបន្ត):")
-            print(" [1] +30 Days (១ ខែ)")
-            print(" [2] +90 Days (៣ ខែ)")
-            print(" [3] +365 Days (១ ឆ្នាំ)")
-            print(" [4] 👑 Lifetime (អចិន្ត្រៃយ៍ / រហូត)")
-            print(" [5] Custom Days (បញ្ចូលចំនួនថ្ងៃតាមចិត្ត)")
+            print("\nSelect Extension Duration:")
+            print(" [1] +30 Days (1 Month)")
+            print(" [2] +90 Days (3 Months)")
+            print(" [3] +365 Days (1 Year)")
+            print(" [4] 👑 Lifetime (Permanent)")
+            print(" [5] Custom Days")
             dur_sel = input("👉 Select (1-5): ").strip()
 
             if dur_sel == "1":

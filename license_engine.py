@@ -719,7 +719,7 @@ def extend_license_key(target_key: str, additional_days: int = 30, plan: Optiona
     """
     cleaned = target_key.strip().upper()
     if not cleaned:
-        return False, "សូមជ្រើសរើស ឬបញ្ចូល Key ដែលត្រូវបន្តសុពលភាព", {}
+        return False, "Please select or enter a License Key to extend", {}
 
     # Unban if revoked
     revoked_list = get_revoked_keys()
@@ -833,7 +833,7 @@ def extend_license_key(target_key: str, additional_days: int = 30, plan: Optiona
         pass
 
     enriched = calculate_key_live_status(target_record)
-    msg = f"🎉 បានបន្តសុពលភាព Key {cleaned} ពីចម្ងាយដោយជោគជ័យ! សុពលភាពថ្មីរហូតដល់ {target_record.get('expires_at')}"
+    msg = f"🎉 License Key {cleaned} extended remotely successfully! New expiry date: {target_record.get('expires_at')}"
     return True, msg, enriched
 
 

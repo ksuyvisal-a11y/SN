@@ -8,8 +8,8 @@ color 0a
 cls
 
 echo ========================================================================
-echo  👑 កំពុងដំណើរការ SN STUDIO - ADMIN KEY GENERATOR (PORT 8888)...
-echo  🔐 ប្រព័ន្ធបង្កើត និងគ្រប់គ្រង License Key ជូនអតិថិជន
+echo  👑 Running SN STUDIO - ADMIN KEY GENERATOR (PORT 8888)...
+echo  🔐 License Key Management & Generation System
 echo ========================================================================
 echo.
 
@@ -130,13 +130,13 @@ if exist "%USERPROFILE%\AppData\Roaming\uv\python\cpython-3.14.6-windows-x86_64-
 
 :: 10. Fallback: Run Standalone Executable (.EXE)
 if exist "dist\ADMIN_KEY_GENERATOR\ADMIN_KEY_GENERATOR.exe" (
-    echo [INFO] Python មិនទាន់បានដំឡើង ដូច្នេះកំពុងបើកដំណើរការតាមរយៈ Standalone EXE...
+    echo [INFO] Python not found, launching via Standalone EXE...
     start "" "dist\ADMIN_KEY_GENERATOR\ADMIN_KEY_GENERATOR.exe"
     goto :END
 )
 
 if exist "ADMIN_KEY_GENERATOR.exe" (
-    echo [INFO] Python មិនទាន់បានដំឡើង ដូច្នេះកំពុងបើកដំណើរការតាមរយៈ Standalone EXE...
+    echo [INFO] Python not found, launching via Standalone EXE...
     start "" "ADMIN_KEY_GENERATOR.exe"
     goto :END
 )
@@ -148,7 +148,7 @@ pause
 :END
 echo.
 echo ========================================================================
-echo  [INFO] កម្មវិធី ADMIN KEY GENERATOR បានបញ្ចប់ដំណើរការ ឬត្រូវបានបិទ។
-echo  👉 ចុច Enter ឬ Key ណាមួយដើម្បីចាកចេញពីផ្ទាំងនេះ...
+echo  [INFO] ADMIN KEY GENERATOR process finished or closed.
+echo  👉 Press Enter or any key to exit this window...
 echo ========================================================================
 pause >nul
